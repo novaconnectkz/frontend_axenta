@@ -177,6 +177,7 @@
             </button>
 
             <!-- Выпадающая панель с информацией в стиле Apple -->
+            <div v-if="showUserInfo" class="dropdown-overlay" @click="showUserInfo = false"></div>
             <div v-if="showUserInfo" class="apple-dropdown" @click.stop>
               <div v-if="user">
                 <!-- Компактный заголовок -->
@@ -427,19 +428,19 @@
 
     <!-- Подвал с временем -->
     <div
-      style="position: fixed; bottom: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); padding: 20px 30px; border-top-left-radius: 20px; box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.1); z-index: 1000;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="color: #667eea;">
+      style="position: fixed; bottom: 0; right: 0; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); padding: 12px 16px; border-top-left-radius: 12px; box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1); border: 1px solid rgba(0, 0, 0, 0.1); pointer-events: none;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="color: #667eea;">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
           <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round" />
         </svg>
         <div>
           <div
-            style="font-size: 18px; font-weight: 600; color: #1a1a1a; line-height: 1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            style="font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
             {{ currentTime }}
           </div>
-          <div style="font-size: 12px; color: #666; margin-top: 2px;">
+          <div style="font-size: 10px; color: #666; margin-top: 1px;">
             Текущее время
           </div>
         </div>
@@ -840,6 +841,8 @@ const logout = () => {
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 1001;
 }
 
 .header-left h1 {
@@ -880,6 +883,7 @@ const logout = () => {
 .user-info-container {
   position: relative;
   display: inline-block;
+  z-index: 9999;
 }
 
 /* Сетка виджетов */
@@ -1454,20 +1458,32 @@ const logout = () => {
   background: rgba(255, 59, 48, 0.1);
 }
 
+/* Overlay для выпадающего меню */
+.dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: transparent;
+  z-index: 99998;
+  cursor: default;
+}
+
 /* Выпадающая панель в стиле Apple */
 .apple-dropdown {
-  position: absolute;
-  top: 54px;
-  right: 0;
-  background: rgba(255, 255, 255, 0.95);
+  position: fixed;
+  top: 74px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: 16px;
   padding: 0;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
   width: 300px;
   max-height: 400px;
-  z-index: 1000;
+  z-index: 99999;
   overflow: hidden;
   animation: dropdownAppear 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
