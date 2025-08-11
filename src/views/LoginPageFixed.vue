@@ -159,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { config } from '@/config/env'
 import axios from 'axios'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -296,7 +297,7 @@ const handleLogin = async () => {
 
   try {
     console.log('Attempting login...')
-    const response = await axios.post('http://localhost:8080/api/login', {
+    const response = await axios.post(`${config.apiBaseUrl}/login`, {
       username: form.value.username,
       password: form.value.password
     })

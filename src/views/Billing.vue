@@ -473,6 +473,7 @@
 </template>
 
 <script lang="ts" setup>
+import { config } from '@/config/env'
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 
@@ -625,7 +626,7 @@ const planSelectItems = computed(() =>
 const fetchPlans = async () => {
   loadingPlans.value = true
   try {
-    const response = await axios.get('http://localhost:8080/api/billing/plans')
+    const response = await axios.get(`${config.apiBaseUrl}/billing/plans`)
     plans.value = response.data.data
   } catch (error) {
     console.error('Ошибка при загрузке планов:', error)
@@ -638,7 +639,7 @@ const fetchSubscriptions = async () => {
   loadingSubscriptions.value = true
   try {
     // В реальном приложении company_id должен браться из контекста пользователя
-    const response = await axios.get('http://localhost:8080/api/billing/subscriptions?company_id=1')
+    const response = await axios.get(`${config.apiBaseUrl}/billing/subscriptions?company_id=1`)
     subscriptions.value = response.data.data
   } catch (error) {
     console.error('Ошибка при загрузке подписок:', error)
@@ -682,9 +683,9 @@ const savePlan = async () => {
   savingPlan.value = true
   try {
     if (editingPlan.value.id) {
-      await axios.put(`http://localhost:8080/api/billing/plans/${editingPlan.value.id}`, editingPlan.value)
+      await axios.put(`${config.apiBaseUrl}/billing/plans/${editingPlan.value.id}`, editingPlan.value)
     } else {
-      await axios.post('http://localhost:8080/api/billing/plans', editingPlan.value)
+      await axios.post(`${config.apiBaseUrl}/billing/plans`, editingPlan.value)
     }
     await fetchPlans()
     closePlanDialog()
@@ -699,7 +700,7 @@ const deletePlan = async (plan: BillingPlan) => {
   if (!confirm(`Вы уверены, что хотите удалить план "${plan.name}"?`)) return
 
   try {
-    await axios.delete(`http://localhost:8080/api/billing/plans/${plan.id}`)
+    await axios.delete(`${config.apiBaseUrl}/billing/plans/${plan.id}`)
     await fetchPlans()
   } catch (error) {
     console.error('Ошибка при удалении плана:', error)
@@ -732,9 +733,9 @@ const saveSubscription = async () => {
   savingSubscription.value = true
   try {
     if (editingSubscription.value.id) {
-      await axios.put(`http://localhost:8080/api/billing/subscriptions/${editingSubscription.value.id}`, editingSubscription.value)
+      await axios.put(`${config.apiBaseUrl}/billing/subscriptions/${editingSubscription.value.id}`, editingSubscription.value)
     } else {
-      await axios.post('http://localhost:8080/api/billing/subscriptions', editingSubscription.value)
+      await axios.post(`${config.apiBaseUrl}/billing/subscriptions`, editingSubscription.value)
     }
     await fetchSubscriptions()
     closeSubscriptionDialog()
@@ -749,7 +750,7 @@ const cancelSubscription = async (subscription: Subscription) => {
   if (!confirm(`Вы уверены, что хотите отменить подписку?`)) return
 
   try {
-    await axios.put(`http://localhost:8080/api/billing/subscriptions/${subscription.id}`, {
+    await axios.put(`${config.apiBaseUrl}/billing/subscriptions/${subscription.id}`, {
       status: 'cancelled'
     })
     await fetchSubscriptions()

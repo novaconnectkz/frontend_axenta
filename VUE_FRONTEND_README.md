@@ -205,8 +205,13 @@ const passwordRules = [
 ### Базовая настройка
 
 ```typescript
-// context/auth.ts уже настраивает axios:
-axios.defaults.baseURL = "http://localhost:8080/api";
+// Настройка через переменные окружения:
+// В .env.local или .env.production файле установите:
+// VITE_BACKEND_URL=http://194.87.143.169:8080
+
+// Использование в коде:
+import { config } from "@/config/env";
+axios.defaults.baseURL = config.apiBaseUrl;
 axios.defaults.timeout = 10000;
 
 // Автоматическое добавление токена

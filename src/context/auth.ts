@@ -1,3 +1,4 @@
+import { config } from "@/config/env";
 import axios from "axios";
 import {
   computed,
@@ -58,7 +59,7 @@ export function useAuthProvider() {
     error.value = null;
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/login",
+        `${config.apiBaseUrl}/login`,
         credentials
       );
       user.value = response.data.data.user;

@@ -28,6 +28,7 @@
 </template>
 
 <script setup lang="ts">
+import { config } from '@/config/env'
 import axios from 'axios'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -47,7 +48,7 @@ const login = async () => {
   
   try {
     console.log('Attempting login...')
-    const response = await axios.post('http://localhost:8080/api/login', {
+    const response = await axios.post(`${config.apiBaseUrl}/login`, {
       username: username.value,
       password: password.value
     })
