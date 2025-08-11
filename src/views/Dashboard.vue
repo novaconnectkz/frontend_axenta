@@ -1,44 +1,37 @@
 <template>
   <v-container>
     <v-card>
-      <v-card-title>Дашборд {{ auth.user?.name || 'Гость' }}</v-card-title>
+      <v-card-title>Дашборд {{ auth.user.value?.name || 'Гость' }}</v-card-title>
       <v-card-text>
-        <v-data-table :items="objects" :headers="headers">
-          <template v-slot:top>
-            <v-toolbar flat>
-              <v-toolbar-title>Объекты</v-toolbar-title>
-            </v-toolbar>
-          </template>
-        </v-data-table>
+        <p>Имя аккаунта: {{ auth.user.value?.accountName }}</p>
+        <p>Тип аккаунта: {{ auth.user.value?.accountType }}</p>
+        <p>Создатель: {{ auth.user.value?.creatorName }}</p>
+        <p>ID: {{ auth.user.value?.id }}</p>
+        <p>Последний вход: {{ auth.user.value?.lastLogin }}</p>
+        <p>Логин: {{ auth.user.value?.username }}</p>
+        <v-btn color="primary" @click="handleLogout">Выйти</v-btn>
       </v-card-text>
     </v-card>
   </v-container>
 </template>
 
 <script lang="ts">
-import { AuthContext } from '../../context/auth';
-import axios from 'axios';
-import { defineComponent, inject, ref } from 'vue';
+import { type AuthContext, AuthKey } from '@/context/auth';
+import { defineComponent, inject } from 'vue';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
   name: 'Dashboard',
   setup() {
-    const auth = inject<AuthContext>('auth')!;
-    const objects = ref([]);
-    const headers = [
-      { title: 'Название', key: 'name' },
-      { title: 'IMEI', key: 'imei' },
-      { title: 'Широта', key: 'latitude' },
-      { title: 'Долгота', key: 'longitude' },
-    ];
+    const auth = inject<AuthContext>(AuthKey)!;
+    const router = useRouter();
 
-    const fetchObjects = async () => {
-      const response = await axios.get('http://localhost:8080/api/objects');
-      objects.value = response.data.data;
+    const handleLogout = () => {
+      auth.logout();
+      router.push('/login');
     };
 
-    fetchObjects();
-    return { auth, objects, headers };
+    return { auth, handleLogout };
   },
 });
 </script>

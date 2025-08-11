@@ -1,0 +1,70 @@
+# Правила для Vue-фронтенда с авторизацией
+
+Используйте Vue 3 с Composition API.
+Компоненты именуйте в PascalCase.
+Файлы компонентов должны иметь расширение .vue.
+Для управления состоянием используйте Pinia в frontend_axenta/src/store/.
+Для авторизации используйте provide/inject в frontend_axenta/src/context/auth.ts.
+Все API-запросы выполняйте через axios к бэкенду (http://localhost:8080/api).
+Валидируйте поля логина и пароля (3–64 символа) с помощью Vuetify rules.
+Используйте Vuetify для UI-компонентов.
+Пишите типизированный код с TypeScript.
+Используйте двойные кавычки для строк и точки с запятой.
+Сортируйте импорты в алфавитном порядке.
+Следуйте шаблону компонента:@component-template.vue
+
+## Шаблон компонента
+
+```vue
+<template>
+  <div>
+    <!-- Контент компонента -->
+  </div>
+</template>
+
+<script lang="ts">
+import { defineComponent } from "vue";
+
+export default defineComponent({
+  name: "ComponentName",
+  setup() {
+    return {};
+  },
+});
+</script>
+
+<style scoped>
+/* Стили */
+</style>
+```
+
+## Валидация форм
+
+Используйте Vuetify rules для валидации:
+
+```typescript
+const usernameRules = [
+  (v: string) => !!v || 'Логин обязателен',
+  (v: string) => v.length >= 3 || 'Минимум 3 символа',
+  (v: string) => v.length <= 64 || 'Максимум 64 символа',
+]
+
+const passwordRules = [
+  (v: string) => !!v || 'Пароль обязателен',
+  (v: string) => v.length >= 3 || 'Минимум 3 символа',
+  (v: string) => v.length <= 64 || 'Максимум 64 символа',
+]
+```
+
+## API клиент
+
+```typescript
+import axios from 'axios'
+
+const api = axios.create({
+  baseURL: 'http://localhost:8080/api',
+  timeout: 10000
+})
+
+export default api
+```

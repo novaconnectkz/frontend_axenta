@@ -1,5 +1,22 @@
 <script setup lang="ts">
-// Vue App with Router
+import { onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+
+const router = useRouter();
+const route = useRoute();
+
+// Simple redirect logic
+onMounted(() => {
+  console.log('Current path:', route.path);
+
+  // Check if user has token
+  const token = localStorage.getItem('token');
+
+  if (!token && route.path === '/') {
+    console.log('No token, redirecting to login');
+    router.push('/login');
+  }
+});
 </script>
 
 <template>
@@ -15,9 +32,11 @@
   will-change: filter;
   transition: filter 300ms;
 }
+
 .logo:hover {
   filter: drop-shadow(0 0 2em #646cffaa);
 }
+
 .logo.vue:hover {
   filter: drop-shadow(0 0 2em #42b883aa);
 }
