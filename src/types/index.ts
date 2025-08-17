@@ -51,7 +51,9 @@ export interface RouteMetadata {
   requiresAuth?: boolean;
   requiresGuest?: boolean;
   roles?: string[];
+  permissions?: string[];
   title?: string;
+  layout?: string;
 }
 
 // Типы для Vuetify

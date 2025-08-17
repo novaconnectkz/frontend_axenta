@@ -1,0 +1,150 @@
+// Типы для Dashboard
+export interface DashboardStats {
+  objects: ObjectStats;
+  users: UserStats;
+  billing: BillingStats;
+  installations: InstallationStats;
+  warehouse: WarehouseStats;
+}
+
+export interface ObjectStats {
+  total: number;
+  active: number;
+  inactive: number;
+  scheduled_for_deletion: number;
+  deleted: number;
+}
+
+export interface UserStats {
+  total: number;
+  active: number;
+  inactive: number;
+  admins: number;
+  regular_users: number;
+}
+
+export interface BillingStats {
+  total_revenue: number;
+  monthly_revenue: number;
+  pending_invoices: number;
+  overdue_invoices: number;
+  active_contracts: number;
+}
+
+export interface InstallationStats {
+  total: number;
+  scheduled: number;
+  in_progress: number;
+  completed: number;
+  cancelled: number;
+  today_installations: number;
+}
+
+export interface WarehouseStats {
+  total_equipment: number;
+  available_equipment: number;
+  installed_equipment: number;
+  reserved_equipment: number;
+  low_stock_alerts: number;
+  categories_count: number;
+}
+
+export interface Widget {
+  id: string;
+  title: string;
+  type: WidgetType;
+  size: WidgetSize;
+  position: WidgetPosition;
+  config: WidgetConfig;
+  visible: boolean;
+}
+
+export type WidgetType =
+  | "objects-overview"
+  | "users-overview"
+  | "billing-overview"
+  | "installations-overview"
+  | "warehouse-overview"
+  | "recent-activity"
+  | "notifications"
+  | "quick-stats"
+  | "chart"
+  | "tasks";
+
+export type WidgetSize = "small" | "medium" | "large" | "extra-large";
+
+export interface WidgetPosition {
+  row: number;
+  col: number;
+  width: number;
+  height: number;
+}
+
+export interface WidgetConfig {
+  refreshInterval?: number; // в секундах
+  showHeader?: boolean;
+  customTitle?: string;
+  color?: string;
+  chartType?: "line" | "bar" | "pie" | "doughnut";
+  dataRange?: "today" | "week" | "month" | "year";
+  [key: string]: any;
+}
+
+export interface DashboardLayout {
+  id: string;
+  name: string;
+  widgets: Widget[];
+  isDefault: boolean;
+  userId?: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  type:
+    | "object_created"
+    | "object_updated"
+    | "object_deleted"
+    | "user_created"
+    | "installation_scheduled"
+    | "invoice_generated"
+    | "payment_received";
+  title: string;
+  description: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  metadata?: Record<string, any>;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: "info" | "warning" | "error" | "success";
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionUrl?: string;
+  actionText?: string;
+}
+
+export interface QuickAction {
+  id: string;
+  title: string;
+  icon: string;
+  color: string;
+  route: string;
+  permission?: string;
+}
+
+export interface ChartData {
+  labels: string[];
+  datasets: ChartDataset[];
+}
+
+export interface ChartDataset {
+  label: string;
+  data: number[];
+  backgroundColor?: string | string[];
+  borderColor?: string;
+  borderWidth?: number;
+}

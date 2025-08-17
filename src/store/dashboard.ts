@@ -1,0 +1,363 @@
+import { dashboardService } from "@/services/dashboardService";
+import type {
+  ActivityItem,
+  DashboardLayout,
+  DashboardStats,
+  NotificationItem,
+  QuickAction,
+  Widget,
+} from "@/types/dashboard";
+import { defineStore } from "pinia";
+import { computed, ref } from "vue";
+
+export const useDashboardStore = defineStore("dashboard", () => {
+  // State
+  const stats = ref<DashboardStats | null>(null);
+  const currentLayout = ref<DashboardLayout | null>(null);
+  const availableLayouts = ref<DashboardLayout[]>([]);
+  const recentActivity = ref<ActivityItem[]>([]);
+  const notifications = ref<NotificationItem[]>([]);
+  const isLoading = ref(false);
+  const error = ref<string | null>(null);
+  const lastRefresh = ref<Date | null>(null);
+
+  // Quick Actions Configuration
+  const quickActions = ref<QuickAction[]>([
+    {
+      id: "create-object",
+      title: "Создать объект",
+      icon: "mdi-plus-circle",
+      color: "primary",
+      route: "/objects/create",
+      permission: "objects.create",
+    },
+    {
+      id: "create-user",
+      title: "Добавить пользователя",
+      icon: "mdi-account-plus",
+      color: "success",
+      route: "/users/create",
+      permission: "users.create",
+    },
+    {
+      id: "schedule-installation",
+      title: "Запланировать монтаж",
+      icon: "mdi-calendar-plus",
+      color: "warning",
+      route: "/installations/create",
+      permission: "installations.create",
+    },
+    {
+      id: "add-equipment",
+      title: "Добавить оборудование",
+      icon: "mdi-package-variant-plus",
+      color: "info",
+      route: "/warehouse/equipment/create",
+      permission: "warehouse.create",
+    },
+    {
+      id: "generate-report",
+      title: "Создать отчет",
+      icon: "mdi-file-chart",
+      color: "secondary",
+      route: "/reports/create",
+      permission: "reports.create",
+    },
+  ]);
+
+  // Getters
+  const unreadNotificationsCount = computed(
+    () => notifications.value.filter((n) => !n.read).length
+  );
+
+  const hasRecentActivity = computed(() => recentActivity.value.length > 0);
+
+  const isStatsLoaded = computed(() => stats.value !== null);
+
+  const isLayoutLoaded = computed(() => currentLayout.value !== null);
+
+  // Actions
+  const loadStats = async () => {
+    try {
+      isLoading.value = true;
+      error.value = null;
+      stats.value = await dashboardService.getStats();
+      lastRefresh.value = new Date();
+    } catch (err: any) {
+      error.value = err.message || "Ошибка загрузки статистики";
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  const loadRecentActivity = async (limit: number = 10) => {
+    try {
+      recentActivity.value = await dashboardService.getRecentActivity(limit);
+    } catch (err: any) {
+      console.error("Ошибка загрузки активности:", err);
+    }
+  };
+
+  const loadNotifications = async (
+    limit: number = 5,
+    unreadOnly: boolean = false
+  ) => {
+    try {
+      notifications.value = await dashboardService.getNotifications(
+        limit,
+        unreadOnly
+      );
+    } catch (err: any) {
+      console.error("Ошибка загрузки уведомлений:", err);
+    }
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      await dashboardService.markNotificationAsRead(notificationId);
+      const notification = notifications.value.find(
+        (n) => n.id === notificationId
+      );
+      if (notification) {
+        notification.read = true;
+      }
+    } catch (err: any) {
+      console.error("Ошибка отметки уведомления:", err);
+    }
+  };
+
+  const loadLayouts = async () => {
+    try {
+      availableLayouts.value = await dashboardService.getLayouts();
+
+      // Если нет текущего макета, загружаем макет по умолчанию
+      if (!currentLayout.value) {
+        const defaultLayout = await dashboardService.getDefaultLayout();
+        if (defaultLayout) {
+          currentLayout.value = defaultLayout;
+        } else if (availableLayouts.value.length > 0) {
+          currentLayout.value = availableLayouts.value[0];
+        } else {
+          // Создаем макет по умолчанию
+          currentLayout.value = createDefaultLayout();
+        }
+      }
+    } catch (err: any) {
+      console.error("Ошибка загрузки макетов:", err);
+      // Создаем макет по умолчанию при ошибке
+      currentLayout.value = createDefaultLayout();
+    }
+  };
+
+  const saveCurrentLayout = async () => {
+    if (!currentLayout.value) return;
+
+    try {
+      const savedLayout = await dashboardService.saveLayout(
+        currentLayout.value
+      );
+      currentLayout.value = savedLayout;
+
+      // Обновляем список доступных макетов
+      const existingIndex = availableLayouts.value.findIndex(
+        (l) => l.id === savedLayout.id
+      );
+      if (existingIndex >= 0) {
+        availableLayouts.value[existingIndex] = savedLayout;
+      } else {
+        availableLayouts.value.push(savedLayout);
+      }
+    } catch (err: any) {
+      error.value = err.message || "Ошибка сохранения макета";
+      throw err;
+    }
+  };
+
+  const switchLayout = async (layoutId: string) => {
+    const layout = availableLayouts.value.find((l) => l.id === layoutId);
+    if (layout) {
+      currentLayout.value = layout;
+    }
+  };
+
+  const setDefaultLayout = async (layoutId: string) => {
+    try {
+      await dashboardService.setDefaultLayout(layoutId);
+
+      // Обновляем флаги в локальных данных
+      availableLayouts.value.forEach((layout) => {
+        layout.isDefault = layout.id === layoutId;
+      });
+
+      if (currentLayout.value) {
+        currentLayout.value.isDefault = currentLayout.value.id === layoutId;
+      }
+    } catch (err: any) {
+      error.value = err.message || "Ошибка установки макета по умолчанию";
+      throw err;
+    }
+  };
+
+  const deleteLayout = async (layoutId: string) => {
+    try {
+      await dashboardService.deleteLayout(layoutId);
+      availableLayouts.value = availableLayouts.value.filter(
+        (l) => l.id !== layoutId
+      );
+
+      // Если удаляем текущий макет, переключаемся на другой
+      if (currentLayout.value?.id === layoutId) {
+        if (availableLayouts.value.length > 0) {
+          currentLayout.value = availableLayouts.value[0];
+        } else {
+          currentLayout.value = createDefaultLayout();
+        }
+      }
+    } catch (err: any) {
+      error.value = err.message || "Ошибка удаления макета";
+      throw err;
+    }
+  };
+
+  const updateWidget = (widgetId: string, updates: Partial<Widget>) => {
+    if (!currentLayout.value) return;
+
+    const widgetIndex = currentLayout.value.widgets.findIndex(
+      (w) => w.id === widgetId
+    );
+    if (widgetIndex >= 0) {
+      currentLayout.value.widgets[widgetIndex] = {
+        ...currentLayout.value.widgets[widgetIndex],
+        ...updates,
+      };
+    }
+  };
+
+  const addWidget = (widget: Widget) => {
+    if (!currentLayout.value) return;
+
+    currentLayout.value.widgets.push(widget);
+  };
+
+  const removeWidget = (widgetId: string) => {
+    if (!currentLayout.value) return;
+
+    currentLayout.value.widgets = currentLayout.value.widgets.filter(
+      (w) => w.id !== widgetId
+    );
+  };
+
+  const refreshAll = async () => {
+    await Promise.all([
+      loadStats(),
+      loadRecentActivity(),
+      loadNotifications(),
+      loadLayouts(),
+    ]);
+  };
+
+  const clearError = () => {
+    error.value = null;
+  };
+
+  // Helper function to create default layout
+  const createDefaultLayout = (): DashboardLayout => ({
+    id: "",
+    name: "Макет по умолчанию",
+    isDefault: true,
+    widgets: [
+      {
+        id: "objects-overview",
+        title: "Обзор объектов",
+        type: "objects-overview",
+        size: "medium",
+        position: { row: 0, col: 0, width: 6, height: 4 },
+        config: { refreshInterval: 300 },
+        visible: true,
+      },
+      {
+        id: "users-overview",
+        title: "Обзор пользователей",
+        type: "users-overview",
+        size: "medium",
+        position: { row: 0, col: 6, width: 6, height: 4 },
+        config: { refreshInterval: 300 },
+        visible: true,
+      },
+      {
+        id: "billing-overview",
+        title: "Обзор биллинга",
+        type: "billing-overview",
+        size: "large",
+        position: { row: 4, col: 0, width: 8, height: 4 },
+        config: { refreshInterval: 600 },
+        visible: true,
+      },
+      {
+        id: "recent-activity",
+        title: "Последняя активность",
+        type: "recent-activity",
+        size: "medium",
+        position: { row: 4, col: 8, width: 4, height: 8 },
+        config: { refreshInterval: 120 },
+        visible: true,
+      },
+      {
+        id: "installations-overview",
+        title: "Обзор монтажей",
+        type: "installations-overview",
+        size: "medium",
+        position: { row: 8, col: 0, width: 6, height: 4 },
+        config: { refreshInterval: 300 },
+        visible: true,
+      },
+      {
+        id: "warehouse-overview",
+        title: "Обзор склада",
+        type: "warehouse-overview",
+        size: "medium",
+        position: { row: 8, col: 6, width: 6, height: 4 },
+        config: { refreshInterval: 600 },
+        visible: true,
+      },
+    ],
+  });
+
+  return {
+    // State
+    stats,
+    currentLayout,
+    availableLayouts,
+    recentActivity,
+    notifications,
+    quickActions,
+    isLoading,
+    error,
+    lastRefresh,
+
+    // Getters
+    unreadNotificationsCount,
+    hasRecentActivity,
+    isStatsLoaded,
+    isLayoutLoaded,
+
+    // Actions
+    loadStats,
+    loadRecentActivity,
+    loadNotifications,
+    markNotificationAsRead,
+    loadLayouts,
+    saveCurrentLayout,
+    switchLayout,
+    setDefaultLayout,
+    deleteLayout,
+    updateWidget,
+    addWidget,
+    removeWidget,
+    refreshAll,
+    clearError,
+  };
+});
+
+export type DashboardStore = ReturnType<typeof useDashboardStore>;

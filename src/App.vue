@@ -1,21 +1,18 @@
 <script setup lang="ts">
+import { useAuthProvider } from "@/context/auth";
 import { onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute } from "vue-router";
 
-const router = useRouter();
 const route = useRoute();
 
-// Simple redirect logic
+// Инициализируем auth provider
+const auth = useAuthProvider();
+
+// Простая отладочная информация
 onMounted(() => {
-  console.log('Current path:', route.path);
-
-  // Check if user has token
-  const token = localStorage.getItem('token');
-
-  if (!token && route.path === '/') {
-    console.log('No token, redirecting to login');
-    router.push('/login');
-  }
+  console.log('App mounted, current path:', route.path);
+  console.log('Auth initialized:', !!auth);
+  console.log('Is authenticated:', auth.isAuthenticated.value);
 });
 </script>
 
