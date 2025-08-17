@@ -477,7 +477,10 @@
                         localStorage.setItem('axenta_company', JSON.stringify(data.data.company));
                     }
                     
-                    setTimeout(() => window.location.href = 'dashboard.html', 1500);
+                    setTimeout(() => {
+                        // Простое перенаправление на дашборд
+                        window.location.href = '/dashboard';
+                    }, 1500);
                 } else {
                     showMessage('❌ ' + (data.error || 'Ошибка авторизации'), 'error');
                 }
@@ -514,7 +517,7 @@
                     if (userObj && userObj.username) {
                         showMessage('ℹ️ Пользователь уже авторизован. Перенаправление...', 'success');
                         setTimeout(() => {
-                            window.location.href = 'dashboard.html';
+                            window.location.href = '/dashboard';
                         }, 1000);
                         return true;
                     }
