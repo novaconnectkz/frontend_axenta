@@ -37,7 +37,7 @@ const routes = [
       title: "Вход в систему",
     },
   },
-  createProtectedRoute("/dashboard", TestDashboard, {
+  createProtectedRoute("/dashboard", () => import("@/views/Dashboard.vue"), {
     title: "Панель управления",
   }),
   createProtectedRoute("/full-dashboard", SimpleDashboard, {
