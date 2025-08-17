@@ -49,29 +49,7 @@ const routes = [
     title: "Тестовая страница",
   }),
 
-  // Тестовая страница авторизации
-  createPublicRoute("/auth-test", () => import("@/views/SimpleAuthTest.vue"), {
-    title: "Тест авторизации",
-  }),
 
-  // Тестовая страница роутера
-  createPublicRoute("/router-test", () => import("@/views/RouterTest.vue"), {
-    title: "Тест роутера",
-  }),
-
-  // Отладочная страница
-  createPublicRoute("/debug", () => import("@/views/DebugPage.vue"), {
-    title: "Отладка",
-  }),
-
-  // Минимальная страница логина
-  createPublicRoute(
-    "/minimal-login",
-    () => import("@/views/MinimalLogin.vue"),
-    {
-      title: "Минимальный логин",
-    }
-  ),
 
   // Диагностическая страница входа
   createPublicRoute("/diagnostic", DiagnosticLogin, {
