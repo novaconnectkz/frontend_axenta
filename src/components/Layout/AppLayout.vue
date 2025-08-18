@@ -56,19 +56,6 @@
       <!-- Футер боковой панели -->
       <template #append>
         <div class="sidebar-footer">
-          <!-- Переключатель темы -->
-          <div v-show="!rail" class="theme-switcher">
-            <v-switch
-              v-model="isDarkTheme"
-              :label="isDarkTheme ? 'Темная тема' : 'Светлая тема'"
-              :prepend-icon="isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny'"
-              color="primary"
-              hide-details
-              inset
-              @change="toggleTheme"
-            />
-          </div>
-
           <!-- Информация о пользователе -->
           <v-menu location="top">
             <template #activator="{ props }">
@@ -134,6 +121,24 @@
       </v-app-bar-title>
 
       <v-spacer />
+
+      <!-- Переключатель темы -->
+      <v-tooltip location="bottom">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            variant="text"
+            @click="toggleTheme"
+            class="theme-toggle-btn"
+          >
+            <v-icon>
+              {{ isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny' }}
+            </v-icon>
+          </v-btn>
+        </template>
+        <span>{{ isDarkTheme ? 'Переключить на светлую тему' : 'Переключить на темную тему' }}</span>
+      </v-tooltip>
 
       <!-- Уведомления -->
       <v-menu location="bottom">
@@ -407,8 +412,21 @@ const toggleRail = () => {
 };
 
 const toggleTheme = () => {
-  theme.global.name.value = isDarkTheme.value ? 'dark' : 'light';
-  localStorage.setItem('theme', theme.global.name.value);
+  isDarkTheme.value = !isDarkTheme.value;
+  const newTheme = isDarkTheme.value ? 'apple-dark' : 'apple-light';
+  theme.global.name.value = newTheme;
+  localStorage.setItem('theme', newTheme);
+  
+  // Отмечаем что пользователь вручную переключил тему
+  localStorage.setItem('user-theme-preference', 'manual');
+  
+  // Добавляем data-theme атрибут к body для CSS переменных
+  document.body.setAttribute('data-theme', isDarkTheme.value ? 'dark' : 'light');
+  
+  // Добавляем небольшую вибрацию на мобильных (если поддерживается)
+  if ('vibrate' in navigator) {
+    navigator.vibrate(50);
+  }
 };
 
 const goToProfile = () => {
@@ -455,7 +473,37 @@ onMounted(() => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
     theme.global.name.value = savedTheme;
-    isDarkTheme.value = savedTheme === 'dark';
+    isDarkTheme.value = savedTheme === 'apple-dark';
+    document.body.setAttribute('data-theme', isDarkTheme.value ? 'dark' : 'light');
+  } else {
+    // Определяем тему по системным настройкам
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    isDarkTheme.value = prefersDark;
+    const defaultTheme = prefersDark ? 'apple-dark' : 'apple-light';
+    theme.global.name.value = defaultTheme;
+    localStorage.setItem('theme', defaultTheme);
+    document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+  }
+  
+  // Слушаем изменения системной темы
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const handleSystemThemeChange = (e: MediaQueryListEvent) => {
+    // Только если пользователь не установил тему вручную
+    const userTheme = localStorage.getItem('user-theme-preference');
+    if (!userTheme) {
+      isDarkTheme.value = e.matches;
+      const newTheme = e.matches ? 'apple-dark' : 'apple-light';
+      theme.global.name.value = newTheme;
+      localStorage.setItem('theme', newTheme);
+      document.body.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+  };
+  
+  if (mediaQuery.addEventListener) {
+    mediaQuery.addEventListener('change', handleSystemThemeChange);
+  } else {
+    // Fallback для старых браузеров
+    mediaQuery.addListener(handleSystemThemeChange);
   }
 });
 </script>
@@ -526,13 +574,7 @@ onMounted(() => {
   border-top: 1px solid rgba(var(--v-border-color), 0.12);
 }
 
-.theme-switcher {
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(var(--v-theme-surface), 0.5);
-  border-radius: 12px;
-  border: 1px solid rgba(var(--v-border-color), 0.12);
-}
+/* Стили для theme-switcher удалены - теперь в header */
 
 .user-info {
   border-radius: 12px;
@@ -546,6 +588,55 @@ onMounted(() => {
 .app-header {
   backdrop-filter: blur(10px);
   background: rgba(var(--v-theme-surface), 0.9) !important;
+}
+
+.theme-toggle-btn {
+  margin-right: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(var(--v-theme-primary), 0.1) !important;
+  transform: scale(1.1);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.theme-toggle-btn .v-icon {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Анимация смены иконки */
+.theme-toggle-btn:hover .v-icon {
+  transform: rotate(20deg);
+}
+
+/* Apple-style glow эффект */
+.theme-toggle-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.theme-toggle-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: radial-gradient(circle, rgba(var(--v-theme-primary-rgb), 0.2) 0%, transparent 70%);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.theme-toggle-btn:hover::before {
+  width: 40px;
+  height: 40px;
 }
 
 .page-title {
@@ -565,8 +656,7 @@ onMounted(() => {
   padding: 20px;
 }
 
-.sidebar-rail .logo-text,
-.sidebar-rail .theme-switcher {
+.sidebar-rail .logo-text {
   opacity: 0;
   transform: translateX(-20px);
 }
