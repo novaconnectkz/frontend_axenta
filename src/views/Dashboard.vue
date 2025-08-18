@@ -6,7 +6,7 @@
         <div class="d-flex align-center justify-space-between">
           <div>
             <h1 class="text-h4 font-weight-bold">
-              Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!
+              Добро пожаловать, {{ auth?.user?.value?.name || 'Пользователь' }}!
             </h1>
             <p class="text-subtitle-1 text-medium-emphasis">
               {{ formatDate(new Date()) }}
@@ -137,7 +137,21 @@ export default defineComponent({
     DashboardGrid
   },
   setup() {
-    const auth = useAuth();
+    // Безопасная инициализация auth
+    let auth: any = null;
+    
+    const getAuth = () => {
+      if (!auth) {
+        try {
+          auth = useAuth();
+        } catch (error) {
+          console.warn('Auth context not available in Dashboard:', error);
+          return null;
+        }
+      }
+      return auth;
+    };
+
     const router = useRouter();
     const dashboardStore = useDashboardStore();
     const isRefreshing = ref(false);
@@ -145,10 +159,21 @@ export default defineComponent({
     // Computed properties
     const error = computed(() => dashboardStore.error);
     const lastRefresh = computed(() => dashboardStore.lastRefresh);
+    
+    // Безопасный доступ к auth для template
+    const authSafe = computed(() => getAuth());
 
     // Methods
     const handleLogout = () => {
-      auth.logout();
+      const authContext = getAuth();
+      if (authContext) {
+        authContext.logout();
+      } else {
+        // Fallback - очищаем localStorage напрямую
+        localStorage.removeItem('axenta_token');
+        localStorage.removeItem('axenta_user');
+        localStorage.removeItem('axenta_company');
+      }
       router.push('/login');
     };
 
@@ -184,7 +209,7 @@ export default defineComponent({
     };
 
     return {
-      auth,
+      auth: authSafe,
       error,
       lastRefresh,
       isRefreshing,
