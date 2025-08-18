@@ -12,45 +12,59 @@
       <div class="sidebar-header">
         <div class="logo" @click="toggleRail">
           <div class="logo-icon">
-            <v-icon size="30" color="white">mdi-hexagon-multiple</v-icon>
+            <span class="logo-letter">А</span>
           </div>
           <transition name="fade">
             <div v-show="!rail" class="logo-text">
-              {{ config.appName }}
+              CRM
             </div>
           </transition>
         </div>
-        
-        <v-btn
-          v-show="!rail"
-          icon="mdi-menu"
-          variant="text"
-          size="small"
-          @click="toggleRail"
-        />
       </div>
 
       <!-- Навигационное меню -->
       <v-list class="sidebar-nav" nav>
-        <v-list-item
-          v-for="item in navigationItems"
-          :key="item.path"
-          :to="item.path"
-          :prepend-icon="item.icon"
-          :title="item.title"
-          :subtitle="rail ? undefined : item.subtitle"
-          class="apple-nav-item nav-item"
-          :class="{ 'active': $route.path === item.path }"
-          exact
-        >
-          <template v-if="item.badge" #append>
-            <v-badge
-              :content="item.badge"
-              color="error"
-              inline
-            />
-          </template>
-        </v-list-item>
+        <template v-for="item in navigationItems" :key="item.path">
+          <v-tooltip
+            v-if="rail"
+            location="end"
+            :text="item.title"
+          >
+            <template #activator="{ props }">
+              <div
+                v-bind="props"
+                class="rail-nav-button"
+                :class="{ 'active': $route.path === item.path }"
+                @click="router.push(item.path)"
+              >
+                <v-icon 
+                  :icon="item.icon" 
+                  size="22"
+                  class="rail-button-icon"
+                />
+              </div>
+            </template>
+          </v-tooltip>
+          
+          <v-list-item
+            v-else
+            :to="item.path"
+            :prepend-icon="item.icon"
+            :title="item.title"
+            :subtitle="item.subtitle"
+            class="apple-nav-item nav-item"
+            :class="{ 'active': $route.path === item.path }"
+            exact
+          >
+            <template v-if="item.badge && item.badge > 0" #append>
+              <v-badge
+                :content="item.badge"
+                color="error"
+                inline
+              />
+            </template>
+          </v-list-item>
+        </template>
       </v-list>
 
       <!-- Футер боковой панели - теперь пустой -->
@@ -298,11 +312,10 @@
 </template>
 
 <script setup lang="ts">
+import { useAuth } from '@/context/auth';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
-import { useAuth } from '@/context/auth';
-import { config } from '@/config/env';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -381,7 +394,7 @@ const navigationItems = computed(() => [
 // Computed properties
 const currentPageTitle = computed(() => {
   const currentItem = navigationItems.value.find(item => item.path === route.path);
-  return currentItem?.title || route.meta?.title || 'Axenta CRM';
+  return currentItem?.title || route.meta?.title || 'CRM';
 });
 
 const currentPageIcon = computed(() => {
@@ -572,6 +585,140 @@ onMounted(() => {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Настройки ширины для свернутого состояния */
+.app-sidebar.sidebar-rail {
+  width: 72px !important;
+}
+
+.app-sidebar.sidebar-rail .v-navigation-drawer__content {
+  overflow-x: hidden;
+}
+
+.app-sidebar.sidebar-rail .v-list {
+  padding: 20px 0 !important;
+}
+
+.app-sidebar.sidebar-rail .v-list-item {
+  padding: 0 !important;
+  margin: 4px 8px !important;
+  border-radius: 12px !important;
+  min-height: 48px !important;
+  width: calc(100% - 16px) !important;
+}
+
+.app-sidebar.sidebar-rail .rail-item {
+  width: 56px !important;
+  height: 48px !important;
+  margin: 4px auto !important;
+  position: relative !important;
+}
+
+/* Индикатор активного состояния в свернутом меню */
+.app-sidebar.sidebar-rail .rail-item.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: var(--apple-blue);
+  border-radius: 0 2px 2px 0;
+  opacity: 1;
+}
+
+[data-theme="dark"] .app-sidebar.sidebar-rail .rail-item.active::before {
+  background: var(--apple-blue-light);
+}
+
+/* Дополнительные улучшения для свернутого меню */
+.rail-item {
+  position: relative;
+  overflow: visible !important;
+}
+
+/* Стили для иконок в rail режиме */
+.rail-nav-icon {
+  color: #6D6D7D !important;
+  opacity: 1 !important;
+  font-size: 22px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+  z-index: 10 !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+/* Hover состояние для rail иконок */
+.rail-item:hover .rail-nav-icon {
+  color: #007AFF !important;
+  transform: scale(1.1) !important;
+}
+
+/* Активное состояние для rail иконок */
+.rail-item.active .rail-nav-icon {
+  color: #007AFF !important;
+  font-weight: 600 !important;
+}
+
+/* Темная тема для rail иконок */
+[data-theme="dark"] .rail-nav-icon {
+  color: #EBEBF5CC !important;
+}
+
+[data-theme="dark"] .rail-item:hover .rail-icon-container {
+  background: rgba(77, 166, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .rail-item:hover .rail-nav-icon {
+  color: #4DA6FF !important;
+}
+
+[data-theme="dark"] .rail-item.active .rail-icon-container {
+  background: rgba(77, 166, 255, 0.2) !important;
+}
+
+[data-theme="dark"] .rail-item.active .rail-nav-icon {
+  color: #4DA6FF !important;
+}
+
+/* Пульсация для активной иконки */
+.rail-item.active .rail-nav-icon,
+.rail-nav-button.active .rail-button-icon {
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+@keyframes iconPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Улучшенный tooltip */
+.v-tooltip .v-overlay__content {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 6px 10px !important;
+  border-radius: 6px !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+[data-theme="dark"] .v-tooltip .v-overlay__content {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: black !important;
+}
+
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid rgba(var(--v-border-color), 0.12);
@@ -600,6 +747,14 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
+.logo-letter {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
+}
+
 .logo-text {
   font-size: 18px;
   font-weight: 700;
@@ -610,11 +765,239 @@ onMounted(() => {
   padding: 20px 0;
 }
 
+/* Настройки навигации для свернутого состояния */
+.sidebar-rail .sidebar-nav {
+  padding: 20px 0;
+}
+
+.sidebar-rail .sidebar-header {
+  padding: 20px 12px;
+  display: flex;
+  justify-content: center;
+}
+
 .nav-item {
   margin: 2px 12px;
   border-radius: 12px !important;
   transition: all 0.3s ease;
   color: var(--apple-text-secondary) !important;
+}
+
+/* Стили для свернутого состояния */
+.rail-item {
+  margin: 4px 8px !important;
+  min-height: 48px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 12px !important;
+  position: relative !important;
+}
+
+.rail-item .v-list-item__prepend {
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  position: relative !important;
+}
+
+/* Убеждаемся что все иконки видны в rail режиме */
+.app-sidebar.sidebar-rail .v-list-item .v-icon {
+  color: #6D6D7D !important;
+  font-size: 22px !important;
+  opacity: 1 !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+  z-index: 10 !important;
+}
+
+.app-sidebar.sidebar-rail .v-list-item__prepend {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+}
+
+.app-sidebar.sidebar-rail .v-list-item__prepend .v-icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+}
+
+/* Hover состояния для rail режима */
+.app-sidebar.sidebar-rail .v-list-item:hover .v-icon {
+  color: #007AFF !important;
+  transform: scale(1.1) !important;
+}
+
+.app-sidebar.sidebar-rail .v-list-item.active .v-icon {
+  color: #007AFF !important;
+  font-weight: 600 !important;
+}
+
+/* Темная тема для rail режима */
+[data-theme="dark"] .app-sidebar.sidebar-rail .v-list-item .v-icon {
+  color: #EBEBF5CC !important;
+}
+
+[data-theme="dark"] .app-sidebar.sidebar-rail .v-list-item:hover .v-icon {
+  color: #4DA6FF !important;
+}
+
+[data-theme="dark"] .app-sidebar.sidebar-rail .v-list-item.active .v-icon {
+  color: #4DA6FF !important;
+}
+
+/* Дополнительное принуждение для отображения иконок */
+.v-navigation-drawer.sidebar-rail .v-list .v-list-item .v-list-item__prepend .v-icon {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  color: #6D6D7D !important;
+  font-size: 22px !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+}
+
+/* Принуждение для всех иконок в rail режиме */
+.app-sidebar.sidebar-rail .rail-item .v-icon,
+.app-sidebar.sidebar-rail .rail-item i {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-flex !important;
+  color: #6D6D7D !important;
+  font-size: 22px !important;
+}
+
+/* Стили для rail элементов (очищены от debug стилей) */
+
+/* Wrapper для иконок */
+.rail-icon-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 40px !important;
+  height: 40px !important;
+  position: relative !important;
+}
+
+/* Fallback текст */
+.rail-fallback-text {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #6D6D7D !important;
+  background: rgba(0, 122, 255, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+/* Новые стили для rail навигационных кнопок */
+.rail-nav-button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 56px !important;
+  height: 48px !important;
+  margin: 4px auto !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: transparent !important;
+  position: relative !important;
+}
+
+.rail-button-icon {
+  color: #6D6D7D !important;
+  opacity: 1 !important;
+  font-size: 22px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+}
+
+/* Hover для rail кнопок */
+.rail-nav-button:hover {
+  background: rgba(0, 122, 255, 0.12) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2) !important;
+}
+
+.rail-nav-button:hover .rail-button-icon {
+  color: #007AFF !important;
+  transform: scale(1.1) !important;
+}
+
+/* Активное состояние для rail кнопок */
+.rail-nav-button.active {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.18), rgba(0, 122, 255, 0.08)) !important;
+  box-shadow: 0 2px 12px rgba(0, 122, 255, 0.25) !important;
+}
+
+.rail-nav-button.active .rail-button-icon {
+  color: #007AFF !important;
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* Индикатор активного состояния */
+.rail-nav-button.active::before {
+  content: '';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 24px;
+  background: #007AFF;
+  border-radius: 0 2px 2px 0;
+  opacity: 1;
+}
+
+/* Темная тема для rail кнопок */
+[data-theme="dark"] .rail-button-icon {
+  color: #EBEBF5CC !important;
+}
+
+[data-theme="dark"] .rail-nav-button:hover {
+  background: rgba(77, 166, 255, 0.15) !important;
+  box-shadow: 0 2px 8px rgba(77, 166, 255, 0.25) !important;
+}
+
+[data-theme="dark"] .rail-nav-button:hover .rail-button-icon {
+  color: #4DA6FF !important;
+}
+
+[data-theme="dark"] .rail-nav-button.active {
+  background: linear-gradient(135deg, rgba(77, 166, 255, 0.22), rgba(77, 166, 255, 0.12)) !important;
+  box-shadow: 0 2px 12px rgba(77, 166, 255, 0.3) !important;
+}
+
+[data-theme="dark"] .rail-nav-button.active .rail-button-icon {
+  color: #4DA6FF !important;
+}
+
+[data-theme="dark"] .rail-nav-button.active::before {
+  background: #4DA6FF;
+}
+
+/* Основные стили для rail элементов */
+.rail-item:hover {
+  background: rgba(0, 122, 255, 0.08) !important;
+  transform: scale(1.02) !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.15) !important;
+}
+
+.rail-item.active {
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.12), rgba(0, 122, 255, 0.06)) !important;
+  box-shadow: 0 2px 12px rgba(0, 122, 255, 0.2) !important;
 }
 
 .nav-item:hover {
@@ -822,6 +1205,18 @@ onMounted(() => {
 
 [data-theme="dark"] .logo-text {
   color: var(--apple-text-primary-dark) !important;
+}
+
+/* Темная тема для свернутого состояния */
+[data-theme="dark"] .rail-item:hover {
+  background: rgba(77, 166, 255, 0.12) !important;
+  box-shadow: 0 2px 8px rgba(77, 166, 255, 0.2) !important;
+  transform: scale(1.02) !important;
+}
+
+[data-theme="dark"] .rail-item.active {
+  background: linear-gradient(135deg, rgba(77, 166, 255, 0.18), rgba(77, 166, 255, 0.08)) !important;
+  box-shadow: 0 2px 12px rgba(77, 166, 255, 0.25) !important;
 }
 
 /* Аватар пользователя в header */

@@ -5,7 +5,7 @@
       <div class="sidebar-header">
         <div class="logo" :class="{ 'collapsed': sidebarCollapsed }">
           <div class="logo-icon">A</div>
-          <span v-if="!sidebarCollapsed" class="logo-text">AxentaCRM</span>
+          <span v-if="!sidebarCollapsed" class="logo-text">CRM</span>
         </div>
         <button @click="toggleSidebar" class="sidebar-toggle">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -135,7 +135,7 @@
       <header class="top-header">
         <div class="header-left">
           <h1>Главная панель</h1>
-          <p>Управление системой AxentaCRM</p>
+          <p>Управление системой CRM</p>
         </div>
         <div class="header-right">
           <!-- Переключатель темы -->

@@ -168,9 +168,9 @@ export const titleGuard = (
   
   // Устанавливаем заголовок страницы
   if (meta.title) {
-    document.title = `${meta.title} - Axenta CRM`;
+    document.title = `${meta.title} - CRM`;
   } else {
-    document.title = 'Axenta CRM';
+    document.title = 'CRM';
   }
 
   next();

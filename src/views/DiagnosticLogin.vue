@@ -1,6 +1,6 @@
 <template>
   <div style="padding: 20px; font-family: Arial, sans-serif;">
-    <h1 style="color: #1976d2; text-align: center;">Axenta CRM - Диагностическая форма входа</h1>
+    <h1 style="color: #1976d2; text-align: center;">CRM - Диагностическая форма входа</h1>
     
     <div style="max-width: 400px; margin: 0 auto; background: #f5f5f5; padding: 20px; border-radius: 8px;">
       <form @submit.prevent="handleLogin">
@@ -47,7 +47,7 @@
       <div style="margin-top: 20px; text-align: center; color: #666; font-size: 14px;">
         <p><strong>Backend:</strong> http://localhost:8080</p>
         <p><strong>Frontend:</strong> http://localhost:5173</p>
-        <p><strong>Статус:</strong> {{ connectionStatus }}</p>
+
       </div>
     </div>
   </div>
@@ -56,7 +56,7 @@
 <script setup lang="ts">
 import { config } from '@/config/env';
 import axios from 'axios';
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -68,11 +68,7 @@ const error = ref('');
 const isLoading = ref(false);
 const debugInfo = ref('');
 
-// Статус подключения
-const connectionStatus = computed(() => {
-  if (isLoading.value) return 'Подключение...';
-  return 'Готов к подключению';
-});
+
 
 // Обработка входа
 const handleLogin = async () => {

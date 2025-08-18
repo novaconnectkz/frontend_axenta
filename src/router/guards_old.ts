@@ -137,9 +137,9 @@ export const titleGuard = (
   const meta = to.meta as RouteMetadata;
 
   if (meta.title) {
-    document.title = `${meta.title} - Axenta CRM`;
+    document.title = `${meta.title} - CRM`;
   } else {
-    document.title = "Axenta CRM";
+    document.title = "CRM";
   }
 
   next();

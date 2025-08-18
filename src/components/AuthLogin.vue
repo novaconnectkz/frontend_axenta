@@ -5,7 +5,7 @@
         <v-col cols="12" sm="8" md="4">
           <v-card class="pa-4" elevation="8">
             <v-card-title class="text-center mb-4">
-              <h2>Вход в Axenta CRM</h2>
+              <h2>Вход в CRM</h2>
             </v-card-title>
             
             <v-card-text>
@@ -121,17 +121,7 @@
                   @click:close="clearError"
                 />
 
-                <!-- Информация о подключении -->
-                <div class="text-center mt-4">
-                  <v-chip
-                    :color="connectionStatus.color"
-                    size="small"
-                    variant="tonal"
-                  >
-                    <v-icon left size="small">{{ connectionStatus.icon }}</v-icon>
-                    {{ connectionStatus.text }}
-                  </v-chip>
-                </div>
+
               </v-form>
             </v-card-text>
           </v-card>
@@ -157,7 +147,7 @@
 <script lang="ts">
 import { useAuth, type LoginForm } from '@/context/auth';
 import type { VuetifyFormRef } from '@/types';
-import { computed, defineComponent, onMounted, ref, watch } from 'vue';
+import { defineComponent, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 export default defineComponent({
@@ -187,21 +177,7 @@ export default defineComponent({
       password: [],
     });
 
-    // Статус подключения
-    const connectionStatus = computed(() => {
-      if (auth.isLoading.value) {
-        return {
-          color: 'warning',
-          icon: 'mdi-loading',
-          text: 'Подключение...'
-        };
-      }
-      return {
-        color: 'success',
-        icon: 'mdi-check-circle',
-        text: 'Готов к подключению'
-      };
-    });
+
 
     // Правила валидации
     const usernameRules = [
@@ -304,8 +280,7 @@ export default defineComponent({
       rememberMe,
       fieldErrors,
 
-      // Computed
-      connectionStatus,
+
 
       // From auth context
       isLoading: auth.isLoading,

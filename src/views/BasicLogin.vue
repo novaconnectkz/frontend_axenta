@@ -1,7 +1,7 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1>Axenta CRM - Вход в систему</h1>
+      <h1>CRM - Вход в систему</h1>
       
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
@@ -63,11 +63,7 @@
         {{ error }}
       </div>
       
-      <div class="connection-status">
-        <span :class="connectionClass">
-          {{ connectionText }}
-        </span>
-      </div>
+
       
       <div class="info-text">
         <p>Используйте ваши учетные данные от Axenta Cloud</p>
@@ -102,15 +98,7 @@ const error = computed(() => auth.error.value);
 const backendUrl = 'http://localhost:8080';
 const frontendUrl = 'http://localhost:5173';
 
-const connectionClass = computed(() => {
-  if (isLoading.value) return 'status-loading';
-  return 'status-ready';
-});
 
-const connectionText = computed(() => {
-  if (isLoading.value) return 'Подключение...';
-  return 'Готов к подключению';
-});
 
 // Обработка входа
 const handleLogin = async () => {

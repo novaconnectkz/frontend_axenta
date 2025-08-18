@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
           return html
             .replace('%VITE_BACKEND_URL%', env.VITE_BACKEND_URL || 'http://localhost:8080')
             .replace('%VITE_WS_BASE_URL%', env.VITE_WS_BASE_URL || 'ws://localhost:8080')
-            .replace('%VITE_APP_NAME%', env.VITE_APP_NAME || 'Axenta CRM')
+            .replace('%VITE_APP_NAME%', env.VITE_APP_NAME || 'CRM')
             .replace('%VITE_API_VERSION%', env.VITE_API_VERSION || 'v1')
             .replace('%VITE_APP_ENV%', env.VITE_APP_ENV || 'development');
         }

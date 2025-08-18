@@ -48,7 +48,7 @@
                 </span>
                 
                 <span>
-                  Компания: {{ auth.company.value?.name || 'Не указана' }}
+                  Компания: {{ auth?.company?.value?.name || 'Не указана' }}
                 </span>
                 
                 <span>
@@ -65,7 +65,7 @@
 
 <script lang="ts">
 import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
-// import { useAuth } from '@/context/auth'; // Временно отключаем
+import { useAuth } from '@/context/auth';
 import { useDashboardStore } from '@/store/dashboard';
 import { computed, defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -78,6 +78,7 @@ export default defineComponent({
   setup() {
     const router = useRouter();
     const dashboardStore = useDashboardStore();
+    const auth = useAuth();
     const isRefreshing = ref(false);
 
     // Computed properties
@@ -109,6 +110,7 @@ export default defineComponent({
     };
 
     return {
+      auth,
       error,
       lastRefresh,
       isRefreshing,

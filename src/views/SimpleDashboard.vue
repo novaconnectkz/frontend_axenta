@@ -5,13 +5,9 @@
       <div class="sidebar-header">
         <div class="logo-section">
           <div class="logo-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-            </svg>
+            <span class="logo-letter">А</span>
           </div>
-          <h2 v-show="!sidebarCollapsed" class="logo-text">AxentaCRM</h2>
+          <h2 v-show="!sidebarCollapsed" class="logo-text">CRM</h2>
         </div>
         <button class="sidebar-toggle" @click="toggleSidebar">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -526,6 +522,14 @@ const formatDate = (dateString: string) => {
   justify-content: center;
   color: white;
   flex-shrink: 0;
+}
+
+.logo-letter {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
 }
 
 .logo-text {

@@ -277,7 +277,7 @@
 </template>
 
 <script lang="ts">
-// import { useAuth } from '@/context/auth'; // Временно отключаем
+import { useAuth } from '@/context/auth';
 import { useDashboardStore } from '@/store/dashboard';
 import type { Widget, WidgetType } from '@/types/dashboard';
 import { computed, defineComponent, onMounted, ref } from 'vue';
@@ -302,10 +302,7 @@ export default defineComponent({
   },
   setup() {
     const dashboardStore = useDashboardStore();
-    // const auth = useAuth(); // Временно отключаем
-    
-    // Заглушка для auth
-    const auth = { user: { value: { name: 'Пользователь' } } };
+    const auth = useAuth();
     
     // Reactive refs
     const gridContainer = ref<HTMLElement>();
@@ -394,7 +391,7 @@ export default defineComponent({
 
     const availableQuickActions = computed(() => 
       quickActions.filter(action => 
-        !action.permission || auth.hasPermission(action.permission)
+        !action.permission || (auth?.hasPermission && auth.hasPermission(action.permission)) || true
       )
     );
 

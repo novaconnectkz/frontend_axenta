@@ -3,20 +3,20 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axenta CRM</title>
+    <title>CRM</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     
     <!-- Preload критически важных ресурсов -->
-    <link rel="preload" href="/src/main.ts" as="script" type="module">
+    <link rel="modulepreload" href="/src/main.ts">
     
     <!-- Meta теги для SEO -->
-    <meta name="description" content="Система управления объектами Axenta CRM">
+    <meta name="description" content="Система управления CRM">
     <meta name="keywords" content="CRM, управление объектами, мониторинг">
     <meta name="author" content="Axenta Team">
     
     <!-- Open Graph теги -->
-    <meta property="og:title" content="Axenta CRM">
-    <meta property="og:description" content="Система управления объектами">
+    <meta property="og:title" content="CRM">
+    <meta property="og:description" content="Система управления">
     <meta property="og:type" content="website">
     
     <!-- Apple Design System - Критические стили -->
@@ -152,7 +152,7 @@
       window.AXENTA_CONFIG = {
         BACKEND_URL: '%VITE_BACKEND_URL%',
         WS_URL: '%VITE_WS_BASE_URL%',
-        APP_NAME: '%VITE_APP_NAME%',
+        APP_NAME: 'CRM',
         API_VERSION: '%VITE_API_VERSION%',
         APP_ENV: '%VITE_APP_ENV%'
       };
@@ -199,7 +199,7 @@
       <div>
         <div class="loading-spinner"></div>
         <div class="loading-text">
-          Загрузка Axenta CRM...
+          Загрузка CRM...
         </div>
       </div>
     </div>
@@ -210,7 +210,7 @@
       <noscript>
         <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
           <h1>JavaScript требуется</h1>
-          <p>Для работы Axenta CRM необходимо включить JavaScript в вашем браузере.</p>
+          <p>Для работы CRM необходимо включить JavaScript в вашем браузере.</p>
           <p>Пожалуйста, включите JavaScript и обновите страницу.</p>
         </div>
       </noscript>

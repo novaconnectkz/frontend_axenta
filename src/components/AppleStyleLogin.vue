@@ -6,8 +6,7 @@
         <div class="logo-icon">
           <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
             <rect width="60" height="60" rx="12" fill="url(#gradient)"/>
-            <path d="M30 15L35 25H25L30 15Z" fill="white"/>
-            <rect x="25" y="25" width="10" height="20" rx="2" fill="white"/>
+            <text x="30" y="40" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif" font-size="32" font-weight="600" fill="white">А</text>
             <defs>
               <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" style="stop-color:#007AFF"/>
@@ -16,8 +15,8 @@
             </defs>
           </svg>
         </div>
-        <h1 class="app-title">Axenta CRM</h1>
-        <p class="app-subtitle">Система управления объектами</p>
+        <h1 class="app-title">CRM</h1>
+        <p class="app-subtitle">Система управления</p>
       </div>
 
       <!-- Форма авторизации -->
@@ -122,13 +121,7 @@
           </button>
         </div>
 
-        <!-- Статус подключения -->
-        <div class="connection-status">
-          <div class="status-indicator" :class="connectionStatus.class">
-            <div class="status-dot"></div>
-            <span>{{ connectionStatus.text }}</span>
-          </div>
-        </div>
+
       </div>
 
       <!-- Футер -->
@@ -192,25 +185,7 @@ const isFormValid = computed(() => {
   return form.value.username.length >= 3 && form.value.password.length >= 3;
 });
 
-// Статус подключения
-const connectionStatus = computed(() => {
-  if (isLoading.value) {
-    return {
-      class: 'connecting',
-      text: 'Подключение...'
-    };
-  }
-  if (error.value) {
-    return {
-      class: 'error',
-      text: 'Ошибка подключения'
-    };
-  }
-  return {
-    class: 'ready',
-    text: 'Готов к подключению'
-  };
-});
+
 
 // Методы
 const clearFieldError = (field: string) => {
@@ -593,46 +568,7 @@ onMounted(() => {
   background: rgba(255, 59, 48, 0.1);
 }
 
-.connection-status {
-  margin-top: 24px;
-  text-align: center;
-}
 
-.status-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.status-indicator.ready {
-  background: rgba(52, 199, 89, 0.1);
-  color: #34c759;
-  border: 1px solid rgba(52, 199, 89, 0.2);
-}
-
-.status-indicator.connecting {
-  background: rgba(255, 149, 0, 0.1);
-  color: #ff9500;
-  border: 1px solid rgba(255, 149, 0, 0.2);
-}
-
-.status-indicator.error {
-  background: rgba(255, 59, 48, 0.1);
-  color: #ff3b30;
-  border: 1px solid rgba(255, 59, 48, 0.2);
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
 
 .footer-section {
   text-align: center;

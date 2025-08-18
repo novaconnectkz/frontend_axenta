@@ -17,14 +17,10 @@
         <div class="login-header">
           <div class="logo-container">
             <div class="logo-icon">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-                <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-                <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
-              </svg>
+              <span class="logo-letter">А</span>
             </div>
           </div>
-          <h1 class="welcome-title">Добро пожаловать в AxentaCRM</h1>
+          <h1 class="welcome-title">Добро пожаловать в CRM</h1>
           <p class="welcome-subtitle">Войдите в систему управления</p>
         </div>
 
@@ -151,7 +147,7 @@
           © {{ currentYear }} by ProfMonitor
         </p>
         <p class="footer-version">
-          AxentaCRM v{{ appVersion }}
+          CRM v{{ appVersion }}
         </p>
       </footer>
     </div>
@@ -505,6 +501,14 @@ onMounted(() => {
 .logo-icon:hover {
   transform: scale(1.05);
   box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+}
+
+.logo-letter {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 36px;
+  font-weight: 700;
+  color: white;
+  line-height: 1;
 }
 
 .welcome-title {
