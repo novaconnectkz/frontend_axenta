@@ -277,7 +277,7 @@
 </template>
 
 <script lang="ts">
-import { useAuth } from '@/context/auth';
+// import { useAuth } from '@/context/auth'; // Временно отключаем
 import { useDashboardStore } from '@/store/dashboard';
 import type { Widget, WidgetType } from '@/types/dashboard';
 import { computed, defineComponent, onMounted, ref } from 'vue';
@@ -302,7 +302,10 @@ export default defineComponent({
   },
   setup() {
     const dashboardStore = useDashboardStore();
-    const auth = useAuth();
+    // const auth = useAuth(); // Временно отключаем
+    
+    // Заглушка для auth
+    const auth = { user: { value: { name: 'Пользователь' } } };
     
     // Reactive refs
     const gridContainer = ref<HTMLElement>();

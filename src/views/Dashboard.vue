@@ -126,7 +126,7 @@
 
 <script lang="ts">
 import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
-import { useAuth } from '@/context/auth';
+// import { useAuth } from '@/context/auth'; // Временно отключаем
 import { useDashboardStore } from '@/store/dashboard';
 import { computed, defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -137,21 +137,6 @@ export default defineComponent({
     DashboardGrid
   },
   setup() {
-    // Безопасная инициализация auth
-    let auth: any = null;
-    
-    const getAuth = () => {
-      if (!auth) {
-        try {
-          auth = useAuth();
-        } catch (error) {
-          console.warn('Auth context not available in Dashboard:', error);
-          return null;
-        }
-      }
-      return auth;
-    };
-
     const router = useRouter();
     const dashboardStore = useDashboardStore();
     const isRefreshing = ref(false);
@@ -160,20 +145,18 @@ export default defineComponent({
     const error = computed(() => dashboardStore.error);
     const lastRefresh = computed(() => dashboardStore.lastRefresh);
     
-    // Безопасный доступ к auth для template
-    const authSafe = computed(() => getAuth());
+    // Заглушка для auth - получаем данные из localStorage
+    const auth = computed(() => {
+      const user = localStorage.getItem('axenta_user');
+      return user ? { user: { value: JSON.parse(user) } } : { user: { value: { name: 'Пользователь' } } };
+    });
 
     // Methods
     const handleLogout = () => {
-      const authContext = getAuth();
-      if (authContext) {
-        authContext.logout();
-      } else {
-        // Fallback - очищаем localStorage напрямую
-        localStorage.removeItem('axenta_token');
-        localStorage.removeItem('axenta_user');
-        localStorage.removeItem('axenta_company');
-      }
+      // Простой logout через localStorage
+      localStorage.removeItem('axenta_token');
+      localStorage.removeItem('axenta_user');
+      localStorage.removeItem('axenta_company');
       router.push('/login');
     };
 
@@ -209,7 +192,7 @@ export default defineComponent({
     };
 
     return {
-      auth: authSafe,
+      auth,
       error,
       lastRefresh,
       isRefreshing,
