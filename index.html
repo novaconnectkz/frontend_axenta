@@ -481,20 +481,27 @@
                         console.log('🔄 Перенаправление на дашборд...');
                         console.log('Current URL:', window.location.href);
                         
+                        // Определяем базовый путь приложения
+                        const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
+                        const dashboardUrl = basePath + 'dashboard.html';
+                        
+                        console.log('Base path:', basePath);
+                        console.log('Dashboard URL:', dashboardUrl);
+                        
                         // Проверяем доступность dashboard.html
                         try {
-                            const response = await fetch('dashboard.html', { method: 'HEAD' });
+                            const response = await fetch(dashboardUrl, { method: 'HEAD' });
                             if (response.ok) {
                                 console.log('✅ dashboard.html найден, перенаправляем');
-                                window.location.href = 'dashboard.html';
+                                window.location.href = dashboardUrl;
                             } else {
                                 console.log('❌ dashboard.html не найден, используем Vue Router');
-                                window.location.href = '/dashboard';
+                                window.location.href = basePath + 'dashboard';
                             }
                         } catch (error) {
                             console.log('❌ Ошибка проверки dashboard.html, используем Vue Router');
                             console.error('Fetch error:', error);
-                            window.location.href = '/dashboard';
+                            window.location.href = basePath + 'dashboard';
                         }
                     }, 1500);
                 } else {
@@ -535,20 +542,27 @@
                         setTimeout(async () => {
                             console.log('🔄 Автоматическое перенаправление авторизованного пользователя...');
                             
+                            // Определяем базовый путь приложения
+                            const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
+                            const dashboardUrl = basePath + 'dashboard.html';
+                            
+                            console.log('Base path:', basePath);
+                            console.log('Dashboard URL:', dashboardUrl);
+                            
                             // Проверяем доступность dashboard.html
                             try {
-                                const response = await fetch('dashboard.html', { method: 'HEAD' });
+                                const response = await fetch(dashboardUrl, { method: 'HEAD' });
                                 if (response.ok) {
                                     console.log('✅ dashboard.html найден, перенаправляем');
-                                    window.location.href = 'dashboard.html';
+                                    window.location.href = dashboardUrl;
                                 } else {
                                     console.log('❌ dashboard.html не найден, используем Vue Router');
-                                    window.location.href = '/dashboard';
+                                    window.location.href = basePath + 'dashboard';
                                 }
                             } catch (error) {
                                 console.log('❌ Ошибка проверки dashboard.html, используем Vue Router');
                                 console.error('Fetch error:', error);
-                                window.location.href = '/dashboard';
+                                window.location.href = basePath + 'dashboard';
                             }
                         }, 1000);
                         return true;
