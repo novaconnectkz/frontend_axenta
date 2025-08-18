@@ -339,6 +339,12 @@
             .apple-button { padding: 14px; }
         }
     </style>
+    <script>
+      // Конфигурация приложения
+      window.AXENTA_CONFIG = {
+        BACKEND_URL: '%VITE_BACKEND_URL%'
+      };
+    </script>
   </head>
   <body>
     <div class="login-container fade-in">
@@ -480,7 +486,9 @@
             hideMessage();
             
             try {
-                const response = await fetch('http://localhost:8080/api/auth/login', {
+                // Получаем адрес бэкенда из глобальной конфигурации или используем значение по умолчанию
+                const backendUrl = window.AXENTA_CONFIG?.BACKEND_URL || 'http://localhost:8080';
+                const response = await fetch(`${backendUrl}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
