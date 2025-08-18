@@ -1,4 +1,4 @@
-import { useWebSocket } from "@/services/websocketService";
+// import { useWebSocket } from "@/services/websocketService"; // Отключаем до исправления auth context
 import { onMounted, onUnmounted, ref, watch } from "vue";
 
 export interface WidgetUpdateHandler {
@@ -13,7 +13,7 @@ export interface RealTimeWidgetOptions {
 }
 
 export function useRealTimeWidget(options: RealTimeWidgetOptions) {
-  const { websocketService } = useWebSocket();
+  // const { websocketService } = useWebSocket(); // Отключаем до исправления auth context
   const isConnected = ref(false);
   const lastUpdate = ref<Date | null>(null);
   const updateHandlers = new Map<string, WidgetUpdateHandler>();
@@ -60,57 +60,59 @@ export function useRealTimeWidget(options: RealTimeWidgetOptions) {
     lastUpdate.value = new Date();
   };
 
-  // Подписка на каналы WebSocket
+  // Подписка на каналы WebSocket - временно отключено
   const subscribeToChannels = () => {
-    if (websocketService.isConnected()) {
-      options.updateChannels.forEach((channel) => {
-        websocketService.send({
-          type: "subscribe",
-          channel: channel,
-          widget_id: options.widgetId,
-        });
-      });
-    }
+    console.log('WebSocket subscriptions temporarily disabled');
+    // if (websocketService.isConnected()) {
+    //   options.updateChannels.forEach((channel) => {
+    //     websocketService.send({
+    //       type: "subscribe",
+    //       channel: channel,
+    //       widget_id: options.widgetId,
+    //     });
+    //   });
+    // }
   };
 
-  // Отписка от каналов WebSocket
+  // Отписка от каналов WebSocket - временно отключено
   const unsubscribeFromChannels = () => {
-    if (websocketService.isConnected()) {
-      options.updateChannels.forEach((channel) => {
-        websocketService.send({
-          type: "unsubscribe",
-          channel: channel,
-          widget_id: options.widgetId,
-        });
-      });
-    }
+    console.log('WebSocket unsubscriptions temporarily disabled');
+    // if (websocketService.isConnected()) {
+    //   options.updateChannels.forEach((channel) => {
+    //     websocketService.send({
+    //       type: "unsubscribe",
+    //       channel: channel,
+    //       widget_id: options.widgetId,
+    //     });
+    //   });
+    // }
   };
 
-  // Отслеживание состояния WebSocket соединения
-  watch(
-    () => websocketService.getConnectionState(),
-    (state) => {
-      isConnected.value = state === "connected";
-
-      if (isConnected.value) {
-        subscribeToChannels();
-      }
-    },
-    { immediate: true }
-  );
+  // Отслеживание состояния WebSocket соединения - временно отключено
+  // watch(
+  //   () => websocketService.getConnectionState(),
+  //   (state) => {
+  //     isConnected.value = state === "connected";
+  //     if (isConnected.value) {
+  //       subscribeToChannels();
+  //     }
+  //   },
+  //   { immediate: true }
+  // );
 
   onMounted(() => {
-    // Подключаемся к WebSocket если еще не подключены
-    if (!websocketService.isConnected()) {
-      websocketService.connect();
-    } else {
-      subscribeToChannels();
-    }
+    // WebSocket подключение временно отключено
+    console.log('Real-time widget mounted, WebSocket temporarily disabled');
+    // if (!websocketService.isConnected()) {
+    //   websocketService.connect();
+    // } else {
+    //   subscribeToChannels();
+    // }
   });
 
   onUnmounted(() => {
-    // Отписываемся от каналов
-    unsubscribeFromChannels();
+    // Отписываемся от каналов - временно отключено
+    // unsubscribeFromChannels();
 
     // Останавливаем автообновление
     stopAutoRefresh();

@@ -114,7 +114,7 @@ export function useAuthProvider() {
   apiClient.interceptors.request.use(
     (config) => {
       if (token.value) {
-        config.headers.Authorization = `Token ${token.value}`;
+        config.headers["authorization"] = `Token ${token.value}`;
         if (company.value) {
           config.headers["X-Tenant-ID"] = company.value.id;
         }
@@ -134,7 +134,7 @@ export function useAuthProvider() {
           await refreshToken();
           // Повторяем оригинальный запрос с новым токеном
           const originalRequest = error.config;
-          originalRequest.headers.Authorization = `Token ${token.value}`;
+          originalRequest.headers["authorization"] = `Token ${token.value}`;
           return apiClient.request(originalRequest);
         } catch (refreshError) {
           // Не удалось обновить токен, выходим из системы
@@ -243,7 +243,7 @@ export function useAuthProvider() {
         {},
         {
           headers: {
-            Authorization: `Token ${token.value}`,
+            "authorization": `Token ${token.value}`,
             ...(company.value && { "X-Tenant-ID": company.value.id }),
           },
         }

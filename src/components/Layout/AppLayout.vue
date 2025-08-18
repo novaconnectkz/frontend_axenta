@@ -262,7 +262,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 import { useAuth } from '@/context/auth';
 import { config } from '@/config/env';
-import { useWebSocket } from '@/services/websocketService';
+// import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
 const route = useRoute();
@@ -270,7 +270,7 @@ const router = useRouter();
 const { mobile } = useDisplay();
 const theme = useTheme();
 const auth = useAuth();
-const { getConnectionState } = useWebSocket();
+// const { getConnectionState } = useWebSocket(); // Отключаем до исправления auth context
 
 // Reactive data
 const drawer = ref(!mobile.value);
@@ -383,6 +383,10 @@ const userAvatar = computed(() => {
 });
 
 const wsStatus = computed(() => {
+  // Временно отключаем WebSocket статус до исправления auth context
+  return { icon: 'mdi-wifi-off', color: 'grey', text: 'Отключено' };
+  
+  /* Будет восстановлено после исправления:
   const status = getConnectionState();
   switch (status) {
     case 'connected':
@@ -394,6 +398,7 @@ const wsStatus = computed(() => {
     default:
       return { icon: 'mdi-wifi-alert', color: 'grey', text: 'Неизвестно' };
   }
+  */
 });
 
 // Methods
