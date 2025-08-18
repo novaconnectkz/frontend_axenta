@@ -208,7 +208,7 @@ export function useAuthProvider() {
     error.value = null;
     try {
       const response = await axios.post(
-        `${config.apiBaseUrl}/api/auth/login`,
+        `${config.apiBaseUrl}/auth/login`,
         credentials
       );
 
@@ -239,7 +239,7 @@ export function useAuthProvider() {
 
     try {
       const response = await axios.post(
-        `${config.apiBaseUrl}/api/auth/refresh`,
+        `${config.apiBaseUrl}/auth/refresh`,
         {},
         {
           headers: {

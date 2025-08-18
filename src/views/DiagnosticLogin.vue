@@ -86,9 +86,9 @@ const handleLogin = async () => {
   debugInfo.value = '';
 
   try {
-    debugInfo.value = `Отправка запроса на ${config.apiBaseUrl}/api/auth/login...`;
+    debugInfo.value = `Отправка запроса на ${config.apiBaseUrl}/auth/login...`;
     
-    const response = await axios.post(`${config.apiBaseUrl}/api/auth/login`, {
+    const response = await axios.post(`${config.apiBaseUrl}/auth/login`, {
       username: username.value,
       password: password.value
     });
