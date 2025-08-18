@@ -92,17 +92,17 @@ export const appleThemeLight: any = {
     'surface-light': appleColors.gray6,
     'surface-dark': appleColors.gray5,
     
-    // Текстовые цвета
+    // Текстовые цвета - улучшенная читаемость
     'on-primary': '#FFFFFF',
-    'on-secondary': '#000000',
+    'on-secondary': '#1D1D1F',
     'on-accent': '#FFFFFF',
     'on-success': '#FFFFFF',
     'on-error': '#FFFFFF',
     'on-warning': '#FFFFFF',
     'on-info': '#FFFFFF',
     'on-background': '#000000',
-    'on-surface': '#000000',
-    'on-surface-variant': '#3C3C43',
+    'on-surface': '#1D1D1F',
+    'on-surface-variant': '#1D1D1F',
     
     // Дополнительные Apple цвета
     pink: appleColors.pink,

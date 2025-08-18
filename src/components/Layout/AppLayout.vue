@@ -558,15 +558,30 @@ onMounted(() => {
   margin: 2px 12px;
   border-radius: 12px !important;
   transition: all 0.3s ease;
+  color: var(--apple-text-secondary) !important;
 }
 
 .nav-item:hover {
   transform: translateX(4px);
+  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--apple-blue) !important;
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)) !important;
-  color: rgb(var(--v-theme-primary)) !important;
+  background: linear-gradient(135deg, rgba(0, 122, 255, 0.15), rgba(0, 122, 255, 0.05)) !important;
+  color: var(--apple-blue) !important;
+  font-weight: 600 !important;
+}
+
+/* Улучшенная читаемость текста */
+.nav-item .v-list-item-title {
+  color: inherit !important;
+  font-weight: inherit !important;
+}
+
+.nav-item .v-list-item-subtitle {
+  color: var(--apple-text-tertiary) !important;
+  font-size: 12px !important;
 }
 
 .sidebar-footer {
@@ -688,6 +703,34 @@ onMounted(() => {
 }
 
 /* Responsive adjustments */
+/* Темная тема - улучшенная читаемость */
+[data-theme="dark"] .app-sidebar {
+  background: rgba(28, 28, 30, 0.8) !important;
+  border-right-color: rgba(84, 84, 136, 0.16);
+}
+
+[data-theme="dark"] .nav-item {
+  color: var(--apple-text-secondary-dark) !important;
+}
+
+[data-theme="dark"] .nav-item:hover {
+  background: rgba(77, 166, 255, 0.15) !important;
+  color: var(--apple-blue-light) !important;
+}
+
+[data-theme="dark"] .nav-item.active {
+  background: linear-gradient(135deg, rgba(77, 166, 255, 0.2), rgba(77, 166, 255, 0.1)) !important;
+  color: var(--apple-blue-light) !important;
+}
+
+[data-theme="dark"] .nav-item .v-list-item-subtitle {
+  color: var(--apple-text-tertiary-dark) !important;
+}
+
+[data-theme="dark"] .logo-text {
+  color: var(--apple-text-primary-dark) !important;
+}
+
 @media (max-width: 960px) {
   .sidebar-header {
     padding: 16px;

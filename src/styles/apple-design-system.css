@@ -57,9 +57,9 @@
   --apple-bg-grouped: #F2F2F7;
   
   --apple-text-primary: #000000;
-  --apple-text-secondary: #3C3C43;
-  --apple-text-tertiary: #3C3C4399;
-  --apple-text-quaternary: #3C3C432E;
+  --apple-text-secondary: #1D1D1F;
+  --apple-text-tertiary: #3C3C43;
+  --apple-text-quaternary: #6D6D7D;
   
   --apple-separator: #3C3C4329;
   --apple-separator-opaque: #C6C6C8;
@@ -72,8 +72,8 @@
   
   --apple-text-primary-dark: #FFFFFF;
   --apple-text-secondary-dark: #EBEBF5;
-  --apple-text-tertiary-dark: #EBEBF599;
-  --apple-text-quaternary-dark: #EBEBF52E;
+  --apple-text-tertiary-dark: #EBEBF5CC;
+  --apple-text-quaternary-dark: #EBEBF599;
   
   --apple-separator-dark: #54545899;
   --apple-separator-opaque-dark: #38383A;
