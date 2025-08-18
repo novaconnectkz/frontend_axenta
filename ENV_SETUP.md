@@ -24,15 +24,15 @@ cp env.example .env.local
 cp env.production.example .env.local
 ```
 
-Адрес бэкенда будет `http://194.87.143.169:8080`.
+Адрес бэкенда будет настроен согласно файлу `env.production.example`.
 
 ## Переменные окружения
 
-| Переменная         | Описание            | Пример значения              |
-| ------------------ | ------------------- | ---------------------------- |
-| `VITE_BACKEND_URL` | URL бэкенда         | `http://194.87.143.169:8080` |
-| `VITE_APP_NAME`    | Название приложения | `Axenta CRM`                 |
-| `VITE_API_VERSION` | Версия API          | `v1`                         |
+| Переменная         | Описание            | Пример значения                                           |
+| ------------------ | ------------------- | --------------------------------------------------------- |
+| `VITE_BACKEND_URL` | URL бэкенда         | `http://localhost:8080` или `http://your-backend-ip:8080` |
+| `VITE_APP_NAME`    | Название приложения | `Axenta CRM`                                              |
+| `VITE_API_VERSION` | Версия API          | `v1`                                                      |
 
 ## Использование в коде
 
@@ -40,10 +40,10 @@ cp env.production.example .env.local
 import { config } from "@/config/env";
 
 // Базовый URL API
-console.log(config.apiBaseUrl); // http://194.87.143.169:8080/api
+console.log(config.apiBaseUrl); // http://your-backend-url:8080/api
 
 // URL бэкенда
-console.log(config.backendUrl); // http://194.87.143.169:8080
+console.log(config.backendUrl); // http://your-backend-url:8080
 ```
 
 ## Файлы, которые были обновлены

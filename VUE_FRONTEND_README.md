@@ -207,7 +207,7 @@ const passwordRules = [
 ```typescript
 // Настройка через переменные окружения:
 // В .env.local или .env.production файле установите:
-// VITE_BACKEND_URL=http://194.87.143.169:8080
+// VITE_BACKEND_URL=http://your-backend-ip:8080
 
 // Использование в коде:
 import { config } from "@/config/env";
