@@ -1,0 +1,602 @@
+<template>
+  <v-app>
+    <!-- Боковая панель навигации -->
+    <v-navigation-drawer
+      v-model="drawer"
+      :rail="rail"
+      permanent
+      class="app-sidebar"
+      :class="{ 'sidebar-rail': rail }"
+    >
+      <!-- Заголовок боковой панели -->
+      <div class="sidebar-header">
+        <div class="logo" @click="toggleRail">
+          <div class="logo-icon">
+            <v-icon size="30" color="white">mdi-hexagon-multiple</v-icon>
+          </div>
+          <transition name="fade">
+            <div v-show="!rail" class="logo-text">
+              {{ config.appName }}
+            </div>
+          </transition>
+        </div>
+        
+        <v-btn
+          v-show="!rail"
+          icon="mdi-menu"
+          variant="text"
+          size="small"
+          @click="toggleRail"
+        />
+      </div>
+
+      <!-- Навигационное меню -->
+      <v-list class="sidebar-nav" nav>
+        <v-list-item
+          v-for="item in navigationItems"
+          :key="item.path"
+          :to="item.path"
+          :prepend-icon="item.icon"
+          :title="item.title"
+          :subtitle="rail ? undefined : item.subtitle"
+          class="nav-item"
+          :class="{ 'active': $route.path === item.path }"
+          exact
+        >
+          <template v-if="item.badge" #append>
+            <v-badge
+              :content="item.badge"
+              color="error"
+              inline
+            />
+          </template>
+        </v-list-item>
+      </v-list>
+
+      <!-- Футер боковой панели -->
+      <template #append>
+        <div class="sidebar-footer">
+          <!-- Переключатель темы -->
+          <div v-show="!rail" class="theme-switcher">
+            <v-switch
+              v-model="isDarkTheme"
+              :label="isDarkTheme ? 'Темная тема' : 'Светлая тема'"
+              :prepend-icon="isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny'"
+              color="primary"
+              hide-details
+              inset
+              @change="toggleTheme"
+            />
+          </div>
+
+          <!-- Информация о пользователе -->
+          <v-menu location="top">
+            <template #activator="{ props }">
+              <v-list-item
+                v-bind="props"
+                :prepend-avatar="userAvatar"
+                :title="rail ? undefined : auth.user.value?.name"
+                :subtitle="rail ? undefined : auth.user.value?.email"
+                class="user-info"
+              >
+                <template #append>
+                  <v-icon v-show="!rail">mdi-chevron-up</v-icon>
+                </template>
+              </v-list-item>
+            </template>
+
+            <v-list>
+              <v-list-item
+                prepend-icon="mdi-account"
+                title="Профиль"
+                @click="goToProfile"
+              />
+              <v-list-item
+                prepend-icon="mdi-cog"
+                title="Настройки"
+                @click="goToSettings"
+              />
+              <v-divider />
+              <v-list-item
+                prepend-icon="mdi-logout"
+                title="Выйти"
+                @click="handleLogout"
+              />
+            </v-list>
+          </v-menu>
+        </div>
+      </template>
+    </v-navigation-drawer>
+
+    <!-- Верхняя панель -->
+    <v-app-bar
+      :order="-1"
+      class="app-header"
+      flat
+      border
+    >
+      <!-- Кнопка меню для мобильных -->
+      <v-app-bar-nav-icon
+        v-if="mobile"
+        @click="drawer = !drawer"
+      />
+
+      <!-- Заголовок страницы -->
+      <v-app-bar-title>
+        <div class="page-title">
+          <v-icon
+            v-if="currentPageIcon"
+            :icon="currentPageIcon"
+            class="mr-2"
+          />
+          {{ currentPageTitle }}
+        </div>
+      </v-app-bar-title>
+
+      <v-spacer />
+
+      <!-- Уведомления -->
+      <v-menu location="bottom">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            variant="text"
+          >
+            <v-badge
+              v-if="notificationsCount > 0"
+              :content="notificationsCount"
+              color="error"
+            >
+              <v-icon>mdi-bell</v-icon>
+            </v-badge>
+            <v-icon v-else>mdi-bell-outline</v-icon>
+          </v-btn>
+        </template>
+
+        <v-card width="350">
+          <v-card-title>
+            Уведомления
+            <v-spacer />
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              size="small"
+            />
+          </v-card-title>
+          <v-card-text>
+            <div v-if="notifications.length === 0" class="text-center py-4">
+              <v-icon size="48" color="grey">mdi-bell-off</v-icon>
+              <p class="text-grey mt-2">Нет новых уведомлений</p>
+            </div>
+            <div v-else>
+              <v-list lines="two">
+                <v-list-item
+                  v-for="notification in notifications.slice(0, 5)"
+                  :key="notification.id"
+                  :title="notification.title"
+                  :subtitle="notification.message"
+                >
+                  <template #prepend>
+                    <v-avatar :color="notification.type">
+                      <v-icon :icon="getNotificationIcon(notification.type)" />
+                    </v-avatar>
+                  </template>
+                </v-list-item>
+              </v-list>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-menu>
+
+      <!-- WebSocket статус -->
+      <v-tooltip location="bottom">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            variant="text"
+            :color="wsStatus.color"
+          >
+            <v-icon>{{ wsStatus.icon }}</v-icon>
+          </v-btn>
+        </template>
+        <span>{{ wsStatus.text }}</span>
+      </v-tooltip>
+    </v-app-bar>
+
+    <!-- Основной контент -->
+    <v-main class="app-main">
+      <v-container fluid class="main-content">
+        <!-- Breadcrumbs -->
+        <v-breadcrumbs
+          v-if="breadcrumbs.length > 1"
+          :items="breadcrumbs"
+          class="px-0 py-2"
+        >
+          <template #divider>
+            <v-icon>mdi-chevron-right</v-icon>
+          </template>
+        </v-breadcrumbs>
+
+        <!-- Слот для контента страницы -->
+        <router-view v-slot="{ Component, route }">
+          <transition
+            name="page"
+            mode="out-in"
+            appear
+          >
+            <component
+              :is="Component"
+              :key="route.path"
+            />
+          </transition>
+        </router-view>
+      </v-container>
+    </v-main>
+
+    <!-- Snackbar для глобальных уведомлений -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top right"
+    >
+      {{ snackbar.text }}
+      
+      <template #actions>
+        <v-btn
+          variant="text"
+          @click="snackbar.show = false"
+        >
+          Закрыть
+        </v-btn>
+      </template>
+    </v-snackbar>
+  </v-app>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useDisplay, useTheme } from 'vuetify';
+import { useAuth } from '@/context/auth';
+import { config } from '@/config/env';
+import { useWebSocket } from '@/services/websocketService';
+
+// Composables
+const route = useRoute();
+const router = useRouter();
+const { mobile } = useDisplay();
+const theme = useTheme();
+const auth = useAuth();
+const { getConnectionState } = useWebSocket();
+
+// Reactive data
+const drawer = ref(!mobile.value);
+const rail = ref(false);
+const isDarkTheme = ref(theme.current.value.dark);
+const notifications = ref([]);
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'info',
+  timeout: 5000
+});
+
+// Навигационные элементы
+const navigationItems = computed(() => [
+  {
+    path: '/dashboard',
+    icon: 'mdi-view-dashboard',
+    title: 'Дашборд',
+    subtitle: 'Обзор системы'
+  },
+  {
+    path: '/objects',
+    icon: 'mdi-office-building',
+    title: 'Объекты',
+    subtitle: 'Управление объектами',
+    badge: 0 // Можно добавить счетчик
+  },
+  {
+    path: '/users',
+    icon: 'mdi-account-group',
+    title: 'Пользователи',
+    subtitle: 'Управление пользователями'
+  },
+  {
+    path: '/installations',
+    icon: 'mdi-tools',
+    title: 'Монтажи',
+    subtitle: 'Планирование монтажей'
+  },
+  {
+    path: '/warehouse',
+    icon: 'mdi-warehouse',
+    title: 'Склад',
+    subtitle: 'Управление оборудованием'
+  },
+  {
+    path: '/billing',
+    icon: 'mdi-currency-usd',
+    title: 'Биллинг',
+    subtitle: 'Финансовый учет'
+  },
+  {
+    path: '/reports',
+    icon: 'mdi-chart-line',
+    title: 'Отчеты',
+    subtitle: 'Аналитика и отчеты'
+  },
+  {
+    path: '/settings',
+    icon: 'mdi-cog',
+    title: 'Настройки',
+    subtitle: 'Конфигурация системы'
+  }
+]);
+
+// Computed properties
+const currentPageTitle = computed(() => {
+  const currentItem = navigationItems.value.find(item => item.path === route.path);
+  return currentItem?.title || route.meta?.title || 'Axenta CRM';
+});
+
+const currentPageIcon = computed(() => {
+  const currentItem = navigationItems.value.find(item => item.path === route.path);
+  return currentItem?.icon;
+});
+
+const breadcrumbs = computed(() => {
+  const paths = route.path.split('/').filter(Boolean);
+  const crumbs = [{ title: 'Главная', to: '/dashboard' }];
+  
+  let currentPath = '';
+  for (const path of paths) {
+    currentPath += `/${path}`;
+    const item = navigationItems.value.find(item => item.path === currentPath);
+    if (item) {
+      crumbs.push({
+        title: item.title,
+        to: currentPath,
+        disabled: currentPath === route.path
+      });
+    }
+  }
+  
+  return crumbs;
+});
+
+const notificationsCount = computed(() => {
+  return notifications.value.filter(n => !n.read).length;
+});
+
+const userAvatar = computed(() => {
+  const user = auth.user.value;
+  if (user?.avatar) return user.avatar;
+  
+  // Генерируем аватар по первым буквам имени
+  const name = user?.name || 'U';
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+  return `https://ui-avatars.com/api/?name=${initials}&background=667eea&color=fff`;
+});
+
+const wsStatus = computed(() => {
+  const status = getConnectionState();
+  switch (status) {
+    case 'connected':
+      return { icon: 'mdi-wifi', color: 'success', text: 'Подключено' };
+    case 'connecting':
+      return { icon: 'mdi-wifi-sync', color: 'warning', text: 'Подключение...' };
+    case 'disconnected':
+      return { icon: 'mdi-wifi-off', color: 'error', text: 'Отключено' };
+    default:
+      return { icon: 'mdi-wifi-alert', color: 'grey', text: 'Неизвестно' };
+  }
+});
+
+// Methods
+const toggleRail = () => {
+  rail.value = !rail.value;
+};
+
+const toggleTheme = () => {
+  theme.global.name.value = isDarkTheme.value ? 'dark' : 'light';
+  localStorage.setItem('theme', theme.global.name.value);
+};
+
+const goToProfile = () => {
+  router.push('/profile');
+};
+
+const goToSettings = () => {
+  router.push('/settings');
+};
+
+const handleLogout = async () => {
+  try {
+    await auth.logout();
+    router.push('/login');
+  } catch (error) {
+    console.error('Logout error:', error);
+    showSnackbar('Ошибка при выходе из системы', 'error');
+  }
+};
+
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case 'success': return 'mdi-check-circle';
+    case 'error': return 'mdi-alert-circle';
+    case 'warning': return 'mdi-alert';
+    case 'info': 
+    default: return 'mdi-information';
+  }
+};
+
+const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
+  snackbar.value = { show: true, text, color, timeout };
+};
+
+// Watchers
+watch(mobile, (newValue) => {
+  drawer.value = !newValue;
+  rail.value = newValue;
+});
+
+// Lifecycle
+onMounted(() => {
+  // Восстанавливаем тему из localStorage
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    theme.global.name.value = savedTheme;
+    isDarkTheme.value = savedTheme === 'dark';
+  }
+});
+</script>
+
+<style scoped>
+.app-sidebar {
+  border-right: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logo:hover {
+  transform: scale(1.02);
+}
+
+.logo-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 0;
+}
+
+.nav-item {
+  margin: 2px 12px;
+  border-radius: 12px !important;
+  transition: all 0.3s ease;
+}
+
+.nav-item:hover {
+  transform: translateX(4px);
+}
+
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.1)) !important;
+  color: rgb(var(--v-theme-primary)) !important;
+}
+
+.sidebar-footer {
+  padding: 20px;
+  border-top: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+.theme-switcher {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(var(--v-theme-surface), 0.5);
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+.user-info {
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.user-info:hover {
+  background: rgba(var(--v-theme-primary), 0.1);
+}
+
+.app-header {
+  backdrop-filter: blur(10px);
+  background: rgba(var(--v-theme-surface), 0.9) !important;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}
+
+.app-main {
+  background: linear-gradient(135deg, 
+    rgba(var(--v-theme-surface), 1) 0%, 
+    rgba(var(--v-theme-background), 1) 100%);
+}
+
+.main-content {
+  max-width: none;
+  padding: 20px;
+}
+
+.sidebar-rail .logo-text,
+.sidebar-rail .theme-switcher {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  .sidebar-header {
+    padding: 16px;
+  }
+  
+  .main-content {
+    padding: 16px;
+  }
+}
+</style>

@@ -68,4 +68,15 @@ app.use(pinia);
 app.use(vuetify);
 app.use(router);
 
+// Монтируем приложение
 app.mount("#app");
+
+// Скрываем загрузочный экран после монтирования
+app.config.globalProperties.$nextTick(() => {
+  // Даем время на первичный рендеринг
+  setTimeout(() => {
+    if (window.hideLoadingScreen) {
+      window.hideLoadingScreen();
+    }
+  }, 100);
+});

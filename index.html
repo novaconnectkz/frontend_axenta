@@ -3,616 +3,209 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axenta CRM - Вход в систему</title>
+    <title>Axenta CRM</title>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    
+    <!-- Preload критически важных ресурсов -->
+    <link rel="preload" href="/src/main.ts" as="script" type="module">
+    
+    <!-- Meta теги для SEO -->
+    <meta name="description" content="Система управления объектами Axenta CRM">
+    <meta name="keywords" content="CRM, управление объектами, мониторинг">
+    <meta name="author" content="Axenta Team">
+    
+    <!-- Open Graph теги -->
+    <meta property="og:title" content="Axenta CRM">
+    <meta property="og:description" content="Система управления объектами">
+    <meta property="og:type" content="website">
+    
+    <!-- Базовые стили для быстрого отображения -->
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+      /* Критические стили для устранения FOUC */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        background: #FFFFFF;
+        color: #1a1a1a;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      /* Загрузочный экран */
+      #app-loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+      
+      #app-loading.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      .loading-spinner {
+        width: 60px;
+        height: 60px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #007AFF;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        margin-top: 20px;
+        color: #6B7280;
+        font-size: 14px;
+        text-align: center;
+      }
+      
+      /* Скрыть основное приложение до загрузки */
+      #app {
+        opacity: 0;
+        transition: opacity 0.3s ease-in;
+      }
+      
+      #app.loaded {
+        opacity: 1;
+      }
+      
+      /* Fallback стили для критических элементов */
+      .v-application {
+        font-family: inherit !important;
+      }
+      
+      /* Темная тема для системных настроек */
+      @media (prefers-color-scheme: dark) {
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            background: #FFFFFF;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
+          background: #1a1a1a;
+          color: #FFFFFF;
         }
         
-        .login-container {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-radius: 24px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 
-                0 20px 60px rgba(0, 0, 0, 0.1),
-                0 8px 32px rgba(0, 0, 0, 0.05),
-                inset 0 1px 0 rgba(255, 255, 255, 0.3);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            position: relative;
-            overflow: hidden;
+        #app-loading {
+          background: #1a1a1a;
         }
         
-        .login-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        .loading-spinner {
+          border: 3px solid #2d2d2d;
+          border-top: 3px solid #007AFF;
         }
-        
-        .logo-section {
-            text-align: center;
-            margin-bottom: 40px;
+      }
+      
+      /* Responsive adjustments */
+      @media (max-width: 768px) {
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border-width: 2px;
         }
-        
-        .logo-icon {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 5px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 50px;
-            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-        }
-        
-
-        
-
-        
-
-        
-        .app-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1D1D1F;
-            margin: 0 0 8px 0;
-            letter-spacing: -0.5px;
-        }
-        
-        .app-subtitle {
-            font-size: 16px;
-            color: #86868B;
-            margin: 0;
-            font-weight: 400;
-        }
-        
-        .login-form {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        
-        .input-group {
-            position: relative;
-        }
-        
-        .apple-input {
-            width: 100%;
-            padding: 16px 50px 16px 16px;
-            border: 1px solid #D1D5DB;
-            border-radius: 12px;
-            font-size: 16px;
-            background: #F9FAFB;
-            color: #1D1D1F;
-            font-family: inherit;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-        
-        .apple-input::placeholder {
-            color: #9CA3AF;
-        }
-        
-        .apple-input:focus {
-            border-color: #8B5CF6;
-            background: #FFFFFF;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-            transform: translateY(-1px);
-        }
-        
-        .input-icon {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #9CA3AF;
-            pointer-events: none;
-        }
-        
-        .password-toggle {
-            position: absolute;
-            right: 50px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: #9CA3AF;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-            font-size: 14px;
-        }
-        
-        .password-toggle:hover {
-            color: #8B5CF6;
-            background: rgba(139, 92, 246, 0.1);
-        }
-        
-        .remember-section {
-            display: flex;
-            align-items: center;
-            margin: 20px 0;
-        }
-        
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            user-select: none;
-        }
-        
-        .apple-checkbox {
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            border: 1px solid #D1D5DB;
-            border-radius: 6px;
-            background: #F9FAFB;
-            margin-right: 12px;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .apple-checkbox:checked {
-            background: #8B5CF6;
-            border-color: #8B5CF6;
-        }
-        
-        .apple-checkbox:checked::after {
-            content: '✓';
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
-        .checkbox-label {
-            color: #6B7280;
-            font-size: 14px;
-            font-weight: 400;
-        }
-        
-        .apple-button {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #A855F7 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-family: inherit;
-            box-shadow: 
-                0 4px 16px rgba(139, 92, 246, 0.3),
-                0 2px 8px rgba(0, 0, 0, 0.2);
-            position: relative;
-            overflow: hidden;
-        }
-        
-
-        
-        .apple-button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 8px 24px rgba(139, 92, 246, 0.4),
-                0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        
-
-        
-        .apple-button:disabled {
-            background: rgba(72, 72, 74, 0.8);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .button-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .message {
-            margin-top: 20px;
-            padding: 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 500;
-            text-align: center;
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        .message.error {
-            background: rgba(255, 59, 48, 0.2);
-            color: #FF6B6B;
-            border: 1px solid rgba(255, 59, 48, 0.3);
-        }
-        
-        .message.success {
-            background: rgba(52, 199, 89, 0.2);
-            color: #4ADE80;
-            border: 1px solid rgba(52, 199, 89, 0.3);
-        }
-        
-        .message.warning {
-            background: rgba(255, 149, 0, 0.2);
-            color: #FF9500;
-            border: 1px solid rgba(255, 149, 0, 0.3);
-        }
-        
-        .message.info {
-            background: rgba(0, 122, 255, 0.2);
-            color: #007AFF;
-            border: 1px solid rgba(0, 122, 255, 0.3);
-        }
-        
-
-        
-        .footer-section {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            z-index: 10;
-        }
-        
-        .footer-text {
-            color: #8B5CF6;
-            font-size: 14px;
-            margin: 0 0 8px 0;
-            font-weight: 500;
-        }
-        
-        .footer-subtitle {
-            color: #A855F7;
-            font-size: 12px;
-            margin: 0;
-            font-weight: 400;
-        }
-        
-        .fade-in {
-            animation: fadeIn 0.8s ease-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Адаптивность */
-        @media (max-width: 480px) {
-            body { padding: 15px; }
-            .login-container { 
-                padding: 30px; 
-                border-radius: 20px;
-                max-width: 350px;
-            }
-            .app-title { font-size: 24px; }
-            .logo-icon { 
-                width: 75px; 
-                height: 75px; 
-                border-radius: 19px;
-                font-size: 38px;
-            }
-            .apple-input { padding: 14px 45px 14px 14px; }
-            .apple-button { padding: 14px; }
-        }
+      }
     </style>
+    
+    <!-- Конфигурация приложения -->
     <script>
-      // Конфигурация приложения
+      // Глобальная конфигурация для быстрого доступа
       window.AXENTA_CONFIG = {
-        BACKEND_URL: '%VITE_BACKEND_URL%'
+        BACKEND_URL: '%VITE_BACKEND_URL%',
+        WS_URL: '%VITE_WS_BASE_URL%',
+        APP_NAME: '%VITE_APP_NAME%',
+        API_VERSION: '%VITE_API_VERSION%',
+        APP_ENV: '%VITE_APP_ENV%'
       };
+      
+      // Обработка ошибок до загрузки Vue
+      window.addEventListener('error', function(event) {
+        console.error('Global error before Vue:', event.error);
+      });
+      
+      window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection before Vue:', event.reason);
+      });
+      
+      // Функция для скрытия загрузочного экрана
+      window.hideLoadingScreen = function() {
+        const loadingScreen = document.getElementById('app-loading');
+        const app = document.getElementById('app');
+        
+        if (loadingScreen) {
+          loadingScreen.classList.add('fade-out');
+          setTimeout(() => {
+            loadingScreen.style.display = 'none';
+          }, 300);
+        }
+        
+        if (app) {
+          app.classList.add('loaded');
+        }
+      };
+      
+      // Автоматическое скрытие загрузочного экрана через максимум 10 секунд
+      setTimeout(() => {
+        if (document.getElementById('app-loading')) {
+          console.warn('Force hiding loading screen after 10s timeout');
+          window.hideLoadingScreen();
+        }
+      }, 10000);
     </script>
   </head>
+  
   <body>
-    <div class="login-container fade-in">
-        <!-- Логотип и заголовок -->
-        <div class="logo-section">
-            <div class="logo-icon">A</div>
-            <h1 class="app-title">Добро пожаловать в<br>AxentaCRM</h1>
+    <!-- Загрузочный экран -->
+    <div id="app-loading">
+      <div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">
+          Загрузка Axenta CRM...
         </div>
-
-        <!-- Форма авторизации -->
-        <form id="loginForm" class="login-form">
-            <div class="input-group">
-                <input
-                    id="username"
-                    type="text"
-                    placeholder="Логин"
-                    class="apple-input"
-                    required
-                />
-                <div class="input-icon">
-                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                    </svg>
-                </div>
-            </div>
-
-            <div class="input-group">
-                <input
-                    id="password"
-                    type="password"
-                    placeholder="Пароль"
-                    class="apple-input"
-                    required
-                />
-                <button type="button" id="passwordToggle" class="password-toggle">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 9c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0-4C6.48 3 2 7.48 2 12s4.48 9 10 9 10-4.48 10-9S17.52 3 12 3z"/>
-                    </svg>
-                </button>
-                <div class="input-icon">
-                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6-5c1.66 0 3 1.34 3 3v2H9V6c0-1.66 1.34-3 3-3zm0 11c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/>
-                    </svg>
-                </div>
-            </div>
-            
-            <div class="remember-section">
-                <label class="checkbox-container">
-                    <input type="checkbox" id="rememberMe" class="apple-checkbox" checked>
-                    <span class="checkbox-label">Запомнить пароль</span>
-                </label>
-            </div>
-            
-            <button type="submit" id="loginBtn" class="apple-button">
-                <span class="button-content">
-                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z"/>
-                    </svg>
-                    Войти
-                </span>
-            </button>
-        </form>
-
-        <!-- Сообщения -->
-        <div id="message" class="message" style="display: none;"></div>
-        
-        <!-- Кнопка для ручного перехода в дашборд -->
-        <div id="manualDashboard" style="display: none; text-align: center; margin-top: 20px;">
-            <button id="goToDashboard" class="apple-button" style="background: #007AFF;">
-                <span class="button-content">
-                    Перейти в дашборд вручную
-                </span>
-            </button>
+      </div>
+    </div>
+    
+    <!-- Основное приложение Vue -->
+    <div id="app">
+      <!-- Fallback контент для случаев когда JS отключен -->
+      <noscript>
+        <div style="text-align: center; padding: 50px; font-family: Arial, sans-serif;">
+          <h1>JavaScript требуется</h1>
+          <p>Для работы Axenta CRM необходимо включить JavaScript в вашем браузере.</p>
+          <p>Пожалуйста, включите JavaScript и обновите страницу.</p>
         </div>
-
-
+      </noscript>
     </div>
-
-    <!-- Футер -->
-    <div class="footer-section">
-        <p class="footer-text">© 2025 by ProfMonitor</p>
-        <p class="footer-subtitle">AxentaCRM v1.0.0</p>
-    </div>
-
+    
+    <!-- Основной скрипт приложения -->
+    <script type="module" src="/src/main.ts"></script>
+    
+    <!-- Service Worker для PWA (опционально) -->
     <script>
-        console.log('🍎 AxentaCRM Login - Dark Theme');
-        
-        const form = document.getElementById('loginForm');
-        const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
-        const passwordToggle = document.getElementById('passwordToggle');
-        const loginBtn = document.getElementById('loginBtn');
-        const messageDiv = document.getElementById('message');
-        
-        // Переключение пароля
-        passwordToggle.addEventListener('click', () => {
-            const type = passwordInput.type === 'password' ? 'text' : 'password';
-            passwordInput.type = type;
-            
-            const eyeIcon = type === 'text' 
-                ? '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>'
-                : '<svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 9c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0-4C6.48 3 2 7.48 2 12s4.48 9 10 9 10-4.48 10-9S17.52 3 12 3z"/></svg>';
-            passwordToggle.innerHTML = eyeIcon;
+      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
         });
-        
-        // Показать сообщение
-        function showMessage(text, type = 'error') {
-            messageDiv.textContent = text;
-            messageDiv.className = 'message ' + type;
-            messageDiv.style.display = 'block';
-        }
-        
-        function hideMessage() {
-            messageDiv.style.display = 'none';
-        }
-        
-
-        
-        // Обработка формы
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value;
-            
-            if (!username || !password) {
-                showMessage('❌ Заполните все поля', 'error');
-                return;
-            }
-            
-            if (username.length < 3 || password.length < 3) {
-                showMessage('❌ Логин и пароль должны содержать минимум 3 символа', 'error');
-                return;
-            }
-            
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span class="button-content">⏳ Вход...</span>';
-            hideMessage();
-            
-            try {
-                // Получаем адрес бэкенда из глобальной конфигурации или используем значение по умолчанию
-                const backendUrl = window.AXENTA_CONFIG?.BACKEND_URL || 'http://localhost:8080';
-                const response = await fetch(`${backendUrl}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.status === 'success') {
-                    showMessage('✅ Вход выполнен успешно! Перенаправление...', 'success');
-                    
-                    localStorage.setItem('axenta_token', data.data.token);
-                    localStorage.setItem('axenta_user', JSON.stringify(data.data.user));
-                    
-                    if (data.data.company) {
-                        localStorage.setItem('axenta_company', JSON.stringify(data.data.company));
-                    }
-                    
-                    setTimeout(() => {
-                        console.log('🔄 Перенаправление на дашборд...');
-                        
-                        // Сразу показываем кнопку для ручного перехода
-                        document.getElementById('manualDashboard').style.display = 'block';
-                        showMessage('✅ Авторизация успешна! Нажмите кнопку для перехода в дашборд.', 'success');
-                        
-                        // Также пробуем автоматическое перенаправление
-                        const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
-                        const dashboardUrl = basePath + 'dashboard.html';
-                        
-                        console.log('Dashboard URL:', dashboardUrl);
-                        
-                        // Попытка автоматического перенаправления через 3 секунды
-                        setTimeout(() => {
-                            console.log('🚀 Попытка автоматического перенаправления...');
-                            window.location.href = dashboardUrl;
-                        }, 3000);
-                    }, 500);
-                } else {
-                    showMessage('❌ ' + (data.error || 'Ошибка авторизации'), 'error');
-                }
-            } catch (error) {
-                showMessage('❌ Ошибка подключения: ' + error.message, 'error');
-            } finally {
-                loginBtn.disabled = false;
-                loginBtn.innerHTML = `
-                    <span class="button-content">
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        Войти
-                    </span>
-                `;
-            }
-        });
-        
-        // Очистка ошибок
-        usernameInput.addEventListener('input', hideMessage);
-        passwordInput.addEventListener('input', hideMessage);
-        
-        // Обработчик кнопки ручного перехода в дашборд
-        document.getElementById('goToDashboard').addEventListener('click', () => {
-            const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
-            const dashboardUrl = basePath + 'dashboard.html';
-            console.log('🖱️ Ручной переход в дашборд:', dashboardUrl);
-            
-            // Пробуем несколько способов
-            try {
-                window.location.href = dashboardUrl;
-            } catch (error) {
-                console.error('Ошибка перенаправления:', error);
-                // Fallback - открываем в новой вкладке
-                window.open(dashboardUrl, '_blank');
-            }
-        });
-        
-        // Инициализация
-        
-        // Проверка авторизации (только если не было попытки входа)
-        function checkExistingAuth() {
-            const token = localStorage.getItem('axenta_token');
-            const user = localStorage.getItem('axenta_user');
-            
-            // Проверяем, что токен валидный и не истек
-            if (token && user) {
-                try {
-                    const userObj = JSON.parse(user);
-                    if (userObj && userObj.username) {
-                        showMessage('ℹ️ Пользователь уже авторизован. Перенаправление...', 'success');
-                        setTimeout(() => {
-                            console.log('🔄 Автоматическое перенаправление авторизованного пользователя...');
-                            
-                            // Сразу показываем кнопку
-                            document.getElementById('manualDashboard').style.display = 'block';
-                            showMessage('ℹ️ Пользователь уже авторизован. Нажмите кнопку для перехода в дашборд.', 'info');
-                            
-                            // Также пробуем автоматическое перенаправление
-                            const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
-                            const dashboardUrl = basePath + 'dashboard.html';
-                            
-                            setTimeout(() => {
-                                window.location.href = dashboardUrl;
-                            }, 2000);
-                        }, 500);
-                        return true;
-                    }
-                } catch (e) {
-                    // Если данные пользователя повреждены, очищаем
-                    localStorage.removeItem('axenta_token');
-                    localStorage.removeItem('axenta_user');
-                    localStorage.removeItem('axenta_company');
-                }
-            }
-            return false;
-        }
-        
-        // Проверяем авторизацию только при первой загрузке
-        // Добавляем задержку чтобы страница успела полностью загрузиться
-        setTimeout(() => {
-            if (!sessionStorage.getItem('login_page_visited')) {
-                sessionStorage.setItem('login_page_visited', 'true');
-                checkExistingAuth();
-            }
-        }, 500);
-        
-        console.log('✅ AxentaCRM Dark Theme Login ready!');
+      }
     </script>
   </body>
 </html>

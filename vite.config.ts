@@ -12,10 +12,13 @@ export default defineConfig(({ mode }) => {
       {
         name: 'html-transform',
         transformIndexHtml(html) {
-          return html.replace(
-            '%VITE_BACKEND_URL%',
-            env.VITE_BACKEND_URL || 'http://localhost:8080'
-          );
+          // Заменяем все переменные окружения в HTML
+          return html
+            .replace('%VITE_BACKEND_URL%', env.VITE_BACKEND_URL || 'http://localhost:8080')
+            .replace('%VITE_WS_BASE_URL%', env.VITE_WS_BASE_URL || 'ws://localhost:8080')
+            .replace('%VITE_APP_NAME%', env.VITE_APP_NAME || 'Axenta CRM')
+            .replace('%VITE_API_VERSION%', env.VITE_API_VERSION || 'v1')
+            .replace('%VITE_APP_ENV%', env.VITE_APP_ENV || 'development');
         }
       }
     ],
@@ -23,6 +26,93 @@ export default defineConfig(({ mode }) => {
       alias: {
         "@": resolve(__dirname, "src"),
       },
+    },
+    
+    // Настройки для SPA
+    build: {
+      target: 'es2015',
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: mode === 'development',
+      minify: mode === 'production' ? 'esbuild' : false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Разделяем vendor библиотеки для лучшего кэширования
+            'vendor-vue': ['vue', 'vue-router', 'pinia'],
+            'vendor-vuetify': ['vuetify'],
+            'vendor-utils': ['axios'],
+          },
+        },
+      },
+    },
+    
+    // Настройки dev сервера для SPA
+    server: {
+      port: 3000,
+      host: true,
+      // История API для SPA маршрутизации
+      historyApiFallback: {
+        index: '/index.html',
+        rewrites: [
+          // Перенаправляем все маршруты на index.html для SPA
+          { from: /^\/(?!api).*$/, to: '/index.html' }
+        ],
+      },
+      proxy: {
+        // Проксируем API запросы на backend
+        '/api': {
+          target: env.VITE_BACKEND_URL || 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        },
+        // Проксируем WebSocket соединения
+        '/ws': {
+          target: env.VITE_WS_BASE_URL || 'ws://localhost:8080',
+          ws: true,
+          changeOrigin: true,
+        },
+      },
+    },
+    
+    // Настройки preview для продакшена
+    preview: {
+      port: 3000,
+      host: true,
+      // История API для preview режима
+      historyApiFallback: {
+        index: '/index.html',
+      },
+    },
+    
+    // Оптимизации
+    optimizeDeps: {
+      include: [
+        'vue',
+        'vue-router',
+        'pinia',
+        'vuetify',
+        'axios',
+      ],
+      exclude: ['@vitejs/client'],
+    },
+    
+    // CSS настройки
+    css: {
+      devSourcemap: mode === 'development',
+      preprocessorOptions: {
+        scss: {
+          additionalData: `
+            @import "vuetify/styles";
+          `,
+        },
+      },
+    },
+    
+    // Переменные окружения
+    define: {
+      __VUE_OPTIONS_API__: true,
+      __VUE_PROD_DEVTOOLS__: mode === 'development',
     },
   };
 });

@@ -15,57 +15,158 @@ import SimpleLogin from "../views/SimpleLogin.vue";
 import TestDashboard from "../views/TestDashboard.vue";
 
 const routes = [
-  // Публичные маршруты (только для неавторизованных пользователей)
+  // Главная страница - для авторизованных перенаправляем на дашборд
+  {
+    path: "/",
+    name: "Home",
+    redirect: (to) => {
+      // Проверяем авторизацию из localStorage
+      const token = localStorage.getItem('axenta_token');
+      return token ? '/dashboard' : '/login';
+    },
+  },
+
+  // === МАРШРУТЫ АВТОРИЗАЦИИ ===
+  
+  // Основная страница входа (заменяет статический index.html)
   createGuestRoute("/login", () => import("@/components/AppleStyleLogin.vue"), {
     title: "Вход в систему",
   }),
 
-  // Старые маршруты для совместимости
+  // Старые маршруты для совместимости (можно удалить позже)
   createGuestRoute("/login-old", LoginPageFixed, {
     title: "Вход в систему (старый)",
   }),
   createGuestRoute("/simple-login", SimpleLogin, {
     title: "Простой вход",
   }),
-
-  // Главная страница - показываем красивую форму входа в стиле Apple
-  {
-    path: "/",
-    name: "Home",
-    component: () => import("@/components/AppleStyleLogin.vue"),
-    meta: {
-      title: "Вход в систему",
-    },
-  },
-  createProtectedRoute("/dashboard", () => import("@/views/Dashboard.vue"), {
-    title: "Панель управления",
-  }),
-  createProtectedRoute("/full-dashboard", SimpleDashboard, {
-    title: "Полная панель управления",
-  }),
-
-  // Тестовая страница
-  createPublicRoute("/test", () => import("@/views/TestPage.vue"), {
-    title: "Тестовая страница",
-  }),
-
-
-
-  // Диагностическая страница входа
   createPublicRoute("/diagnostic", DiagnosticLogin, {
     title: "Диагностическая форма входа",
   }),
 
-  // Биллинг - используем существующий компонент
-  createProtectedRoute("/billing", () => import("@/views/Billing.vue"), {
-    title: "Биллинг",
-    permissions: ["billing.view"],
+  // === ОСНОВНЫЕ МАРШРУТЫ ПРИЛОЖЕНИЯ (С LAYOUT) ===
+  
+  {
+    path: "/app",
+    component: () => import("@/components/Layout/AppLayout.vue"),
+    children: [
+      // Дашборд (заменяет статический dashboard.html)
+      {
+        path: "/dashboard",
+        name: "Dashboard",
+        component: () => import("@/views/Dashboard.vue"),
+        meta: {
+          title: "Панель управления",
+          requiresAuth: true,
+        },
+      },
+
+      // Управление объектами
+      {
+        path: "/objects",
+        name: "Objects",
+        component: () => import("@/views/Objects.vue"),
+        meta: {
+          title: "Объекты",
+          requiresAuth: true,
+        },
+      },
+
+      // Управление пользователями
+      {
+        path: "/users",
+        name: "Users",
+        component: () => import("@/views/Users.vue"),
+        meta: {
+          title: "Пользователи",
+          requiresAuth: true,
+          permissions: ["users.view"],
+        },
+      },
+
+      // Система монтажей
+      {
+        path: "/installations",
+        name: "Installations",
+        component: () => import("@/views/Installations.vue"),
+        meta: {
+          title: "Монтажи",
+          requiresAuth: true,
+        },
+      },
+
+      // Управление складом
+      {
+        path: "/warehouse",
+        name: "Warehouse",
+        component: () => import("@/views/Warehouse.vue"),
+        meta: {
+          title: "Склад",
+          requiresAuth: true,
+        },
+      },
+
+      // Биллинг
+      {
+        path: "/billing",
+        name: "Billing",
+        component: () => import("@/views/Billing.vue"),
+        meta: {
+          title: "Биллинг",
+          requiresAuth: true,
+          permissions: ["billing.view"],
+        },
+      },
+
+      // Отчеты и аналитика
+      {
+        path: "/reports",
+        name: "Reports",
+        component: () => import("@/views/Reports.vue"),
+        meta: {
+          title: "Отчеты",
+          requiresAuth: true,
+        },
+      },
+
+      // Настройки системы
+      {
+        path: "/settings",
+        name: "Settings",
+        component: () => import("@/views/Settings.vue"),
+        meta: {
+          title: "Настройки",
+          requiresAuth: true,
+          permissions: ["settings.view"],
+        },
+      },
+
+      // Профиль пользователя
+      {
+        path: "/profile",
+        name: "Profile",
+        component: () => import("@/views/Profile.vue"),
+        meta: {
+          title: "Профиль",
+          requiresAuth: true,
+        },
+      },
+    ],
+  },
+
+  // === СОВМЕСТИМОСТЬ СО СТАРЫМИ МАРШРУТАМИ ===
+  
+  createProtectedRoute("/full-dashboard", SimpleDashboard, {
+    title: "Полная панель управления",
   }),
 
-  // Остальные маршруты временно отключены до создания компонентов
-  // TODO: Создать недостающие компоненты для этих маршрутов
+  // Тестовые страницы
+  createPublicRoute("/test", () => import("@/views/TestPage.vue"), {
+    title: "Тестовая страница",
+  }),
 
-  // Служебные страницы
+  // === СЛУЖЕБНЫЕ СТРАНИЦЫ ===
+  
   createPublicRoute(
     "/access-denied",
     () => import("@/views/AccessDenied.vue"),
