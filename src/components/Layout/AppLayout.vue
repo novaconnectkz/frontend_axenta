@@ -53,44 +53,10 @@
         </v-list-item>
       </v-list>
 
-      <!-- Футер боковой панели -->
+      <!-- Футер боковой панели - теперь пустой -->
       <template #append>
         <div class="sidebar-footer">
-          <!-- Информация о пользователе -->
-          <v-menu location="top">
-            <template #activator="{ props }">
-              <v-list-item
-                v-bind="props"
-                :prepend-avatar="userAvatar"
-                :title="rail ? undefined : auth.user.value?.name"
-                :subtitle="rail ? undefined : auth.user.value?.email"
-                class="user-info"
-              >
-                <template #append>
-                  <v-icon v-show="!rail">mdi-chevron-up</v-icon>
-                </template>
-              </v-list-item>
-            </template>
-
-            <v-list>
-              <v-list-item
-                prepend-icon="mdi-account"
-                title="Профиль"
-                @click="goToProfile"
-              />
-              <v-list-item
-                prepend-icon="mdi-cog"
-                title="Настройки"
-                @click="goToSettings"
-              />
-              <v-divider />
-              <v-list-item
-                prepend-icon="mdi-logout"
-                title="Выйти"
-                @click="handleLogout"
-              />
-            </v-list>
-          </v-menu>
+          <!-- Пользователь перенесен в header -->
         </div>
       </template>
     </v-navigation-drawer>
@@ -121,21 +87,6 @@
       </v-app-bar-title>
 
       <v-spacer />
-
-      <!-- Иконка настроек -->
-      <v-tooltip location="bottom">
-        <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon="mdi-cog"
-            variant="text"
-            @click="goToSettings"
-            class="settings-btn"
-          >
-          </v-btn>
-        </template>
-        <span>Настройки</span>
-      </v-tooltip>
 
       <!-- Переключатель темы -->
       <v-tooltip location="bottom">
@@ -223,6 +174,76 @@
         </template>
         <span>{{ wsStatus.text }}</span>
       </v-tooltip>
+
+      <!-- Аватар пользователя -->
+      <v-menu location="bottom">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon
+            variant="text"
+            class="user-avatar-btn"
+          >
+            <v-avatar
+              :image="userAvatar"
+              size="32"
+              class="user-avatar"
+            >
+              <span v-if="!userAvatar" class="user-initials">
+                {{ getUserInitials() }}
+              </span>
+            </v-avatar>
+          </v-btn>
+        </template>
+
+        <v-card width="280">
+          <v-card-text class="pa-4">
+            <div class="d-flex align-center mb-3">
+              <v-avatar
+                :image="userAvatar"
+                size="48"
+                class="me-3"
+              >
+                <span v-if="!userAvatar" class="user-initials">
+                  {{ getUserInitials() }}
+                </span>
+              </v-avatar>
+              <div>
+                <div class="text-h6 font-weight-medium">
+                  {{ auth.user.value?.name || 'Пользователь' }}
+                </div>
+                <div class="text-caption text-medium-emphasis">
+                  {{ auth.user.value?.email || 'email@example.com' }}
+                </div>
+              </div>
+            </div>
+            
+            <v-divider class="mb-3" />
+            
+            <v-list density="compact" class="pa-0">
+              <v-list-item
+                prepend-icon="mdi-account"
+                title="Профиль"
+                @click="goToProfile"
+                class="profile-menu-item"
+              />
+              <v-list-item
+                prepend-icon="mdi-cog"
+                title="Настройки"
+                @click="goToSettings"
+                class="profile-menu-item"
+              />
+              <v-divider class="my-2" />
+              <v-list-item
+                prepend-icon="mdi-logout"
+                title="Выйти"
+                @click="handleLogout"
+                class="profile-menu-item logout-item"
+              />
+            </v-list>
+          </v-card-text>
+        </v-card>
+      </v-menu>
     </v-app-bar>
 
     <!-- Основной контент -->
@@ -486,6 +507,16 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString('ru-RU', options);
 };
 
+const getUserInitials = () => {
+  const user = auth.user.value;
+  if (!user?.name) return 'U';
+  const names = user.name.split(' ');
+  if (names.length >= 2) {
+    return `${names[0][0]}${names[1][0]}`.toUpperCase();
+  }
+  return names[0][0].toUpperCase();
+};
+
 // Watchers
 watch(mobile, (newValue) => {
   drawer.value = !newValue;
@@ -665,18 +696,7 @@ onMounted(() => {
   color: var(--apple-text-tertiary-dark);
 }
 
-/* Кнопка настроек */
-.settings-btn {
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 12px;
-  margin-right: 8px;
-}
 
-.settings-btn:hover {
-  background: rgba(0, 122, 255, 0.1) !important;
-  color: var(--apple-blue);
-  transform: scale(1.05);
-}
 
 .theme-toggle-btn {
   margin-right: 8px;
@@ -804,6 +824,72 @@ onMounted(() => {
   color: var(--apple-text-primary-dark) !important;
 }
 
+/* Аватар пользователя в header */
+.user-avatar-btn {
+  margin-left: 8px;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+}
+
+.user-avatar-btn:hover {
+  background: rgba(0, 122, 255, 0.1) !important;
+  transform: scale(1.05);
+}
+
+.user-avatar {
+  border: 2px solid rgba(var(--v-theme-primary), 0.2);
+  transition: all 0.15s ease;
+}
+
+.user-avatar-btn:hover .user-avatar {
+  border-color: var(--apple-blue);
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3);
+}
+
+.user-initials {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: white;
+}
+
+/* Выпадающее меню профиля */
+.profile-menu-item {
+  border-radius: 8px;
+  margin: 2px 0;
+  transition: all 0.15s ease;
+}
+
+.profile-menu-item:hover {
+  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--apple-blue);
+}
+
+.logout-item:hover {
+  background: rgba(255, 59, 48, 0.1) !important;
+  color: var(--apple-red);
+}
+
+/* Темная тема для аватара */
+[data-theme="dark"] .user-avatar-btn:hover {
+  background: rgba(77, 166, 255, 0.15) !important;
+}
+
+[data-theme="dark"] .user-avatar-btn:hover .user-avatar {
+  border-color: var(--apple-blue-light);
+  box-shadow: 0 2px 8px rgba(77, 166, 255, 0.4);
+}
+
+[data-theme="dark"] .profile-menu-item:hover {
+  background: rgba(77, 166, 255, 0.15) !important;
+  color: var(--apple-blue-light);
+}
+
+[data-theme="dark"] .logout-item:hover {
+  background: rgba(255, 105, 97, 0.15) !important;
+  color: var(--apple-red-light);
+}
+
 /* Mobile адаптация для приветствия */
 @media (max-width: 960px) {
   .welcome-title {
@@ -814,12 +900,19 @@ onMounted(() => {
     font-size: 0.75rem;
   }
   
-  .settings-btn {
-    margin-right: 4px;
-  }
+
   
   .theme-toggle-btn {
     margin-right: 4px;
+  }
+  
+  .user-avatar-btn {
+    margin-left: 4px;
+  }
+  
+  .user-avatar {
+    width: 28px !important;
+    height: 28px !important;
   }
 }
 
