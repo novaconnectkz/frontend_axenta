@@ -108,19 +108,34 @@
         @click="drawer = !drawer"
       />
 
-      <!-- Заголовок страницы -->
+      <!-- Приветствие и дата -->
       <v-app-bar-title>
-        <div class="page-title">
-          <v-icon
-            v-if="currentPageIcon"
-            :icon="currentPageIcon"
-            class="mr-2"
-          />
-          {{ currentPageTitle }}
+        <div class="welcome-section">
+          <h1 class="welcome-title">
+            Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!
+          </h1>
+          <p class="welcome-date">
+            {{ formatDate(new Date()) }}
+          </p>
         </div>
       </v-app-bar-title>
 
       <v-spacer />
+
+      <!-- Иконка настроек -->
+      <v-tooltip location="bottom">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            icon="mdi-cog"
+            variant="text"
+            @click="goToSettings"
+            class="settings-btn"
+          >
+          </v-btn>
+        </template>
+        <span>Настройки</span>
+      </v-tooltip>
 
       <!-- Переключатель темы -->
       <v-tooltip location="bottom">
@@ -461,6 +476,16 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
 };
 
+const formatDate = (date: Date) => {
+  const options: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  };
+  return date.toLocaleDateString('ru-RU', options);
+};
+
 // Watchers
 watch(mobile, (newValue) => {
   drawer.value = !newValue;
@@ -605,6 +630,54 @@ onMounted(() => {
   background: rgba(var(--v-theme-surface), 0.9) !important;
 }
 
+/* Секция приветствия в header */
+.welcome-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.welcome-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2;
+  color: var(--apple-text-primary);
+  margin: 0;
+}
+
+.welcome-date {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--apple-text-tertiary);
+  margin: 0;
+  text-transform: capitalize;
+}
+
+/* Темная тема для приветствия */
+[data-theme="dark"] .welcome-title {
+  color: var(--apple-text-primary-dark);
+}
+
+[data-theme="dark"] .welcome-date {
+  color: var(--apple-text-tertiary-dark);
+}
+
+/* Кнопка настроек */
+.settings-btn {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  margin-right: 8px;
+}
+
+.settings-btn:hover {
+  background: rgba(0, 122, 255, 0.1) !important;
+  color: var(--apple-blue);
+  transform: scale(1.05);
+}
+
 .theme-toggle-btn {
   margin-right: 8px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -729,6 +802,35 @@ onMounted(() => {
 
 [data-theme="dark"] .logo-text {
   color: var(--apple-text-primary-dark) !important;
+}
+
+/* Mobile адаптация для приветствия */
+@media (max-width: 960px) {
+  .welcome-title {
+    font-size: 1.1rem !important;
+  }
+  
+  .welcome-date {
+    font-size: 0.75rem;
+  }
+  
+  .settings-btn {
+    margin-right: 4px;
+  }
+  
+  .theme-toggle-btn {
+    margin-right: 4px;
+  }
+}
+
+@media (max-width: 600px) {
+  .welcome-title {
+    font-size: 1rem !important;
+  }
+  
+  .welcome-date {
+    display: none; /* Скрываем дату на очень маленьких экранах */
+  }
 }
 
 @media (max-width: 960px) {

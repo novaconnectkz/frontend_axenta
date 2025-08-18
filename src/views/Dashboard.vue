@@ -1,66 +1,5 @@
 <template>
   <v-container fluid class="dashboard-container">
-    <!-- Header -->
-    <v-row class="mb-4">
-      <v-col cols="12">
-        <div class="d-flex align-center justify-space-between">
-          <div>
-            <h1 class="text-h4 font-weight-bold">
-              Добро пожаловать, {{ auth?.user?.value?.name || 'Пользователь' }}!
-            </h1>
-            <p class="text-subtitle-1 text-medium-emphasis">
-              {{ formatDate(new Date()) }}
-            </p>
-          </div>
-          
-          <div class="d-flex align-center gap-2">
-            <v-btn
-              icon="mdi-refresh"
-              variant="outlined"
-              @click="refreshDashboard"
-              :loading="isRefreshing"
-              title="Обновить данные"
-            />
-            
-            <v-menu>
-              <template v-slot:activator="{ props }">
-                <v-btn
-                  icon="mdi-account-circle"
-                  variant="outlined"
-                  v-bind="props"
-                />
-              </template>
-              <v-list>
-                <v-list-item>
-                  <v-list-item-title>{{ auth.user.value?.name }}</v-list-item-title>
-                  <v-list-item-subtitle>{{ auth.user.value?.accountName }}</v-list-item-subtitle>
-                </v-list-item>
-                <v-divider />
-                <v-list-item to="/profile">
-                  <template v-slot:prepend>
-                    <v-icon icon="mdi-account-cog" />
-                  </template>
-                  <v-list-item-title>Профиль</v-list-item-title>
-                </v-list-item>
-                <v-list-item to="/settings">
-                  <template v-slot:prepend>
-                    <v-icon icon="mdi-cog" />
-                  </template>
-                  <v-list-item-title>Настройки</v-list-item-title>
-                </v-list-item>
-                <v-divider />
-                <v-list-item @click="handleLogout">
-                  <template v-slot:prepend>
-                    <v-icon icon="mdi-logout" />
-                  </template>
-                  <v-list-item-title>Выйти</v-list-item-title>
-                </v-list-item>
-              </v-list>
-            </v-menu>
-          </div>
-        </div>
-      </v-col>
-    </v-row>
 
     <!-- Error State -->
     <v-row v-if="error">
@@ -145,20 +84,7 @@ export default defineComponent({
     const error = computed(() => dashboardStore.error);
     const lastRefresh = computed(() => dashboardStore.lastRefresh);
     
-    // Заглушка для auth - получаем данные из localStorage
-    const auth = computed(() => {
-      const user = localStorage.getItem('axenta_user');
-      return user ? { user: { value: JSON.parse(user) } } : { user: { value: { name: 'Пользователь' } } };
-    });
-
     // Methods
-    const handleLogout = () => {
-      // Простой logout через localStorage
-      localStorage.removeItem('axenta_token');
-      localStorage.removeItem('axenta_user');
-      localStorage.removeItem('axenta_company');
-      router.push('/login');
-    };
 
     const refreshDashboard = async () => {
       try {
@@ -175,15 +101,6 @@ export default defineComponent({
       dashboardStore.clearError();
     };
 
-    const formatDate = (date: Date): string => {
-      return date.toLocaleDateString('ru-RU', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    };
-
     const formatTime = (date: Date): string => {
       return date.toLocaleTimeString('ru-RU', {
         hour: '2-digit',
@@ -192,14 +109,11 @@ export default defineComponent({
     };
 
     return {
-      auth,
       error,
       lastRefresh,
       isRefreshing,
-      handleLogout,
       refreshDashboard,
       clearError,
-      formatDate,
       formatTime
     };
   }
