@@ -154,13 +154,20 @@ import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
-// Получаем auth безопасно
+// Получаем auth безопасно - ленивая инициализация
 let auth: any = null;
-try {
-  auth = useAuth();
-} catch (e) {
-  console.error('Auth provider не доступен:', e);
-}
+
+const getAuth = () => {
+  if (!auth) {
+    try {
+      auth = useAuth();
+    } catch (e) {
+      console.warn('Auth provider не доступен:', e);
+      return null;
+    }
+  }
+  return auth;
+};
 
 // Форма
 const form = ref<LoginForm>({
@@ -227,9 +234,10 @@ const handleLogin = async () => {
   isLoading.value = true;
 
   try {
-    if (auth) {
+    const authContext = getAuth();
+    if (authContext) {
       // Используем auth context если доступен
-      await auth.login({
+      await authContext.login({
         username: form.value.username.trim(),
         password: form.value.password,
       });
@@ -291,17 +299,20 @@ onMounted(() => {
   }
 });
 
-// Следим за изменениями аутентификации
-if (auth) {
-  watch(
-    () => auth.isAuthenticated.value,
-    (isAuth) => {
-      if (isAuth) {
-        router.push('/dashboard');
+// Следим за изменениями аутентификации - ленивая инициализация
+onMounted(() => {
+  const authContext = getAuth();
+  if (authContext) {
+    watch(
+      () => authContext.isAuthenticated.value,
+      (isAuth) => {
+        if (isAuth) {
+          router.push('/dashboard');
+        }
       }
-    }
-  );
-}
+    );
+  }
+});
 </script>
 
 <style scoped>

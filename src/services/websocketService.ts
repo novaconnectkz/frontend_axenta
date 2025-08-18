@@ -338,8 +338,37 @@ class WebSocketService {
   }
 }
 
-// Создаем singleton instance
-export const websocketService = new WebSocketService();
+// Создаем singleton instance только когда он нужен
+let websocketServiceInstance: WebSocketService | null = null;
+
+export const websocketService = {
+  getInstance(): WebSocketService {
+    if (!websocketServiceInstance) {
+      websocketServiceInstance = new WebSocketService();
+    }
+    return websocketServiceInstance;
+  },
+  
+  connect() {
+    return this.getInstance().connect();
+  },
+  
+  disconnect() {
+    return this.getInstance().disconnect();
+  },
+  
+  send(message: any) {
+    return this.getInstance().send(message);
+  },
+  
+  isConnected() {
+    return this.getInstance().isConnected();
+  },
+  
+  getConnectionState() {
+    return this.getInstance().getConnectionState();
+  }
+};
 
 // Автоматически подключаемся при аутентификации
 export function initWebSocket() {
