@@ -23,8 +23,33 @@ class WebSocketService {
   private maxReconnectAttempts = 5;
   private reconnectInterval = 1000;
   private isConnecting = false;
-  private auth = useAuth();
-  private dashboardStore = useDashboardStore();
+  private auth: any = null;
+  private dashboardStore: any = null;
+
+  // Ленивая инициализация auth и store
+  private getAuth() {
+    if (!this.auth) {
+      try {
+        this.auth = useAuth();
+      } catch (error) {
+        console.warn('Auth context not available in WebSocket service:', error);
+        return null;
+      }
+    }
+    return this.auth;
+  }
+
+  private getDashboardStore() {
+    if (!this.dashboardStore) {
+      try {
+        this.dashboardStore = useDashboardStore();
+      } catch (error) {
+        console.warn('Dashboard store not available in WebSocket service:', error);
+        return null;
+      }
+    }
+    return this.dashboardStore;
+  }
 
   connect(): void {
     if (this.socket || this.isConnecting) return;
@@ -54,8 +79,9 @@ class WebSocketService {
 
   private buildWebSocketUrl(): string {
     const baseUrl = config.wsBaseUrl;
-    const token = this.auth.token.value;
-    const companyId = this.auth.company.value?.id;
+    const auth = this.getAuth();
+    const token = auth?.token?.value;
+    const companyId = auth?.company?.value?.id;
 
     let url = `${baseUrl}/ws`;
     const params = new URLSearchParams();
@@ -169,75 +195,85 @@ class WebSocketService {
 
   private handleDashboardStatsUpdate(data: any): void {
     // Обновляем статистику в store
-    if (this.dashboardStore.stats) {
-      Object.assign(this.dashboardStore.stats, data);
+    const store = this.getDashboardStore();
+    if (store?.stats) {
+      Object.assign(store.stats, data);
     }
   }
 
   private handleActivityUpdate(data: any): void {
     // Добавляем новую активность в начало списка
+    const store = this.getDashboardStore();
+    if (!store) return;
+
     if (Array.isArray(data)) {
-      this.dashboardStore.recentActivity.unshift(...data);
+      store.recentActivity.unshift(...data);
       // Ограничиваем количество элементов
-      if (this.dashboardStore.recentActivity.length > 50) {
-        this.dashboardStore.recentActivity =
-          this.dashboardStore.recentActivity.slice(0, 50);
+      if (store.recentActivity.length > 50) {
+        store.recentActivity = store.recentActivity.slice(0, 50);
       }
     } else {
-      this.dashboardStore.recentActivity.unshift(data);
-      if (this.dashboardStore.recentActivity.length > 50) {
-        this.dashboardStore.recentActivity.pop();
+      store.recentActivity.unshift(data);
+      if (store.recentActivity.length > 50) {
+        store.recentActivity.pop();
       }
     }
   }
 
   private handleNotificationUpdate(data: any): void {
     // Добавляем новое уведомление
+    const store = this.getDashboardStore();
+    if (!store) return;
+
     if (Array.isArray(data)) {
-      this.dashboardStore.notifications.unshift(...data);
+      store.notifications.unshift(...data);
     } else {
-      this.dashboardStore.notifications.unshift(data);
+      store.notifications.unshift(data);
     }
 
     // Ограничиваем количество уведомлений
-    if (this.dashboardStore.notifications.length > 20) {
-      this.dashboardStore.notifications =
-        this.dashboardStore.notifications.slice(0, 20);
+    if (store.notifications.length > 20) {
+      store.notifications = store.notifications.slice(0, 20);
     }
   }
 
   private handleObjectUpdate(data: any): void {
     // Обновляем статистику объектов
-    if (this.dashboardStore.stats?.objects) {
-      this.dashboardStore.loadStats(); // Перезагружаем статистику
+    const store = this.getDashboardStore();
+    if (store?.stats?.objects) {
+      store.loadStats(); // Перезагружаем статистику
     }
   }
 
   private handleUserUpdate(data: any): void {
     // Обновляем статистику пользователей
-    if (this.dashboardStore.stats?.users) {
-      this.dashboardStore.loadStats(); // Перезагружаем статистику
+    const store = this.getDashboardStore();
+    if (store?.stats?.users) {
+      store.loadStats(); // Перезагружаем статистику
     }
   }
 
   private handleBillingUpdate(data: any): void {
     // Обновляем статистику биллинга
-    if (this.dashboardStore.stats?.billing) {
-      this.dashboardStore.loadStats(); // Перезагружаем статистику
+    const store = this.getDashboardStore();
+    if (store?.stats?.billing) {
+      store.loadStats(); // Перезагружаем статистику
     }
   }
 
   private handleInstallationUpdate(data: any): void {
     // Обновляем статистику монтажей
-    if (this.dashboardStore.stats?.installations) {
-      this.dashboardStore.loadStats(); // Перезагружаем статистику
+    const store = this.getDashboardStore();
+    if (store?.stats?.installations) {
+      store.loadStats(); // Перезагружаем статистику
     }
   }
 
   private handleWarehouseUpdate(data: any): void {
     // Обновляем статистику склада
-    if (this.dashboardStore.stats?.warehouse) {
-      this.dashboardStore.loadStats(); // Перезагружаем статистику
+    const store = this.getDashboardStore();
+    if (store?.stats?.warehouse) {
+      store.loadStats(); // Перезагружаем статистику
     }
   }
 
@@ -307,24 +343,29 @@ export const websocketService = new WebSocketService();
 
 // Автоматически подключаемся при аутентификации
 export function initWebSocket() {
-  const auth = useAuth();
+  try {
+    const auth = useAuth();
 
-  // Подключаемся когда пользователь аутентифицирован
-  if (auth.isAuthenticated.value) {
-    websocketService.connect();
-  }
-
-  // Отслеживаем изменения аутентификации
-  watch(
-    () => auth.isAuthenticated.value,
-    (isAuthenticated) => {
-      if (isAuthenticated) {
-        websocketService.connect();
-      } else {
-        websocketService.disconnect();
-      }
+    // Подключаемся когда пользователь аутентифицирован
+    if (auth.isAuthenticated.value) {
+      websocketService.connect();
     }
-  );
+
+    // Отслеживаем изменения аутентификации
+    watch(
+      () => auth.isAuthenticated.value,
+      (isAuthenticated) => {
+        if (isAuthenticated) {
+          websocketService.connect();
+        } else {
+          websocketService.disconnect();
+        }
+      }
+    );
+  } catch (error) {
+    console.warn('Cannot initialize WebSocket: Auth context not available', error);
+    // WebSocket будет инициализирован позже, когда auth context станет доступен
+  }
 }
 
 // Для использования в компонентах Vue
