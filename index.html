@@ -274,6 +274,18 @@
             border: 1px solid rgba(52, 199, 89, 0.3);
         }
         
+        .message.warning {
+            background: rgba(255, 149, 0, 0.2);
+            color: #FF9500;
+            border: 1px solid rgba(255, 149, 0, 0.3);
+        }
+        
+        .message.info {
+            background: rgba(0, 122, 255, 0.2);
+            color: #007AFF;
+            border: 1px solid rgba(0, 122, 255, 0.3);
+        }
+        
 
         
         .footer-section {
@@ -486,56 +498,25 @@
                         localStorage.setItem('axenta_company', JSON.stringify(data.data.company));
                     }
                     
-                    setTimeout(async () => {
+                    setTimeout(() => {
                         console.log('🔄 Перенаправление на дашборд...');
-                        console.log('Current URL:', window.location.href);
-                        console.log('Current pathname:', window.location.pathname);
-                        console.log('Current host:', window.location.host);
                         
-                        // Определяем базовый путь приложения
+                        // Сразу показываем кнопку для ручного перехода
+                        document.getElementById('manualDashboard').style.display = 'block';
+                        showMessage('✅ Авторизация успешна! Нажмите кнопку для перехода в дашборд.', 'success');
+                        
+                        // Также пробуем автоматическое перенаправление
                         const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
                         const dashboardUrl = basePath + 'dashboard.html';
                         
-                        console.log('Base path:', basePath);
                         console.log('Dashboard URL:', dashboardUrl);
-                        console.log('Full dashboard URL:', window.location.origin + dashboardUrl);
                         
-                        // Простое перенаправление без проверок для диагностики
-                        console.log('🚀 ПРИНУДИТЕЛЬНОЕ перенаправление на dashboard.html');
-                        
-                        // Пробуем разные способы перенаправления
-                        try {
-                            // Способ 1: относительный путь
-                            console.log('Попытка 1: относительный путь');
+                        // Попытка автоматического перенаправления через 3 секунды
+                        setTimeout(() => {
+                            console.log('🚀 Попытка автоматического перенаправления...');
                             window.location.href = dashboardUrl;
-                            
-                            // Если через 2 секунды не перенаправило, пробуем другие способы
-                            setTimeout(() => {
-                                console.log('Попытка 2: window.location.assign');
-                                window.location.assign(dashboardUrl);
-                                
-                                setTimeout(() => {
-                                    console.log('Попытка 3: window.location.replace');
-                                    window.location.replace(dashboardUrl);
-                                    
-                                    setTimeout(() => {
-                                        console.log('Попытка 4: полный URL');
-                                        window.location.href = window.location.origin + dashboardUrl;
-                                        
-                                        // Если ничего не сработало, показываем кнопку для ручного перехода
-                                        setTimeout(() => {
-                                            console.log('❌ Автоматическое перенаправление не сработало');
-                                            document.getElementById('manualDashboard').style.display = 'block';
-                                            showMessage('⚠️ Автоматическое перенаправление не сработало. Нажмите кнопку ниже.', 'warning');
-                                        }, 2000);
-                                    }, 1000);
-                                }, 1000);
-                            }, 2000);
-                            
-                        } catch (error) {
-                            console.error('❌ Ошибка перенаправления:', error);
-                        }
-                    }, 1500);
+                        }, 3000);
+                    }, 500);
                 } else {
                     showMessage('❌ ' + (data.error || 'Ошибка авторизации'), 'error');
                 }
@@ -563,7 +544,15 @@
             const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
             const dashboardUrl = basePath + 'dashboard.html';
             console.log('🖱️ Ручной переход в дашборд:', dashboardUrl);
-            window.open(dashboardUrl, '_blank'); // Открываем в новой вкладке для диагностики
+            
+            // Пробуем несколько способов
+            try {
+                window.location.href = dashboardUrl;
+            } catch (error) {
+                console.error('Ошибка перенаправления:', error);
+                // Fallback - открываем в новой вкладке
+                window.open(dashboardUrl, '_blank');
+            }
         });
         
         // Инициализация
@@ -582,16 +571,18 @@
                         setTimeout(() => {
                             console.log('🔄 Автоматическое перенаправление авторизованного пользователя...');
                             
-                            // Определяем базовый путь приложения
+                            // Сразу показываем кнопку
+                            document.getElementById('manualDashboard').style.display = 'block';
+                            showMessage('ℹ️ Пользователь уже авторизован. Нажмите кнопку для перехода в дашборд.', 'info');
+                            
+                            // Также пробуем автоматическое перенаправление
                             const basePath = window.location.pathname.replace(/\/[^\/]*$/, '/');
                             const dashboardUrl = basePath + 'dashboard.html';
                             
-                            console.log('Base path:', basePath);
-                            console.log('Dashboard URL:', dashboardUrl);
-                            console.log('🚀 ПРИНУДИТЕЛЬНОЕ перенаправление на dashboard.html');
-                            
-                            window.location.href = dashboardUrl;
-                        }, 1000);
+                            setTimeout(() => {
+                                window.location.href = dashboardUrl;
+                            }, 2000);
+                        }, 500);
                         return true;
                     }
                 } catch (e) {
