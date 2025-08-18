@@ -1,0 +1,712 @@
+/* 🌐 Кроссбраузерная совместимость для Apple Design System */
+
+/* ===========================================
+   CHROME / SAFARI / EDGE (WEBKIT/BLINK)
+   =========================================== */
+
+/* Webkit scrollbars в Apple стиле */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Webkit appearance reset */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Webkit tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===========================================
+   FIREFOX SPECIFIC
+   =========================================== */
+
+/* Firefox scrollbars */
+@-moz-document url-prefix() {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+  
+  [data-theme="dark"] * {
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+}
+
+/* Firefox focus outline */
+@-moz-document url-prefix() {
+  button::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+  }
+  
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  textarea {
+    -moz-appearance: none;
+  }
+}
+
+/* ===========================================
+   INTERNET EXPLORER 11
+   =========================================== */
+
+/* IE11 Grid fallback */
+@media screen and (-ms-high-contrast: active), screen and (-ms-high-contrast: none) {
+  .apple-card {
+    display: block;
+    border: 1px solid #ccc;
+  }
+  
+  .apple-button {
+    border: 1px solid transparent;
+    filter: none;
+  }
+  
+  .apple-input-wrapper-base {
+    border: 1px solid #ccc;
+  }
+  
+  /* IE11 не поддерживает CSS Grid, используем Flexbox */
+  .dashboard-grid {
+    display: -ms-flexbox;
+    display: flex;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
+  
+  .dashboard-grid > * {
+    -ms-flex: 1 1 300px;
+    flex: 1 1 300px;
+    margin: 8px;
+  }
+}
+
+/* ===========================================
+   SAFARI SPECIFIC
+   =========================================== */
+
+/* Safari backdrop-filter */
+@supports (-webkit-backdrop-filter: blur(20px)) {
+  .apple-sidebar,
+  .apple-card,
+  .apple-input-outlined,
+  .apple-button-secondary {
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* Safari iOS fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Убираем выделение на iOS */
+  .apple-button,
+  .apple-nav-item {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+  }
+  
+  /* Фикс для iOS Safari zoom */
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"] {
+    font-size: 16px !important;
+  }
+  
+  /* iOS safe area */
+  .v-app {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ===========================================
+   EDGE LEGACY (EDGEHTML)
+   =========================================== */
+
+@supports (-ms-ime-align: auto) {
+  .apple-card {
+    border: 1px solid #ccc;
+  }
+  
+  .apple-button {
+    border: 1px solid transparent;
+  }
+  
+  /* Edge не поддерживает backdrop-filter */
+  .apple-sidebar {
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  [data-theme="dark"] .apple-sidebar {
+    background: rgba(28, 28, 30, 0.95);
+  }
+}
+
+/* ===========================================
+   FALLBACKS ДЛЯ СТАРЫХ БРАУЗЕРОВ
+   =========================================== */
+
+/* Fallback для backdrop-filter */
+@supports not (backdrop-filter: blur(20px)) and not (-webkit-backdrop-filter: blur(20px)) {
+  .apple-sidebar {
+    background: rgba(255, 255, 255, 0.95);
+    border-right: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .apple-card {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .apple-input-outlined {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+  }
+  
+  .apple-button-secondary {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 122, 255, 0.3);
+  }
+  
+  [data-theme="dark"] .apple-sidebar {
+    background: rgba(28, 28, 30, 0.95);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  [data-theme="dark"] .apple-card {
+    background: rgba(28, 28, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  [data-theme="dark"] .apple-input-outlined {
+    background: rgba(28, 28, 30, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  [data-theme="dark"] .apple-button-secondary {
+    background: rgba(28, 28, 30, 0.95);
+    border: 1px solid rgba(77, 166, 255, 0.3);
+  }
+}
+
+/* Fallback для CSS Grid */
+@supports not (display: grid) {
+  .dashboard-grid {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  
+  .dashboard-grid > * {
+    flex: 1 1 300px;
+    margin: 8px;
+  }
+}
+
+/* Fallback для CSS Custom Properties */
+@supports not (color: var(--test)) {
+  .apple-button-primary {
+    background: #007AFF;
+    color: white;
+  }
+  
+  .apple-button-secondary {
+    background: #F2F2F7;
+    color: #007AFF;
+    border: 1px solid #007AFF;
+  }
+  
+  .apple-card {
+    background: white;
+    border: 1px solid #E5E5EA;
+  }
+  
+  .apple-input-wrapper-base {
+    background: #F2F2F7;
+    border: 1px solid #C7C7CC;
+  }
+}
+
+/* ===========================================
+   ACCESSIBILITY IMPROVEMENTS
+   =========================================== */
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .apple-button {
+    border: 2px solid currentColor;
+  }
+  
+  .apple-card {
+    border: 2px solid currentColor;
+  }
+  
+  .apple-input-wrapper-base {
+    border: 2px solid currentColor;
+  }
+  
+  .apple-nav-item {
+    border: 1px solid transparent;
+  }
+  
+  .apple-nav-item:hover,
+  .apple-nav-item.active {
+    border-color: currentColor;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .loading-spinner {
+    animation: none;
+    border-top-color: transparent;
+  }
+}
+
+/* ===========================================
+   MOBILE SPECIFIC
+   =========================================== */
+
+/* iOS specific */
+@supports (-webkit-touch-callout: none) {
+  /* Убираем bounce scroll на iOS */
+  body {
+    position: fixed;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+  }
+  
+  .v-application {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Фикс для iOS input zoom */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    transform: translateZ(0);
+  }
+  
+  /* iOS safe area */
+  .v-app-bar {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .v-navigation-drawer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Android specific */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  /* Android keyboard handling */
+  .v-main {
+    min-height: calc(100vh - env(keyboard-inset-height, 0px));
+  }
+}
+
+/* ===========================================
+   ПЕЧАТЬ
+   =========================================== */
+
+@media print {
+  /* Скрываем интерактивные элементы */
+  .apple-sidebar,
+  .v-navigation-drawer,
+  .v-app-bar,
+  .apple-button,
+  .v-btn,
+  #app-loading {
+    display: none !important;
+  }
+  
+  /* Оптимизируем для печати */
+  .apple-card {
+    border: 1px solid #000;
+    box-shadow: none;
+    page-break-inside: avoid;
+    margin-bottom: 20px;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+  
+  .v-main {
+    padding: 0 !important;
+  }
+  
+  .apple-card-header {
+    background: #f5f5f5 !important;
+  }
+}
+
+/* ===========================================
+   PERFORMANCE OPTIMIZATIONS
+   =========================================== */
+
+/* GPU acceleration для анимаций */
+.apple-button,
+.apple-card,
+.apple-nav-item,
+.loading-spinner {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Отключаем will-change после анимации */
+.apple-button:not(:hover):not(:active),
+.apple-card:not(:hover),
+.apple-nav-item:not(:hover) {
+  will-change: auto;
+}
+
+/* ===========================================
+   СТАРЫЕ БРАУЗЕРЫ (IE10, OLD SAFARI)
+   =========================================== */
+
+/* IE10 */
+@media screen and (-ms-high-contrast: active), screen and (-ms-high-contrast: none) {
+  .apple-button {
+    background-image: none;
+    filter: none;
+  }
+  
+  .apple-card {
+    filter: none;
+  }
+}
+
+/* Old Safari (< 9) */
+@media not all and (min-resolution:.001dpcm) {
+  @supports (-webkit-appearance:none) {
+    .apple-button {
+      background-image: -webkit-linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
+    }
+  }
+}
+
+/* ===========================================
+   УТИЛИТЫ ДЛЯ СОВМЕСТИМОСТИ
+   =========================================== */
+
+/* Clearfix для старых браузеров */
+.clearfix::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Flexbox fallback */
+.flex-fallback {
+  display: table;
+  width: 100%;
+}
+
+.flex-fallback > * {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+/* Grid fallback */
+.grid-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  margin: -8px;
+}
+
+.grid-fallback > * {
+  flex: 1 1 300px;
+  margin: 8px;
+}
+
+/* ===========================================
+   FEATURE DETECTION
+   =========================================== */
+
+/* Проверка поддержки CSS Grid */
+@supports (display: grid) {
+  .use-grid {
+    display: grid;
+  }
+}
+
+/* Проверка поддержки Flexbox */
+@supports (display: flex) {
+  .use-flex {
+    display: flex;
+  }
+}
+
+/* Проверка поддержки backdrop-filter */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .supports-backdrop-filter .apple-glass {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* Проверка поддержки CSS Custom Properties */
+@supports (color: var(--test)) {
+  .supports-css-variables {
+    /* Используем CSS переменные */
+  }
+}
+
+/* ===========================================
+   RESPONSIVE IMAGES
+   =========================================== */
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Retina images */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .apple-logo,
+  .apple-icon {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* ===========================================
+   FORM ELEMENTS NORMALIZATION
+   =========================================== */
+
+/* Normalize form elements across browsers */
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  font-size: 100%;
+  line-height: 1.15;
+  margin: 0;
+}
+
+button,
+input {
+  overflow: visible;
+}
+
+button,
+select {
+  text-transform: none;
+}
+
+button,
+[type="button"],
+[type="reset"],
+[type="submit"] {
+  -webkit-appearance: button;
+}
+
+button::-moz-focus-inner,
+[type="button"]::-moz-focus-inner,
+[type="reset"]::-moz-focus-inner,
+[type="submit"]::-moz-focus-inner {
+  border-style: none;
+  padding: 0;
+}
+
+/* ===========================================
+   TOUCH DEVICE OPTIMIZATIONS
+   =========================================== */
+
+/* Touch targets должны быть минимум 44px */
+@media (hover: none) and (pointer: coarse) {
+  .apple-button,
+  .apple-nav-item,
+  .v-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .apple-input-field {
+    min-height: 44px;
+  }
+  
+  /* Убираем hover эффекты на touch устройствах */
+  .apple-button:hover,
+  .apple-card:hover,
+  .apple-nav-item:hover {
+    transform: none;
+  }
+  
+  /* Добавляем touch feedback */
+  .apple-button:active {
+    transform: scale(0.95);
+  }
+  
+  .apple-card-clickable:active {
+    transform: scale(0.98);
+  }
+  
+  .apple-nav-item:active {
+    background: rgba(0, 122, 255, 0.2);
+  }
+}
+
+/* ===========================================
+   DARK MODE COMPATIBILITY
+   =========================================== */
+
+/* Системная темная тема */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+  
+  /* Автоматическое переключение на темную тему */
+  body:not([data-theme]) {
+    background: #000000;
+    color: #FFFFFF;
+  }
+}
+
+/* Принудительная светлая тема */
+[data-theme="light"] {
+  color-scheme: light;
+}
+
+/* Принудительная темная тема */
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* ===========================================
+   JAVASCRIPT FALLBACKS
+   =========================================== */
+
+/* Если JavaScript отключен */
+.no-js .apple-button-loading,
+.no-js .apple-card-loading {
+  display: none;
+}
+
+.no-js .apple-nav-item {
+  display: block;
+  text-decoration: none;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ===========================================
+   VENDOR PREFIXES ДЛЯ СОВМЕСТИМОСТИ
+   =========================================== */
+
+/* Flexbox prefixes */
+.apple-flex {
+  display: -webkit-box;
+  display: -moz-box;
+  display: -ms-flexbox;
+  display: -webkit-flex;
+  display: flex;
+}
+
+.apple-flex-center {
+  -webkit-box-align: center;
+  -moz-box-align: center;
+  -ms-flex-align: center;
+  -webkit-align-items: center;
+  align-items: center;
+  
+  -webkit-box-pack: center;
+  -moz-box-pack: center;
+  -ms-flex-pack: center;
+  -webkit-justify-content: center;
+  justify-content: center;
+}
+
+/* Transform prefixes */
+.apple-transform {
+  -webkit-transform: translateZ(0);
+  -moz-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  -o-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Transition prefixes */
+.apple-transition {
+  -webkit-transition: all 0.3s ease;
+  -moz-transition: all 0.3s ease;
+  -ms-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+}
+
+/* Border radius prefixes */
+.apple-rounded {
+  -webkit-border-radius: 12px;
+  -moz-border-radius: 12px;
+  border-radius: 12px;
+}
+
+/* Box shadow prefixes */
+.apple-shadow {
+  -webkit-box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+  -moz-box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16);
+}

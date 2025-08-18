@@ -6,40 +6,37 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import "vuetify/dist/vuetify.css";
 
+// Apple Design System
+import "./styles/apple-design-system.css";
+import "./styles/browser-compatibility.css";
+import appleTheme from "./styles/vuetify-apple-theme";
+
 import App from "./App.vue";
 import router from "./router";
 
 const app = createApp(App);
 
-// Настройка Vuetify с темой
+// Настройка Vuetify с Apple темой
 const vuetify = createVuetify({
   components,
   directives,
   theme: {
-    defaultTheme: "light",
+    defaultTheme: "apple-light",
     themes: {
-      light: {
-        colors: {
-          primary: "#1976d2",
-          secondary: "#424242",
-          accent: "#82b1ff",
-          error: "#ff5252",
-          info: "#2196f3",
-          success: "#4caf50",
-          warning: "#ffc107",
-        },
-      },
-      dark: {
-        colors: {
-          primary: "#2196f3",
-          secondary: "#424242",
-          accent: "#ff4081",
-          error: "#ff5252",
-          info: "#2196f3",
-          success: "#4caf50",
-          warning: "#ffc107",
-        },
-      },
+      "apple-light": appleTheme.light,
+      "apple-dark": appleTheme.dark,
+    },
+  },
+  defaults: appleTheme.components,
+  display: {
+    mobileBreakpoint: 'sm',
+    thresholds: {
+      xs: 0,
+      sm: 480,
+      md: 768,
+      lg: 1024,
+      xl: 1280,
+      xxl: 1536,
     },
   },
 });

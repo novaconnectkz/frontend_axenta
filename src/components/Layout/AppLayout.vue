@@ -5,7 +5,7 @@
       v-model="drawer"
       :rail="rail"
       permanent
-      class="app-sidebar"
+      class="apple-sidebar app-sidebar"
       :class="{ 'sidebar-rail': rail }"
     >
       <!-- Заголовок боковой панели -->
@@ -39,7 +39,7 @@
           :prepend-icon="item.icon"
           :title="item.title"
           :subtitle="rail ? undefined : item.subtitle"
-          class="nav-item"
+          class="apple-nav-item nav-item"
           :class="{ 'active': $route.path === item.path }"
           exact
         >
@@ -463,6 +463,9 @@ onMounted(() => {
 <style scoped>
 .app-sidebar {
   border-right: 1px solid rgba(var(--v-border-color), 0.12);
+  background: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .sidebar-header {
@@ -485,12 +488,12 @@ onMounted(() => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
 }
 
 .logo-text {
