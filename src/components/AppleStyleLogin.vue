@@ -144,6 +144,7 @@
 import { useAuth, type LoginForm } from '@/context/auth';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { config } from '@/config/env';
 
 const router = useRouter();
 
@@ -221,7 +222,7 @@ const handleLogin = async () => {
       await router.push('/dashboard');
     } else {
       // Прямой запрос к API если auth context недоступен
-      const response = await fetch('http://localhost:8080/api/auth/login', {
+      const response = await fetch(`${config.apiBaseUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

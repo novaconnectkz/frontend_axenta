@@ -45,8 +45,8 @@
       </div>
       
       <div style="margin-top: 20px; text-align: center; color: #666; font-size: 14px;">
-        <p><strong>Backend:</strong> http://localhost:8080</p>
-        <p><strong>Frontend:</strong> http://localhost:5173</p>
+        <p><strong>Backend:</strong> {{ config.backendUrl }}</p>
+        <p><strong>Frontend:</strong> {{ window.location.origin }}</p>
 
       </div>
     </div>

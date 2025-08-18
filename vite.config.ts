@@ -37,6 +37,9 @@ export default defineConfig(({ mode }) => {
       minify: mode === 'production' ? 'esbuild' : false,
       rollupOptions: {
         output: {
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
           manualChunks: {
             // Разделяем vendor библиотеки для лучшего кэширования
             'vendor-vue': ['vue', 'vue-router', 'pinia'],

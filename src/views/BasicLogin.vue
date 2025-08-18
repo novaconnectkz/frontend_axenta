@@ -78,6 +78,7 @@
 import { useAuth, type LoginForm } from '@/context/auth';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { config } from '@/config/env';
 
 const router = useRouter();
 const auth = useAuth();
@@ -95,8 +96,8 @@ const isLoading = computed(() => auth.isLoading.value);
 const error = computed(() => auth.error.value);
 
 // Информация о подключении
-const backendUrl = 'http://localhost:8080';
-const frontendUrl = 'http://localhost:5173';
+const backendUrl = config.backendUrl;
+const frontendUrl = window.location.origin;
 
 
 
