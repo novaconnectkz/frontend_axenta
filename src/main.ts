@@ -63,9 +63,10 @@ window.addEventListener("error", (event) => {
 // Инициализация Pinia
 const pinia = createPinia();
 
-// Настройка приложения
-app.use(pinia);
-app.use(vuetify);
+// Настройка приложения - важен порядок!
+app.use(pinia);  // Сначала Pinia для store
+app.use(vuetify); // Затем UI библиотека
+// Router подключаем в последнюю очередь, чтобы auth context был готов
 app.use(router);
 
 // Монтируем приложение

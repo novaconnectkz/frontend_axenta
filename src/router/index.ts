@@ -190,9 +190,28 @@ const router = createRouter({
   routes,
 });
 
-// Глобальные guards
-router.beforeEach(accessGuard);
+// Глобальные guards - убираем accessGuard временно
+// router.beforeEach(accessGuard);
 router.beforeEach(titleGuard);
+
+// Простая проверка auth без context
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('axenta_token');
+  const requiresAuth = to.meta?.requiresAuth;
+  const requiresGuest = to.meta?.requiresGuest;
+  
+  if (requiresAuth && !token) {
+    next({ path: '/login', query: { redirect: to.fullPath } });
+    return;
+  }
+  
+  if (requiresGuest && token) {
+    next('/dashboard');
+    return;
+  }
+  
+  next();
+});
 
 // Обработка ошибок навигации
 router.onError((error) => {
