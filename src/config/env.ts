@@ -31,10 +31,8 @@ export const config = {
 
   // Базовый URL API
   get apiBaseUrl() {
-    // Если backendUrl уже содержит /api, не добавляем его повторно
-    if (this.backendUrl.includes('/api')) {
-      return this.backendUrl;
-    }
+    // Всегда добавляем /api к базовому URL
+    // Например: https://api.axenta.glonass-saratov.ru + /api = https://api.axenta.glonass-saratov.ru/api
     return `${this.backendUrl}/api`;
   },
 
