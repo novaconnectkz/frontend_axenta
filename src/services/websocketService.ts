@@ -1,3 +1,4 @@
+import { config } from "@/config/env";
 import { useAuth } from "@/context/auth";
 import { useDashboardStore } from "@/store/dashboard";
 
@@ -52,7 +53,7 @@ class WebSocketService {
   }
 
   private buildWebSocketUrl(): string {
-    const baseUrl = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8080";
+    const baseUrl = config.wsBaseUrl;
     const token = this.auth.token.value;
     const companyId = this.auth.company.value?.id;
 

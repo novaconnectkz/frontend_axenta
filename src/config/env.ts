@@ -14,15 +14,34 @@ export const config = {
   // URL бэкенда
   backendUrl: getEnvVar("VITE_BACKEND_URL", "http://localhost:8080"),
 
+  // WebSocket URL для реального времени
+  wsBaseUrl: getEnvVar("VITE_WS_BASE_URL", "ws://localhost:8080"),
+
   // Название приложения
   appName: getEnvVar("VITE_APP_NAME", "Axenta CRM"),
 
   // Версия API
   apiVersion: getEnvVar("VITE_API_VERSION", "v1"),
 
+  // Режим приложения
+  appEnv: getEnvVar("VITE_APP_ENV", "development"),
+
+  // Таймаут для API запросов
+  apiTimeout: parseInt(getEnvVar("VITE_API_TIMEOUT", "30000")),
+
   // Базовый URL API
   get apiBaseUrl() {
     return `${this.backendUrl}/api`;
+  },
+
+  // Проверка режима разработки
+  get isDevelopment() {
+    return this.appEnv === "development" || import.meta.env.DEV;
+  },
+
+  // Проверка продакшена
+  get isProduction() {
+    return this.appEnv === "production" || import.meta.env.PROD;
   },
 };
 
