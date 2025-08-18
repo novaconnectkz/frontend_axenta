@@ -341,3 +341,7 @@ export function useAuth() {
   if (!auth) throw new Error("Auth context not provided");
   return auth;
 }
+
+export function provideAuth(authContext: AuthContext) {
+  provide(AuthKey, authContext);
+}

@@ -47,6 +47,9 @@ export default defineConfig(({ mode }) => {
       },
     },
     
+    // Настройки для статических файлов
+    publicDir: 'public',
+    
     // Настройки dev сервера для SPA
     server: {
       port: 3000,

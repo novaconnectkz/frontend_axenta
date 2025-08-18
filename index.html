@@ -193,9 +193,10 @@
     <!-- Основной скрипт приложения -->
     <script type="module" src="/src/main.ts"></script>
     
-    <!-- Service Worker для PWA (опционально) -->
+    <!-- Service Worker для PWA (отключен до создания sw.js) -->
     <script>
-      if ('serviceWorker' in navigator && window.location.protocol === 'https:') {
+      // Service Worker будет добавлен позже для PWA функций
+      if (false && 'serviceWorker' in navigator && window.location.protocol === 'https:') {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js')
             .then(function(registration) {

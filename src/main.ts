@@ -1,6 +1,6 @@
 import "@mdi/font/css/materialdesignicons.css";
 import { createPinia } from "pinia";
-import { createApp } from "vue";
+import { createApp, nextTick } from "vue";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
@@ -69,10 +69,10 @@ app.use(vuetify);
 app.use(router);
 
 // Монтируем приложение
-app.mount("#app");
+const mountedApp = app.mount("#app");
 
 // Скрываем загрузочный экран после монтирования
-app.config.globalProperties.$nextTick(() => {
+nextTick(() => {
   // Даем время на первичный рендеринг
   setTimeout(() => {
     if (window.hideLoadingScreen) {
