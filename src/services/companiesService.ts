@@ -130,7 +130,7 @@ class CompaniesService {
     const query = queryParams.toString();
     const url = query ? `${this.basePath}?${query}` : this.basePath;
 
-    const response = await apiClient.get(url);
+    const response = await this.apiClient.get(url);
     return response.data.data;
   }
 
@@ -142,7 +142,7 @@ class CompaniesService {
       ? `${this.basePath}/${id}?include_usage=true`
       : `${this.basePath}/${id}`;
 
-    const response = await apiClient.get(url);
+    const response = await this.apiClient.get(url);
     return response.data.data;
   }
 
@@ -150,7 +150,7 @@ class CompaniesService {
    * Создать новую компанию
    */
   async createCompany(data: CompanyRequest): Promise<CompanyResponse> {
-    const response = await apiClient.post(this.basePath, data);
+    const response = await this.apiClient.post(this.basePath, data);
     return response.data.data;
   }
 
@@ -161,7 +161,7 @@ class CompaniesService {
     id: number,
     data: CompanyRequest
   ): Promise<CompanyResponse> {
-    const response = await apiClient.put(`${this.basePath}/${id}`, data);
+    const response = await this.apiClient.put(`${this.basePath}/${id}`, data);
     return response.data.data;
   }
 
@@ -169,14 +169,14 @@ class CompaniesService {
    * Удалить компанию
    */
   async deleteCompany(id: number): Promise<void> {
-    await apiClient.delete(`${this.basePath}/${id}`);
+    await this.apiClient.delete(`${this.basePath}/${id}`);
   }
 
   /**
    * Активировать компанию
    */
   async activateCompany(id: number): Promise<CompanyResponse> {
-    const response = await apiClient.put(`${this.basePath}/${id}/activate`);
+    const response = await this.apiClient.put(`${this.basePath}/${id}/activate`);
     return response.data.data;
   }
 
@@ -184,7 +184,7 @@ class CompaniesService {
    * Деактивировать компанию
    */
   async deactivateCompany(id: number): Promise<CompanyResponse> {
-    const response = await apiClient.put(`${this.basePath}/${id}/deactivate`);
+    const response = await this.apiClient.put(`${this.basePath}/${id}/deactivate`);
     return response.data.data;
   }
 
@@ -200,7 +200,7 @@ class CompaniesService {
    * Тестировать подключение к Axenta API
    */
   async testConnection(id: number): Promise<TestConnectionResponse> {
-    const response = await apiClient.post(
+    const response = await this.apiClient.post(
       `${this.basePath}/${id}/test-connection`
     );
     return response.data.data;

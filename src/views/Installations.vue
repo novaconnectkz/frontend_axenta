@@ -9,39 +9,35 @@
           <p class="page-subtitle">Управление монтажами, монтажниками и оборудованием</p>
         </div>
       </div>
-      
+
       <div class="page-actions">
-        <AppleButton
-          variant="secondary"
-          prepend-icon="mdi-calendar-today"
-          @click="goToToday"
-          data-testid="today-button"
-        >
+        <AppleButton variant="secondary" prepend-icon="mdi-calendar-today" @click="goToToday"
+          data-testid="today-button">
           Сегодня
         </AppleButton>
-        <AppleButton
-          prepend-icon="mdi-plus"
-          @click="openCreateDialog"
-          data-testid="create-installation"
-        >
+        <AppleButton prepend-icon="mdi-plus" @click="openCreateDialog" data-testid="create-installation">
           Новый монтаж
         </AppleButton>
       </div>
     </div>
 
+    <!-- Уведомление о демо режиме -->
+    <v-alert v-if="isDemoMode" type="info" variant="tonal" class="mb-4 demo-alert" closable
+      @click:close="hideDemoAlert = true" v-show="!hideDemoAlert">
+      <template #prepend>
+        <v-icon>mdi-information</v-icon>
+      </template>
+      <div class="demo-alert-content">
+        <strong>Демо режим активен</strong>
+        <p class="mb-0">Отображаются демонстрационные данные для ознакомления с интерфейсом управления монтажами.</p>
+      </div>
+    </v-alert>
+
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
-        <AppleCard
-          v-for="stat in stats"
-          :key="stat.key"
-          :title="stat.value.toString()"
-          :subtitle="stat.label"
-          :icon="stat.icon"
-          :icon-color="stat.color"
-          variant="outlined"
-          class="stat-card"
-        />
+        <AppleCard v-for="stat in stats" :key="stat.key" :title="stat.value.toString()" :subtitle="stat.label"
+          :icon="stat.icon" :icon-color="stat.color" variant="outlined" class="stat-card" />
       </div>
     </div>
 
@@ -69,111 +65,60 @@
     <v-tabs-window v-model="activeTab">
       <!-- Календарь -->
       <v-tabs-window-item value="calendar">
-        <InstallationCalendar
-          :installations="installations"
-          :installers="installers"
-          :loading="loading"
-          @installation-click="openInstallationDialog"
-          @date-click="openCreateDialogForDate"
-          @installation-drop="handleInstallationDrop"
-        />
+        <InstallationCalendar :installations="installations" :installers="installers" :loading="loading"
+          @installation-click="openInstallationDialog" @date-click="openCreateDialogForDate"
+          @installation-drop="handleInstallationDrop" />
       </v-tabs-window-item>
 
       <!-- Список монтажей -->
       <v-tabs-window-item value="list">
-        <InstallationsList
-          :installations="installations"
-          :loading="loading"
-          @installation-click="openInstallationDialog"
-          @installation-edit="openEditDialog"
-          @installation-delete="handleDelete"
-          @installation-start="handleStart"
-          @installation-complete="openCompleteDialog"
-          @installation-cancel="openCancelDialog"
-        />
+        <InstallationsList :installations="installations" :loading="loading"
+          @installation-click="openInstallationDialog" @installation-edit="openEditDialog"
+          @installation-delete="handleDelete" @installation-start="handleStart"
+          @installation-complete="openCompleteDialog" @installation-cancel="openCancelDialog" />
       </v-tabs-window-item>
 
       <!-- Монтажники -->
       <v-tabs-window-item value="installers">
-        <InstallersList
-          :installers="installers"
-          :loading="loading"
-          @installer-click="openInstallerDialog"
-          @installer-edit="openInstallerEditDialog"
-          @installer-delete="handleInstallerDelete"
-          @installer-toggle="handleInstallerToggle"
-        />
+        <InstallersList :installers="installers" :loading="loading" @installer-click="openInstallerDialog"
+          @installer-edit="openInstallerEditDialog" @installer-delete="handleInstallerDelete"
+          @installer-toggle="handleInstallerToggle" />
       </v-tabs-window-item>
 
       <!-- Оборудование -->
       <v-tabs-window-item value="equipment">
-        <EquipmentList
-          :equipment="equipment"
-          :loading="loading"
-          @equipment-click="openEquipmentDialog"
-          @equipment-edit="openEquipmentEditDialog"
-          @equipment-delete="handleEquipmentDelete"
-          @equipment-install="handleEquipmentInstall"
-        />
+        <EquipmentList :equipment="equipment" :loading="loading" @equipment-click="openEquipmentDialog"
+          @equipment-edit="openEquipmentEditDialog" @equipment-delete="handleEquipmentDelete"
+          @equipment-install="handleEquipmentInstall" />
       </v-tabs-window-item>
     </v-tabs-window>
 
     <!-- Диалог создания/редактирования монтажа -->
-    <InstallationDialog
-      v-model="showInstallationDialog"
-      :installation="selectedInstallation"
-      :installers="installers"
-      :locations="locations"
-      :equipment="availableEquipment"
-      @save="handleInstallationSave"
-    />
+    <InstallationDialog v-model="showInstallationDialog" :installation="selectedInstallation" :installers="installers"
+      :locations="locations" :equipment="availableEquipment" @save="handleInstallationSave" />
 
     <!-- Диалог просмотра монтажа -->
-    <InstallationViewDialog
-      v-model="showViewDialog"
-      :installation="selectedInstallation"
-    />
+    <InstallationViewDialog v-model="showViewDialog" :installation="selectedInstallation" />
 
     <!-- Диалог завершения монтажа -->
-    <CompleteInstallationDialog
-      v-model="showCompleteDialog"
-      :installation="selectedInstallation"
-      @complete="handleComplete"
-    />
+    <CompleteInstallationDialog v-model="showCompleteDialog" :installation="selectedInstallation"
+      @complete="handleComplete" />
 
     <!-- Диалог отмены монтажа -->
-    <CancelInstallationDialog
-      v-model="showCancelDialog"
-      :installation="selectedInstallation"
-      @cancel="handleCancel"
-    />
+    <CancelInstallationDialog v-model="showCancelDialog" :installation="selectedInstallation" @cancel="handleCancel" />
 
     <!-- Диалог монтажника -->
-    <InstallerDialog
-      v-model="showInstallerDialog"
-      :installer="selectedInstaller"
-      :locations="locations"
-      @save="handleInstallerSave"
-    />
+    <InstallerDialog v-model="showInstallerDialog" :installer="selectedInstaller" :locations="locations"
+      @save="handleInstallerSave" />
 
     <!-- Диалог просмотра монтажника -->
-    <InstallerViewDialog
-      v-model="showInstallerViewDialog"
-      :installer="selectedInstaller"
-    />
+    <InstallerViewDialog v-model="showInstallerViewDialog" :installer="selectedInstaller" />
 
     <!-- Диалог оборудования -->
-    <EquipmentDialog
-      v-model="showEquipmentDialog"
-      :equipment="selectedEquipment"
-      @save="handleEquipmentSave"
-    />
+    <EquipmentDialog v-model="showEquipmentDialog" :equipment="selectedEquipment" @save="handleEquipmentSave" />
 
     <!-- Диалог просмотра оборудования -->
-    <EquipmentViewDialog
-      v-model="showEquipmentViewDialog"
-      :equipment="selectedEquipment"
-    />
+    <EquipmentViewDialog v-model="showEquipmentViewDialog" :equipment="selectedEquipment" />
   </div>
 </template>
 
@@ -182,16 +127,16 @@ import AppleButton from "@/components/Apple/AppleButton.vue";
 import AppleCard from "@/components/Apple/AppleCard.vue";
 import { installationsService } from "@/services/installationsService";
 import type {
-    CancelInstallationForm,
-    CompleteInstallationForm,
-    EquipmentBase,
-    EquipmentForm,
-    InstallationForm,
-    InstallationStats,
-    InstallationWithRelations,
-    InstallerForm,
-    InstallerWithRelations,
-    LocationBase,
+  CancelInstallationForm,
+  CompleteInstallationForm,
+  EquipmentBase,
+  EquipmentForm,
+  InstallationForm,
+  InstallationStats,
+  InstallationWithRelations,
+  InstallerForm,
+  InstallerWithRelations,
+  LocationBase,
 } from "@/types/installations";
 import { useErrorHandler } from "@/utils/errorHandler";
 import { computed, onMounted, ref } from "vue";
@@ -213,6 +158,7 @@ import InstallerViewDialog from "@/components/Installations/InstallerViewDialog.
 // Состояние компонента
 const activeTab = ref("calendar");
 const loading = ref(false);
+const hideDemoAlert = ref(false);
 
 // Данные
 const installations = ref<InstallationWithRelations[]>([]);
@@ -237,14 +183,14 @@ const selectedInstaller = ref<InstallerWithRelations | null>(null);
 const selectedEquipment = ref<EquipmentBase | null>(null);
 
 // Доступное оборудование для монтажей
-const availableEquipment = computed(() => 
+const availableEquipment = computed(() =>
   equipment.value.filter(item => item.status === "in_stock" || item.status === "reserved")
 );
 
 // Статистика для отображения
 const stats = computed(() => {
   if (!installationStats.value) return [];
-  
+
   const stats = installationStats.value;
   return [
     {
@@ -280,6 +226,9 @@ const stats = computed(() => {
 
 // Обработчик ошибок
 const { handleError } = useErrorHandler();
+
+// Проверка демо режима
+const isDemoMode = computed(() => installationsService.isMockMode());
 
 // Загрузка данных
 const loadData = async () => {
@@ -396,7 +345,7 @@ const handleStart = async (installation: InstallationWithRelations) => {
 
 const handleComplete = async (data: CompleteInstallationForm) => {
   if (!selectedInstallation.value) return;
-  
+
   try {
     await installationsService.completeInstallation(selectedInstallation.value.id, data);
     showCompleteDialog.value = false;
@@ -408,7 +357,7 @@ const handleComplete = async (data: CompleteInstallationForm) => {
 
 const handleCancel = async (data: CancelInstallationForm) => {
   if (!selectedInstallation.value) return;
-  
+
   try {
     await installationsService.cancelInstallation(selectedInstallation.value.id, data);
     showCancelDialog.value = false;
@@ -423,11 +372,11 @@ const handleInstallationDrop = async (installationId: number, newDate: string, i
     const updateData: Partial<InstallationForm> = {
       scheduled_at: newDate,
     };
-    
+
     if (installerId) {
       updateData.installer_id = installerId;
     }
-    
+
     await installationsService.updateInstallation(installationId, updateData);
     await loadData();
   } catch (error) {
@@ -567,21 +516,42 @@ onMounted(() => {
   min-height: 120px;
 }
 
+.demo-alert {
+  border-left: 4px solid rgb(var(--v-theme-info));
+}
+
+.demo-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.demo-alert-content strong {
+  font-weight: 600;
+  color: rgb(var(--v-theme-info));
+}
+
+.demo-alert-content p {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 768px) {
   .installations-page {
     padding: 16px;
   }
-  
+
   .page-header {
     flex-direction: column;
     gap: 16px;
     align-items: stretch;
   }
-  
+
   .page-actions {
     justify-content: stretch;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr 1fr;
   }

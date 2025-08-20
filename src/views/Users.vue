@@ -9,64 +9,59 @@
           <p class="page-subtitle">Пользователи, роли и права доступа</p>
         </div>
       </div>
-      
+
       <div class="page-actions">
-        <AppleButton
-          variant="secondary"
-          prepend-icon="mdi-shield-account"
-          @click="showRolesManagement = !showRolesManagement"
-        >
+        <AppleButton v-if="!usersService.isMockDataEnabled()" variant="secondary" prepend-icon="mdi-play-circle"
+          @click="enableDemoMode" color="success">
+          Демо режим
+        </AppleButton>
+        <AppleButton v-else variant="secondary" prepend-icon="mdi-stop-circle" @click="disableDemoMode" color="warning">
+          Выйти из демо
+        </AppleButton>
+        <AppleButton variant="secondary" prepend-icon="mdi-shield-account"
+          @click="showRolesManagement = !showRolesManagement">
           {{ showRolesManagement ? 'Скрыть роли' : 'Управление ролями' }}
         </AppleButton>
-        <AppleButton
-          variant="secondary"
-          prepend-icon="mdi-account-clock"
-          @click="openInactiveUsersDialog"
-        >
+        <AppleButton variant="secondary" prepend-icon="mdi-account-clock" @click="openInactiveUsersDialog">
           Деактивация
         </AppleButton>
-        <AppleButton
-          variant="secondary"
-          prepend-icon="mdi-export"
-          @click="exportUsers"
-          :loading="exporting"
-          data-testid="export-button"
-        >
+        <AppleButton variant="secondary" prepend-icon="mdi-export" @click="exportUsers" :loading="exporting"
+          data-testid="export-button">
           Экспорт
         </AppleButton>
-        <AppleButton
-          prepend-icon="mdi-plus"
-          @click="openCreateDialog"
-          data-testid="create-button"
-        >
+        <AppleButton prepend-icon="mdi-plus" @click="openCreateDialog" data-testid="create-button">
           Создать пользователя
         </AppleButton>
       </div>
     </div>
 
+    <!-- Уведомление о демо режиме -->
+    <v-alert v-if="usersService.isMockDataEnabled()" type="info" variant="tonal" prominent border="start"
+      class="demo-alert">
+      <template #prepend>
+        <v-icon icon="mdi-play-circle" size="24" />
+      </template>
+      <div class="alert-content">
+        <div class="alert-title">Демонстрационный режим</div>
+        <div class="alert-text">
+          Отображаются демо данные. Это позволяет увидеть, как будет выглядеть интерфейс управления пользователями.
+          Все изменения в демо режиме не сохраняются.
+        </div>
+      </div>
+    </v-alert>
+
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
-        <AppleCard
-          v-for="stat in stats"
-          :key="stat.key"
-          :title="stat.value.toString()"
-          :subtitle="stat.label"
-          :icon="stat.icon"
-          :icon-color="stat.color"
-          variant="outlined"
-          class="stat-card"
-        />
+        <AppleCard v-for="stat in stats" :key="stat.key" :title="stat.value.toString()" :subtitle="stat.label"
+          :icon="stat.icon" :icon-color="stat.color" variant="outlined" class="stat-card" />
       </div>
     </div>
 
     <!-- Управление ролями -->
     <div v-if="showRolesManagement" class="roles-section">
       <AppleCard variant="outlined">
-        <RolesManagement
-          @success="showSnackbar($event, 'success')"
-          @error="showSnackbar($event, 'error')"
-        />
+        <RolesManagement @success="showSnackbar($event, 'success')" @error="showSnackbar($event, 'error')" />
       </AppleCard>
     </div>
 
@@ -77,65 +72,35 @@
           <v-icon icon="mdi-filter" class="mr-2" />
           Фильтры
           <v-spacer />
-          <AppleButton
-            variant="text"
-            size="small"
-            @click="clearFilters"
-            :disabled="!hasActiveFilters"
-            data-testid="clear-filters"
-          >
+          <AppleButton variant="text" size="small" @click="clearFilters" :disabled="!hasActiveFilters"
+            data-testid="clear-filters">
             Очистить
           </AppleButton>
         </div>
       </template>
-      
+
       <div class="filters-content">
         <v-row>
           <v-col cols="12" md="4">
-            <AppleInput
-              v-model="filters.search"
-              placeholder="Поиск по имени, email, логину..."
-              prepend-icon="mdi-magnify"
-              clearable
-              @input="debouncedSearch"
-            />
+            <AppleInput v-model="filters.search" placeholder="Поиск по имени, email, логину..."
+              prepend-icon="mdi-magnify" clearable @input="debouncedSearch" />
           </v-col>
-          
+
           <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.role"
-              :items="roleOptions"
-              label="Роль"
-              clearable
-              variant="outlined"
-              density="comfortable"
-              :loading="loadingRoles"
-            />
+            <v-select v-model="filters.role" :items="roleOptions" label="Роль" clearable variant="outlined"
+              density="comfortable" :loading="loadingRoles" />
           </v-col>
-          
+
           <v-col cols="12" md="3">
-            <v-select
-              v-model="filters.user_type"
-              :items="userTypeOptions"
-              label="Тип пользователя"
-              clearable
-              variant="outlined"
-              density="comfortable"
-            />
+            <v-select v-model="filters.user_type" :items="userTypeOptions" label="Тип пользователя" clearable
+              variant="outlined" density="comfortable" />
           </v-col>
-          
+
           <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.active"
-              :items="[
-                { title: 'Активные', value: true },
-                { title: 'Неактивные', value: false }
-              ]"
-              label="Статус"
-              clearable
-              variant="outlined"
-              density="comfortable"
-            />
+            <v-select v-model="filters.active" :items="[
+              { title: 'Активные', value: true },
+              { title: 'Неактивные', value: false }
+            ]" label="Статус" clearable variant="outlined" density="comfortable" />
           </v-col>
         </v-row>
       </div>
@@ -148,49 +113,29 @@
           <div class="table-title-section">
             <v-icon icon="mdi-format-list-bulleted" class="mr-2" />
             Список пользователей
-            <v-chip
-              v-if="usersData"
-              :text="usersData.total.toString()"
-              size="small"
-              class="ml-2"
-            />
+            <v-chip v-if="usersData" :text="usersData.total.toString()" size="small" class="ml-2" />
           </div>
         </div>
       </template>
-      
+
       <!-- Таблица пользователей -->
       <div class="table-container">
-        <v-data-table
-          :headers="tableHeaders"
-          :items="users"
-          :loading="loading"
-          :items-per-page="pagination.limit"
-          :page="pagination.page"
-          :server-items-length="usersData?.total || 0"
-          :items-per-page-options="perPageOptions"
-          @update:page="handlePageChange"
-          @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange"
-          item-value="id"
-          class="users-table"
-          no-data-text="Пользователи не найдены"
-          loading-text="Загрузка пользователей..."
-        >
+        <v-data-table :headers="tableHeaders" :items="users" :loading="loading" :items-per-page="pagination.limit"
+          :page="pagination.page" :server-items-length="usersData?.total || 0" :items-per-page-options="perPageOptions"
+          @update:page="handlePageChange" @update:items-per-page="handlePerPageChange"
+          @update:sort-by="handleSortChange" item-value="id" class="users-table" no-data-text="Пользователи не найдены"
+          loading-text="Загрузка пользователей...">
           <!-- Активность -->
           <template #item.is_active="{ item }">
-            <v-checkbox
-              :model-value="item.is_active"
-              @update:model-value="toggleUserActivity(item, $event)"
-              hide-details
-              density="compact"
-            />
+            <v-checkbox :model-value="item.is_active" @update:model-value="toggleUserActivity(item, $event)"
+              hide-details density="compact" />
           </template>
-          
+
           <!-- ID -->
           <template #item.id="{ item }">
             <span class="font-mono">{{ item.id }}</span>
           </template>
-          
+
           <!-- Пользователь -->
           <template #item.user="{ item }">
             <div class="user-cell">
@@ -205,24 +150,19 @@
               </div>
             </div>
           </template>
-          
+
           <!-- Email -->
           <template #item.email="{ item }">
             <a :href="`mailto:${item.email}`" class="email-link">{{ item.email }}</a>
           </template>
-          
+
           <!-- Роль -->
           <template #item.role="{ item }">
-            <v-chip
-              v-if="item.role"
-              :text="item.role.display_name"
-              :color="item.role.color || 'primary'"
-              size="small"
-              variant="tonal"
-            />
+            <v-chip v-if="item.role" :text="item.role.display_name" :color="item.role.color || 'primary'" size="small"
+              variant="tonal" />
             <span v-else class="text-medium-emphasis">Не назначена</span>
           </template>
-          
+
           <!-- Тип пользователя -->
           <template #item.user_type="{ item }">
             <div class="d-flex align-center">
@@ -230,69 +170,35 @@
               {{ getUserTypeText(item.user_type) }}
             </div>
           </template>
-          
+
           <!-- Действия -->
           <template #item.actions="{ item }">
             <div class="actions-cell">
               <v-tooltip text="Просмотр">
                 <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon="mdi-eye"
-                    size="small"
-                    variant="text"
-                    @click="viewUser(item)"
-                  />
+                  <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewUser(item)" />
                 </template>
               </v-tooltip>
-              
+
               <v-tooltip text="Редактировать">
                 <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon="mdi-pencil"
-                    size="small"
-                    variant="text"
-                    @click="editUser(item)"
-                  />
+                  <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editUser(item)" />
                 </template>
               </v-tooltip>
-              
+
               <v-menu>
                 <template #activator="{ props }">
-                  <v-btn
-                    v-bind="props"
-                    icon="mdi-dots-vertical"
-                    size="small"
-                    variant="text"
-                  />
+                  <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text" />
                 </template>
-                
+
                 <v-list density="compact">
-                  <v-list-item
-                    prepend-icon="mdi-key"
-                    title="Сбросить пароль"
-                    @click="resetUserPassword(item)"
-                  />
-                  <v-list-item
-                    v-if="item.is_active"
-                    prepend-icon="mdi-pause-circle"
-                    title="Деактивировать"
-                    @click="toggleUserActivity(item, false)"
-                  />
-                  <v-list-item
-                    v-else
-                    prepend-icon="mdi-check-circle"
-                    title="Активировать"
-                    @click="toggleUserActivity(item, true)"
-                  />
+                  <v-list-item prepend-icon="mdi-key" title="Сбросить пароль" @click="resetUserPassword(item)" />
+                  <v-list-item v-if="item.is_active" prepend-icon="mdi-pause-circle" title="Деактивировать"
+                    @click="toggleUserActivity(item, false)" />
+                  <v-list-item v-else prepend-icon="mdi-check-circle" title="Активировать"
+                    @click="toggleUserActivity(item, true)" />
                   <v-divider />
-                  <v-list-item
-                    prepend-icon="mdi-delete"
-                    title="Удалить"
-                    class="text-error"
-                    @click="deleteUser(item)"
-                  />
+                  <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error" @click="deleteUser(item)" />
                 </v-list>
               </v-menu>
             </div>
@@ -302,50 +208,23 @@
     </AppleCard>
 
     <!-- Диалоги -->
-    <UserDialog
-      v-model="userDialog.show"
-      :user="userDialog.user"
-      :role-options="roleOptionsForForm"
-      :template-options="templateOptions"
-      :loading-roles="loadingRoles"
-      :loading-templates="loadingTemplates"
-      @saved="onUserSaved"
-      @error="showSnackbar($event, 'error')"
-    />
-    
-    <UserViewDialog
-      v-model="viewDialog.show"
-      :user="viewDialog.user"
-      @edit="editUser"
-      @delete="deleteUser"
-    />
-    
-    <PasswordResetDialog
-      v-model="passwordDialog.show"
-      :user="passwordDialog.user"
-      @success="showSnackbar($event, 'success')"
-      @error="showSnackbar($event, 'error')"
-    />
-    
-    <InactiveUsersDialog
-      v-model="inactiveUsersDialog.show"
-      @success="onInactiveUsersSuccess"
-      @error="showSnackbar($event, 'error')"
-    />
-    
+    <UserDialog v-model="userDialog.show" :user="userDialog.user" :role-options="roleOptionsForForm"
+      :template-options="templateOptions" :loading-roles="loadingRoles" :loading-templates="loadingTemplates"
+      @saved="onUserSaved" @error="showSnackbar($event, 'error')" />
+
+    <UserViewDialog v-model="viewDialog.show" :user="viewDialog.user" @edit="editUser" @delete="deleteUser" />
+
+    <PasswordResetDialog v-model="passwordDialog.show" :user="passwordDialog.user"
+      @success="showSnackbar($event, 'success')" @error="showSnackbar($event, 'error')" />
+
+    <InactiveUsersDialog v-model="inactiveUsersDialog.show" @success="onInactiveUsersSuccess"
+      @error="showSnackbar($event, 'error')" />
+
     <!-- Snackbar для уведомлений -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="snackbar.timeout"
-      location="bottom right"
-    >
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
       {{ snackbar.text }}
       <template #actions>
-        <v-btn
-          variant="text"
-          @click="snackbar.show = false"
-        >
+        <v-btn variant="text" @click="snackbar.show = false">
           Закрыть
         </v-btn>
       </template>
@@ -364,10 +243,11 @@ import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import usersService from '@/services/usersService';
 import type {
-    UserFilters,
-    UserForm,
-    UserWithRelations
+  UserFilters,
+  UserForm,
+  UserWithRelations
 } from '@/types/users';
+import { disableDemoMode as disableDemo, enableDemoMode as enableDemo } from '@/utils/demoMode';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
 
@@ -467,7 +347,7 @@ const snackbar = ref({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some(value => 
+  return Object.values(filters.value).some(value =>
     value !== undefined && value !== null && value !== ''
   );
 });
@@ -504,13 +384,13 @@ const perPageOptions = [
 const loadUsers = async () => {
   try {
     loading.value = true;
-    
+
     const response = await usersService.getUsers(
       pagination.value.page,
       pagination.value.limit,
       filters.value
     );
-    
+
     if (response.status === 'success') {
       users.value = response.data.items;
       usersData.value = response.data;
@@ -629,7 +509,7 @@ const deleteUser = async (user: UserWithRelations) => {
   if (!confirm(`Вы уверены, что хотите удалить пользователя "${user.username}"?`)) {
     return;
   }
-  
+
   try {
     const response = await usersService.deleteUser(user.id);
     if (response.status === 'success') {
@@ -667,7 +547,7 @@ const exportUsers = async () => {
   try {
     exporting.value = true;
     const blob = await usersService.exportUsers('excel', filters.value);
-    
+
     // Создаем ссылку для скачивания
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -677,7 +557,7 @@ const exportUsers = async () => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
+
     showSnackbar('Экспорт завершен', 'success');
   } catch (error: any) {
     console.error('Ошибка экспорта:', error);
@@ -758,6 +638,31 @@ const formatDate = (dateString: string): string => {
 
 const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
+};
+
+// Методы для управления демо режимом
+const enableDemoMode = async () => {
+  enableDemo();
+  showSnackbar('Демо режим включен. Теперь отображаются демо данные.', 'success');
+  // Перезагружаем данные
+  await Promise.all([
+    loadUsers(),
+    loadStats(),
+    loadRoles(),
+    loadTemplates(),
+  ]);
+};
+
+const disableDemoMode = async () => {
+  disableDemo();
+  showSnackbar('Демо режим отключен. Попытка загрузки реальных данных с сервера.', 'info');
+  // Перезагружаем данные
+  await Promise.all([
+    loadUsers(),
+    loadStats(),
+    loadRoles(),
+    loadTemplates(),
+  ]);
 };
 
 // Функции для работы с активностью пользователей
@@ -846,6 +751,37 @@ onMounted(async () => {
 .page-actions {
   display: flex;
   gap: 12px;
+}
+
+/* Демо режим */
+.demo-alert {
+  margin: 0 0 20px 0;
+}
+
+.alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.alert-text {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .alert-title {
+  color: var(--apple-text-primary-dark);
+}
+
+[data-theme="dark"] .alert-text {
+  color: var(--apple-text-secondary-dark);
 }
 
 /* Статистика */
@@ -958,19 +894,19 @@ onMounted(async () => {
 }
 
 [data-theme="dark"] .page-title {
-  color: var(--text-primary-dark);
+  color: var(--apple-text-primary-dark);
 }
 
 [data-theme="dark"] .page-subtitle {
-  color: var(--text-secondary-dark);
+  color: var(--apple-text-secondary-dark);
 }
 
 [data-theme="dark"] .user-name {
-  color: var(--text-primary-dark);
+  color: var(--apple-text-primary-dark);
 }
 
 [data-theme="dark"] .user-username {
-  color: var(--text-secondary-dark);
+  color: var(--apple-text-secondary-dark);
 }
 
 [data-theme="dark"] .email-link {
@@ -984,16 +920,16 @@ onMounted(async () => {
     align-items: flex-start;
     gap: 16px;
   }
-  
+
   .page-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .table-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1005,20 +941,20 @@ onMounted(async () => {
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .stats-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .page-actions {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .filters-content .v-row {
     margin: 0;
   }
-  
+
   .filters-content .v-col {
     padding: 4px;
   }

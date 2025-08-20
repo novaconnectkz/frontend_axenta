@@ -56,10 +56,10 @@
   --apple-bg-tertiary: #FFFFFF;
   --apple-bg-grouped: #F2F2F7;
   
-  --apple-text-primary: #000000;
-  --apple-text-secondary: #1D1D1F;
-  --apple-text-tertiary: #3C3C43;
-  --apple-text-quaternary: #6D6D7D;
+  --apple-text-primary: #1D1D1F;
+  --apple-text-secondary: #3C3C43;
+  --apple-text-tertiary: #6D6D7D;
+  --apple-text-quaternary: #8E8E93;
   
   --apple-separator: #3C3C4329;
   --apple-separator-opaque: #C6C6C8;
@@ -78,7 +78,7 @@
   --apple-separator-dark: #54545899;
   --apple-separator-opaque-dark: #38383A;
   
-  /* === ДИНАМИЧЕСКИЕ ПЕРЕМЕННЫЕ (МЕНЯЮТСЯ ПО ТЕМЕ) === */
+  /* === ДИНАМИЧЕСКИЕ ПЕРЕМЕННЫЕ (СВЕТЛАЯ ТЕМА ПО УМОЛЧАНИЮ) === */
   --bg-primary: var(--apple-bg-primary);
   --bg-secondary: var(--apple-bg-secondary);
   --bg-tertiary: var(--apple-bg-tertiary);
@@ -178,23 +178,8 @@
   --separator-opaque: var(--apple-separator-opaque-dark);
 }
 
-/* === АВТОМАТИЧЕСКАЯ ТЕМНАЯ ТЕМА === */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-primary: var(--apple-bg-primary-dark);
-    --bg-secondary: var(--apple-bg-secondary-dark);
-    --bg-tertiary: var(--apple-bg-tertiary-dark);
-    --bg-grouped: var(--apple-bg-grouped-dark);
-    
-    --text-primary: var(--apple-text-primary-dark);
-    --text-secondary: var(--apple-text-secondary-dark);
-    --text-tertiary: var(--apple-text-tertiary-dark);
-    --text-quaternary: var(--apple-text-quaternary-dark);
-    
-    --separator: var(--apple-separator-dark);
-    --separator-opaque: var(--apple-separator-opaque-dark);
-  }
-}
+/* === АВТОМАТИЧЕСКАЯ ТЕМНАЯ ТЕМА ОТКЛЮЧЕНА === */
+/* Управление темой теперь только через data-theme атрибут */
 
 /* ===========================================
    БАЗОВЫЕ СТИЛИ

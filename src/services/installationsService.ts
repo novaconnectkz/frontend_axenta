@@ -29,10 +29,21 @@ import type {
   LocationStats,
   LocationsResponse,
 } from "@/types/installations";
+import {
+  getMockInstallations,
+  getMockInstallers,
+  getMockEquipment,
+  getMockLocations,
+  mockInstallationStats,
+  mockInstallerStats,
+  mockLocationStats,
+  mockEquipmentStats,
+} from "./mockInstallationsData";
 import axios from "axios";
 
 export class InstallationsService {
   private static instance: InstallationsService;
+  private useMockData = true; // Флаг для использования демо данных (включен по умолчанию)
   private apiClient = axios.create({
     baseURL: config.apiBaseUrl,
     timeout: 30000,
@@ -59,6 +70,18 @@ export class InstallationsService {
 
       return config;
     });
+
+    // Обработчик ошибок - переключаемся на демо данные при недоступности API
+    this.apiClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response) {
+          console.warn('API недоступно, переключаемся на демо данные');
+          this.useMockData = true;
+        }
+        return Promise.reject(error);
+      }
+    );
   }
 
   static getInstance(): InstallationsService {
@@ -68,6 +91,23 @@ export class InstallationsService {
     return InstallationsService.instance;
   }
 
+  // Метод для принудительного включения демо режима
+  enableMockMode(): void {
+    this.useMockData = true;
+    console.log('Демо режим включен принудительно');
+  }
+
+  // Метод для отключения демо режима
+  disableMockMode(): void {
+    this.useMockData = false;
+    console.log('Демо режим отключен');
+  }
+
+  // Проверка текущего режима
+  isMockMode(): boolean {
+    return this.useMockData;
+  }
+
   // === МОНТАЖИ ===
 
   async getInstallations(
@@ -75,31 +115,43 @@ export class InstallationsService {
     per_page = 50,
     filters: InstallationFilters = {}
   ): Promise<InstallationsResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: per_page.toString(),
-      ordering: filters.ordering || "-scheduled_at",
-    });
+    // Если используем демо данные или API недоступно
+    if (this.useMockData) {
+      console.log('Используем демо данные для монтажей');
+      return getMockInstallations(page, per_page, filters);
+    }
 
-    if (filters.status) params.append("status", filters.status);
-    if (filters.type) params.append("type", filters.type);
-    if (filters.priority) params.append("priority", filters.priority);
-    if (filters.installer_id)
-      params.append("installer_id", filters.installer_id.toString());
-    if (filters.object_id)
-      params.append("object_id", filters.object_id.toString());
-    if (filters.location_id)
-      params.append("location_id", filters.location_id.toString());
-    if (filters.date_from) params.append("date_from", filters.date_from);
-    if (filters.date_to) params.append("date_to", filters.date_to);
-    if (filters.search) params.append("search", filters.search);
-    if (filters.is_billable !== undefined)
-      params.append("is_billable", filters.is_billable.toString());
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ordering: filters.ordering || "-scheduled_at",
+      });
 
-    const response = await this.apiClient.get(
-      `/test/installations?${params.toString()}`
-    );
-    return response.data;
+      if (filters.status) params.append("status", filters.status);
+      if (filters.type) params.append("type", filters.type);
+      if (filters.priority) params.append("priority", filters.priority);
+      if (filters.installer_id)
+        params.append("installer_id", filters.installer_id.toString());
+      if (filters.object_id)
+        params.append("object_id", filters.object_id.toString());
+      if (filters.location_id)
+        params.append("location_id", filters.location_id.toString());
+      if (filters.date_from) params.append("date_from", filters.date_from);
+      if (filters.date_to) params.append("date_to", filters.date_to);
+      if (filters.search) params.append("search", filters.search);
+      if (filters.is_billable !== undefined)
+        params.append("is_billable", filters.is_billable.toString());
+
+      const response = await this.apiClient.get(
+        `/test/installations?${params.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      console.warn('API недоступно, переключаемся на демо данные для монтажей');
+      this.useMockData = true;
+      return getMockInstallations(page, per_page, filters);
+    }
   }
 
   async getInstallation(id: number): Promise<InstallationWithRelations> {
@@ -175,8 +227,19 @@ export class InstallationsService {
   }
 
   async getInstallationStats(): Promise<InstallationStats> {
-    const response = await this.apiClient.get("/test/installations/statistics");
-    return response.data;
+    if (this.useMockData) {
+      console.log('Используем демо данные для статистики монтажей');
+      return Promise.resolve(mockInstallationStats);
+    }
+
+    try {
+      const response = await this.apiClient.get("/test/installations/statistics");
+      return response.data;
+    } catch (error) {
+      console.warn('API недоступно, используем демо статистику монтажей');
+      this.useMockData = true;
+      return mockInstallationStats;
+    }
   }
 
   // === МОНТАЖНИКИ ===
@@ -186,26 +249,37 @@ export class InstallationsService {
     per_page = 50,
     filters: InstallerFilters = {}
   ): Promise<InstallersResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: per_page.toString(),
-      ordering: filters.ordering || "first_name",
-    });
+    if (this.useMockData) {
+      console.log('Используем демо данные для монтажников');
+      return getMockInstallers(page, per_page, filters);
+    }
 
-    if (filters.type) params.append("type", filters.type);
-    if (filters.status) params.append("status", filters.status);
-    if (filters.specialization)
-      params.append("specialization", filters.specialization);
-    if (filters.location_id)
-      params.append("location_id", filters.location_id.toString());
-    if (filters.is_active !== undefined)
-      params.append("is_active", filters.is_active.toString());
-    if (filters.search) params.append("search", filters.search);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ordering: filters.ordering || "first_name",
+      });
 
-    const response = await this.apiClient.get(
-      `/test/installers?${params.toString()}`
-    );
-    return response.data;
+      if (filters.type) params.append("type", filters.type);
+      if (filters.status) params.append("status", filters.status);
+      if (filters.specialization)
+        params.append("specialization", filters.specialization);
+      if (filters.location_id)
+        params.append("location_id", filters.location_id.toString());
+      if (filters.is_active !== undefined)
+        params.append("is_active", filters.is_active.toString());
+      if (filters.search) params.append("search", filters.search);
+
+      const response = await this.apiClient.get(
+        `/test/installers?${params.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      console.warn('API недоступно, используем демо данные для монтажников');
+      this.useMockData = true;
+      return getMockInstallers(page, per_page, filters);
+    }
   }
 
   async getInstaller(id: number): Promise<InstallerWithRelations> {
@@ -305,22 +379,33 @@ export class InstallationsService {
     per_page = 50,
     filters: LocationFilters = {}
   ): Promise<LocationsResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: per_page.toString(),
-      ordering: filters.ordering || "city",
-    });
+    if (this.useMockData) {
+      console.log('Используем демо данные для локаций');
+      return getMockLocations(page, per_page, filters);
+    }
 
-    if (filters.region) params.append("region", filters.region);
-    if (filters.country) params.append("country", filters.country);
-    if (filters.is_active !== undefined)
-      params.append("is_active", filters.is_active.toString());
-    if (filters.search) params.append("search", filters.search);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ordering: filters.ordering || "city",
+      });
 
-    const response = await this.apiClient.get(
-      `/test/locations?${params.toString()}`
-    );
-    return response.data;
+      if (filters.region) params.append("region", filters.region);
+      if (filters.country) params.append("country", filters.country);
+      if (filters.is_active !== undefined)
+        params.append("is_active", filters.is_active.toString());
+      if (filters.search) params.append("search", filters.search);
+
+      const response = await this.apiClient.get(
+        `/test/locations?${params.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      console.warn('API недоступно, используем демо данные для локаций');
+      this.useMockData = true;
+      return getMockLocations(page, per_page, filters);
+    }
   }
 
   async getLocation(id: number): Promise<LocationBase> {
@@ -370,23 +455,34 @@ export class InstallationsService {
     per_page = 50,
     filters: EquipmentFilters = {}
   ): Promise<EquipmentResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: per_page.toString(),
-      ordering: filters.ordering || "type",
-    });
+    if (this.useMockData) {
+      console.log('Используем демо данные для оборудования');
+      return getMockEquipment(page, per_page, filters);
+    }
 
-    if (filters.type) params.append("type", filters.type);
-    if (filters.status) params.append("status", filters.status);
-    if (filters.condition) params.append("condition", filters.condition);
-    if (filters.object_id)
-      params.append("object_id", filters.object_id.toString());
-    if (filters.search) params.append("search", filters.search);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        per_page: per_page.toString(),
+        ordering: filters.ordering || "type",
+      });
 
-    const response = await this.apiClient.get(
-      `/test/equipment?${params.toString()}`
-    );
-    return response.data;
+      if (filters.type) params.append("type", filters.type);
+      if (filters.status) params.append("status", filters.status);
+      if (filters.condition) params.append("condition", filters.condition);
+      if (filters.object_id)
+        params.append("object_id", filters.object_id.toString());
+      if (filters.search) params.append("search", filters.search);
+
+      const response = await this.apiClient.get(
+        `/test/equipment?${params.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      console.warn('API недоступно, используем демо данные для оборудования');
+      this.useMockData = true;
+      return getMockEquipment(page, per_page, filters);
+    }
   }
 
   async getEquipmentItem(id: number): Promise<EquipmentBase> {

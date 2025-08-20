@@ -14,6 +14,8 @@ import appleTheme from "./styles/vuetify-apple-theme";
 
 import App from "./App.vue";
 import router from "./router";
+import { initDemoMode } from "./utils/demoMode";
+import "./utils/themeDebug"; // Утилиты отладки темы
 
 const app = createApp(App);
 
@@ -22,7 +24,7 @@ const vuetify = createVuetify({
   components,
   directives,
   icons: {
-    defaultSet: 'mdi',
+    defaultSet: "mdi",
     aliases,
     sets: {
       mdi,
@@ -37,7 +39,7 @@ const vuetify = createVuetify({
   },
   defaults: appleTheme.components,
   display: {
-    mobileBreakpoint: 'sm',
+    mobileBreakpoint: "sm",
     thresholds: {
       xs: 0,
       sm: 480,
@@ -69,10 +71,18 @@ window.addEventListener("error", (event) => {
 const pinia = createPinia();
 
 // Настройка приложения - важен порядок!
-app.use(pinia);  // Сначала Pinia для store
+app.use(pinia); // Сначала Pinia для store
 app.use(vuetify); // Затем UI библиотека
 // Router подключаем в последнюю очередь, чтобы auth context был готов
 app.use(router);
+
+// Инициализируем демо режим
+initDemoMode();
+
+// Устанавливаем светлую тему по умолчанию, если не выбрана
+if (!document.body.hasAttribute("data-theme")) {
+  document.body.setAttribute("data-theme", "light");
+}
 
 // Монтируем приложение
 const mountedApp = app.mount("#app");

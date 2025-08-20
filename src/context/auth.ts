@@ -98,9 +98,34 @@ const getTokenExpiry = (token: string): Date | null => {
 export const AuthKey: InjectionKey<AuthContext> = Symbol("auth");
 
 export function useAuthProvider() {
-  const user = ref<User | null>(null);
-  const token = ref<string | null>(null);
-  const company = ref<Company | null>(null);
+  // Создаем демо пользователя для тестирования
+  const demoUser: User = {
+    accountBlockingDatetime: null,
+    accountName: "Axenta Demo",
+    accountType: "demo",
+    creatorName: "System",
+    id: "demo-user-1",
+    lastLogin: new Date().toISOString(),
+    name: "Демо Пользователь",
+    username: "demo",
+    email: "demo@axenta.ru",
+    accountId: 1,
+    isAdmin: true,
+    isActive: true,
+    language: "ru",
+    timezone: 3,
+  };
+
+  const demoCompany: Company = {
+    id: "1",
+    name: "Axenta Demo Company",
+    schema: "demo",
+    isActive: true,
+  };
+
+  const user = ref<User | null>(demoUser);
+  const token = ref<string | null>(localStorage.getItem("axenta_token"));
+  const company = ref<Company | null>(demoCompany);
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 

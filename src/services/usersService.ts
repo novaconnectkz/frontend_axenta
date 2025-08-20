@@ -11,10 +11,12 @@ import type {
   UserTemplate,
   UserWithRelations,
 } from "@/types/users";
+import { getMockUsersData, mockRoles, mockStats, mockTemplates } from "./mockUsersData";
 import axios from "axios";
 
 export class UsersService {
   private static instance: UsersService;
+  private useMockData = false; // Флаг для использования демо данных
   private apiClient = axios.create({
     baseURL: config.apiBaseUrl,
     timeout: 30000,
@@ -50,6 +52,23 @@ export class UsersService {
     return UsersService.instance;
   }
 
+  // Метод для включения режима демо данных
+  enableMockData(): void {
+    this.useMockData = true;
+    console.log('Режим демо данных включен для UsersService');
+  }
+
+  // Метод для отключения режима демо данных
+  disableMockData(): void {
+    this.useMockData = false;
+    console.log('Режим демо данных отключен для UsersService');
+  }
+
+  // Проверка статуса режима демо данных
+  isMockDataEnabled(): boolean {
+    return this.useMockData;
+  }
+
   // === ПОЛЬЗОВАТЕЛИ ===
 
   // Получение списка пользователей с фильтрацией
@@ -58,25 +77,45 @@ export class UsersService {
     limit = 20,
     filters: UserFilters = {}
   ): Promise<UsersResponse> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    // Если включен режим демо данных, возвращаем mock данные
+    if (this.useMockData) {
+      const mockData = getMockUsersData(page, limit, filters);
+      return {
+        status: "success",
+        data: mockData
+      };
+    }
 
-    // Добавляем фильтры
-    if (filters.search) params.append("search", filters.search);
-    if (filters.role) params.append("role", filters.role);
-    if (filters.active !== undefined)
-      params.append("active", filters.active.toString());
-    if (filters.user_type) params.append("user_type", filters.user_type);
-    if (filters.external_source)
-      params.append("external_source", filters.external_source);
-    if (filters.template_id)
-      params.append("template_id", filters.template_id.toString());
-    if (filters.ordering) params.append("ordering", filters.ordering);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
 
-    const response = await this.apiClient.get(`/users?${params.toString()}`);
-    return response.data;
+      // Добавляем фильтры
+      if (filters.search) params.append("search", filters.search);
+      if (filters.role) params.append("role", filters.role);
+      if (filters.active !== undefined)
+        params.append("active", filters.active.toString());
+      if (filters.user_type) params.append("user_type", filters.user_type);
+      if (filters.external_source)
+        params.append("external_source", filters.external_source);
+      if (filters.template_id)
+        params.append("template_id", filters.template_id.toString());
+      if (filters.ordering) params.append("ordering", filters.ordering);
+
+      const response = await this.apiClient.get(`/users?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Ошибка загрузки пользователей с сервера, переключаемся на демо данные:', error);
+      // Включаем режим демо данных при ошибке
+      this.useMockData = true;
+      const mockData = getMockUsersData(page, limit, filters);
+      return {
+        status: "success",
+        data: mockData
+      };
+    }
   }
 
   // Получение одного пользователя
@@ -168,18 +207,77 @@ export class UsersService {
     };
     error?: string;
   }> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    // Если включен режим демо данных, возвращаем mock роли
+    if (this.useMockData) {
+      let filteredRoles = [...mockRoles];
+      
+      if (filters.active_only) {
+        filteredRoles = filteredRoles.filter(role => role.is_active);
+      }
+      
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        filteredRoles = filteredRoles.filter(role => 
+          role.name.toLowerCase().includes(search) ||
+          role.display_name.toLowerCase().includes(search)
+        );
+      }
 
-    if (filters.search) params.append("search", filters.search);
-    if (filters.active_only !== undefined) {
-      params.append("active_only", filters.active_only.toString());
+      return {
+        status: "success",
+        data: {
+          items: filteredRoles,
+          total: filteredRoles.length,
+          page,
+          limit,
+          pages: Math.ceil(filteredRoles.length / limit)
+        }
+      };
     }
 
-    const response = await this.apiClient.get(`/roles?${params.toString()}`);
-    return response.data;
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (filters.search) params.append("search", filters.search);
+      if (filters.active_only !== undefined) {
+        params.append("active_only", filters.active_only.toString());
+      }
+
+      const response = await this.apiClient.get(`/roles?${params.toString()}`);
+      return response.data;
+    } catch (error) {
+      console.warn('Ошибка загрузки ролей с сервера, переключаемся на демо данные:', error);
+      // Включаем режим демо данных при ошибке
+      this.useMockData = true;
+      
+      let filteredRoles = [...mockRoles];
+      
+      if (filters.active_only) {
+        filteredRoles = filteredRoles.filter(role => role.is_active);
+      }
+      
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        filteredRoles = filteredRoles.filter(role => 
+          role.name.toLowerCase().includes(search) ||
+          role.display_name.toLowerCase().includes(search)
+        );
+      }
+
+      return {
+        status: "success",
+        data: {
+          items: filteredRoles,
+          total: filteredRoles.length,
+          page,
+          limit,
+          pages: Math.ceil(filteredRoles.length / limit)
+        }
+      };
+    }
   }
 
   // Получение одной роли
@@ -285,20 +383,79 @@ export class UsersService {
     };
     error?: string;
   }> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    // Если включен режим демо данных, возвращаем mock шаблоны
+    if (this.useMockData) {
+      let filteredTemplates = [...mockTemplates];
+      
+      if (filters.active_only) {
+        filteredTemplates = filteredTemplates.filter(template => template.is_active);
+      }
+      
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        filteredTemplates = filteredTemplates.filter(template => 
+          template.name.toLowerCase().includes(search) ||
+          (template.description && template.description.toLowerCase().includes(search))
+        );
+      }
 
-    if (filters.search) params.append("search", filters.search);
-    if (filters.active_only !== undefined) {
-      params.append("active_only", filters.active_only.toString());
+      return {
+        status: "success",
+        data: {
+          items: filteredTemplates,
+          total: filteredTemplates.length,
+          page,
+          limit,
+          pages: Math.ceil(filteredTemplates.length / limit)
+        }
+      };
     }
 
-    const response = await this.apiClient.get(
-      `/user-templates?${params.toString()}`
-    );
-    return response.data;
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      if (filters.search) params.append("search", filters.search);
+      if (filters.active_only !== undefined) {
+        params.append("active_only", filters.active_only.toString());
+      }
+
+      const response = await this.apiClient.get(
+        `/user-templates?${params.toString()}`
+      );
+      return response.data;
+    } catch (error) {
+      console.warn('Ошибка загрузки шаблонов пользователей с сервера, переключаемся на демо данные:', error);
+      // Включаем режим демо данных при ошибке
+      this.useMockData = true;
+      
+      let filteredTemplates = [...mockTemplates];
+      
+      if (filters.active_only) {
+        filteredTemplates = filteredTemplates.filter(template => template.is_active);
+      }
+      
+      if (filters.search) {
+        const search = filters.search.toLowerCase();
+        filteredTemplates = filteredTemplates.filter(template => 
+          template.name.toLowerCase().includes(search) ||
+          (template.description && template.description.toLowerCase().includes(search))
+        );
+      }
+
+      return {
+        status: "success",
+        data: {
+          items: filteredTemplates,
+          total: filteredTemplates.length,
+          page,
+          limit,
+          pages: Math.ceil(filteredTemplates.length / limit)
+        }
+      };
+    }
   }
 
   // Получение одного шаблона
@@ -344,8 +501,20 @@ export class UsersService {
 
   // Получение статистики пользователей
   async getUsersStats(): Promise<UserStats> {
-    const response = await this.apiClient.get("/users/stats");
-    return response.data.data;
+    // Если включен режим демо данных, возвращаем mock статистику
+    if (this.useMockData) {
+      return mockStats;
+    }
+
+    try {
+      const response = await this.apiClient.get("/users/stats");
+      return response.data.data;
+    } catch (error) {
+      console.warn('Ошибка загрузки статистики пользователей с сервера, переключаемся на демо данные:', error);
+      // Включаем режим демо данных при ошибке
+      this.useMockData = true;
+      return mockStats;
+    }
   }
 
   // === ЭКСПОРТ ===

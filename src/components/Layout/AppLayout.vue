@@ -1,13 +1,8 @@
 <template>
   <v-app>
     <!-- Боковая панель навигации -->
-    <v-navigation-drawer
-      v-model="drawer"
-      :rail="rail"
-      permanent
-      class="apple-sidebar app-sidebar"
-      :class="{ 'sidebar-rail': rail }"
-    >
+    <v-navigation-drawer v-model="drawer" :rail="rail" permanent class="apple-sidebar app-sidebar"
+      :class="{ 'sidebar-rail': rail }">
       <!-- Заголовок боковой панели -->
       <div class="sidebar-header">
         <div class="logo" @click="toggleRail">
@@ -25,43 +20,20 @@
       <!-- Навигационное меню -->
       <v-list class="sidebar-nav" nav>
         <template v-for="item in navigationItems" :key="item.path">
-          <v-tooltip
-            v-if="rail"
-            location="end"
-            :text="item.title"
-          >
+          <v-tooltip v-if="rail" location="end" :text="item.title">
             <template #activator="{ props }">
-              <div
-                v-bind="props"
-                class="rail-nav-button"
-                :class="{ 'active': $route.path === item.path }"
-                @click="router.push(item.path)"
-              >
-                <v-icon 
-                  :icon="item.icon" 
-                  size="22"
-                  class="rail-button-icon"
-                />
+              <div v-bind="props" class="rail-nav-button" :class="{ 'active': $route.path === item.path }"
+                @click="handleRailNavClick(item.path)">
+                <v-icon :icon="item.icon" size="22" class="rail-button-icon" />
               </div>
             </template>
           </v-tooltip>
-          
-          <v-list-item
-            v-else
-            :to="item.path"
-            :prepend-icon="item.icon"
-            :title="item.title"
-            :subtitle="item.subtitle"
-            class="apple-nav-item nav-item"
-            :class="{ 'active': $route.path === item.path }"
-            exact
-          >
+
+          <v-list-item v-else :to="item.path" :prepend-icon="item.icon" :title="item.title" :subtitle="item.subtitle"
+            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact
+            @click="handleNavClick(item.path)">
             <template v-if="item.badge && item.badge > 0" #append>
-              <v-badge
-                :content="item.badge"
-                color="error"
-                inline
-              />
+              <v-badge :content="item.badge" color="error" inline />
             </template>
           </v-list-item>
         </template>
@@ -76,17 +48,9 @@
     </v-navigation-drawer>
 
     <!-- Верхняя панель -->
-    <v-app-bar
-      :order="-1"
-      class="app-header"
-      flat
-      border
-    >
+    <v-app-bar :order="-1" class="app-header" flat border>
       <!-- Кнопка меню для мобильных -->
-      <v-app-bar-nav-icon
-        v-if="mobile"
-        @click="drawer = !drawer"
-      />
+      <v-app-bar-nav-icon v-if="mobile" @click="drawer = !drawer" />
 
       <!-- Приветствие и дата -->
       <v-app-bar-title>
@@ -105,13 +69,7 @@
       <!-- Переключатель темы -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon
-            variant="text"
-            @click="toggleTheme"
-            class="theme-toggle-btn"
-          >
+          <v-btn v-bind="props" icon variant="text" @click="toggleTheme" class="theme-toggle-btn">
             <v-icon>
               {{ isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny' }}
             </v-icon>
@@ -123,16 +81,8 @@
       <!-- Уведомления -->
       <v-menu location="bottom">
         <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon
-            variant="text"
-          >
-            <v-badge
-              v-if="notificationsCount > 0"
-              :content="notificationsCount"
-              color="error"
-            >
+          <v-btn v-bind="props" icon variant="text">
+            <v-badge v-if="notificationsCount > 0" :content="notificationsCount" color="error">
               <v-icon>mdi-bell</v-icon>
             </v-badge>
             <v-icon v-else>mdi-bell-outline</v-icon>
@@ -143,11 +93,7 @@
           <v-card-title>
             Уведомления
             <v-spacer />
-            <v-btn
-              icon="mdi-close"
-              variant="text"
-              size="small"
-            />
+            <v-btn icon="mdi-close" variant="text" size="small" />
           </v-card-title>
           <v-card-text>
             <div v-if="notifications.length === 0" class="text-center py-4">
@@ -156,12 +102,8 @@
             </div>
             <div v-else>
               <v-list lines="two">
-                <v-list-item
-                  v-for="notification in notifications.slice(0, 5)"
-                  :key="notification.id"
-                  :title="notification.title"
-                  :subtitle="notification.message"
-                >
+                <v-list-item v-for="notification in notifications.slice(0, 5)" :key="notification.id"
+                  :title="notification.title" :subtitle="notification.message">
                   <template #prepend>
                     <v-avatar :color="notification.type">
                       <v-icon :icon="getNotificationIcon(notification.type)" />
@@ -177,12 +119,7 @@
       <!-- WebSocket статус -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon
-            variant="text"
-            :color="wsStatus.color"
-          >
+          <v-btn v-bind="props" icon variant="text" :color="wsStatus.color">
             <v-icon>{{ wsStatus.icon }}</v-icon>
           </v-btn>
         </template>
@@ -192,17 +129,8 @@
       <!-- Аватар пользователя -->
       <v-menu location="bottom">
         <template #activator="{ props }">
-          <v-btn
-            v-bind="props"
-            icon
-            variant="text"
-            class="user-avatar-btn"
-          >
-            <v-avatar
-              :image="userAvatar"
-              size="32"
-              class="user-avatar"
-            >
+          <v-btn v-bind="props" icon variant="text" class="user-avatar-btn">
+            <v-avatar :image="userAvatar" size="32" class="user-avatar">
               <span v-if="!userAvatar" class="user-initials">
                 {{ getUserInitials() }}
               </span>
@@ -213,11 +141,7 @@
         <v-card width="280">
           <v-card-text class="pa-4">
             <div class="d-flex align-center mb-3">
-              <v-avatar
-                :image="userAvatar"
-                size="48"
-                class="me-3"
-              >
+              <v-avatar :image="userAvatar" size="48" class="me-3">
                 <span v-if="!userAvatar" class="user-initials">
                   {{ getUserInitials() }}
                 </span>
@@ -231,29 +155,15 @@
                 </div>
               </div>
             </div>
-            
+
             <v-divider class="mb-3" />
-            
+
             <v-list density="compact" class="pa-0">
-              <v-list-item
-                prepend-icon="mdi-account"
-                title="Профиль"
-                @click="goToProfile"
-                class="profile-menu-item"
-              />
-              <v-list-item
-                prepend-icon="mdi-cog"
-                title="Настройки"
-                @click="goToSettings"
-                class="profile-menu-item"
-              />
+              <v-list-item prepend-icon="mdi-account" title="Профиль" @click="goToProfile" class="profile-menu-item" />
+              <v-list-item prepend-icon="mdi-cog" title="Настройки" @click="goToSettings" class="profile-menu-item" />
               <v-divider class="my-2" />
-              <v-list-item
-                prepend-icon="mdi-logout"
-                title="Выйти"
-                @click="handleLogout"
-                class="profile-menu-item logout-item"
-              />
+              <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="handleLogout"
+                class="profile-menu-item logout-item" />
             </v-list>
           </v-card-text>
         </v-card>
@@ -264,11 +174,7 @@
     <v-main class="app-main">
       <v-container fluid class="main-content">
         <!-- Breadcrumbs -->
-        <v-breadcrumbs
-          v-if="breadcrumbs.length > 1"
-          :items="breadcrumbs"
-          class="px-0 py-2"
-        >
+        <v-breadcrumbs v-if="breadcrumbs.length > 1" :items="breadcrumbs" class="px-0 py-2">
           <template #divider>
             <v-icon>mdi-chevron-right</v-icon>
           </template>
@@ -276,34 +182,19 @@
 
         <!-- Слот для контента страницы -->
         <router-view v-slot="{ Component, route }">
-          <transition
-            name="page"
-            mode="out-in"
-            appear
-          >
-            <component
-              :is="Component"
-              :key="route.path"
-            />
+          <transition name="page" mode="out-in" appear>
+            <component :is="Component" :key="route.path" />
           </transition>
         </router-view>
       </v-container>
     </v-main>
 
     <!-- Snackbar для глобальных уведомлений -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="snackbar.timeout"
-      location="top right"
-    >
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="top right">
       {{ snackbar.text }}
-      
+
       <template #actions>
-        <v-btn
-          variant="text"
-          @click="snackbar.show = false"
-        >
+        <v-btn variant="text" @click="snackbar.show = false">
           Закрыть
         </v-btn>
       </template>
@@ -411,7 +302,7 @@ const currentPageIcon = computed(() => {
 const breadcrumbs = computed(() => {
   const paths = route.path.split('/').filter(Boolean);
   const crumbs = [{ title: 'Главная', to: '/dashboard' }];
-  
+
   let currentPath = '';
   for (const path of paths) {
     currentPath += `/${path}`;
@@ -424,7 +315,7 @@ const breadcrumbs = computed(() => {
       });
     }
   }
-  
+
   return crumbs;
 });
 
@@ -435,7 +326,7 @@ const notificationsCount = computed(() => {
 const userAvatar = computed(() => {
   const user = auth.user.value;
   if (user?.avatar) return user.avatar;
-  
+
   // Генерируем аватар по первым буквам имени
   const name = user?.name || 'U';
   const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -445,7 +336,7 @@ const userAvatar = computed(() => {
 const wsStatus = computed(() => {
   // Временно отключаем WebSocket статус до исправления auth context
   return { icon: 'mdi-wifi-off', color: 'grey', text: 'Отключено' };
-  
+
   /* Будет восстановлено после исправления:
   const status = getConnectionState();
   switch (status) {
@@ -471,13 +362,13 @@ const toggleTheme = () => {
   const newTheme = isDarkTheme.value ? 'apple-dark' : 'apple-light';
   theme.global.name.value = newTheme;
   localStorage.setItem('theme', newTheme);
-  
+
   // Отмечаем что пользователь вручную переключил тему
   localStorage.setItem('user-theme-preference', 'manual');
-  
+
   // Добавляем data-theme атрибут к body для CSS переменных
   document.body.setAttribute('data-theme', isDarkTheme.value ? 'dark' : 'light');
-  
+
   // Добавляем небольшую вибрацию на мобильных (если поддерживается)
   if ('vibrate' in navigator) {
     navigator.vibrate(50);
@@ -507,7 +398,7 @@ const getNotificationIcon = (type: string) => {
     case 'success': return 'mdi-check-circle';
     case 'error': return 'mdi-alert-circle';
     case 'warning': return 'mdi-alert';
-    case 'info': 
+    case 'info':
     default: return 'mdi-information';
   }
 };
@@ -536,6 +427,19 @@ const getUserInitials = () => {
   return names[0][0].toUpperCase();
 };
 
+const handleRailNavClick = (path: string) => {
+  console.log('🔄 Rail navigation click:', path);
+  router.push(path).catch(err => {
+    console.error('Navigation error:', err);
+  });
+};
+
+const handleNavClick = (path: string) => {
+  console.log('📍 Navigation click:', path);
+  // Для обычной навигации через v-list-item :to уже работает
+  // Этот обработчик нужен только для отладки
+};
+
 // Watchers
 watch(mobile, (newValue) => {
   drawer.value = !newValue;
@@ -551,35 +455,16 @@ onMounted(() => {
     isDarkTheme.value = savedTheme === 'apple-dark';
     document.body.setAttribute('data-theme', isDarkTheme.value ? 'dark' : 'light');
   } else {
-    // Определяем тему по системным настройкам
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    isDarkTheme.value = prefersDark;
-    const defaultTheme = prefersDark ? 'apple-dark' : 'apple-light';
+    // По умолчанию используем светлую тему (убираем автоматическое определение системной темы)
+    isDarkTheme.value = false;
+    const defaultTheme = 'apple-light';
     theme.global.name.value = defaultTheme;
     localStorage.setItem('theme', defaultTheme);
-    document.body.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    document.body.setAttribute('data-theme', 'light');
   }
-  
-  // Слушаем изменения системной темы
-  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-  const handleSystemThemeChange = (e: MediaQueryListEvent) => {
-    // Только если пользователь не установил тему вручную
-    const userTheme = localStorage.getItem('user-theme-preference');
-    if (!userTheme) {
-      isDarkTheme.value = e.matches;
-      const newTheme = e.matches ? 'apple-dark' : 'apple-light';
-      theme.global.name.value = newTheme;
-      localStorage.setItem('theme', newTheme);
-      document.body.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-    }
-  };
-  
-  if (mediaQuery.addEventListener) {
-    mediaQuery.addEventListener('change', handleSystemThemeChange);
-  } else {
-    // Fallback для старых браузеров
-    mediaQuery.addListener(handleSystemThemeChange);
-  }
+
+  // Отключаем автоматическое переключение системной темы
+  // Теперь тема управляется только вручную через кнопку переключения
 });
 </script>
 
@@ -700,9 +585,12 @@ onMounted(() => {
 }
 
 @keyframes iconPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
@@ -1143,9 +1031,9 @@ onMounted(() => {
 }
 
 .app-main {
-  background: linear-gradient(135deg, 
-    rgba(var(--v-theme-surface), 1) 0%, 
-    rgba(var(--v-theme-background), 1) 100%);
+  background: linear-gradient(135deg,
+      rgba(var(--v-theme-surface), 1) 0%,
+      rgba(var(--v-theme-background), 1) 100%);
 }
 
 .main-content {
@@ -1296,21 +1184,21 @@ onMounted(() => {
   .welcome-title {
     font-size: 1.1rem !important;
   }
-  
+
   .welcome-date {
     font-size: 0.75rem;
   }
-  
 
-  
+
+
   .theme-toggle-btn {
     margin-right: 4px;
   }
-  
+
   .user-avatar-btn {
     margin-left: 4px;
   }
-  
+
   .user-avatar {
     width: 28px !important;
     height: 28px !important;
@@ -1321,9 +1209,10 @@ onMounted(() => {
   .welcome-title {
     font-size: 1rem !important;
   }
-  
+
   .welcome-date {
-    display: none; /* Скрываем дату на очень маленьких экранах */
+    display: none;
+    /* Скрываем дату на очень маленьких экранах */
   }
 }
 
@@ -1331,7 +1220,7 @@ onMounted(() => {
   .sidebar-header {
     padding: 16px;
   }
-  
+
   .main-content {
     padding: 16px;
   }
