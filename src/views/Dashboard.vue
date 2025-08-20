@@ -4,23 +4,13 @@
     <!-- Error State -->
     <v-row v-if="error">
       <v-col cols="12">
-        <v-alert
-          type="error"
-          variant="tonal"
-          closable
-          @click:close="clearError"
-        >
+        <v-alert type="error" variant="tonal" closable @click:close="clearError">
           <template v-slot:title>
             Ошибка загрузки Dashboard
           </template>
           {{ error }}
           <template v-slot:append>
-            <v-btn
-              color="error"
-              variant="outlined"
-              size="small"
-              @click="refreshDashboard"
-            >
+            <v-btn color="error" variant="outlined" size="small" @click="refreshDashboard">
               Попробовать снова
             </v-btn>
           </template>
@@ -30,6 +20,9 @@
 
     <!-- Dashboard Grid -->
     <DashboardGrid />
+
+    <!-- Mock Mode Toggle (только в development) -->
+    <MockModeToggle />
 
     <!-- System Status Bar -->
     <v-row class="mt-4">
@@ -41,16 +34,16 @@
                 <v-icon icon="mdi-circle" size="8" color="success" class="me-2" />
                 <span>Система работает нормально</span>
               </div>
-              
+
               <div class="d-flex align-center gap-4">
                 <span v-if="lastRefresh">
                   Последнее обновление: {{ formatTime(lastRefresh) }}
                 </span>
-                
+
                 <span>
                   Компания: {{ auth?.company?.value?.name || 'Не указана' }}
                 </span>
-                
+
                 <span>
                   Версия: 1.0.0
                 </span>
@@ -65,26 +58,28 @@
 
 <script lang="ts">
 import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
+import MockModeToggle from '@/components/Dashboard/MockModeToggle.vue';
 import { useAuth } from '@/context/auth';
-import { useDashboardStore } from '@/store/dashboard';
+import { useDashboardStoreWithInit } from '@/store/dashboard';
 import { computed, defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 export default defineComponent({
   name: 'Dashboard',
   components: {
-    DashboardGrid
+    DashboardGrid,
+    MockModeToggle
   },
   setup() {
     const router = useRouter();
-    const dashboardStore = useDashboardStore();
+    const dashboardStore = useDashboardStoreWithInit();
     const auth = useAuth();
     const isRefreshing = ref(false);
 
     // Computed properties
     const error = computed(() => dashboardStore.error);
     const lastRefresh = computed(() => dashboardStore.lastRefresh);
-    
+
     // Methods
 
     const refreshDashboard = async () => {

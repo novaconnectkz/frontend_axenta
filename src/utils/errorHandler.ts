@@ -335,3 +335,39 @@ export function setupGlobalErrorHandler(app: App) {
 
 // Экспортируем singleton
 export const globalErrorHandler = ErrorHandler.getInstance();
+
+/**
+ * Composable для работы с обработкой ошибок
+ */
+export function useErrorHandler() {
+  const errorHandler = ErrorHandler.getInstance();
+
+  const handleError = (error: any, fallbackMessage?: string) => {
+    const errorInfo = errorHandler.handleError(error);
+
+    // Здесь можно добавить логику для показа уведомлений пользователю
+    // Например, через Vuetify snackbar или toast
+    console.error(fallbackMessage || errorInfo.message, errorInfo);
+
+    return errorInfo;
+  };
+
+  const getUserMessage = (errorInfo: ErrorInfo): string => {
+    return errorHandler.getUserMessage(errorInfo);
+  };
+
+  const getRecentErrors = (limit = 5): ErrorInfo[] => {
+    return errorHandler.getRecentErrors(limit);
+  };
+
+  const clearErrors = () => {
+    errorHandler.clearErrors();
+  };
+
+  return {
+    handleError,
+    getUserMessage,
+    getRecentErrors,
+    clearErrors,
+  };
+}

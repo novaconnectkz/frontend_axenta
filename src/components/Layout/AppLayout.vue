@@ -347,6 +347,12 @@ const navigationItems = computed(() => [
     subtitle: 'Обзор системы'
   },
   {
+    path: '/accounts',
+    icon: 'mdi-domain',
+    title: 'Учетные записи',
+    subtitle: 'Управление компаниями'
+  },
+  {
     path: '/objects',
     icon: 'mdi-office-building',
     title: 'Объекты',

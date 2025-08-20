@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
 import {
-  accessGuard,
   createGuestRoute,
   createProtectedRoute,
   createPublicRoute,
@@ -12,7 +11,6 @@ import DiagnosticLogin from "../views/DiagnosticLogin.vue";
 import LoginPageFixed from "../views/LoginPageFixed.vue";
 import SimpleDashboard from "../views/SimpleDashboard.vue";
 import SimpleLogin from "../views/SimpleLogin.vue";
-import TestDashboard from "../views/TestDashboard.vue";
 
 const routes = [
   // Главная страница - для авторизованных перенаправляем на дашборд
@@ -21,13 +19,13 @@ const routes = [
     name: "Home",
     redirect: (to) => {
       // Проверяем авторизацию из localStorage
-      const token = localStorage.getItem('axenta_token');
-      return token ? '/dashboard' : '/login';
+      const token = localStorage.getItem("axenta_token");
+      return token ? "/dashboard" : "/login";
     },
   },
 
   // === МАРШРУТЫ АВТОРИЗАЦИИ ===
-  
+
   // Основная страница входа (заменяет статический index.html)
   createGuestRoute("/login", () => import("@/components/AppleStyleLogin.vue"), {
     title: "Вход в систему",
@@ -45,14 +43,14 @@ const routes = [
   }),
 
   // === ОСНОВНЫЕ МАРШРУТЫ ПРИЛОЖЕНИЯ (С LAYOUT) ===
-  
+
   {
-    path: "/app",
+    path: "/",
     component: () => import("@/components/Layout/AppLayout.vue"),
     children: [
       // Дашборд (заменяет статический dashboard.html)
       {
-        path: "/dashboard",
+        path: "dashboard",
         name: "Dashboard",
         component: () => import("@/views/Dashboard.vue"),
         meta: {
@@ -63,9 +61,9 @@ const routes = [
 
       // Управление объектами
       {
-        path: "/objects",
+        path: "objects",
         name: "Objects",
-        component: () => import("@/views/Objects.vue"),
+        component: () => import("@/views/ObjectsSimplified.vue"),
         meta: {
           title: "Объекты",
           requiresAuth: true,
@@ -74,19 +72,31 @@ const routes = [
 
       // Управление пользователями
       {
-        path: "/users",
+        path: "users",
         name: "Users",
         component: () => import("@/views/Users.vue"),
         meta: {
           title: "Пользователи",
           requiresAuth: true,
-          permissions: ["users.view"],
+          // permissions: ["users.read"], // Отключено - будет включено после настройки системы прав
+        },
+      },
+
+      // Управление учетными записями (компаниями)
+      {
+        path: "accounts",
+        name: "Accounts",
+        component: () => import("@/views/Companies.vue"),
+        meta: {
+          title: "Учетные записи",
+          requiresAuth: true,
+          permissions: ["admin.accounts.read"], // Требует админские права
         },
       },
 
       // Система монтажей
       {
-        path: "/installations",
+        path: "installations",
         name: "Installations",
         component: () => import("@/views/Installations.vue"),
         meta: {
@@ -97,7 +107,7 @@ const routes = [
 
       // Управление складом
       {
-        path: "/warehouse",
+        path: "warehouse",
         name: "Warehouse",
         component: () => import("@/views/Warehouse.vue"),
         meta: {
@@ -108,19 +118,19 @@ const routes = [
 
       // Биллинг
       {
-        path: "/billing",
+        path: "billing",
         name: "Billing",
         component: () => import("@/views/Billing.vue"),
         meta: {
           title: "Биллинг",
           requiresAuth: true,
-          permissions: ["billing.view"],
+          // permissions: ["billing.view"], // Временно отключено для отладки
         },
       },
 
       // Отчеты и аналитика
       {
-        path: "/reports",
+        path: "reports",
         name: "Reports",
         component: () => import("@/views/Reports.vue"),
         meta: {
@@ -131,19 +141,19 @@ const routes = [
 
       // Настройки системы
       {
-        path: "/settings",
+        path: "settings",
         name: "Settings",
         component: () => import("@/views/Settings.vue"),
         meta: {
           title: "Настройки",
           requiresAuth: true,
-          permissions: ["settings.view"],
+          // permissions: ["settings.view"], // Временно отключено для отладки
         },
       },
 
       // Профиль пользователя
       {
-        path: "/profile",
+        path: "profile",
         name: "Profile",
         component: () => import("@/views/Profile.vue"),
         meta: {
@@ -155,7 +165,7 @@ const routes = [
   },
 
   // === СОВМЕСТИМОСТЬ СО СТАРЫМИ МАРШРУТАМИ ===
-  
+
   createProtectedRoute("/full-dashboard", SimpleDashboard, {
     title: "Полная панель управления",
   }),
@@ -166,7 +176,7 @@ const routes = [
   }),
 
   // === СЛУЖЕБНЫЕ СТРАНИЦЫ ===
-  
+
   createPublicRoute(
     "/access-denied",
     () => import("@/views/AccessDenied.vue"),
@@ -196,20 +206,31 @@ router.beforeEach(titleGuard);
 
 // Простая проверка auth без context
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('axenta_token');
+  const token = localStorage.getItem("axenta_token");
   const requiresAuth = to.meta?.requiresAuth;
   const requiresGuest = to.meta?.requiresGuest;
-  
+
+  // Отладочная информация
+  console.log("Router guard:", {
+    path: to.path,
+    token: token ? "EXISTS" : "MISSING",
+    requiresAuth,
+    requiresGuest,
+  });
+
   if (requiresAuth && !token) {
-    next({ path: '/login', query: { redirect: to.fullPath } });
+    console.log("Redirecting to login: no token for protected route");
+    next({ path: "/login", query: { redirect: to.fullPath } });
     return;
   }
-  
+
   if (requiresGuest && token) {
-    next('/dashboard');
+    console.log("Redirecting to dashboard: token exists for guest route");
+    next("/dashboard");
     return;
   }
-  
+
+  console.log("Allowing navigation to:", to.path);
   next();
 });
 

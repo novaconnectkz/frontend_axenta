@@ -79,7 +79,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
   // Actions
   const loadStats = async () => {
     try {
-      isLoading.value = true;
+      // В mock режиме не показываем состояние загрузки
+      if (!dashboardService.isMockMode()) {
+        isLoading.value = true;
+      }
       error.value = null;
       stats.value = await dashboardService.getStats();
       lastRefresh.value = new Date();
@@ -249,16 +252,145 @@ export const useDashboardStore = defineStore("dashboard", () => {
   };
 
   const refreshAll = async () => {
-    await Promise.all([
-      loadStats(),
-      loadRecentActivity(),
-      loadNotifications(),
-      loadLayouts(),
-    ]);
+    try {
+      // В mock режиме загружаем данные быстрее
+      if (dashboardService.isMockMode()) {
+        // Параллельно загружаем все данные без показа состояния загрузки
+        await Promise.all([
+          loadStats(),
+          loadRecentActivity(),
+          loadNotifications(),
+          loadLayouts(),
+        ]);
+      } else {
+        // В реальном режиме загружаем последовательно с индикацией
+        isLoading.value = true;
+        await Promise.all([
+          loadStats(),
+          loadRecentActivity(),
+          loadNotifications(),
+          loadLayouts(),
+        ]);
+        isLoading.value = false;
+      }
+    } catch (error) {
+      isLoading.value = false;
+      throw error;
+    }
   };
 
   const clearError = () => {
     error.value = null;
+  };
+
+  // Инициализация mock-данных
+  const initializeMockData = () => {
+    if (dashboardService.isMockMode()) {
+      // Сразу загружаем mock-данные без ожидания
+      stats.value = {
+        objects: {
+          total: 156,
+          active: 142,
+          inactive: 12,
+          scheduled_for_deletion: 2,
+          deleted: 0,
+        },
+        users: {
+          total: 28,
+          active: 25,
+          inactive: 3,
+          admins: 4,
+          regular_users: 24,
+        },
+        billing: {
+          total_revenue: 2850000,
+          monthly_revenue: 485000,
+          pending_invoices: 8,
+          overdue_invoices: 2,
+          active_contracts: 142,
+        },
+        installations: {
+          total: 89,
+          scheduled: 12,
+          in_progress: 5,
+          completed: 68,
+          cancelled: 4,
+          today_installations: 3,
+        },
+        warehouse: {
+          total_equipment: 1247,
+          available_equipment: 856,
+          installed_equipment: 312,
+          reserved_equipment: 79,
+          low_stock_alerts: 5,
+          categories_count: 15,
+        },
+      };
+
+      currentLayout.value = {
+        id: "default-layout",
+        name: "Макет по умолчанию",
+        isDefault: true,
+        widgets: [
+          {
+            id: "objects-overview",
+            title: "Обзор объектов",
+            type: "objects-overview",
+            size: "medium",
+            position: { row: 0, col: 0, width: 6, height: 4 },
+            config: { refreshInterval: 300 },
+            visible: true,
+          },
+          {
+            id: "users-overview",
+            title: "Обзор пользователей",
+            type: "users-overview",
+            size: "medium",
+            position: { row: 0, col: 6, width: 6, height: 4 },
+            config: { refreshInterval: 300 },
+            visible: true,
+          },
+          {
+            id: "billing-overview",
+            title: "Обзор биллинга",
+            type: "billing-overview",
+            size: "large",
+            position: { row: 4, col: 0, width: 8, height: 4 },
+            config: { refreshInterval: 600 },
+            visible: true,
+          },
+          {
+            id: "recent-activity",
+            title: "Последняя активность",
+            type: "recent-activity",
+            size: "medium",
+            position: { row: 4, col: 8, width: 4, height: 8 },
+            config: { refreshInterval: 120 },
+            visible: true,
+          },
+          {
+            id: "installations-overview",
+            title: "Обзор монтажей",
+            type: "installations-overview",
+            size: "medium",
+            position: { row: 8, col: 0, width: 6, height: 4 },
+            config: { refreshInterval: 300 },
+            visible: true,
+          },
+          {
+            id: "warehouse-overview",
+            title: "Обзор склада",
+            type: "warehouse-overview",
+            size: "medium",
+            position: { row: 8, col: 6, width: 6, height: 4 },
+            config: { refreshInterval: 600 },
+            visible: true,
+          },
+        ],
+      };
+
+      lastRefresh.value = new Date();
+    }
   };
 
   // Helper function to create default layout
@@ -357,7 +489,20 @@ export const useDashboardStore = defineStore("dashboard", () => {
     removeWidget,
     refreshAll,
     clearError,
+    initializeMockData,
   };
 });
+
+// Инициализация mock-данных при создании store
+export const useDashboardStoreWithInit = () => {
+  const store = useDashboardStore();
+
+  // Инициализируем mock-данные если включен mock режим
+  if (dashboardService.isMockMode() && !store.isStatsLoaded) {
+    store.initializeMockData();
+  }
+
+  return store;
+};
 
 export type DashboardStore = ReturnType<typeof useDashboardStore>;

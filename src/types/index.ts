@@ -17,6 +17,90 @@ export type {
   UserProfile,
 } from "@/store";
 
+// Типы объектов
+export type {
+  Contract,
+  Equipment,
+  Installation,
+  Location,
+  ObjectBase,
+  ObjectFilters,
+  ObjectForm,
+  ObjectStatus,
+  ObjectTemplate,
+  ObjectType,
+  ObjectWithRelations,
+  ObjectsResponse,
+  ScheduleDeleteForm,
+  TemplateCategory,
+} from "@/types/objects";
+
+// Типы пользователей
+export type {
+  PERMISSIONS,
+  Permission,
+  Role,
+  USER_ROLES,
+  USER_TYPES,
+  UserBase,
+  UserFilters,
+  UserForm,
+  UserStats,
+  UserStatus,
+  UserTemplate,
+  UserType,
+  UserWithRelations,
+  UsersResponse,
+} from "@/types/users";
+
+// Типы монтажей
+export type {
+  AvailableInstaller,
+  AvailableInstallerQuery,
+  CalendarEvent,
+  CalendarView,
+  CancelInstallationForm,
+  CompleteInstallationForm,
+  EQUIPMENT_CONDITIONS,
+  EQUIPMENT_STATUSES,
+  EquipmentBase,
+  EquipmentCondition,
+  EquipmentFilters,
+  EquipmentForm,
+  EquipmentResponse,
+  EquipmentStats,
+  EquipmentStatus,
+  INSTALLATION_PRIORITIES,
+  INSTALLATION_STATUSES,
+  INSTALLATION_TYPES,
+  INSTALLER_STATUSES,
+  INSTALLER_TYPES,
+  InstallationBase,
+  InstallationFilters,
+  InstallationForm,
+  InstallationPriority,
+  InstallationStats,
+  InstallationStatus,
+  InstallationType,
+  InstallationWithRelations,
+  InstallationsResponse,
+  InstallerBase,
+  InstallerFilters,
+  InstallerForm,
+  InstallerSchedule,
+  InstallerScheduleItem,
+  InstallerStats,
+  InstallerStatus,
+  InstallerType,
+  InstallerWithRelations,
+  InstallersResponse,
+  LocationBase,
+  LocationFilters,
+  LocationForm,
+  LocationStats,
+  LocationsResponse,
+} from "@/types/installations";
+
 // Общие API типы
 export interface APIResponse<T = any> {
   status: "success" | "error";

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Auth</title>
+</head>
+<body>
+    <h1>Auth Test</h1>
+    <div id="auth-info"></div>
+    <button onclick="testAPI()">Test API</button>
+    <button onclick="clearAuth()">Clear Auth</button>
+    <button onclick="setTestAuth()">Set Test Auth</button>
+    
+    <script>
+        function showAuthInfo() {
+            const token = localStorage.getItem('axenta_token');
+            const user = localStorage.getItem('axenta_user');
+            const company = localStorage.getItem('axenta_company');
+            
+            document.getElementById('auth-info').innerHTML = `
+                <h3>Auth Status:</h3>
+                <p>Token: ${token ? 'EXISTS' : 'MISSING'}</p>
+                <p>User: ${user ? 'EXISTS' : 'MISSING'}</p>
+                <p>Company: ${company ? 'EXISTS' : 'MISSING'}</p>
+                <h4>Token Details:</h4>
+                <p>${token || 'No token'}</p>
+            `;
+        }
+        
+        function testAPI() {
+            fetch('http://localhost:8080/api/billing-plans-simple')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('API Response:', data);
+                    alert('API works: ' + JSON.stringify(data.status));
+                })
+                .catch(error => {
+                    console.error('API Error:', error);
+                    alert('API Error: ' + error.message);
+                });
+        }
+        
+        function clearAuth() {
+            localStorage.removeItem('axenta_token');
+            localStorage.removeItem('axenta_user');
+            localStorage.removeItem('axenta_company');
+            localStorage.removeItem('axenta_token_expiry');
+            showAuthInfo();
+        }
+        
+        function setTestAuth() {
+            localStorage.setItem('axenta_token', 'test-token-123');
+            localStorage.setItem('axenta_user', JSON.stringify({
+                id: '1',
+                name: 'Test User',
+                username: 'test',
+                accountId: 1
+            }));
+            localStorage.setItem('axenta_company', JSON.stringify({
+                id: '1',
+                name: 'Test Company'
+            }));
+            showAuthInfo();
+        }
+        
+        // Show auth info on load
+        showAuthInfo();
+        setInterval(showAuthInfo, 1000);
+    </script>
+</body>
+</html>

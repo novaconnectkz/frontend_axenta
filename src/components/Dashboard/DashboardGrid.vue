@@ -10,19 +10,10 @@
     <div v-else-if="currentLayout" class="grid-container">
       <v-row>
         <template v-for="widget in visibleWidgets" :key="widget.id">
-          <v-col
-            :cols="getColSize(widget.position.width)"
-            :md="getColSize(widget.position.width)"
-            :lg="getColSize(widget.position.width)"
-            class="widget-column"
-          >
-            <component
-              :is="getWidgetComponent(widget.type)"
-              :refresh-interval="widget.config.refreshInterval || 300"
-              @configure="configureWidget(widget)"
-              @remove="removeWidget(widget.id)"
-              v-bind="widget.config"
-            />
+          <v-col :cols="getColSize(widget.position.width)" :md="getColSize(widget.position.width)"
+            :lg="getColSize(widget.position.width)" class="widget-column">
+            <component :is="getWidgetComponent(widget.type)" :refresh-interval="widget.config.refreshInterval || 300"
+              @configure="configureWidget(widget)" @remove="removeWidget(widget.id)" v-bind="widget.config" />
           </v-col>
         </template>
       </v-row>
@@ -37,21 +28,8 @@
             </v-card-title>
             <v-card-text>
               <v-row>
-                <v-col
-                  v-for="action in availableQuickActions"
-                  :key="action.id"
-                  cols="6"
-                  sm="4"
-                  md="3"
-                  lg="2"
-                >
-                  <v-btn
-                    :color="action.color"
-                    variant="outlined"
-                    block
-                    :to="action.route"
-                    class="quick-action-btn"
-                  >
+                <v-col v-for="action in availableQuickActions" :key="action.id" cols="6" sm="4" md="3" lg="2">
+                  <v-btn :color="action.color" variant="outlined" block :to="action.route" class="quick-action-btn">
                     <v-icon start :icon="action.icon" />
                     {{ action.title }}
                   </v-btn>
@@ -70,48 +48,25 @@
           <v-icon start icon="mdi-cog" />
           Настройка виджета: {{ selectedWidget.title }}
         </v-card-title>
-        
+
         <v-card-text>
           <v-form ref="configForm">
-            <v-text-field
-              v-model="widgetConfig.customTitle"
-              label="Заголовок виджета"
-              :placeholder="selectedWidget.title"
-            />
-            
-            <v-select
-              v-model="widgetConfig.refreshInterval"
-              label="Интервал обновления"
-              :items="refreshIntervals"
-              item-title="label"
-              item-value="value"
-            />
-            
-            <v-switch
-              v-model="widgetConfig.showHeader"
-              label="Показывать заголовок"
-              color="primary"
-            />
-            
-            <v-select
-              v-if="selectedWidget.type === 'chart'"
-              v-model="widgetConfig.chartType"
-              label="Тип графика"
-              :items="chartTypes"
-              item-title="label"
-              item-value="value"
-            />
-            
-            <v-select
-              v-model="widgetConfig.dataRange"
-              label="Период данных"
-              :items="dataRanges"
-              item-title="label"
-              item-value="value"
-            />
+            <v-text-field v-model="widgetConfig.customTitle" label="Заголовок виджета"
+              :placeholder="selectedWidget.title" />
+
+            <v-select v-model="widgetConfig.refreshInterval" label="Интервал обновления" :items="refreshIntervals"
+              item-title="label" item-value="value" />
+
+            <v-switch v-model="widgetConfig.showHeader" label="Показывать заголовок" color="primary" />
+
+            <v-select v-if="selectedWidget.type === 'chart'" v-model="widgetConfig.chartType" label="Тип графика"
+              :items="chartTypes" item-title="label" item-value="value" />
+
+            <v-select v-model="widgetConfig.dataRange" label="Период данных" :items="dataRanges" item-title="label"
+              item-value="value" />
           </v-form>
         </v-card-text>
-        
+
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="configDialog = false">
@@ -125,13 +80,7 @@
     </v-dialog>
 
     <!-- Layout Management FAB -->
-    <v-fab
-      location="bottom end"
-      size="small"
-      icon="mdi-cog"
-      color="primary"
-      @click="showLayoutDialog = true"
-    />
+    <v-fab location="bottom end" size="small" icon="mdi-cog" color="primary" @click="showLayoutDialog = true" />
 
     <!-- Layout Management Dialog -->
     <v-dialog v-model="showLayoutDialog" max-width="800">
@@ -140,60 +89,45 @@
           <v-icon start icon="mdi-view-dashboard" />
           Управление макетами
         </v-card-title>
-        
+
         <v-card-text>
           <v-tabs v-model="layoutTab">
             <v-tab value="current">Текущий макет</v-tab>
             <v-tab value="saved">Сохраненные</v-tab>
             <v-tab value="widgets">Виджеты</v-tab>
           </v-tabs>
-          
+
           <v-tabs-window v-model="layoutTab">
             <!-- Current Layout Tab -->
             <v-tabs-window-item value="current">
               <div class="pa-4">
-                <v-text-field
-                  v-if="currentLayout"
-                  v-model="currentLayout.name"
-                  label="Название макета"
-                  prepend-icon="mdi-rename-box"
-                />
-                
+                <v-text-field v-if="currentLayout" v-model="currentLayout.name" label="Название макета"
+                  prepend-icon="mdi-rename-box" />
+
                 <div class="d-flex gap-2 mt-4">
-                  <v-btn
-                    color="primary"
-                    @click="saveLayout"
-                    :loading="loading"
-                  >
+                  <v-btn color="primary" @click="saveLayout" :loading="loading">
                     <v-icon start icon="mdi-content-save" />
                     Сохранить макет
                   </v-btn>
-                  
-                  <v-btn
-                    color="secondary"
-                    variant="outlined"
-                    @click="resetToDefault"
-                  >
+
+                  <v-btn color="secondary" variant="outlined" @click="resetToDefault">
                     <v-icon start icon="mdi-restore" />
                     Сбросить
                   </v-btn>
                 </div>
               </div>
             </v-tabs-window-item>
-            
+
             <!-- Saved Layouts Tab -->
             <v-tabs-window-item value="saved">
               <div class="pa-4">
                 <v-list>
-                  <v-list-item
-                    v-for="layout in availableLayouts"
-                    :key="layout.id"
-                    :active="currentLayout?.id === layout.id"
-                  >
+                  <v-list-item v-for="layout in availableLayouts" :key="layout.id"
+                    :active="currentLayout?.id === layout.id">
                     <template v-slot:prepend>
                       <v-icon icon="mdi-view-dashboard" />
                     </template>
-                    
+
                     <v-list-item-title>{{ layout.name }}</v-list-item-title>
                     <v-list-item-subtitle>
                       {{ layout.widgets.length }} виджетов
@@ -201,59 +135,38 @@
                         По умолчанию
                       </v-chip>
                     </v-list-item-subtitle>
-                    
+
                     <template v-slot:append>
                       <v-btn-group variant="text" density="compact">
-                        <v-btn
-                          icon="mdi-eye"
-                          size="small"
-                          @click="switchLayout(layout.id)"
-                          :disabled="currentLayout?.id === layout.id"
-                        />
-                        <v-btn
-                          icon="mdi-star"
-                          size="small"
-                          @click="setDefaultLayout(layout.id)"
-                          :disabled="layout.isDefault"
-                        />
-                        <v-btn
-                          icon="mdi-delete"
-                          size="small"
-                          color="error"
-                          @click="deleteLayout(layout.id)"
-                          :disabled="layout.isDefault"
-                        />
+                        <v-btn icon="mdi-eye" size="small" @click="switchLayout(layout.id)"
+                          :disabled="currentLayout?.id === layout.id" />
+                        <v-btn icon="mdi-star" size="small" @click="setDefaultLayout(layout.id)"
+                          :disabled="layout.isDefault" />
+                        <v-btn icon="mdi-delete" size="small" color="error" @click="deleteLayout(layout.id)"
+                          :disabled="layout.isDefault" />
                       </v-btn-group>
                     </template>
                   </v-list-item>
                 </v-list>
               </div>
             </v-tabs-window-item>
-            
+
             <!-- Widgets Tab -->
             <v-tabs-window-item value="widgets">
               <div class="pa-4">
                 <v-list>
                   <v-list-subheader>Доступные виджеты</v-list-subheader>
-                  <v-list-item
-                    v-for="widgetType in availableWidgetTypes"
-                    :key="widgetType.type"
-                  >
+                  <v-list-item v-for="widgetType in availableWidgetTypes" :key="widgetType.type">
                     <template v-slot:prepend>
                       <v-icon :icon="widgetType.icon" />
                     </template>
-                    
+
                     <v-list-item-title>{{ widgetType.title }}</v-list-item-title>
                     <v-list-item-subtitle>{{ widgetType.description }}</v-list-item-subtitle>
-                    
+
                     <template v-slot:append>
-                      <v-btn
-                        color="primary"
-                        variant="outlined"
-                        size="small"
-                        @click="addWidget(widgetType)"
-                        :disabled="hasWidget(widgetType.type)"
-                      >
+                      <v-btn color="primary" variant="outlined" size="small" @click="addWidget(widgetType)"
+                        :disabled="hasWidget(widgetType.type)">
                         <v-icon start icon="mdi-plus" />
                         Добавить
                       </v-btn>
@@ -264,7 +177,7 @@
             </v-tabs-window-item>
           </v-tabs-window>
         </v-card-text>
-        
+
         <v-card-actions>
           <v-spacer />
           <v-btn variant="text" @click="showLayoutDialog = false">
@@ -278,7 +191,7 @@
 
 <script lang="ts">
 import { useAuth } from '@/context/auth';
-import { useDashboardStore } from '@/store/dashboard';
+import { useDashboardStoreWithInit } from '@/store/dashboard';
 import type { Widget, WidgetType } from '@/types/dashboard';
 import { computed, defineComponent, onMounted, ref } from 'vue';
 
@@ -301,9 +214,9 @@ export default defineComponent({
     RecentActivityWidget
   },
   setup() {
-    const dashboardStore = useDashboardStore();
+    const dashboardStore = useDashboardStoreWithInit();
     const auth = useAuth();
-    
+
     // Reactive refs
     const gridContainer = ref<HTMLElement>();
     const configDialog = ref(false);
@@ -312,7 +225,7 @@ export default defineComponent({
     const layoutTab = ref('current');
     const selectedWidget = ref<Widget | null>(null);
     const widgetConfig = ref<any>({});
-    
+
     // Configuration options
     const refreshIntervals = [
       { label: 'Без автообновления', value: 0 },
@@ -322,21 +235,21 @@ export default defineComponent({
       { label: 'Каждые 5 минут', value: 300 },
       { label: 'Каждые 10 минут', value: 600 }
     ];
-    
+
     const chartTypes = [
       { label: 'Линейный график', value: 'line' },
       { label: 'Столбчатая диаграмма', value: 'bar' },
       { label: 'Круговая диаграмма', value: 'pie' },
       { label: 'Кольцевая диаграмма', value: 'doughnut' }
     ];
-    
+
     const dataRanges = [
       { label: 'Сегодня', value: 'today' },
       { label: 'Эта неделя', value: 'week' },
       { label: 'Этот месяц', value: 'month' },
       { label: 'Этот год', value: 'year' }
     ];
-    
+
     const availableWidgetTypes = [
       {
         type: 'objects-overview',
@@ -385,12 +298,12 @@ export default defineComponent({
       isLayoutLoaded
     } = dashboardStore;
 
-    const visibleWidgets = computed(() => 
+    const visibleWidgets = computed(() =>
       currentLayout?.widgets.filter(w => w.visible) || []
     );
 
-    const availableQuickActions = computed(() => 
-      quickActions.filter(action => 
+    const availableQuickActions = computed(() =>
+      quickActions.filter(action =>
         !action.permission || (auth?.hasPermission && auth.hasPermission(action.permission)) || true
       )
     );
@@ -506,23 +419,23 @@ export default defineComponent({
       layoutTab,
       selectedWidget,
       widgetConfig,
-      
+
       // Store
       currentLayout,
       availableLayouts,
       loading,
       isLayoutLoaded,
-      
+
       // Computed
       visibleWidgets,
       availableQuickActions,
-      
+
       // Configuration
       refreshIntervals,
       chartTypes,
       dataRanges,
       availableWidgetTypes,
-      
+
       // Methods
       getWidgetComponent,
       getColSize,

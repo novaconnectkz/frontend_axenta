@@ -284,3 +284,4 @@ const handleClick = (event: MouseEvent) => {
     padding: 16px;
   }
 }
+</style>
