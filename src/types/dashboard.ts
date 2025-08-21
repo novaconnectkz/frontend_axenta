@@ -45,8 +45,14 @@ export interface WarehouseStats {
   available_equipment: number;
   installed_equipment: number;
   reserved_equipment: number;
+  maintenance_equipment: number;
+  broken_equipment: number;
   low_stock_alerts: number;
   categories_count: number;
+  recent_operations: number;
+  by_category: Record<string, number>;
+  operations_by_type: Record<string, number>;
+  alerts_by_severity: Record<string, number>;
 }
 
 export interface Widget {

@@ -30,8 +30,7 @@
           </v-tooltip>
 
           <v-list-item v-else :to="item.path" :prepend-icon="item.icon" :title="item.title" :subtitle="item.subtitle"
-            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact
-            @click="handleNavClick(item.path)">
+            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact>
             <template v-if="item.badge && item.badge > 0" #append>
               <v-badge :content="item.badge" color="error" inline />
             </template>
@@ -434,11 +433,7 @@ const handleRailNavClick = (path: string) => {
   });
 };
 
-const handleNavClick = (path: string) => {
-  console.log('📍 Navigation click:', path);
-  // Для обычной навигации через v-list-item :to уже работает
-  // Этот обработчик нужен только для отладки
-};
+// Обработчик для обычной навигации убран - используется :to в v-list-item
 
 // Watchers
 watch(mobile, (newValue) => {

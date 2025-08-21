@@ -98,7 +98,7 @@ const routes = [
       {
         path: "installations",
         name: "Installations",
-        component: () => import("@/views/InstallationsSimple.vue"),
+        component: () => import("@/views/InstallationsWorking.vue"),
         meta: {
           title: "Монтажи",
           requiresAuth: true,
@@ -109,7 +109,7 @@ const routes = [
       {
         path: "warehouse",
         name: "Warehouse",
-        component: () => import("@/views/Warehouse.vue"),
+        component: () => import("@/views/WarehouseWorking.vue"),
         meta: {
           title: "Склад",
           requiresAuth: true,

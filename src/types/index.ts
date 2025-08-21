@@ -101,6 +101,52 @@ export type {
   LocationsResponse,
 } from "@/types/installations";
 
+// Типы склада
+export type {
+  EQUIPMENT_CONDITIONS,
+  EQUIPMENT_STATUSES,
+  EQUIPMENT_STATUS_COLORS,
+  EQUIPMENT_STATUS_LABELS,
+  EQUIPMENT_TYPE_OPTIONS,
+  EquipmentBase,
+  EquipmentCategory,
+  EquipmentCondition,
+  EquipmentFilters,
+  EquipmentForm,
+  EquipmentInstallForm,
+  EquipmentResponse,
+  EquipmentStats,
+  EquipmentStatus,
+  EquipmentTransferForm,
+  EquipmentTypeOption,
+  LowStockItem,
+  STOCK_ALERT_SEVERITIES,
+  STOCK_ALERT_STATUSES,
+  STOCK_ALERT_TYPES,
+  StockAlert,
+  StockAlertFilters,
+  StockAlertForm,
+  StockAlertResponse,
+  StockAlertSeverity,
+  StockAlertStatus,
+  StockAlertType,
+  WAREHOUSE_LOCATION_OPTIONS,
+  WAREHOUSE_OPERATION_STATUSES,
+  WAREHOUSE_OPERATION_TYPES,
+  WarehouseLocationOption,
+  WarehouseOperation,
+  WarehouseOperationFilters,
+  WarehouseOperationForm,
+  WarehouseOperationResponse,
+  WarehouseOperationStatus,
+  WarehouseOperationType,
+} from "@/types/warehouse";
+
+// Типы dashboard (включает WarehouseStats)
+export type {
+  WarehouseStats,
+} from "@/types/dashboard";
+
 // Общие API типы
 export interface APIResponse<T = any> {
   status: "success" | "error";
