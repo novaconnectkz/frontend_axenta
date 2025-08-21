@@ -142,10 +142,37 @@ export type {
   WarehouseOperationType,
 } from "@/types/warehouse";
 
-// Типы dashboard (включает WarehouseStats)
+// Типы договоров
 export type {
-  WarehouseStats,
-} from "@/types/dashboard";
+  CONTRACT_APPENDIX_STATUS_COLORS,
+  CONTRACT_APPENDIX_STATUS_LABELS,
+  CONTRACT_STATUSES,
+  CONTRACT_STATUS_COLORS,
+  CONTRACT_STATUS_LABELS,
+  CURRENCY_OPTIONS,
+  ContractAppendicesResponse,
+  ContractAppendix,
+  ContractAppendixForm,
+  ContractAppendixResponse,
+  ContractAppendixStatus,
+  ContractBase,
+  ContractCostCalculation,
+  ContractCostResponse,
+  ContractFilters,
+  ContractForm,
+  ContractObjectsForm,
+  ContractResponse,
+  ContractStats,
+  ContractStatus,
+  ContractWithRelations,
+  ContractsResponse,
+  ExpiringContractNotification,
+  ExpiringContractsResponse,
+  NOTIFICATION_PERIOD_OPTIONS,
+} from "@/types/contracts";
+
+// Типы dashboard (включает WarehouseStats)
+export type { WarehouseStats } from "@/types/dashboard";
 
 // Общие API типы
 export interface APIResponse<T = any> {

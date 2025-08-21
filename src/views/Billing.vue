@@ -3,9 +3,9 @@
     <!-- Заголовок страницы -->
     <v-row class="mb-6">
       <v-col>
-        <h1 class="text-h3 font-weight-bold text-primary">Биллинг</h1>
+        <h1 class="text-h3 font-weight-bold text-primary">Биллинг и договоры</h1>
         <p class="text-h6 text-grey-darken-2 mt-2">
-          Управление тарифными планами, подписками и счетами
+          Управление договорами, тарифными планами, подписками и счетами
         </p>
       </v-col>
     </v-row>
@@ -44,6 +44,10 @@
 
     <!-- Вкладки -->
     <v-tabs v-model="activeTab" color="primary" class="mb-6">
+      <v-tab value="contracts">
+        <v-icon left>mdi-file-document-multiple</v-icon>
+        Договоры
+      </v-tab>
       <v-tab value="plans">
         <v-icon left>mdi-package-variant</v-icon>
         Тарифные планы
@@ -62,8 +66,14 @@
       </v-tab>
     </v-tabs>
 
-    <!-- Тарифные планы -->
+    <!-- Содержимое вкладок -->
     <v-window v-model="activeTab">
+      <!-- Вкладка договоров -->
+      <v-window-item value="contracts">
+        <ContractsTab />
+      </v-window-item>
+
+      <!-- Тарифные планы -->
       <v-window-item value="plans">
         <!-- Панель управления планами -->
         <v-card class="mb-6">
@@ -902,6 +912,7 @@
 </template>
 
 <script lang="ts" setup>
+import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import { billingService } from '@/services/billingService'
 import type {
     BillingDashboardData,
@@ -920,7 +931,7 @@ import type {
 import { computed, onMounted, ref, watch } from 'vue'
 
 // Реактивные данные
-const activeTab = ref('plans')
+const activeTab = ref('contracts') // Начинаем с договоров
 const currentCompanyId = ref(1) // В реальном приложении получать из контекста
 
 // Данные

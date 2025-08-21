@@ -116,6 +116,18 @@ const routes = [
         },
       },
 
+      // Управление договорами
+      {
+        path: "contracts",
+        name: "Contracts",
+        component: () => import("@/views/ContractsSimple.vue"),
+        meta: {
+          title: "Договоры",
+          requiresAuth: true,
+          // permissions: ["contracts.view"], // Временно отключено для отладки
+        },
+      },
+
       // Биллинг
       {
         path: "billing",

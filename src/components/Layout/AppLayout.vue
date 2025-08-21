@@ -267,11 +267,12 @@ const navigationItems = computed(() => [
     title: 'Склад',
     subtitle: 'Управление оборудованием'
   },
+
   {
     path: '/billing',
     icon: 'mdi-currency-usd',
     title: 'Биллинг',
-    subtitle: 'Финансовый учет'
+    subtitle: 'Договоры и финансы'
   },
   {
     path: '/reports',
