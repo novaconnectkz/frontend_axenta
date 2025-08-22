@@ -59,6 +59,10 @@
         <v-icon class="mr-2">mdi-tools</v-icon>
         Оборудование
       </v-tab>
+      <v-tab value="directories">
+        <v-icon class="mr-2">mdi-book-open-variant</v-icon>
+        Справочники
+      </v-tab>
     </v-tabs>
 
     <!-- Содержимое вкладок -->
@@ -87,15 +91,43 @@
 
       <!-- Оборудование -->
       <v-tabs-window-item value="equipment">
-        <EquipmentList :equipment="equipment" :loading="loading" @equipment-click="openEquipmentDialog"
-          @equipment-edit="openEquipmentEditDialog" @equipment-delete="handleEquipmentDelete"
-          @equipment-install="handleEquipmentInstall" />
+        <!-- Временно отключено: EquipmentList -->
+        <div class="text-center pa-4">
+          <h3>Оборудование временно недоступно</h3>
+          <p>Компонент отключен для отладки</p>
+        </div>
+      </v-tabs-window-item>
+
+      <!-- Справочники -->
+      <v-tabs-window-item value="directories">
+        <div class="directories-content">
+          <v-tabs v-model="directoriesTab" class="directories-tabs">
+            <v-tab value="locations">
+              <v-icon class="mr-2">mdi-map-marker</v-icon>
+              Локации
+            </v-tab>
+            <v-tab value="installers-directory">
+              <v-icon class="mr-2">mdi-account-group</v-icon>
+              Монтажники
+            </v-tab>
+          </v-tabs>
+
+          <v-tabs-window v-model="directoriesTab" class="mt-4">
+            <v-tabs-window-item value="locations">
+              <LocationsManager />
+            </v-tabs-window-item>
+            <v-tabs-window-item value="installers-directory">
+              <InstallersManager />
+            </v-tabs-window-item>
+          </v-tabs-window>
+        </div>
       </v-tabs-window-item>
     </v-tabs-window>
 
     <!-- Диалог создания/редактирования монтажа -->
-    <InstallationDialog v-model="showInstallationDialog" :installation="selectedInstallation" :installers="installers"
-      :locations="locations" :equipment="availableEquipment" @save="handleInstallationSave" />
+    <!-- Временно отключено: InstallationDialog -->
+    <!-- <InstallationDialog v-model="showInstallationDialog" :installation="selectedInstallation" :installers="installers"
+      :locations="locations" :equipment="availableEquipment" @save="handleInstallationSave" /> -->
 
     <!-- Диалог просмотра монтажа -->
     <InstallationViewDialog v-model="showViewDialog" :installation="selectedInstallation" />
@@ -115,10 +147,12 @@
     <InstallerViewDialog v-model="showInstallerViewDialog" :installer="selectedInstaller" />
 
     <!-- Диалог оборудования -->
-    <EquipmentDialog v-model="showEquipmentDialog" :equipment="selectedEquipment" @save="handleEquipmentSave" />
+    <!-- Временно отключено: EquipmentDialog -->
+    <!-- <EquipmentDialog v-model="showEquipmentDialog" :equipment="selectedEquipment" @save="handleEquipmentSave" /> -->
 
     <!-- Диалог просмотра оборудования -->
-    <EquipmentViewDialog v-model="showEquipmentViewDialog" :equipment="selectedEquipment" />
+    <!-- Временно отключено: EquipmentViewDialog -->
+    <!-- <EquipmentViewDialog v-model="showEquipmentViewDialog" :equipment="selectedEquipment" /> -->
   </div>
 </template>
 
@@ -127,16 +161,16 @@ import AppleButton from "@/components/Apple/AppleButton.vue";
 import AppleCard from "@/components/Apple/AppleCard.vue";
 import { installationsService } from "@/services/installationsService";
 import type {
-  CancelInstallationForm,
-  CompleteInstallationForm,
-  EquipmentBase,
-  EquipmentForm,
-  InstallationForm,
-  InstallationStats,
-  InstallationWithRelations,
-  InstallerForm,
-  InstallerWithRelations,
-  LocationBase,
+    CancelInstallationForm,
+    CompleteInstallationForm,
+    EquipmentBase,
+    EquipmentForm,
+    InstallationForm,
+    InstallationStats,
+    InstallationWithRelations,
+    InstallerForm,
+    InstallerWithRelations,
+    LocationBase,
 } from "@/types/installations";
 import { useErrorHandler } from "@/utils/errorHandler";
 import { computed, onMounted, ref } from "vue";
@@ -144,19 +178,22 @@ import { computed, onMounted, ref } from "vue";
 // Импорт компонентов
 import CancelInstallationDialog from "@/components/Installations/CancelInstallationDialog.vue";
 import CompleteInstallationDialog from "@/components/Installations/CompleteInstallationDialog.vue";
-import EquipmentDialog from "@/components/Installations/EquipmentDialog.vue";
-import EquipmentList from "@/components/Installations/EquipmentList.vue";
-import EquipmentViewDialog from "@/components/Installations/EquipmentViewDialog.vue";
+// Временно отключены компоненты, использующие ObjectsService
+// import EquipmentList from "@/components/Installations/EquipmentList.vue";
+// import EquipmentViewDialog from "@/components/Installations/EquipmentViewDialog.vue";
 import InstallationCalendar from "@/components/Installations/InstallationCalendar.vue";
-import InstallationDialog from "@/components/Installations/InstallationDialog.vue";
+// import InstallationDialog from "@/components/Installations/InstallationDialog.vue";
 import InstallationsList from "@/components/Installations/InstallationsList.vue";
 import InstallationViewDialog from "@/components/Installations/InstallationViewDialog.vue";
 import InstallerDialog from "@/components/Installations/InstallerDialog.vue";
 import InstallersList from "@/components/Installations/InstallersList.vue";
+import InstallersManager from "@/components/Installations/InstallersManager.vue";
 import InstallerViewDialog from "@/components/Installations/InstallerViewDialog.vue";
+import LocationsManager from "@/components/Installations/LocationsManager.vue";
 
 // Состояние компонента
 const activeTab = ref("calendar");
+const directoriesTab = ref("locations");
 const loading = ref(false);
 const hideDemoAlert = ref(false);
 
@@ -232,6 +269,7 @@ const isDemoMode = computed(() => installationsService.isMockMode());
 
 // Загрузка данных
 const loadData = async () => {
+  console.log('🔄 Loading installations data...');
   loading.value = true;
   try {
     const [installationsRes, installersRes, equipmentRes, locationsRes, statsRes] = await Promise.all([
@@ -241,6 +279,13 @@ const loadData = async () => {
       installationsService.getLocations(1, 1000),
       installationsService.getInstallationStats(),
     ]);
+    
+    console.log('🔄 Data loaded successfully:', {
+      installations: installationsRes.items.length,
+      installers: installersRes.items.length,
+      equipment: equipmentRes.items.length,
+      locations: locationsRes.items.length
+    });
 
     installations.value = installationsRes.items;
     installers.value = installersRes.items;
@@ -458,6 +503,8 @@ const goToToday = () => {
 
 // Загрузка данных при монтировании
 onMounted(() => {
+  console.log('🔄 Installations component mounted');
+  console.log('🔄 isDemoMode:', isDemoMode.value);
   loadData();
 });
 </script>
@@ -535,6 +582,16 @@ onMounted(() => {
   color: rgb(var(--v-theme-on-surface-variant));
   font-size: 0.875rem;
   line-height: 1.4;
+}
+
+.directories-content {
+  padding: 0;
+}
+
+.directories-tabs {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
 }
 
 @media (max-width: 768px) {

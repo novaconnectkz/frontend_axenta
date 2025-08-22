@@ -98,7 +98,7 @@ const routes = [
       {
         path: "installations",
         name: "Installations",
-        component: () => import("@/views/InstallationsWorking.vue"),
+        component: () => import("@/views/Installations.vue"),
         meta: {
           title: "Монтажи",
           requiresAuth: true,
@@ -252,6 +252,11 @@ router.beforeEach((to, from, next) => {
     console.log("Redirecting to dashboard: token exists for guest route");
     next("/dashboard");
     return;
+  }
+
+  // Дополнительная отладка для installations
+  if (to.path === "/installations") {
+    console.log("🔄 Navigating to Installations page");
   }
 
   console.log("Allowing navigation to:", to.path);

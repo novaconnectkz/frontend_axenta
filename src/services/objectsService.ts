@@ -12,10 +12,33 @@ import type {
 
 export class ObjectsService {
   private static instance: ObjectsService;
-  private auth: ReturnType<typeof useAuth>;
+  private auth: ReturnType<typeof useAuth> | null = null;
 
   constructor() {
-    this.auth = useAuth();
+    console.log("🔧 ObjectsService constructor called");
+    try {
+      this.auth = useAuth();
+      console.log("🔧 Auth context successfully initialized");
+    } catch (error) {
+      console.warn(
+        "🚨 Auth context not available in ObjectsService constructor:",
+        error
+      );
+      this.auth = null;
+    }
+  }
+
+  private getAuth(): ReturnType<typeof useAuth> {
+    if (!this.auth) {
+      try {
+        this.auth = useAuth();
+      } catch (error) {
+        throw new Error(
+          "Auth context not available. Make sure you are using ObjectsService within a component that has access to auth context."
+        );
+      }
+    }
+    return this.auth;
   }
 
   static getInstance(): ObjectsService {
@@ -64,7 +87,7 @@ export class ObjectsService {
       params.append("deviceTypeName", filters.deviceTypeName);
     if (filters.uniqueId) params.append("uniqueId", filters.uniqueId);
 
-    const response = await this.auth.apiClient.get(
+    const response = await this.getAuth().apiClient.get(
       `/cms/objects/?${params.toString()}`
     );
     return response.data;
@@ -74,7 +97,7 @@ export class ObjectsService {
   async getObject(
     id: number
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.auth.apiClient.get(`/cms/objects/${id}/`);
+    const response = await this.getAuth().apiClient.get(`/cms/objects/${id}/`);
     return response.data;
   }
 
@@ -82,7 +105,10 @@ export class ObjectsService {
   async createObject(
     object: ObjectForm
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.auth.apiClient.post("/cms/objects/", object);
+    const response = await this.getAuth().apiClient.post(
+      "/cms/objects/",
+      object
+    );
     return response.data;
   }
 
@@ -91,7 +117,7 @@ export class ObjectsService {
     id: number,
     object: Partial<ObjectForm>
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.auth.apiClient.put(
+    const response = await this.getAuth().apiClient.put(
       `/cms/objects/${id}/`,
       object
     );
@@ -102,7 +128,9 @@ export class ObjectsService {
   async deleteObject(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.auth.apiClient.delete(`/cms/objects/${id}/`);
+    const response = await this.getAuth().apiClient.delete(
+      `/cms/objects/${id}/`
+    );
     return response.data;
   }
 
@@ -111,7 +139,7 @@ export class ObjectsService {
     id: number,
     data: ScheduleDeleteForm
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.auth.apiClient.put(
+    const response = await this.getAuth().apiClient.put(
       `/cms/objects/${id}/schedule-delete/`,
       data
     );
@@ -122,7 +150,7 @@ export class ObjectsService {
   async cancelScheduledDelete(
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.auth.apiClient.put(
+    const response = await this.getAuth().apiClient.put(
       `/cms/objects/${id}/cancel-delete/`
     );
     return response.data;
@@ -142,7 +170,7 @@ export class ObjectsService {
 
     if (search) params.append("search", search);
 
-    const response = await this.auth.apiClient.get(
+    const response = await this.getAuth().apiClient.get(
       `/cms/objects-trash/?${params.toString()}`
     );
     return response.data;
@@ -152,7 +180,7 @@ export class ObjectsService {
   async restoreObject(
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.auth.apiClient.put(
+    const response = await this.getAuth().apiClient.put(
       `/cms/objects/${id}/restore/`
     );
     return response.data;
@@ -162,7 +190,7 @@ export class ObjectsService {
   async permanentDeleteObject(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.auth.apiClient.delete(
+    const response = await this.getAuth().apiClient.delete(
       `/cms/objects/${id}/permanent/`
     );
     return response.data;
@@ -197,7 +225,7 @@ export class ObjectsService {
     if (filters.active_only !== undefined)
       params.append("active_only", filters.active_only.toString());
 
-    const response = await this.auth.apiClient.get(
+    const response = await this.getAuth().apiClient.get(
       `/cms/object-templates/?${params.toString()}`
     );
     return response.data;
@@ -207,7 +235,7 @@ export class ObjectsService {
   async getObjectTemplate(
     id: number
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.auth.apiClient.get(
+    const response = await this.getAuth().apiClient.get(
       `/cms/object-templates/${id}/`
     );
     return response.data;
@@ -220,7 +248,7 @@ export class ObjectsService {
       "id" | "created_at" | "updated_at" | "usage_count"
     >
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.auth.apiClient.post(
+    const response = await this.getAuth().apiClient.post(
       "/cms/object-templates/",
       template
     );
@@ -232,7 +260,7 @@ export class ObjectsService {
     id: number,
     template: Partial<ObjectTemplate>
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.auth.apiClient.put(
+    const response = await this.getAuth().apiClient.put(
       `/cms/object-templates/${id}/`,
       template
     );
@@ -243,7 +271,7 @@ export class ObjectsService {
   async deleteObjectTemplate(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.auth.apiClient.delete(
+    const response = await this.getAuth().apiClient.delete(
       `/cms/object-templates/${id}/`
     );
     return response.data;
@@ -260,7 +288,7 @@ export class ObjectsService {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
-    const response = await this.auth.apiClient.get("/cms/objects/stats/");
+    const response = await this.getAuth().apiClient.get("/cms/objects/stats/");
     return response.data.data;
   }
 
@@ -278,7 +306,7 @@ export class ObjectsService {
       }
     });
 
-    const response = await this.auth.apiClient.get(
+    const response = await this.getAuth().apiClient.get(
       `/cms/objects/export/?${params.toString()}`,
       {
         responseType: "blob",
@@ -288,6 +316,9 @@ export class ObjectsService {
   }
 }
 
-// Экспортируем singleton instance
-export const objectsService = ObjectsService.getInstance();
-export default objectsService;
+// Экспортируем функцию для получения instance (ленивая инициализация)
+export const getObjectsService = () => {
+  console.log("🔧 Creating ObjectsService instance...");
+  return ObjectsService.getInstance();
+};
+export default getObjectsService;

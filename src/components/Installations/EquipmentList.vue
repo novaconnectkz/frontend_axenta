@@ -300,7 +300,7 @@
 import AppleButton from "@/components/Apple/AppleButton.vue";
 import AppleCard from "@/components/Apple/AppleCard.vue";
 import AppleInput from "@/components/Apple/AppleInput.vue";
-import { objectsService } from "@/services/objectsService";
+import { getObjectsService } from "@/services/objectsService";
 import type { EquipmentBase, EquipmentFilters } from "@/types/installations";
 import type { ObjectWithRelations } from "@/types/objects";
 import { useErrorHandler } from "@/utils/errorHandler";
@@ -565,7 +565,7 @@ const searchObjects = debounce(async (search: string) => {
   
   loadingObjects.value = true;
   try {
-    const response = await objectsService.getObjects(1, 20, { search });
+    const response = await getObjectsService().getObjects(1, 20, { search });
     objects.value = response.data.items;
   } catch (error) {
     handleError(error, "Ошибка поиска объектов");

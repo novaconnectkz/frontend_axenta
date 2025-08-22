@@ -109,7 +109,7 @@ export function useAuthProvider() {
     name: "Демо Пользователь",
     username: "demo",
     email: "demo@axenta.ru",
-    accountId: 1,
+    accountId: 2061, // Используем реальный accountId из логов
     isAdmin: true,
     isActive: true,
     language: "ru",
@@ -117,7 +117,7 @@ export function useAuthProvider() {
   };
 
   const demoCompany: Company = {
-    id: "1",
+    id: "4e12b3c9-529c-4fe7-98e1-025eed8cb258",
     name: "Axenta Demo Company",
     schema: "demo",
     isActive: true,
@@ -187,7 +187,15 @@ export function useAuthProvider() {
           token.value = storedToken;
           user.value = JSON.parse(storedUser);
           if (storedCompany) {
-            company.value = JSON.parse(storedCompany);
+            const parsedCompany = JSON.parse(storedCompany);
+            // Проверяем, что используется корректный UUID
+            if (parsedCompany.id === "1" || parsedCompany.id === 1) {
+              // Обновляем старые данные с некорректным ID
+              company.value = demoCompany;
+              localStorage.setItem(COMPANY_KEY, JSON.stringify(demoCompany));
+            } else {
+              company.value = parsedCompany;
+            }
           }
         } else {
           // Токен истек, очищаем данные
@@ -268,7 +276,7 @@ export function useAuthProvider() {
         {},
         {
           headers: {
-            "authorization": `Token ${token.value}`,
+            authorization: `Token ${token.value}`,
             ...(company.value && { "X-Tenant-ID": company.value.id }),
           },
         }
@@ -336,6 +344,34 @@ export function useAuthProvider() {
       stopTokenCheck();
     }
   });
+
+  // Принудительно очищаем старые данные с некорректным company ID
+  const forceCleanOldData = () => {
+    const storedCompany = localStorage.getItem(COMPANY_KEY);
+    if (storedCompany) {
+      try {
+        const parsedCompany = JSON.parse(storedCompany);
+        if (parsedCompany.id === "1" || parsedCompany.id === 1) {
+          console.log("🔄 Очищаем старые данные с некорректным company ID");
+          clearStorage();
+          // Устанавливаем корректные демо данные
+          token.value =
+            localStorage.getItem("axenta_token") || "demo-token-" + Date.now();
+          user.value = demoUser;
+          company.value = demoCompany;
+          saveToStorage();
+        }
+      } catch (err) {
+        console.log(
+          "🔄 Ошибка при проверке старых данных, очищаем localStorage"
+        );
+        clearStorage();
+      }
+    }
+  };
+
+  // Принудительная очистка при загрузке
+  forceCleanOldData();
 
   // Загружаем данные при инициализации
   loadFromStorage();

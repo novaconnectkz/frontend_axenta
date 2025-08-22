@@ -956,7 +956,7 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
-import objectsService from '@/services/objectsService';
+import getObjectsService from '@/services/objectsService';
 import type {
     ObjectFilters,
     ObjectForm,
@@ -967,6 +967,9 @@ import type {
 } from '@/types/objects';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
+
+// Получаем экземпляр сервиса
+const objectsService = getObjectsService();
 
 // Reactive data
 const loading = ref(false);

@@ -300,7 +300,7 @@
 import AppleButton from "@/components/Apple/AppleButton.vue";
 import AppleCard from "@/components/Apple/AppleCard.vue";
 import { installationsService } from "@/services/installationsService";
-import { objectsService } from "@/services/objectsService";
+import { getObjectsService } from "@/services/objectsService";
 import type {
     EquipmentBase,
     InstallationForm,
@@ -441,7 +441,7 @@ const searchObjects = debounce(async (search: string) => {
   
   loadingObjects.value = true;
   try {
-    const response = await objectsService.getObjects(1, 20, { search });
+    const response = await getObjectsService().getObjects(1, 20, { search });
     objects.value = response.data.items;
   } catch (error) {
     handleError(error, "Ошибка поиска объектов");
@@ -589,7 +589,7 @@ watch(() => formData.value.installer_id, (newId) => {
 // Загрузка начальных данных объектов
 onMounted(async () => {
   try {
-    const response = await objectsService.getObjects(1, 50);
+    const response = await getObjectsService().getObjects(1, 50);
     objects.value = response.data.items;
   } catch (error) {
     // Игнорируем ошибку, объекты будут загружены при поиске

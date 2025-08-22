@@ -2,23 +2,16 @@
 
 import type {
   EquipmentBase,
+  EquipmentStats,
   InstallationStats,
   InstallationWithRelations,
   InstallerStats,
   InstallerWithRelations,
   LocationBase,
   LocationStats,
-  EquipmentStats,
-  INSTALLATION_STATUSES,
-  INSTALLATION_TYPES,
-  INSTALLATION_PRIORITIES,
-  INSTALLER_STATUSES,
-  INSTALLER_TYPES,
-  EQUIPMENT_STATUSES,
-  EQUIPMENT_CONDITIONS,
 } from "@/types/installations";
 
-// Локации
+// Расширенный список локаций для демонстрации справочника
 export const mockLocations: LocationBase[] = [
   {
     id: 1,
@@ -35,7 +28,7 @@ export const mockLocations: LocationBase[] = [
   {
     id: 2,
     city: "Санкт-Петербург",
-    region: "Ленинградская область", 
+    region: "Ленинградская область",
     country: "Россия",
     latitude: 59.9311,
     longitude: 30.3609,
@@ -80,9 +73,249 @@ export const mockLocations: LocationBase[] = [
     created_at: "2024-01-15T10:00:00Z",
     updated_at: "2024-01-15T10:00:00Z",
   },
+  {
+    id: 6,
+    city: "Нижний Новгород",
+    region: "Нижегородская область",
+    country: "Россия",
+    latitude: 56.2965,
+    longitude: 43.9361,
+    timezone: "Europe/Moscow",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 7,
+    city: "Челябинск",
+    region: "Челябинская область",
+    country: "Россия",
+    latitude: 55.1644,
+    longitude: 61.4368,
+    timezone: "Asia/Yekaterinburg",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 8,
+    city: "Самара",
+    region: "Самарская область",
+    country: "Россия",
+    latitude: 53.2001,
+    longitude: 50.15,
+    timezone: "Europe/Samara",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 9,
+    city: "Омск",
+    region: "Омская область",
+    country: "Россия",
+    latitude: 54.9885,
+    longitude: 73.3242,
+    timezone: "Asia/Omsk",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 10,
+    city: "Ростов-на-Дону",
+    region: "Ростовская область",
+    country: "Россия",
+    latitude: 47.2357,
+    longitude: 39.7015,
+    timezone: "Europe/Moscow",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 11,
+    city: "Уфа",
+    region: "Республика Башкортостан",
+    country: "Россия",
+    latitude: 54.7388,
+    longitude: 55.9721,
+    timezone: "Asia/Yekaterinburg",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 12,
+    city: "Красноярск",
+    region: "Красноярский край",
+    country: "Россия",
+    latitude: 56.0184,
+    longitude: 92.8672,
+    timezone: "Asia/Krasnoyarsk",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 13,
+    city: "Пермь",
+    region: "Пермский край",
+    country: "Россия",
+    latitude: 58.0105,
+    longitude: 56.2502,
+    timezone: "Asia/Yekaterinburg",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 14,
+    city: "Воронеж",
+    region: "Воронежская область",
+    country: "Россия",
+    latitude: 51.672,
+    longitude: 39.1843,
+    timezone: "Europe/Moscow",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 15,
+    city: "Волгоград",
+    region: "Волгоградская область",
+    country: "Россия",
+    latitude: 48.708,
+    longitude: 44.5133,
+    timezone: "Europe/Volgograd",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 16,
+    city: "Краснодар",
+    region: "Краснодарский край",
+    country: "Россия",
+    latitude: 45.0355,
+    longitude: 38.9753,
+    timezone: "Europe/Moscow",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 17,
+    city: "Саратов",
+    region: "Саратовская область",
+    country: "Россия",
+    latitude: 51.5406,
+    longitude: 46.0086,
+    timezone: "Europe/Saratov",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 18,
+    city: "Тюмень",
+    region: "Тюменская область",
+    country: "Россия",
+    latitude: 57.1522,
+    longitude: 65.5272,
+    timezone: "Asia/Yekaterinburg",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 19,
+    city: "Тольятти",
+    region: "Самарская область",
+    country: "Россия",
+    latitude: 53.5303,
+    longitude: 49.3461,
+    timezone: "Europe/Samara",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 20,
+    city: "Ижевск",
+    region: "Удмуртская Республика",
+    country: "Россия",
+    latitude: 56.8527,
+    longitude: 53.2041,
+    timezone: "Europe/Samara",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 21,
+    city: "Барнаул",
+    region: "Алтайский край",
+    country: "Россия",
+    latitude: 53.3606,
+    longitude: 83.7636,
+    timezone: "Asia/Barnaul",
+    is_active: false,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 22,
+    city: "Ульяновск",
+    region: "Ульяновская область",
+    country: "Россия",
+    latitude: 54.3142,
+    longitude: 48.4031,
+    timezone: "Europe/Ulyanovsk",
+    is_active: false,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 23,
+    city: "Иркутск",
+    region: "Иркутская область",
+    country: "Россия",
+    latitude: 52.2978,
+    longitude: 104.2964,
+    timezone: "Asia/Irkutsk",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 24,
+    city: "Владивосток",
+    region: "Приморский край",
+    country: "Россия",
+    latitude: 43.1056,
+    longitude: 131.8735,
+    timezone: "Asia/Vladivostok",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
+  {
+    id: 25,
+    city: "Хабаровск",
+    region: "Хабаровский край",
+    country: "Россия",
+    latitude: 48.4827,
+    longitude: 135.0839,
+    timezone: "Asia/Vladivostok",
+    is_active: true,
+    created_at: "2024-01-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+  },
 ];
 
-// Монтажники
+// Расширенный список монтажников для демонстрации справочника
 export const mockInstallers: InstallerWithRelations[] = [
   {
     id: 1,
@@ -203,6 +436,252 @@ export const mockInstallers: InstallerWithRelations[] = [
     current_installations_count: 0,
     total_installations_count: 298,
     rating: 4.9,
+  },
+  {
+    id: 6,
+    first_name: "Владимир",
+    last_name: "Кузнецов",
+    type: "staff",
+    phone: "+7 (999) 678-90-12",
+    email: "v.kuznetsov@axenta.ru",
+    specialization: ["Камеры", "Системы безопасности", "Датчики движения"],
+    max_daily_installations: 3,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "09:00",
+    working_hours_end: "18:00",
+    location_ids: [6, 7, 8],
+    is_active: true,
+    status: "available",
+    hire_date: "2023-09-10",
+    notes: "Специалист по системам видеонаблюдения",
+    created_at: "2023-09-10T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[5], mockLocations[6], mockLocations[7]],
+    current_installations_count: 1,
+    total_installations_count: 67,
+    rating: 4.5,
+  },
+  {
+    id: 7,
+    first_name: "Евгений",
+    last_name: "Волков",
+    type: "contractor",
+    phone: "+7 (999) 789-01-23",
+    email: "e.volkov@contractor.ru",
+    specialization: ["Автосигнализации", "Центральные замки", "Автозапуск"],
+    max_daily_installations: 4,
+    working_days: [1, 2, 3, 4, 5, 6],
+    working_hours_start: "08:00",
+    working_hours_end: "19:00",
+    location_ids: [9, 10, 11],
+    is_active: true,
+    status: "busy",
+    hire_date: "2023-04-25",
+    notes: "Эксперт по автомобильным системам безопасности",
+    created_at: "2023-04-25T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[8], mockLocations[9], mockLocations[10]],
+    current_installations_count: 4,
+    total_installations_count: 134,
+    rating: 4.7,
+  },
+  {
+    id: 8,
+    first_name: "Роман",
+    last_name: "Соколов",
+    type: "staff",
+    phone: "+7 (999) 890-12-34",
+    email: "r.sokolov@axenta.ru",
+    specialization: ["GPS мониторинг", "Топливные датчики", "CAN-шина"],
+    max_daily_installations: 3,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "09:00",
+    working_hours_end: "17:00",
+    location_ids: [12, 13],
+    is_active: true,
+    status: "available",
+    hire_date: "2023-02-14",
+    notes: "Специалист по коммерческому транспорту",
+    created_at: "2023-02-14T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[11], mockLocations[12]],
+    current_installations_count: 2,
+    total_installations_count: 189,
+    rating: 4.6,
+  },
+  {
+    id: 9,
+    first_name: "Игорь",
+    last_name: "Лебедев",
+    type: "partner",
+    phone: "+7 (999) 901-23-45",
+    email: "i.lebedev@partner.ru",
+    specialization: ["Умный дом", "IoT устройства", "Датчики"],
+    max_daily_installations: 2,
+    working_days: [1, 2, 3, 4, 5, 6, 7],
+    working_hours_start: "10:00",
+    working_hours_end: "20:00",
+    location_ids: [14, 15, 16],
+    is_active: true,
+    status: "available",
+    hire_date: "2022-08-30",
+    notes: "Инновационные решения для умного дома",
+    created_at: "2022-08-30T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[13], mockLocations[14], mockLocations[15]],
+    current_installations_count: 1,
+    total_installations_count: 245,
+    rating: 4.8,
+  },
+  {
+    id: 10,
+    first_name: "Павел",
+    last_name: "Новиков",
+    type: "staff",
+    phone: "+7 (999) 012-34-56",
+    email: "p.novikov@axenta.ru",
+    specialization: ["Диагностика", "Ремонт", "Обслуживание"],
+    max_daily_installations: 5,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "08:00",
+    working_hours_end: "17:00",
+    location_ids: [17, 18],
+    is_active: true,
+    status: "available",
+    hire_date: "2023-07-03",
+    notes: "Универсальный специалист по ремонту и диагностике",
+    created_at: "2023-07-03T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[16], mockLocations[17]],
+    current_installations_count: 3,
+    total_installations_count: 98,
+    rating: 4.3,
+  },
+  {
+    id: 11,
+    first_name: "Артем",
+    last_name: "Федоров",
+    type: "contractor",
+    phone: "+7 (999) 123-45-60",
+    email: "a.fedorov@contractor.ru",
+    specialization: ["Спутниковые системы", "ГЛОНАСС", "GPS"],
+    max_daily_installations: 2,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "09:00",
+    working_hours_end: "18:00",
+    location_ids: [19, 20],
+    is_active: true,
+    status: "available",
+    hire_date: "2023-10-15",
+    notes: "Эксперт по спутниковым технологиям",
+    created_at: "2023-10-15T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[18], mockLocations[19]],
+    current_installations_count: 1,
+    total_installations_count: 34,
+    rating: 4.1,
+  },
+  {
+    id: 12,
+    first_name: "Максим",
+    last_name: "Орлов",
+    type: "staff",
+    phone: "+7 (999) 234-56-70",
+    email: "m.orlov@axenta.ru",
+    specialization: ["Электроника", "Программирование", "Настройка"],
+    max_daily_installations: 3,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "10:00",
+    working_hours_end: "19:00",
+    location_ids: [21, 22],
+    is_active: false,
+    status: "sick",
+    hire_date: "2023-05-12",
+    notes: "IT-специалист, программист встроенных систем",
+    created_at: "2023-05-12T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[20], mockLocations[21]],
+    current_installations_count: 0,
+    total_installations_count: 78,
+    rating: 4.4,
+  },
+  {
+    id: 13,
+    first_name: "Денис",
+    last_name: "Медведев",
+    type: "partner",
+    phone: "+7 (999) 345-67-80",
+    email: "d.medvedev@partner.ru",
+    specialization: ["Тюнинг", "Дополнительное оборудование", "Кастомизация"],
+    max_daily_installations: 1,
+    working_days: [6, 7],
+    working_hours_start: "10:00",
+    working_hours_end: "18:00",
+    location_ids: [23, 24, 25],
+    is_active: true,
+    status: "available",
+    hire_date: "2022-12-20",
+    notes: "Специалист по эксклюзивным решениям",
+    created_at: "2022-12-20T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[22], mockLocations[23], mockLocations[24]],
+    current_installations_count: 0,
+    total_installations_count: 156,
+    rating: 4.9,
+  },
+  {
+    id: 14,
+    first_name: "Олег",
+    last_name: "Зайцев",
+    type: "staff",
+    phone: "+7 (999) 456-78-90",
+    email: "o.zaitsev@axenta.ru",
+    specialization: ["Базовые установки", "Обучение", "Консультации"],
+    max_daily_installations: 6,
+    working_days: [1, 2, 3, 4, 5],
+    working_hours_start: "08:00",
+    working_hours_end: "17:00",
+    location_ids: [1, 2, 3],
+    is_active: true,
+    status: "available",
+    hire_date: "2024-01-08",
+    notes: "Новый сотрудник, проходит обучение",
+    created_at: "2024-01-08T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [mockLocations[0], mockLocations[1], mockLocations[2]],
+    current_installations_count: 2,
+    total_installations_count: 15,
+    rating: 3.8,
+  },
+  {
+    id: 15,
+    first_name: "Виктор",
+    last_name: "Попов",
+    type: "contractor",
+    phone: "+7 (999) 567-89-00",
+    email: "v.popov@contractor.ru",
+    specialization: ["Экстренные вызовы", "Аварийное обслуживание", "24/7"],
+    max_daily_installations: 8,
+    working_days: [1, 2, 3, 4, 5, 6, 7],
+    working_hours_start: "00:00",
+    working_hours_end: "23:59",
+    location_ids: [1, 2, 3, 4, 5],
+    is_active: true,
+    status: "busy",
+    hire_date: "2022-03-01",
+    notes: "Экстренная служба, работает круглосуточно",
+    created_at: "2022-03-01T10:00:00Z",
+    updated_at: "2024-01-15T10:00:00Z",
+    locations: [
+      mockLocations[0],
+      mockLocations[1],
+      mockLocations[2],
+      mockLocations[3],
+      mockLocations[4],
+    ],
+    current_installations_count: 6,
+    total_installations_count: 423,
+    rating: 4.6,
   },
 ];
 
@@ -690,45 +1169,64 @@ export const mockInstallationStats: InstallationStats = {
   completion_rate: 75,
 };
 
-// Статистика монтажников
+// Статистика монтажников (обновлена для расширенного списка)
 export const mockInstallerStats: InstallerStats = {
-  total: 5,
-  active: 4,
+  total: 15,
+  active: 14,
   by_type: {
-    staff: 3,
-    contractor: 1,
-    partner: 1,
+    staff: 8,
+    contractor: 4,
+    partner: 3,
   },
   by_status: {
-    available: 3,
-    busy: 1,
+    available: 9,
+    busy: 3,
     vacation: 1,
-    sick: 0,
+    sick: 1,
   },
-  average_rating: 4.6,
-  total_installations: 786,
+  average_rating: 4.5,
+  total_installations: 2543,
   busiest_installer: {
-    id: 5,
-    name: "Андрей Морозов",
-    installations_count: 298,
+    id: 15,
+    name: "Виктор Попов",
+    installations_count: 423,
   },
 };
 
-// Статистика локаций
+// Статистика локаций (обновлена для расширенного списка)
 export const mockLocationStats: LocationStats = {
-  total: 5,
-  active: 5,
+  total: 25,
+  active: 23,
   by_region: {
     "Московская область": 1,
     "Ленинградская область": 1,
     "Свердловская область": 1,
     "Новосибирская область": 1,
     "Республика Татарстан": 1,
+    "Нижегородская область": 1,
+    "Челябинская область": 1,
+    "Самарская область": 2,
+    "Омская область": 1,
+    "Ростовская область": 1,
+    "Республика Башкортостан": 1,
+    "Красноярский край": 1,
+    "Пермский край": 1,
+    "Воронежская область": 1,
+    "Волгоградская область": 1,
+    "Краснодарский край": 1,
+    "Саратовская область": 1,
+    "Тюменская область": 1,
+    "Удмуртская Республика": 1,
+    "Алтайский край": 1,
+    "Ульяновская область": 1,
+    "Иркутская область": 1,
+    "Приморский край": 1,
+    "Хабаровский край": 1,
   },
   most_popular: {
     id: 1,
     city: "Москва",
-    installations_count: 4,
+    installations_count: 45,
   },
 };
 
@@ -752,40 +1250,49 @@ export const mockEquipmentStats: EquipmentStats = {
 };
 
 // Функции для получения данных (имитация API)
-export const getMockInstallations = (page = 1, per_page = 50, filters: any = {}) => {
+export const getMockInstallations = (
+  page = 1,
+  per_page = 50,
+  filters: any = {}
+) => {
   let filtered = [...mockInstallations];
-  
+
   // Применяем фильтры
   if (filters.status) {
-    filtered = filtered.filter(item => item.status === filters.status);
+    filtered = filtered.filter((item) => item.status === filters.status);
   }
   if (filters.type) {
-    filtered = filtered.filter(item => item.type === filters.type);
+    filtered = filtered.filter((item) => item.type === filters.type);
   }
   if (filters.priority) {
-    filtered = filtered.filter(item => item.priority === filters.priority);
+    filtered = filtered.filter((item) => item.priority === filters.priority);
   }
   if (filters.installer_id) {
-    filtered = filtered.filter(item => item.installer_id === filters.installer_id);
+    filtered = filtered.filter(
+      (item) => item.installer_id === filters.installer_id
+    );
   }
   if (filters.location_id) {
-    filtered = filtered.filter(item => item.location_id === filters.location_id);
+    filtered = filtered.filter(
+      (item) => item.location_id === filters.location_id
+    );
   }
   if (filters.search) {
     const search = filters.search.toLowerCase();
-    filtered = filtered.filter(item => 
-      item.description?.toLowerCase().includes(search) ||
-      item.client_contact.toLowerCase().includes(search) ||
-      item.address.toLowerCase().includes(search) ||
-      item.object.name.toLowerCase().includes(search)
+    filtered = filtered.filter(
+      (item) =>
+        item.description?.toLowerCase().includes(search) ||
+        item.client_contact.toLowerCase().includes(search) ||
+        item.address.toLowerCase().includes(search) ||
+        item.object.name.toLowerCase().includes(search)
     );
   }
-  
+
   // Пагинация
   const start = (page - 1) * per_page;
   const end = start + per_page;
   const items = filtered.slice(start, end);
-  
+
   return {
     items,
     total: filtered.length,
@@ -795,43 +1302,50 @@ export const getMockInstallations = (page = 1, per_page = 50, filters: any = {})
   };
 };
 
-export const getMockInstallers = (page = 1, per_page = 50, filters: any = {}) => {
+export const getMockInstallers = (
+  page = 1,
+  per_page = 50,
+  filters: any = {}
+) => {
   let filtered = [...mockInstallers];
-  
+
   // Применяем фильтры
   if (filters.type) {
-    filtered = filtered.filter(item => item.type === filters.type);
+    filtered = filtered.filter((item) => item.type === filters.type);
   }
   if (filters.status) {
-    filtered = filtered.filter(item => item.status === filters.status);
+    filtered = filtered.filter((item) => item.status === filters.status);
   }
   if (filters.specialization) {
-    filtered = filtered.filter(item => 
-      item.specialization.some(spec => 
+    filtered = filtered.filter((item) =>
+      item.specialization.some((spec) =>
         spec.toLowerCase().includes(filters.specialization.toLowerCase())
       )
     );
   }
   if (filters.location_id) {
-    filtered = filtered.filter(item => item.location_ids.includes(filters.location_id));
+    filtered = filtered.filter((item) =>
+      item.location_ids.includes(filters.location_id)
+    );
   }
   if (filters.is_active !== undefined) {
-    filtered = filtered.filter(item => item.is_active === filters.is_active);
+    filtered = filtered.filter((item) => item.is_active === filters.is_active);
   }
   if (filters.search) {
     const search = filters.search.toLowerCase();
-    filtered = filtered.filter(item => 
-      `${item.first_name} ${item.last_name}`.toLowerCase().includes(search) ||
-      item.phone.includes(search) ||
-      item.email.toLowerCase().includes(search)
+    filtered = filtered.filter(
+      (item) =>
+        `${item.first_name} ${item.last_name}`.toLowerCase().includes(search) ||
+        item.phone.includes(search) ||
+        item.email.toLowerCase().includes(search)
     );
   }
-  
+
   // Пагинация
   const start = (page - 1) * per_page;
   const end = start + per_page;
   const items = filtered.slice(start, end);
-  
+
   return {
     items,
     total: filtered.length,
@@ -841,37 +1355,42 @@ export const getMockInstallers = (page = 1, per_page = 50, filters: any = {}) =>
   };
 };
 
-export const getMockEquipment = (page = 1, per_page = 50, filters: any = {}) => {
+export const getMockEquipment = (
+  page = 1,
+  per_page = 50,
+  filters: any = {}
+) => {
   let filtered = [...mockEquipment];
-  
+
   // Применяем фильтры
   if (filters.type) {
-    filtered = filtered.filter(item => item.type === filters.type);
+    filtered = filtered.filter((item) => item.type === filters.type);
   }
   if (filters.status) {
-    filtered = filtered.filter(item => item.status === filters.status);
+    filtered = filtered.filter((item) => item.status === filters.status);
   }
   if (filters.condition) {
-    filtered = filtered.filter(item => item.condition === filters.condition);
+    filtered = filtered.filter((item) => item.condition === filters.condition);
   }
   if (filters.object_id) {
-    filtered = filtered.filter(item => item.object_id === filters.object_id);
+    filtered = filtered.filter((item) => item.object_id === filters.object_id);
   }
   if (filters.search) {
     const search = filters.search.toLowerCase();
-    filtered = filtered.filter(item => 
-      item.model.toLowerCase().includes(search) ||
-      item.brand.toLowerCase().includes(search) ||
-      item.serial_number.toLowerCase().includes(search) ||
-      item.type.toLowerCase().includes(search)
+    filtered = filtered.filter(
+      (item) =>
+        item.model.toLowerCase().includes(search) ||
+        item.brand.toLowerCase().includes(search) ||
+        item.serial_number.toLowerCase().includes(search) ||
+        item.type.toLowerCase().includes(search)
     );
   }
-  
+
   // Пагинация
   const start = (page - 1) * per_page;
   const end = start + per_page;
   const items = filtered.slice(start, end);
-  
+
   return {
     items,
     total: filtered.length,
@@ -881,33 +1400,38 @@ export const getMockEquipment = (page = 1, per_page = 50, filters: any = {}) => 
   };
 };
 
-export const getMockLocations = (page = 1, per_page = 50, filters: any = {}) => {
+export const getMockLocations = (
+  page = 1,
+  per_page = 50,
+  filters: any = {}
+) => {
   let filtered = [...mockLocations];
-  
+
   // Применяем фильтры
   if (filters.region) {
-    filtered = filtered.filter(item => item.region === filters.region);
+    filtered = filtered.filter((item) => item.region === filters.region);
   }
   if (filters.country) {
-    filtered = filtered.filter(item => item.country === filters.country);
+    filtered = filtered.filter((item) => item.country === filters.country);
   }
   if (filters.is_active !== undefined) {
-    filtered = filtered.filter(item => item.is_active === filters.is_active);
+    filtered = filtered.filter((item) => item.is_active === filters.is_active);
   }
   if (filters.search) {
     const search = filters.search.toLowerCase();
-    filtered = filtered.filter(item => 
-      item.city.toLowerCase().includes(search) ||
-      item.region.toLowerCase().includes(search) ||
-      item.country.toLowerCase().includes(search)
+    filtered = filtered.filter(
+      (item) =>
+        item.city.toLowerCase().includes(search) ||
+        item.region.toLowerCase().includes(search) ||
+        item.country.toLowerCase().includes(search)
     );
   }
-  
+
   // Пагинация
   const start = (page - 1) * per_page;
   const end = start + per_page;
   const items = filtered.slice(start, end);
-  
+
   return {
     items,
     total: filtered.length,

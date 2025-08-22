@@ -29,8 +29,11 @@
             </template>
           </v-tooltip>
 
-          <v-list-item v-else :to="item.path" :prepend-icon="item.icon" :title="item.title" :subtitle="item.subtitle"
-            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact>
+          <v-list-item v-else 
+            :to="item.path === '/installations' ? undefined : item.path" 
+            :prepend-icon="item.icon" :title="item.title" :subtitle="item.subtitle"
+            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact
+            @click="handleNavClick(item.path, item.title)">
             <template v-if="item.badge && item.badge > 0" #append>
               <v-badge :content="item.badge" color="error" inline />
             </template>
@@ -429,12 +432,34 @@ const getUserInitials = () => {
 
 const handleRailNavClick = (path: string) => {
   console.log('🔄 Rail navigation click:', path);
+  if (path === '/installations') {
+    console.log('🔄 Rail: Clicking on Installations menu item');
+  }
   router.push(path).catch(err => {
     console.error('Navigation error:', err);
   });
 };
 
-// Обработчик для обычной навигации убран - используется :to в v-list-item
+const handleNavClick = (path: string, title: string) => {
+  console.log('🔄 Navigation click:', { path, title, currentPath: route.path });
+  
+  // Для installations используем принудительную навигацию
+  if (path === '/installations') {
+    console.log('🔄 Clicking on Installations menu item');
+    console.log('🔄 Force navigating to installations...');
+    router.push('/installations').catch(err => {
+      console.error('🚨 Navigation to installations failed:', err);
+    });
+    return; // Предотвращаем дальнейшую обработку
+  }
+  
+  // Для других маршрутов, если нет :to атрибута, используем программную навигацию
+  if (!route.path.startsWith(path)) {
+    router.push(path).catch(err => {
+      console.error('🚨 Navigation failed:', err);
+    });
+  }
+};
 
 // Watchers
 watch(mobile, (newValue) => {
