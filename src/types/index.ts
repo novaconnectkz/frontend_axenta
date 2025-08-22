@@ -174,6 +174,58 @@ export type {
 // Типы dashboard (включает WarehouseStats)
 export type { WarehouseStats } from "@/types/dashboard";
 
+// Типы настроек и интеграций
+export {
+  CURRENCY_OPTIONS,
+  DATE_FORMAT_OPTIONS,
+  INTEGRATION_STATUSES,
+  INTEGRATION_STATUS_COLORS,
+  INTEGRATION_STATUS_LABELS,
+  INTEGRATION_TYPES,
+  INTEGRATION_TYPE_LABELS,
+  LANGUAGE_OPTIONS,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_CHANNEL_LABELS,
+  NOTIFICATION_EVENTS,
+  NOTIFICATION_EVENT_LABELS,
+  TEMPLATE_TYPES,
+  TIMEZONE_OPTIONS,
+} from "@/types/settings";
+
+export type {
+  AxentaIntegrationSettings,
+  Bitrix24IntegrationSettings,
+  ConnectionStatus,
+  EmailSettings,
+  IntegrationBase,
+  IntegrationForm,
+  IntegrationLog,
+  IntegrationStats,
+  IntegrationStatus,
+  IntegrationStatusResponse,
+  IntegrationType,
+  IntegrationWithSettings,
+  IntegrationsResponse,
+  NotificationChannel,
+  NotificationChannelSettings,
+  NotificationChannelsResponse,
+  NotificationEvent,
+  NotificationSettingsForm,
+  NotificationTemplate,
+  ObjectTemplate,
+  ObjectTemplateField,
+  OneCIntegrationSettings,
+  SmsSettings,
+  SystemSettings,
+  SystemSettingsForm,
+  TelegramSettings,
+  TemplateBase,
+  TemplateForm,
+  TemplateType,
+  TemplatesResponse,
+  UserTemplate,
+} from "@/types/settings";
+
 // Общие API типы
 export interface APIResponse<T = any> {
   status: "success" | "error";
