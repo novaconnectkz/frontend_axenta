@@ -288,6 +288,12 @@ const navigationItems = computed(() => [
     icon: 'mdi-cog',
     title: 'Настройки',
     subtitle: 'Конфигурация системы'
+  },
+  {
+    path: '/performance',
+    icon: 'mdi-speedometer',
+    title: 'Производительность',
+    subtitle: 'Оптимизация и безопасность'
   }
 ]);
 
