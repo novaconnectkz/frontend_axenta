@@ -138,12 +138,23 @@ export function useAuthProvider() {
   // Interceptor для автоматического добавления токена
   apiClient.interceptors.request.use(
     (config) => {
-      if (token.value) {
-        config.headers["authorization"] = `Token ${token.value}`;
-        if (company.value) {
-          config.headers["X-Tenant-ID"] = company.value.id;
+      const currentToken = token.value || localStorage.getItem("axenta_token");
+      const currentCompany = company.value || JSON.parse(localStorage.getItem("axenta_company") || "null");
+      
+      if (currentToken) {
+        config.headers["authorization"] = `Token ${currentToken}`;
+        config.headers["Authorization"] = `Token ${currentToken}`;
+        
+        if (currentCompany) {
+          config.headers["X-Tenant-ID"] = currentCompany.id;
         }
       }
+      
+      console.log("🔐 Auth headers:", {
+        authorization: config.headers["authorization"] ? "Token ***" : "none",
+        tenantId: config.headers["X-Tenant-ID"] || "none"
+      });
+      
       return config;
     },
     (error) => Promise.reject(error)

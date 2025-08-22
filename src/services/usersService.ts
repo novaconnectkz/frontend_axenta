@@ -11,8 +11,13 @@ import type {
   UserTemplate,
   UserWithRelations,
 } from "@/types/users";
-import { getMockUsersData, mockRoles, mockStats, mockTemplates } from "./mockUsersData";
 import axios from "axios";
+import {
+  getMockUsersData,
+  mockRoles,
+  mockStats,
+  mockTemplates,
+} from "./mockUsersData";
 
 export class UsersService {
   private static instance: UsersService;
@@ -30,6 +35,7 @@ export class UsersService {
 
       if (token) {
         config.headers["authorization"] = `Token ${token}`;
+        config.headers["Authorization"] = `Token ${token}`;
       }
 
       if (company) {
@@ -41,8 +47,35 @@ export class UsersService {
         }
       }
 
+      console.log("📡 UsersService request:", {
+        url: config.url,
+        method: config.method,
+        hasToken: !!token,
+        tenantId: config.headers["X-Tenant-ID"] || "none",
+      });
+
       return config;
     });
+
+    // Добавляем обработчик ошибок
+    this.apiClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        console.error("❌ UsersService error:", {
+          url: error.config?.url,
+          status: error.response?.status,
+          message: error.response?.data?.error || error.message,
+        });
+
+        // Если получили 401, автоматически переключаемся на mock данные
+        if (error.response?.status === 401) {
+          console.warn("🔄 Switching to mock data due to authentication error");
+          this.enableMockData();
+        }
+
+        return Promise.reject(error);
+      }
+    );
   }
 
   static getInstance(): UsersService {
@@ -55,13 +88,13 @@ export class UsersService {
   // Метод для включения режима демо данных
   enableMockData(): void {
     this.useMockData = true;
-    console.log('Режим демо данных включен для UsersService');
+    console.log("Режим демо данных включен для UsersService");
   }
 
   // Метод для отключения режима демо данных
   disableMockData(): void {
     this.useMockData = false;
-    console.log('Режим демо данных отключен для UsersService');
+    console.log("Режим демо данных отключен для UsersService");
   }
 
   // Проверка статуса режима демо данных
@@ -82,7 +115,7 @@ export class UsersService {
       const mockData = getMockUsersData(page, limit, filters);
       return {
         status: "success",
-        data: mockData
+        data: mockData,
       };
     }
 
@@ -107,13 +140,16 @@ export class UsersService {
       const response = await this.apiClient.get(`/users?${params.toString()}`);
       return response.data;
     } catch (error) {
-      console.warn('Ошибка загрузки пользователей с сервера, переключаемся на демо данные:', error);
+      console.warn(
+        "Ошибка загрузки пользователей с сервера, переключаемся на демо данные:",
+        error
+      );
       // Включаем режим демо данных при ошибке
       this.useMockData = true;
       const mockData = getMockUsersData(page, limit, filters);
       return {
         status: "success",
-        data: mockData
+        data: mockData,
       };
     }
   }
@@ -210,16 +246,17 @@ export class UsersService {
     // Если включен режим демо данных, возвращаем mock роли
     if (this.useMockData) {
       let filteredRoles = [...mockRoles];
-      
+
       if (filters.active_only) {
-        filteredRoles = filteredRoles.filter(role => role.is_active);
+        filteredRoles = filteredRoles.filter((role) => role.is_active);
       }
-      
+
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        filteredRoles = filteredRoles.filter(role => 
-          role.name.toLowerCase().includes(search) ||
-          role.display_name.toLowerCase().includes(search)
+        filteredRoles = filteredRoles.filter(
+          (role) =>
+            role.name.toLowerCase().includes(search) ||
+            role.display_name.toLowerCase().includes(search)
         );
       }
 
@@ -230,8 +267,8 @@ export class UsersService {
           total: filteredRoles.length,
           page,
           limit,
-          pages: Math.ceil(filteredRoles.length / limit)
-        }
+          pages: Math.ceil(filteredRoles.length / limit),
+        },
       };
     }
 
@@ -249,21 +286,25 @@ export class UsersService {
       const response = await this.apiClient.get(`/roles?${params.toString()}`);
       return response.data;
     } catch (error) {
-      console.warn('Ошибка загрузки ролей с сервера, переключаемся на демо данные:', error);
+      console.warn(
+        "Ошибка загрузки ролей с сервера, переключаемся на демо данные:",
+        error
+      );
       // Включаем режим демо данных при ошибке
       this.useMockData = true;
-      
+
       let filteredRoles = [...mockRoles];
-      
+
       if (filters.active_only) {
-        filteredRoles = filteredRoles.filter(role => role.is_active);
+        filteredRoles = filteredRoles.filter((role) => role.is_active);
       }
-      
+
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        filteredRoles = filteredRoles.filter(role => 
-          role.name.toLowerCase().includes(search) ||
-          role.display_name.toLowerCase().includes(search)
+        filteredRoles = filteredRoles.filter(
+          (role) =>
+            role.name.toLowerCase().includes(search) ||
+            role.display_name.toLowerCase().includes(search)
         );
       }
 
@@ -274,8 +315,8 @@ export class UsersService {
           total: filteredRoles.length,
           page,
           limit,
-          pages: Math.ceil(filteredRoles.length / limit)
-        }
+          pages: Math.ceil(filteredRoles.length / limit),
+        },
       };
     }
   }
@@ -386,16 +427,20 @@ export class UsersService {
     // Если включен режим демо данных, возвращаем mock шаблоны
     if (this.useMockData) {
       let filteredTemplates = [...mockTemplates];
-      
+
       if (filters.active_only) {
-        filteredTemplates = filteredTemplates.filter(template => template.is_active);
+        filteredTemplates = filteredTemplates.filter(
+          (template) => template.is_active
+        );
       }
-      
+
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        filteredTemplates = filteredTemplates.filter(template => 
-          template.name.toLowerCase().includes(search) ||
-          (template.description && template.description.toLowerCase().includes(search))
+        filteredTemplates = filteredTemplates.filter(
+          (template) =>
+            template.name.toLowerCase().includes(search) ||
+            (template.description &&
+              template.description.toLowerCase().includes(search))
         );
       }
 
@@ -406,8 +451,8 @@ export class UsersService {
           total: filteredTemplates.length,
           page,
           limit,
-          pages: Math.ceil(filteredTemplates.length / limit)
-        }
+          pages: Math.ceil(filteredTemplates.length / limit),
+        },
       };
     }
 
@@ -427,21 +472,28 @@ export class UsersService {
       );
       return response.data;
     } catch (error) {
-      console.warn('Ошибка загрузки шаблонов пользователей с сервера, переключаемся на демо данные:', error);
+      console.warn(
+        "Ошибка загрузки шаблонов пользователей с сервера, переключаемся на демо данные:",
+        error
+      );
       // Включаем режим демо данных при ошибке
       this.useMockData = true;
-      
+
       let filteredTemplates = [...mockTemplates];
-      
+
       if (filters.active_only) {
-        filteredTemplates = filteredTemplates.filter(template => template.is_active);
+        filteredTemplates = filteredTemplates.filter(
+          (template) => template.is_active
+        );
       }
-      
+
       if (filters.search) {
         const search = filters.search.toLowerCase();
-        filteredTemplates = filteredTemplates.filter(template => 
-          template.name.toLowerCase().includes(search) ||
-          (template.description && template.description.toLowerCase().includes(search))
+        filteredTemplates = filteredTemplates.filter(
+          (template) =>
+            template.name.toLowerCase().includes(search) ||
+            (template.description &&
+              template.description.toLowerCase().includes(search))
         );
       }
 
@@ -452,8 +504,8 @@ export class UsersService {
           total: filteredTemplates.length,
           page,
           limit,
-          pages: Math.ceil(filteredTemplates.length / limit)
-        }
+          pages: Math.ceil(filteredTemplates.length / limit),
+        },
       };
     }
   }
@@ -510,7 +562,10 @@ export class UsersService {
       const response = await this.apiClient.get("/users/stats");
       return response.data.data;
     } catch (error) {
-      console.warn('Ошибка загрузки статистики пользователей с сервера, переключаемся на демо данные:', error);
+      console.warn(
+        "Ошибка загрузки статистики пользователей с сервера, переключаемся на демо данные:",
+        error
+      );
       // Включаем режим демо данных при ошибке
       this.useMockData = true;
       return mockStats;

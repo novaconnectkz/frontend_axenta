@@ -363,7 +363,7 @@ const toggleRail = () => {
 const toggleTheme = () => {
   isDarkTheme.value = !isDarkTheme.value;
   const newTheme = isDarkTheme.value ? 'apple-dark' : 'apple-light';
-  theme.global.name.value = newTheme;
+  theme.change(newTheme);
   localStorage.setItem('theme', newTheme);
 
   // Отмечаем что пользователь вручную переключил тему
@@ -472,14 +472,14 @@ onMounted(() => {
   // Восстанавливаем тему из localStorage
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
-    theme.global.name.value = savedTheme;
+    theme.change(savedTheme);
     isDarkTheme.value = savedTheme === 'apple-dark';
     document.body.setAttribute('data-theme', isDarkTheme.value ? 'dark' : 'light');
   } else {
     // По умолчанию используем светлую тему (убираем автоматическое определение системной темы)
     isDarkTheme.value = false;
     const defaultTheme = 'apple-light';
-    theme.global.name.value = defaultTheme;
+    theme.change(defaultTheme);
     localStorage.setItem('theme', defaultTheme);
     document.body.setAttribute('data-theme', 'light');
   }
