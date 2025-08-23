@@ -89,10 +89,22 @@ const mountedApp = app.mount("#app");
 
 // Скрываем загрузочный экран после монтирования
 nextTick(() => {
-  // Даем время на первичный рендеринг
+  // Даем время на первичный рендеринг и инициализацию
   setTimeout(() => {
+    console.log('🚀 App mounted, hiding loading screen...');
     if (window.hideLoadingScreen) {
       window.hideLoadingScreen();
+    } else {
+      console.warn('⚠️ hideLoadingScreen function not available');
+      // Fallback - скрываем загрузочный экран напрямую
+      const loadingScreen = document.getElementById('app-loading');
+      const app = document.getElementById('app');
+      if (loadingScreen) {
+        loadingScreen.style.display = 'none';
+      }
+      if (app) {
+        app.style.opacity = '1';
+      }
     }
-  }, 100);
+  }, 300); // Увеличиваем время для более надежной инициализации
 });

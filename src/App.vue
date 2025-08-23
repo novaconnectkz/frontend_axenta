@@ -14,6 +14,17 @@ onMounted(() => {
   console.log('App mounted, current path:', route.path);
   console.log('Auth initialized:', !!auth);
   console.log('Is authenticated:', auth.isAuthenticated.value);
+  
+  // Дополнительная проверка скрытия загрузочного экрана
+  setTimeout(() => {
+    const loadingScreen = document.getElementById('app-loading');
+    if (loadingScreen && loadingScreen.style.display !== 'none') {
+      console.log('🔄 App.vue: Ensuring loading screen is hidden...');
+      if (window.hideLoadingScreen) {
+        window.hideLoadingScreen();
+      }
+    }
+  }, 500);
 });
 </script>
 

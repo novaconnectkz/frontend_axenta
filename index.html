@@ -168,28 +168,34 @@
       
       // Функция для скрытия загрузочного экрана
       window.hideLoadingScreen = function() {
+        console.log('🎯 Hiding loading screen...');
         const loadingScreen = document.getElementById('app-loading');
         const app = document.getElementById('app');
         
-        if (loadingScreen) {
+        if (loadingScreen && loadingScreen.style.display !== 'none') {
           loadingScreen.classList.add('fade-out');
           setTimeout(() => {
             loadingScreen.style.display = 'none';
+            console.log('✅ Loading screen hidden');
           }, 300);
+        } else {
+          console.log('ℹ️ Loading screen already hidden or not found');
         }
         
         if (app) {
           app.classList.add('loaded');
+          console.log('✅ App marked as loaded');
         }
       };
       
-      // Автоматическое скрытие загрузочного экрана через максимум 10 секунд
+      // Автоматическое скрытие загрузочного экрана через максимум 5 секунд
       setTimeout(() => {
-        if (document.getElementById('app-loading')) {
-          console.warn('Force hiding loading screen after 10s timeout');
+        const loadingScreen = document.getElementById('app-loading');
+        if (loadingScreen && loadingScreen.style.display !== 'none') {
+          console.warn('⚠️ Force hiding loading screen after 5s timeout');
           window.hideLoadingScreen();
         }
-      }, 10000);
+      }, 5000);
     </script>
   </head>
   
