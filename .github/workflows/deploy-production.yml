@@ -1,0 +1,145 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate secrets
+        run: |
+          if [ -z "${{ secrets.HOST }}" ]; then
+            echo "❌ HOST secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.USERNAME }}" ]; then
+            echo "❌ USERNAME secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
+            echo "❌ PRIVATE_KEY secret is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are configured"
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          port: ${{ secrets.PORT || '22' }}
+          timeout: 30s
+          command_timeout: 10m
+          script_stop: true
+          script: |
+            set -e
+            
+            echo "🚀 Starting deployment to production..."
+            echo "📍 Server: ${{ secrets.HOST }}"
+            echo "👤 User: ${{ secrets.USERNAME }}"
+            echo "⏰ Time: $(date)"
+            
+            # Проверяем существование директории
+            if [ ! -d "/var/www/frontend_axenta" ]; then
+              echo "❌ Directory /var/www/frontend_axenta does not exist"
+              exit 1
+            fi
+            
+            cd /var/www/frontend_axenta
+            
+            echo "📍 Current directory: $(pwd)"
+            echo "📍 Current branch: $(git branch --show-current 2>/dev/null || echo 'unknown')"
+            echo "📍 Current commit: $(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+            
+            # Проверяем статус Git репозитория
+            if [ ! -d ".git" ]; then
+              echo "❌ Not a git repository"
+              exit 1
+            fi
+            
+            # Настраиваем Git
+            echo "⚙️ Configuring Git..."
+            git config pull.rebase false
+            git config --global --add safe.directory $(pwd)
+            
+            # Создаем бэкап текущего состояния
+            echo "💾 Creating backup..."
+            BACKUP_DIR="/tmp/frontend_backup_$(date +%Y%m%d_%H%M%S)"
+            cp -r . "$BACKUP_DIR" || echo "⚠️ Backup creation failed, continuing..."
+            
+            # Загружаем изменения
+            echo "📥 Fetching changes..."
+            git fetch --all --prune
+            
+            # Проверяем различия
+            LOCAL=$(git rev-parse HEAD)
+            REMOTE=$(git rev-parse origin/main)
+            
+            if [ "$LOCAL" != "$REMOTE" ]; then
+              echo "🔄 Updating from $LOCAL to $REMOTE"
+              git reset --hard origin/main
+              echo "✅ Repository updated successfully"
+            else
+              echo "✅ Repository is already up to date"
+            fi
+            
+            echo "📍 Updated to commit: $(git rev-parse --short HEAD)"
+            echo "📍 Commit message: $(git log -1 --pretty=%B)"
+            
+            # Проверяем наличие package.json
+            if [ ! -f "package.json" ]; then
+              echo "❌ package.json not found"
+              exit 1
+            fi
+            
+            # Устанавливаем зависимости
+            echo "📦 Installing dependencies..."
+            if command -v npm >/dev/null 2>&1; then
+              npm ci --production=false
+            else
+              echo "❌ npm not found"
+              exit 1
+            fi
+            
+            # Собираем проект
+            echo "🏗️ Building project..."
+            npm run build
+            
+            # Проверяем результат сборки
+            if [ ! -d "dist" ]; then
+              echo "❌ Build failed - dist directory not found"
+              exit 1
+            fi
+            
+            echo "✅ Build completed successfully"
+            
+            # Перезагружаем nginx
+            echo "🔄 Reloading nginx..."
+            if command -v systemctl >/dev/null 2>&1; then
+              sudo systemctl reload nginx
+              echo "✅ Nginx reloaded successfully"
+            else
+              echo "⚠️ systemctl not found, skipping nginx reload"
+            fi
+            
+            echo "🎉 Deployment completed successfully!"
+            echo "📊 Deployment summary:"
+            echo "   - Repository: frontend_axenta"
+            echo "   - Branch: main"
+            echo "   - Commit: $(git rev-parse --short HEAD)"
+            echo "   - Time: $(date)"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Please check the logs and fix any issues before retrying."
