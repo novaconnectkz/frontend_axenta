@@ -16,17 +16,53 @@ jobs:
       - name: Check deployment secrets
         id: check-secrets
         run: |
-          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.USERNAME }}" ] || [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
-            echo "⚠️ Deployment secrets not configured. Skipping deployment."
-            echo "📋 Configure HOST, USERNAME, and PRIVATE_KEY secrets to enable deployment."
+          echo "🔍 Checking deployment configuration..."
+          
+          # Проверяем наличие всех необходимых секретов
+          SECRETS_CONFIGURED=true
+          
+          if [ -z "${{ secrets.HOST }}" ]; then
+            echo "❌ HOST secret is missing"
+            SECRETS_CONFIGURED=false
+          fi
+          
+          if [ -z "${{ secrets.USERNAME }}" ]; then
+            echo "❌ USERNAME secret is missing"
+            SECRETS_CONFIGURED=false
+          fi
+          
+          if [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
+            echo "❌ PRIVATE_KEY secret is missing"
+            SECRETS_CONFIGURED=false
+          fi
+          
+          if [ "$SECRETS_CONFIGURED" = "false" ]; then
+            echo ""
+            echo "⚠️ Deployment secrets are not configured!"
+            echo ""
+            echo "🎉 Code changes have been successfully pushed to GitHub!"
+            echo ""
+            echo "📋 To enable deployment, configure these GitHub Secrets:"
+            echo "   • HOST - Your server IP address or domain"
+            echo "   • USERNAME - SSH username for server access"
+            echo "   • PRIVATE_KEY - SSH private key content"
+            echo "   • PORT - SSH port (optional, defaults to 22)"
+            echo ""
+            echo "🔧 Configure secrets at:"
+            echo "   https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo ""
+            echo "📖 For detailed instructions, see GITHUB_SECRETS_SETUP.md"
+            echo ""
             echo "should_deploy=false" >> $GITHUB_OUTPUT
+            exit 0
           else
-            echo "✅ Deployment secrets configured. Proceeding..."
+            echo "✅ All deployment secrets are configured"
+            echo "🚀 Proceeding with deployment..."
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Deploy via SSH
-        if: steps.check-secrets.outputs.should_deploy == 'true'
+        if: steps.check-secrets.outputs.should_deploy == 'true' && secrets.HOST != '' && secrets.USERNAME != '' && secrets.PRIVATE_KEY != ''
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -37,8 +73,25 @@ jobs:
           script: |
             set -e
             cd /var/www/frontend_axenta
+            
+            echo "🔧 Starting deployment process..."
+            echo "📍 Current directory: $(pwd)"
+            
+            # Обновляем код
+            echo "📥 Fetching latest changes..."
             git fetch --all --prune
             git pull origin main
+            
+            # Устанавливаем зависимости
+            echo "📦 Installing dependencies..."
             npm install
+            
+            # Собираем проект
+            echo "🏗️ Building project..."
             npm run build
+            
+            # Перезагружаем nginx
+            echo "🔄 Reloading nginx..."
             sudo systemctl reload nginx
+            
+            echo "🎉 Deployment completed successfully!"

@@ -46,7 +46,7 @@ jobs:
           fi
 
       - name: Deploy via SSH
-        if: steps.check-deploy.outputs.should_deploy == 'true'
+        if: steps.check-deploy.outputs.should_deploy == 'true' && secrets.HOST != '' && secrets.USERNAME != '' && secrets.PRIVATE_KEY != ''
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
