@@ -19,6 +19,7 @@
     "@mdi/font": "^7.4.47",
     "@types/lodash-es": "^4.17.12",
     "axios": "^1.11.0",
+    "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
     "lodash-es": "^4.17.21",
     "pinia": "^3.0.3",

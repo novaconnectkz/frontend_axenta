@@ -184,6 +184,7 @@
 
 <script setup lang="ts">
 import { performanceService } from '@/services/performanceService'
+import { cacheService } from '@/services/cacheService'
 import type {
     AuditFilters,
     AuditLog,
@@ -197,7 +198,7 @@ import type {
     SystemInfo,
     TableStats
 } from '@/types/performance'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, onUnmounted, reactive, ref } from 'vue'
 
 // Импорт компонентов
 import AuditLogs from '@/components/Performance/AuditLogs.vue'
@@ -216,7 +217,7 @@ const showOptimizationDialog = ref(false)
 // Данные системы
 const systemInfo = ref<SystemInfo>(performanceService.getMockSystemInfo())
 const systemHealth = ref<SystemHealth>(performanceService.getMockSystemHealth())
-const cacheMetrics = ref<CacheMetrics>(performanceService.getMockCacheMetrics())
+const cacheMetrics = ref<CacheMetrics>({} as CacheMetrics)
 const cacheStats = ref<any>({})
 const securityAlerts = ref<SecurityAlert[]>(performanceService.getMockSecurityAlerts())
 const auditLogs = ref<AuditLog[]>(performanceService.getMockAuditLogs())
@@ -225,6 +226,9 @@ const databaseIndexes = ref<Record<string, DatabaseIndex[]> | DatabaseIndex[]>(p
 const indexUsage = ref<IndexUsage[]>(performanceService.getMockIndexUsage())
 const tableStats = ref<TableStats[]>(performanceService.getMockTableStats())
 const rateLimitInfo = ref<RateLimitInfo>(performanceService.getMockRateLimitInfo())
+
+// Подписка на обновления кэша
+let unsubscribeFromCache: (() => void) | null = null
 
 // Фильтры аудита
 const auditFilters = reactive<AuditFilters>({
@@ -281,16 +285,19 @@ const showSnackbar = (message: string, color: string = 'success') => {
 const refreshData = async () => {
   loading.value = true
   try {
-    // В реальном приложении здесь будут API вызовы
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Обновляем все данные параллельно
+    await Promise.all([
+      refreshCacheData(),
+      refreshSecurityData(),
+      refreshDatabaseData(),
+      refreshAuditData()
+    ])
     
-    // Обновляем демо данные
+    // Обновляем системную информацию
     systemInfo.value = performanceService.getMockSystemInfo()
     systemHealth.value = performanceService.getMockSystemHealth()
-    cacheMetrics.value = performanceService.getMockCacheMetrics()
-    securityAlerts.value = performanceService.getMockSecurityAlerts()
     
-    showSnackbar('Данные обновлены')
+    showSnackbar('Все данные обновлены')
   } catch (error) {
     showSnackbar('Ошибка при обновлении данных', 'error')
   } finally {
@@ -312,7 +319,8 @@ const optimizeSystem = async () => {
 
 const refreshCacheData = async () => {
   try {
-    cacheMetrics.value = performanceService.getMockCacheMetrics()
+    cacheMetrics.value = await cacheService.getCacheMetrics()
+    cacheStats.value = await cacheService.getCacheStats()
     showSnackbar('Данные кэша обновлены')
   } catch (error) {
     showSnackbar('Ошибка при обновлении данных кэша', 'error')
@@ -321,8 +329,13 @@ const refreshCacheData = async () => {
 
 const warmupCache = async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    showSnackbar('Кэш прогрет')
+    const result = await cacheService.warmupCache()
+    if (result.success) {
+      showSnackbar(result.message)
+      await refreshCacheData()
+    } else {
+      showSnackbar(result.message, 'error')
+    }
   } catch (error) {
     showSnackbar('Ошибка при прогреве кэша', 'error')
   }
@@ -330,11 +343,13 @@ const warmupCache = async () => {
 
 const clearCache = async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-    cacheMetrics.value.key_count = 0
-    cacheMetrics.value.hit_count = 0
-    cacheMetrics.value.miss_count = 0
-    showSnackbar('Кэш очищен')
+    const result = await cacheService.clearCache()
+    if (result.success) {
+      showSnackbar(result.message)
+      await refreshCacheData()
+    } else {
+      showSnackbar(result.message, 'error')
+    }
   } catch (error) {
     showSnackbar('Ошибка при очистке кэша', 'error')
   }
@@ -436,8 +451,25 @@ const applyOptimization = async (recommendationId: string) => {
 }
 
 // Инициализация
-onMounted(() => {
+onMounted(async () => {
+  // Загружаем начальные данные кэша
+  cacheMetrics.value = await cacheService.getCacheMetrics()
+  cacheStats.value = await cacheService.getCacheStats()
+  
+  // Подписываемся на обновления кэша в реальном времени
+  unsubscribeFromCache = cacheService.subscribeToMetrics((metrics) => {
+    cacheMetrics.value = metrics
+  })
+  
+  // Загружаем остальные данные
   refreshData()
+})
+
+// Очистка при размонтировании
+onUnmounted(() => {
+  if (unsubscribeFromCache) {
+    unsubscribeFromCache()
+  }
 })
 </script>
 

@@ -163,7 +163,16 @@ const routes = [
         },
       },
 
-
+      // Демо интерфейса кэша
+      {
+        path: "cache-demo",
+        name: "CacheDemo",
+        component: () => import("@/views/CacheDemo.vue"),
+        meta: {
+          title: "Демо кэша",
+          requiresAuth: true,
+        },
+      },
 
       // Профиль пользователя
       {

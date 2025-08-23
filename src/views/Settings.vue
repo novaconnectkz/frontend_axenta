@@ -307,7 +307,7 @@ const saveAllSettings = async () => {
 const exportSettings = async () => {
   exporting.value = true;
   try {
-    const blob = await settingsService.exportSettings();
+    const blob = await withTimeout(settingsService.exportSettings(), 5000);
     
     // Создаем ссылку для скачивания
     const url = URL.createObjectURL(blob);
@@ -336,10 +336,12 @@ const importSettings = async (event: Event) => {
   
   importing.value = true;
   try {
-    const result = await settingsService.importSettings(file);
+    const result = await withTimeout(settingsService.importSettings(file), 10000);
     
     if (result.success) {
       showSnackbar(`Импортировано ${result.imported_count} настроек`, 'success');
+      // Перезагружаем статистику с таймаутом
+      await withTimeout(loadStats(), 5000);
     } else {
       showSnackbar(result.message, 'error');
     }
@@ -353,13 +355,23 @@ const importSettings = async (event: Event) => {
   }
 };
 
+// Утилита для создания промиса с таймаутом
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => 
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+    )
+  ]);
+};
+
 const loadStats = async () => {
   try {
-    // Загружаем статистику для бейджей
+    // Загружаем статистику для бейджей с таймаутом
     const [integrations, notifications, templates] = await Promise.all([
-      settingsService.getIntegrations(),
-      settingsService.getNotificationChannels(),
-      settingsService.getTemplates()
+      withTimeout(settingsService.getIntegrations(), 3000),
+      withTimeout(settingsService.getNotificationChannels(), 3000),
+      withTimeout(settingsService.getTemplates(), 3000)
     ]);
     
     stats.value = {
@@ -380,6 +392,12 @@ const loadStats = async () => {
     };
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error);
+    // Устанавливаем значения по умолчанию при ошибке или таймауте
+    stats.value = {
+      integrations: { total: 0, active: 0, errors: 0 },
+      notifications: { total: 0, enabled: 0 },
+      templates: { total: 0, system: 0, custom: 0 }
+    };
   }
 };
 

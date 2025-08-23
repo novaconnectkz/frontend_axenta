@@ -4,7 +4,7 @@
     <div class="metrics-grid">
       <MetricCard
         title="Hit Rate кэша"
-        :value="formatPercentage(cacheMetrics.hit_rate)"
+        :value="formatPercentage(safeCacheMetrics.hit_rate)"
         :change="12.5"
         icon="mdi-memory"
         color="success"
@@ -13,7 +13,7 @@
       
       <MetricCard
         title="Ключей в кэше"
-        :value="cacheMetrics.key_count.toLocaleString()"
+        :value="safeCacheMetrics.key_count.toLocaleString()"
         :change="-5.2"
         icon="mdi-key"
         color="info"
@@ -22,7 +22,7 @@
       
       <MetricCard
         title="Использование памяти"
-        :value="cacheMetrics.memory_usage"
+        :value="safeCacheMetrics.memory_usage"
         :change="8.1"
         icon="mdi-chip"
         color="warning"
@@ -257,7 +257,7 @@
 <script setup lang="ts">
 import type { CacheMetrics, SecurityAlert, SystemInfo } from '@/types/performance'
 import Chart from 'chart.js/auto'
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import MetricCard from './MetricCard.vue'
 
 // Props
@@ -282,8 +282,21 @@ const emit = defineEmits<{
 const cacheChart = ref<HTMLCanvasElement>()
 const activityChart = ref<HTMLCanvasElement>()
 
+// Безопасные метрики кэша с значениями по умолчанию
+const safeCacheMetrics = computed(() => ({
+  hit_count: props.cacheMetrics?.hit_count ?? 0,
+  miss_count: props.cacheMetrics?.miss_count ?? 0,
+  hit_rate: props.cacheMetrics?.hit_rate ?? 0,
+  key_count: props.cacheMetrics?.key_count ?? 0,
+  memory_usage: props.cacheMetrics?.memory_usage ?? '0.0 MB',
+  status: props.cacheMetrics?.status ?? 'disabled'
+}))
+
 // Методы форматирования
-const formatPercentage = (value: number): string => {
+const formatPercentage = (value: number | undefined): string => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return '0.0%'
+  }
   return `${value.toFixed(1)}%`
 }
 
