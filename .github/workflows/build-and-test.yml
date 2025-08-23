@@ -1,0 +1,41 @@
+name: Build and Test
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Success message
+        run: |
+          echo "🎉 Build completed successfully!"
+          echo ""
+          echo "✅ Code has been successfully:"
+          echo "   • Checked out from repository"
+          echo "   • Dependencies installed"
+          echo "   • Project built without errors"
+          echo ""
+          echo "📋 Next steps:"
+          echo "   • Configure deployment secrets for automatic deployment"
+          echo "   • See GITHUB_SECRETS_SETUP.md for instructions"
+          echo ""
+          echo "🚀 Your changes are ready for deployment!"

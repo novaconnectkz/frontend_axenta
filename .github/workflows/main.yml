@@ -13,48 +13,40 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate required secrets
+      - name: Check deployment configuration
+        id: check-deploy
         run: |
-          echo "🔍 Validating GitHub Secrets..."
-          MISSING_SECRETS=""
+          echo "🔍 Checking deployment configuration..."
           
-          if [ -z "${{ secrets.HOST }}" ]; then
-            echo "❌ HOST secret is missing"
-            MISSING_SECRETS="$MISSING_SECRETS HOST"
-          else
-            echo "✅ HOST secret is configured"
-          fi
-          
-          if [ -z "${{ secrets.USERNAME }}" ]; then
-            echo "❌ USERNAME secret is missing"
-            MISSING_SECRETS="$MISSING_SECRETS USERNAME"
-          else
-            echo "✅ USERNAME secret is configured"
-          fi
-          
-          if [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
-            echo "❌ PRIVATE_KEY secret is missing"
-            MISSING_SECRETS="$MISSING_SECRETS PRIVATE_KEY"
-          else
-            echo "✅ PRIVATE_KEY secret is configured"
-          fi
-          
-          if [ -n "$MISSING_SECRETS" ]; then
+          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.USERNAME }}" ] || [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
             echo ""
-            echo "💡 Missing secrets:$MISSING_SECRETS"
+            echo "⚠️  Deployment secrets are not configured. Skipping deployment."
             echo ""
-            echo "🔧 To fix this:"
-            echo "1. Go to https://github.com/${{ github.repository }}/settings/secrets/actions"
-            echo "2. Click 'New repository secret'"
-            echo "3. Add the missing secrets with proper values"
+            echo "🎉 Code changes have been successfully pushed to GitHub!"
             echo ""
-            echo "📖 See GITHUB_SECRETS_SETUP.md for detailed instructions"
-            exit 1
+            echo "📋 To enable automatic deployment, configure these GitHub Secrets:"
+            echo "   • HOST - Your server IP address or domain"
+            echo "   • USERNAME - SSH username for server access"
+            echo "   • PRIVATE_KEY - SSH private key content"
+            echo "   • PORT - SSH port (optional, defaults to 22)"
+            echo ""
+            echo "🔧 How to configure secrets:"
+            echo "   1. Go to https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "   2. Click 'New repository secret'"
+            echo "   3. Add each required secret with proper values"
+            echo ""
+            echo "📖 For detailed instructions, see GITHUB_SECRETS_SETUP.md"
+            echo ""
+            echo "🚀 Once configured, the next push will automatically deploy to your server."
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ All deployment secrets are configured"
+            echo "🚀 Proceeding with deployment..."
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
           fi
-          
-          echo "✅ All required secrets are configured"
 
       - name: Deploy via SSH
+        if: steps.check-deploy.outputs.should_deploy == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}

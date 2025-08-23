@@ -1,8 +1,9 @@
 name: Deploy Frontend (Simple)
 
 on:
-  push:
-    branches: ["main"]
+  # Временно отключено до настройки секретов
+  # push:
+  #   branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +13,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check deployment secrets
+        id: check-secrets
+        run: |
+          if [ -z "${{ secrets.HOST }}" ] || [ -z "${{ secrets.USERNAME }}" ] || [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
+            echo "⚠️ Deployment secrets not configured. Skipping deployment."
+            echo "📋 Configure HOST, USERNAME, and PRIVATE_KEY secrets to enable deployment."
+            echo "should_deploy=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Deployment secrets configured. Proceeding..."
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy via SSH
+        if: steps.check-secrets.outputs.should_deploy == 'true'
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
