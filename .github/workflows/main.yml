@@ -1,8 +1,9 @@
 name: Deploy Frontend
 
 on:
-  push:
-    branches: ["main"]
+  # Временно отключено до настройки GitHub Secrets
+  # push:
+  #   branches: ["main"]
   workflow_dispatch:
 
 jobs:
