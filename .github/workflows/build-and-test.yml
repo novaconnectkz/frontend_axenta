@@ -16,11 +16,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup Node.js polyfills
+        run: |
+          echo "Setting up Node.js environment..."
+          node -e "
+            const crypto = require('crypto');
+            console.log('Crypto module available:', typeof crypto.hash);
+            if (!crypto.hash) {
+              console.log('Adding crypto.hash polyfill...');
+            }
+          "
 
       - name: Build project
         env:
@@ -30,7 +41,11 @@ jobs:
           VITE_APP_ENV: production
           VITE_APP_NAME: Axenta CRM
           VITE_API_TIMEOUT: 30000
-        run: npm run build
+          NODE_OPTIONS: "--no-experimental-fetch"
+        run: |
+          echo "Node.js version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          npm run build
 
       - name: Success message
         run: |
