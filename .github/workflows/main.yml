@@ -12,6 +12,47 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate required secrets
+        run: |
+          echo "🔍 Validating GitHub Secrets..."
+          MISSING_SECRETS=""
+          
+          if [ -z "${{ secrets.HOST }}" ]; then
+            echo "❌ HOST secret is missing"
+            MISSING_SECRETS="$MISSING_SECRETS HOST"
+          else
+            echo "✅ HOST secret is configured"
+          fi
+          
+          if [ -z "${{ secrets.USERNAME }}" ]; then
+            echo "❌ USERNAME secret is missing"
+            MISSING_SECRETS="$MISSING_SECRETS USERNAME"
+          else
+            echo "✅ USERNAME secret is configured"
+          fi
+          
+          if [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
+            echo "❌ PRIVATE_KEY secret is missing"
+            MISSING_SECRETS="$MISSING_SECRETS PRIVATE_KEY"
+          else
+            echo "✅ PRIVATE_KEY secret is configured"
+          fi
+          
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo ""
+            echo "💡 Missing secrets:$MISSING_SECRETS"
+            echo ""
+            echo "🔧 To fix this:"
+            echo "1. Go to https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "2. Click 'New repository secret'"
+            echo "3. Add the missing secrets with proper values"
+            echo ""
+            echo "📖 See GITHUB_SECRETS_SETUP.md for detailed instructions"
+            exit 1
+          fi
+          
+          echo "✅ All required secrets are configured"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
