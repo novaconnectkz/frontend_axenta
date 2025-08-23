@@ -1,7 +1,6 @@
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
 import { defineConfig, loadEnv } from "vite";
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,16 +9,6 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       vue(),
-      nodePolyfills({
-        // Включаем необходимые полифиллы
-        include: ['crypto', 'stream', 'util', 'buffer', 'process'],
-        globals: {
-          Buffer: true,
-          global: true,
-          process: true,
-        },
-        protocolImports: true,
-      }),
       {
         name: "html-transform",
         transformIndexHtml(html) {
@@ -44,8 +33,6 @@ export default defineConfig(({ mode }) => {
         "@": resolve(__dirname, "src"),
       },
     },
-
-
 
     // Настройки для SPA
     build: {
@@ -110,12 +97,6 @@ export default defineConfig(({ mode }) => {
       },
     },
 
-    // Оптимизации
-    optimizeDeps: {
-      include: ["vue", "vue-router", "pinia", "vuetify", "axios"],
-      exclude: ["@vitejs/client"],
-    },
-
     // CSS настройки
     css: {
       devSourcemap: mode === "development",
@@ -133,13 +114,29 @@ export default defineConfig(({ mode }) => {
       __VUE_OPTIONS_API__: true,
       __VUE_PROD_DEVTOOLS__: mode === "development",
       // Node.js полифиллы для браузера
-      global: 'globalThis',
+      global: "globalThis",
       // Определяем переменные окружения с дефолтными значениями
-      'process.env.VITE_BACKEND_URL': JSON.stringify(env.VITE_BACKEND_URL || 'https://api.axenta.cloud'),
-      'process.env.VITE_WS_BASE_URL': JSON.stringify(env.VITE_WS_BASE_URL || 'wss://api.axenta.cloud'),
-      'process.env.VITE_API_VERSION': JSON.stringify(env.VITE_API_VERSION || 'v1'),
-      'process.env.VITE_APP_ENV': JSON.stringify(env.VITE_APP_ENV || 'production'),
-      'process.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME || 'Axenta CRM'),
+      "process.env.VITE_BACKEND_URL": JSON.stringify(
+        env.VITE_BACKEND_URL || "https://api.axenta.cloud"
+      ),
+      "process.env.VITE_WS_BASE_URL": JSON.stringify(
+        env.VITE_WS_BASE_URL || "wss://api.axenta.cloud"
+      ),
+      "process.env.VITE_API_VERSION": JSON.stringify(
+        env.VITE_API_VERSION || "v1"
+      ),
+      "process.env.VITE_APP_ENV": JSON.stringify(
+        env.VITE_APP_ENV || "production"
+      ),
+      "process.env.VITE_APP_NAME": JSON.stringify(
+        env.VITE_APP_NAME || "Axenta CRM"
+      ),
+    },
+
+    // Настройки для совместимости с Node.js модулями
+    optimizeDeps: {
+      include: ["vue", "vue-router", "pinia", "vuetify", "axios"],
+      exclude: ["@vitejs/client"],
     },
 
     // Настройки для тестов
