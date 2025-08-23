@@ -31,8 +31,51 @@ jobs:
           script: |
             set -e
             cd "${{ secrets.REPO_PATH }}"
+            
+            echo "🔧 Starting deployment process..."
+            echo "📍 Current directory: $(pwd)"
+            echo "📍 Current branch: $(git branch --show-current)"
+            echo "📍 Current commit: $(git rev-parse --short HEAD)"
+            
+            # Настраиваем Git для избежания проблем с divergent branches
+            echo "⚙️ Configuring Git..."
+            git config pull.rebase false
+            git config --global --add safe.directory $(pwd)
+            
+            # Загружаем все изменения
+            echo "📥 Fetching changes..."
             git fetch --all --prune
-            git pull origin "${{ secrets.BRANCH || 'main' }}"
+            
+            # Проверяем, есть ли расходящиеся ветки
+            LOCAL=$(git rev-parse HEAD)
+            REMOTE=$(git rev-parse origin/${{ secrets.BRANCH || 'main' }})
+            
+            if [ "$LOCAL" != "$REMOTE" ]; then
+              echo "⚠️ Local and remote branches are different"
+              echo "Local:  $LOCAL"
+              echo "Remote: $REMOTE"
+              echo "🔄 Performing hard reset to origin/${{ secrets.BRANCH || 'main' }}..."
+              git reset --hard origin/${{ secrets.BRANCH || 'main' }}
+              echo "✅ Repository updated to latest version"
+            else
+              echo "✅ Repository is already up to date"
+              git pull origin "${{ secrets.BRANCH || 'main' }}" || git reset --hard origin/${{ secrets.BRANCH || 'main' }}
+            fi
+            
+            # Показываем текущее состояние
+            echo "📍 Updated to commit: $(git rev-parse --short HEAD)"
+            echo "📍 Commit message: $(git log -1 --pretty=%B)"
+            
+            # Устанавливаем зависимости
+            echo "📦 Installing dependencies..."
             /usr/bin/npm install
+            
+            # Собираем проект
+            echo "🏗️ Building project..."
             /usr/bin/npm run build
+            
+            # Перезагружаем nginx
+            echo "🔄 Reloading nginx..."
             sudo systemctl reload nginx
+            
+            echo "🎉 Deployment completed successfully!"
