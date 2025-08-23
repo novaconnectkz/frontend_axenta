@@ -128,6 +128,11 @@
             <div v-if="activeTab === 'security'">
               <SecuritySettings />
             </div>
+
+            <!-- Производительность -->
+            <div v-if="activeTab === 'performance'">
+              <PerformanceSettings />
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -176,6 +181,7 @@ import { computed, onMounted, ref } from 'vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';
+import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
 import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
@@ -260,6 +266,12 @@ const tabs = computed(() => [
     title: 'Безопасность',
     subtitle: 'Доступ и права',
     icon: 'mdi-shield-check'
+  },
+  {
+    value: 'performance',
+    title: 'Производительность',
+    subtitle: 'Оптимизация и безопасность',
+    icon: 'mdi-speedometer'
   }
 ]);
 

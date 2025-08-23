@@ -9,7 +9,6 @@ import {
 // Импорт компонентов
 import DiagnosticLogin from "../views/DiagnosticLogin.vue";
 import LoginPageFixed from "../views/LoginPageFixed.vue";
-import Performance from "../views/PerformanceWorking.vue";
 import SimpleDashboard from "../views/SimpleDashboard.vue";
 import SimpleLogin from "../views/SimpleLogin.vue";
 
@@ -164,17 +163,7 @@ const routes = [
         },
       },
 
-      // Производительность и безопасность
-      {
-        path: "performance",
-        name: "Performance",
-        component: Performance,
-        meta: {
-          title: "Производительность и Безопасность",
-          requiresAuth: true,
-          // permissions: ["admin.performance"], // Только для администраторов
-        },
-      },
+
 
       // Профиль пользователя
       {
