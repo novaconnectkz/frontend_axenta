@@ -1,6 +1,7 @@
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
 import { defineConfig, loadEnv } from "vite";
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -9,6 +10,16 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       vue(),
+      nodePolyfills({
+        // Включаем необходимые полифиллы
+        include: ['crypto', 'stream', 'util', 'buffer', 'process'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+        protocolImports: true,
+      }),
       {
         name: "html-transform",
         transformIndexHtml(html) {
@@ -16,15 +27,15 @@ export default defineConfig(({ mode }) => {
           return html
             .replace(
               "%VITE_BACKEND_URL%",
-              env.VITE_BACKEND_URL || "http://localhost:8080"
+              env.VITE_BACKEND_URL || "https://api.axenta.cloud"
             )
             .replace(
               "%VITE_WS_BASE_URL%",
-              env.VITE_WS_BASE_URL || "ws://localhost:8080"
+              env.VITE_WS_BASE_URL || "wss://api.axenta.cloud"
             )
-            .replace("%VITE_APP_NAME%", env.VITE_APP_NAME || "CRM")
+            .replace("%VITE_APP_NAME%", env.VITE_APP_NAME || "Axenta CRM")
             .replace("%VITE_API_VERSION%", env.VITE_API_VERSION || "v1")
-            .replace("%VITE_APP_ENV%", env.VITE_APP_ENV || "development");
+            .replace("%VITE_APP_ENV%", env.VITE_APP_ENV || "production");
         },
       },
     ],
