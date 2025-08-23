@@ -1,0 +1,50 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          set -e
+          cd "***"
+          
+          # Настраиваем Git для избежания проблем с divergent branches
+          git config pull.rebase false
+          
+          # Загружаем все изменения
+          git fetch --all --prune
+          
+          # Проверяем, есть ли расходящиеся ветки
+          if ! git merge-base --is-ancestor HEAD origin/main && ! git merge-base --is-ancestor origin/main HEAD; then
+            echo "Divergent branches detected, performing hard reset..."
+            git reset --hard origin/main
+          else
+            # Обычное обновление
+            git pull origin main
+          fi
+          
+          # Устанавливаем зависимости
+          npm install
+          
+          # Собираем проект
+          npm run build
+          
+          # Перезагружаем nginx
+          sudo systemctl reload nginx
+          
+          echo "✅ Deployment completed successfully!"
+          echo "Current commit: $(git rev-parse --short HEAD)"
+          echo "Commit message: $(git log -1 --pretty=%B)"
