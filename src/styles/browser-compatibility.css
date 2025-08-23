@@ -316,19 +316,31 @@ select {
    MOBILE SPECIFIC
    =========================================== */
 
-/* iOS specific */
+/* iOS specific - только для мобильных устройств */
 @supports (-webkit-touch-callout: none) {
-  /* Убираем bounce scroll на iOS */
-  body {
-    position: fixed;
-    overflow: hidden;
-    width: 100%;
-    height: 100%;
+  /* Убираем bounce scroll на iOS только на мобильных */
+  @media (max-width: 768px) and (hover: none) and (pointer: coarse) {
+    body {
+      position: fixed;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    
+    .v-application {
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
   }
   
-  .v-application {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+  /* Для десктопных Safari - оставляем нормальную прокрутку */
+  @media (min-width: 769px) {
+    body {
+      position: static;
+      overflow: visible;
+      width: auto;
+      height: auto;
+    }
   }
   
   /* Фикс для iOS input zoom */

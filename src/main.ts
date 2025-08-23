@@ -10,6 +10,7 @@ import { aliases, mdi } from "vuetify/iconsets/mdi";
 // Apple Design System
 import "./styles/apple-design-system.css";
 import "./styles/browser-compatibility.css";
+import "./styles/scroll-fixes.css"; // Исправления прокрутки для продакшена
 import appleTheme from "./styles/vuetify-apple-theme";
 
 import App from "./App.vue";
@@ -83,6 +84,33 @@ initDemoMode();
 if (!document.body.hasAttribute("data-theme")) {
   document.body.setAttribute("data-theme", "light");
 }
+
+// Принудительно исправляем прокрутку для продакшена
+const forceScrollFix = () => {
+  console.log('🔧 Applying scroll fixes for production...');
+  
+  // Добавляем классы для принудительного исправления прокрутки
+  document.documentElement.classList.add('force-scroll-fix');
+  document.body.classList.add('force-scroll-fix');
+  
+  // Убеждаемся, что основные элементы имеют правильные стили прокрутки
+  const elementsToFix = ['html', 'body', '#app', '.v-application'];
+  
+  elementsToFix.forEach(selector => {
+    const element = document.querySelector(selector);
+    if (element) {
+      (element as HTMLElement).style.overflowY = 'auto';
+      (element as HTMLElement).style.overflowX = 'hidden';
+      (element as HTMLElement).style.height = 'auto';
+      (element as HTMLElement).style.minHeight = '100vh';
+    }
+  });
+  
+  console.log('✅ Scroll fixes applied');
+};
+
+// Применяем исправления прокрутки
+forceScrollFix();
 
 // Монтируем приложение
 const mountedApp = app.mount("#app");

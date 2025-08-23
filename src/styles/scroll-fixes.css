@@ -1,0 +1,155 @@
+/* 📜 Исправления прокрутки для продакшена */
+
+/* ===========================================
+   ГЛОБАЛЬНЫЕ ИСПРАВЛЕНИЯ ПРОКРУТКИ
+   =========================================== */
+
+/* Обеспечиваем правильную прокрутку для всех элементов */
+html {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  height: 100% !important;
+}
+
+body {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  min-height: 100vh !important;
+  /* НЕ устанавливаем height: 100vh или overflow: hidden */
+}
+
+#app {
+  overflow: visible !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+}
+
+/* ===========================================
+   VUETIFY ИСПРАВЛЕНИЯ
+   =========================================== */
+
+/* Исправляем прокрутку в Vuetify приложении */
+.v-application {
+  overflow: visible !important;
+  min-height: 100vh !important;
+}
+
+.v-application .v-main {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  min-height: 100vh !important;
+}
+
+.v-main__wrap {
+  overflow: visible !important;
+  min-height: calc(100vh - 64px) !important; /* Учитываем высоту header */
+}
+
+/* Исправляем контейнеры */
+.v-container {
+  overflow: visible !important;
+}
+
+/* ===========================================
+   НАВИГАЦИЯ И LAYOUT
+   =========================================== */
+
+/* Боковая панель не должна блокировать прокрутку основного контента */
+.v-navigation-drawer {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* Верхняя панель */
+.v-app-bar {
+  position: fixed !important;
+  z-index: 1000 !important;
+}
+
+/* ===========================================
+   МОБИЛЬНЫЕ УСТРОЙСТВА
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* На мобильных убираем все ограничения прокрутки */
+  html, body, #app, .v-application, .v-main {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Убираем фиксированное позиционирование на мобильных */
+  body {
+    position: static !important;
+  }
+}
+
+/* ===========================================
+   ДЕСКТОП (ПРОДАКШЕН)
+   =========================================== */
+
+@media (min-width: 769px) {
+  /* На десктопе обеспечиваем нормальную прокрутку */
+  html, body {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    position: static !important;
+  }
+  
+  #app, .v-application {
+    overflow: visible !important;
+    position: relative !important;
+  }
+  
+  .v-main {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    position: relative !important;
+  }
+}
+
+/* ===========================================
+   СПЕЦИАЛЬНЫЕ ИСПРАВЛЕНИЯ ДЛЯ SAFARI
+   =========================================== */
+
+/* Safari на macOS */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+  body {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ===========================================
+   ОТЛАДКА (можно убрать в продакшене)
+   =========================================== */
+
+/* Временные стили для отладки прокрутки */
+.debug-scroll {
+  border: 2px solid red !important;
+  overflow: visible !important;
+}
+
+/* ===========================================
+   ПРИНУДИТЕЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+/* Если ничего не помогает - принудительные стили */
+.force-scroll {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: auto !important;
+  min-height: 100vh !important;
+}
+
+/* Применяем принудительные стили к основным контейнерам */
+html.force-scroll-fix,
+body.force-scroll-fix,
+#app.force-scroll-fix,
+.v-application.force-scroll-fix {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: auto !important;
+  min-height: 100vh !important;
+  position: static !important;
+}

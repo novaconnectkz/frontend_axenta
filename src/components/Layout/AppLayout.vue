@@ -1052,9 +1052,18 @@ onMounted(() => {
 }
 
 .app-main {
-  background: linear-gradient(135deg,
-      rgba(var(--v-theme-surface), 1) 0%,
-      rgba(var(--v-theme-background), 1) 100%);
+  background: var(--bg-secondary);
+  min-height: 100vh;
+  /* ИСПРАВЛЕНО: Обеспечиваем правильную прокрутку */
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
+  width: 100%;
+}
+
+/* Исправляем проблемы с фоном в темной теме */
+[data-theme="dark"] .app-main {
+  background: var(--apple-bg-secondary-dark);
 }
 
 .main-content {

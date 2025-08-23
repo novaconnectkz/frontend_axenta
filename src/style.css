@@ -1,79 +1,91 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+/* 🍎 Базовые стили для Vue приложения - совместимые с Apple Design System */
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+/* Убираем конфликтующие стили Vite и обеспечиваем правильную прокрутку */
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Сброс стилей для корректной работы прокрутки */
+* {
+  box-sizing: border-box;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+html {
+  height: 100%;
+  overflow-x: hidden; /* Убираем горизонтальную прокрутку */
+  overflow-y: auto;   /* Разрешаем вертикальную прокрутку */
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+  width: 100%;
   min-height: 100vh;
+  /* ВАЖНО: НЕ устанавливаем height: 100vh или overflow: hidden */
+  overflow-x: hidden; /* Убираем горизонтальную прокрутку */
+  overflow-y: auto;   /* Разрешаем вертикальную прокрутку */
+  
+  /* Стили будут переопределены Apple Design System */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-.card {
-  padding: 2em;
-}
-
+/* Убираем стандартные стили Vite для #app */
 #app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  /* Убираем ограничения по ширине и центрирование */
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  min-height: 100vh;
+  /* ВАЖНО: НЕ устанавливаем overflow: hidden */
+  overflow: visible;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+/* Базовые стили для ссылок - совместимые с Apple Design System */
+a {
+  color: var(--apple-blue, #007AFF);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--apple-blue-light, #4DA6FF);
+}
+
+/* Убираем стили кнопок по умолчанию - используем Apple Design System */
+button {
+  /* Сбрасываем стили, чтобы Apple Design System мог их переопределить */
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Темная тема для ссылок */
+[data-theme="dark"] a {
+  color: var(--apple-blue-light, #4DA6FF);
+}
+
+[data-theme="dark"] a:hover {
+  color: var(--apple-blue, #007AFF);
+}
+
+/* Обеспечиваем правильную прокрутку для всех устройств */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    overflow-y: auto;
   }
-  a:hover {
-    color: #747bff;
+  
+  #app {
+    overflow: visible;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+/* Специальные стили для продакшена */
+@media (min-width: 769px) {
+  html, body {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  
+  #app {
+    overflow: visible;
   }
 }
