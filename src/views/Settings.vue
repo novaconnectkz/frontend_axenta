@@ -542,11 +542,13 @@ const loadStats = async () => {
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error);
     // Устанавливаем значения по умолчанию при ошибке или таймауте
+    // Сохраняем существующую статистику документации
+    const currentDocStats = stats.value.documentation;
     stats.value = {
       integrations: { total: 0, active: 0, errors: 0 },
       notifications: { total: 0, enabled: 0 },
       templates: { total: 0, system: 0, custom: 0 },
-      documentation: {
+      documentation: currentDocStats || {
         apiEndpoints: { total: 0, documented: 0 },
         userDocs: { total: 0, published: 0 },
         deployments: { total: 0, successful: 0 }
@@ -559,6 +561,12 @@ const loadStats = async () => {
 const loadDocumentationStats = async () => {
   try {
     documentationStats.value = await documentationService.getDocumentationStats();
+    // Обновляем статистику в общем объекте stats
+    stats.value.documentation = {
+      apiEndpoints: documentationStats.value.apiEndpoints,
+      userDocs: documentationStats.value.userDocs,
+      deployments: documentationStats.value.deployments
+    };
   } catch (error) {
     console.error('Ошибка загрузки статистики документации:', error);
   }
@@ -696,9 +704,10 @@ const handleRunPipeline = async (pipelineId: string) => {
 };
 
 // Lifecycle
-onMounted(() => {
-  loadStats();
-  loadDocumentationStats();
+onMounted(async () => {
+  // Сначала загружаем статистику документации, затем общую статистику
+  await loadDocumentationStats();
+  await loadStats();
 });
 
 // Загружаем данные документации при переключении на вкладку
