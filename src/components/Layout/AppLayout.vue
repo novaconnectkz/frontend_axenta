@@ -29,11 +29,9 @@
             </template>
           </v-tooltip>
 
-          <v-list-item v-else 
-            :to="item.path === '/installations' ? undefined : item.path" 
-            :prepend-icon="item.icon" :title="item.title" :subtitle="item.subtitle"
-            class="apple-nav-item nav-item" :class="{ 'active': $route.path === item.path }" exact
-            @click="handleNavClick(item.path, item.title)">
+          <v-list-item v-else :to="item.path === '/installations' ? undefined : item.path" :prepend-icon="item.icon"
+            :title="item.title" :subtitle="item.subtitle" class="apple-nav-item nav-item"
+            :class="{ 'active': $route.path === item.path }" exact @click="handleNavClick(item.path, item.title)">
             <template v-if="item.badge && item.badge > 0" #append>
               <v-badge :content="item.badge" color="error" inline />
             </template>
@@ -442,7 +440,7 @@ const handleRailNavClick = (path: string) => {
 
 const handleNavClick = (path: string, title: string) => {
   console.log('🔄 Navigation click:', { path, title, currentPath: route.path });
-  
+
   // Для installations используем принудительную навигацию
   if (path === '/installations') {
     console.log('🔄 Clicking on Installations menu item');
@@ -452,7 +450,7 @@ const handleNavClick = (path: string, title: string) => {
     });
     return; // Предотвращаем дальнейшую обработку
   }
-  
+
   // Для других маршрутов, если нет :to атрибута, используем программную навигацию
   if (!route.path.startsWith(path)) {
     router.push(path).catch(err => {

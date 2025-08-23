@@ -4,108 +4,108 @@ import { defineConfig, loadEnv } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  
+  const env = loadEnv(mode, process.cwd(), "");
+
   return {
     plugins: [
       vue(),
       {
-        name: 'html-transform',
+        name: "html-transform",
         transformIndexHtml(html) {
           // Заменяем все переменные окружения в HTML
           return html
-            .replace('%VITE_BACKEND_URL%', env.VITE_BACKEND_URL || 'http://localhost:8080')
-            .replace('%VITE_WS_BASE_URL%', env.VITE_WS_BASE_URL || 'ws://localhost:8080')
-            .replace('%VITE_APP_NAME%', env.VITE_APP_NAME || 'CRM')
-            .replace('%VITE_API_VERSION%', env.VITE_API_VERSION || 'v1')
-            .replace('%VITE_APP_ENV%', env.VITE_APP_ENV || 'development');
-        }
-      }
+            .replace(
+              "%VITE_BACKEND_URL%",
+              env.VITE_BACKEND_URL || "http://localhost:8080"
+            )
+            .replace(
+              "%VITE_WS_BASE_URL%",
+              env.VITE_WS_BASE_URL || "ws://localhost:8080"
+            )
+            .replace("%VITE_APP_NAME%", env.VITE_APP_NAME || "CRM")
+            .replace("%VITE_API_VERSION%", env.VITE_API_VERSION || "v1")
+            .replace("%VITE_APP_ENV%", env.VITE_APP_ENV || "development");
+        },
+      },
     ],
     resolve: {
       alias: {
         "@": resolve(__dirname, "src"),
       },
     },
-    
+
     // Настройки для SPA
     build: {
-      target: 'es2015',
-      outDir: 'dist',
-      assetsDir: 'assets',
-      sourcemap: mode === 'development',
-      minify: mode === 'production' ? 'esbuild' : false,
+      target: "es2015",
+      outDir: "dist",
+      assetsDir: "assets",
+      sourcemap: mode === "development",
+      minify: mode === "production" ? "esbuild" : false,
       rollupOptions: {
         output: {
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: 'assets/[name]-[hash].[ext]',
+          entryFileNames: "assets/[name]-[hash].js",
+          chunkFileNames: "assets/[name]-[hash].js",
+          assetFileNames: "assets/[name]-[hash].[ext]",
           manualChunks: {
             // Разделяем vendor библиотеки для лучшего кэширования
-            'vendor-vue': ['vue', 'vue-router', 'pinia'],
-            'vendor-vuetify': ['vuetify'],
-            'vendor-utils': ['axios'],
+            "vendor-vue": ["vue", "vue-router", "pinia"],
+            "vendor-vuetify": ["vuetify"],
+            "vendor-utils": ["axios"],
           },
         },
       },
     },
-    
+
     // Настройки для статических файлов
-    publicDir: 'public',
-    
+    publicDir: "public",
+
     // Настройки dev сервера для SPA
     server: {
       port: 3000,
       host: true,
       // История API для SPA маршрутизации
       historyApiFallback: {
-        index: '/index.html',
+        index: "/index.html",
         rewrites: [
           // Перенаправляем все маршруты на index.html для SPA
-          { from: /^\/(?!api).*$/, to: '/index.html' }
+          { from: /^\/(?!api).*$/, to: "/index.html" },
         ],
       },
       proxy: {
         // Проксируем API запросы на backend
-        '/api': {
-          target: env.VITE_BACKEND_URL || 'http://localhost:8080',
+        "/api": {
+          target: env.VITE_BACKEND_URL || "http://localhost:8080",
           changeOrigin: true,
           secure: false,
         },
         // Проксируем WebSocket соединения
-        '/ws': {
-          target: env.VITE_WS_BASE_URL || 'ws://localhost:8080',
+        "/ws": {
+          target: env.VITE_WS_BASE_URL || "ws://localhost:8080",
           ws: true,
           changeOrigin: true,
         },
       },
     },
-    
+
     // Настройки preview для продакшена
     preview: {
       port: 3000,
       host: true,
       // История API для preview режима
       historyApiFallback: {
-        index: '/index.html',
+        index: "/index.html",
       },
     },
-    
+
     // Оптимизации
     optimizeDeps: {
-      include: [
-        'vue',
-        'vue-router',
-        'pinia',
-        'vuetify',
-        'axios',
-      ],
-      exclude: ['@vitejs/client'],
+      include: ["vue", "vue-router", "pinia", "vuetify", "axios"],
+      exclude: ["@vitejs/client"],
     },
-    
+
     // CSS настройки
     css: {
-      devSourcemap: mode === 'development',
+      devSourcemap: mode === "development",
       preprocessorOptions: {
         scss: {
           additionalData: `
@@ -114,11 +114,26 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    
+
     // Переменные окружения
     define: {
       __VUE_OPTIONS_API__: true,
-      __VUE_PROD_DEVTOOLS__: mode === 'development',
+      __VUE_PROD_DEVTOOLS__: mode === "development",
+    },
+
+    // Настройки для тестов
+    test: {
+      globals: true,
+      environment: "jsdom",
+      setupFiles: ["./src/__tests__/setup.ts"],
+      deps: {
+        inline: ["vuetify"],
+      },
+      server: {
+        deps: {
+          inline: ["vuetify"],
+        },
+      },
     },
   };
 });

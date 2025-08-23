@@ -99,18 +99,15 @@ class BillingService {
    * Получить список тарифных планов
    */
   async getBillingPlans(companyId?: number): Promise<BillingPlan[]> {
-    // Временно используем простой эндпоинт для отладки
+    // Используем простой эндпоинт для отладки (без авторизации)
     try {
       const response: AxiosResponse<BillingPlansResponse> =
         await this.apiClient.get("/billing-plans-simple");
       return response.data.data || [];
     } catch (error) {
-      console.warn("Fallback to simple billing plans endpoint failed:", error);
-      // Fallback к оригинальному эндпоинту
-      const params = companyId ? { company_id: companyId } : {};
-      const response: AxiosResponse<BillingPlansResponse> =
-        await this.apiClient.get("/billing/plans", { params });
-      return response.data.data || [];
+      console.error("Ошибка при загрузке планов:", error);
+      // Возвращаем пустой массив вместо fallback к защищенному эндпоинту
+      return [];
     }
   }
 
@@ -166,19 +163,15 @@ class BillingService {
    * Получить список подписок компании
    */
   async getSubscriptions(companyId: number): Promise<Subscription[]> {
-    // Временно используем простой эндпоинт для отладки
+    // Используем простой эндпоинт для отладки (без авторизации)
     try {
       const response: AxiosResponse<SubscriptionsResponse> =
         await this.apiClient.get("/subscriptions-simple");
       return response.data.data || [];
     } catch (error) {
-      console.warn("Fallback to simple subscriptions endpoint failed:", error);
-      // Fallback к оригинальному эндпоинту
-      const response: AxiosResponse<SubscriptionsResponse> =
-        await this.apiClient.get("/billing/subscriptions", {
-          params: { company_id: companyId },
-        });
-      return response.data.data || [];
+      console.error("Ошибка при загрузке подписок:", error);
+      // Возвращаем пустой массив вместо fallback к защищенному эндпоинту
+      return [];
     }
   }
 

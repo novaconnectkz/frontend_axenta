@@ -1,81 +1,73 @@
-name: Deploy (git pull over SSH)
+name: Deploy Frontend
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Prepare ~/.ssh
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          touch ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Add server to known_hosts
-        run: |
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -T 5 "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: SSH and git pull
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: "your-server-host"
+          username: "your-username"
+          key: "your-private-key"
+          port: "22"
           script_stop: true
           script: |
             set -e
-            cd "${{ secrets.REPO_PATH }}"
-            
+            cd /var/www/frontend_axenta
+
             echo "🔧 Starting deployment process..."
             echo "📍 Current directory: $(pwd)"
             echo "📍 Current branch: $(git branch --show-current)"
             echo "📍 Current commit: $(git rev-parse --short HEAD)"
-            
+
             # Настраиваем Git для избежания проблем с divergent branches
             echo "⚙️ Configuring Git..."
             git config pull.rebase false
             git config --global --add safe.directory $(pwd)
-            
+
             # Загружаем все изменения
             echo "📥 Fetching changes..."
             git fetch --all --prune
-            
+
             # Проверяем, есть ли расходящиеся ветки
             LOCAL=$(git rev-parse HEAD)
-            REMOTE=$(git rev-parse origin/${{ secrets.BRANCH || 'main' }})
-            
+            REMOTE=$(git rev-parse origin/main)
+
             if [ "$LOCAL" != "$REMOTE" ]; then
               echo "⚠️ Local and remote branches are different"
               echo "Local:  $LOCAL"
               echo "Remote: $REMOTE"
-              echo "🔄 Performing hard reset to origin/${{ secrets.BRANCH || 'main' }}..."
-              git reset --hard origin/${{ secrets.BRANCH || 'main' }}
+              echo "🔄 Performing hard reset to origin/main..."
+              git reset --hard origin/main
               echo "✅ Repository updated to latest version"
             else
               echo "✅ Repository is already up to date"
-              git pull origin "${{ secrets.BRANCH || 'main' }}" || git reset --hard origin/${{ secrets.BRANCH || 'main' }}
+              git pull origin main || git reset --hard origin/main
             fi
-            
+
             # Показываем текущее состояние
             echo "📍 Updated to commit: $(git rev-parse --short HEAD)"
             echo "📍 Commit message: $(git log -1 --pretty=%B)"
-            
+
             # Устанавливаем зависимости
             echo "📦 Installing dependencies..."
             /usr/bin/npm install
-            
+
             # Собираем проект
             echo "🏗️ Building project..."
             /usr/bin/npm run build
-            
+
             # Перезагружаем nginx
             echo "🔄 Reloading nginx..."
             sudo systemctl reload nginx
-            
+
             echo "🎉 Deployment completed successfully!"

@@ -223,14 +223,7 @@ const mockBillingSettings: BillingSettings = {
 
 describe("Billing E2E Tests", () => {
   beforeAll(() => {
-    // Мокаем localStorage
-    Object.defineProperty(window, "localStorage", {
-      value: {
-        getItem: vi.fn().mockReturnValue("mock-token"),
-        setItem: vi.fn(),
-        removeItem: vi.fn(),
-      },
-    });
+    // Моки уже настроены в setup.ts
   });
 
   beforeEach(() => {

@@ -10,7 +10,7 @@ import type { CompanyListResponse, CompanyResponse } from "@/types/companies";
 import Companies from "@/views/Companies.vue";
 import { mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createRouter, createWebHistory } from "vue-router";
+import { createMemoryHistory, createRouter } from "vue-router";
 import { createVuetify } from "vuetify";
 
 // Мокируем сервис компаний
@@ -19,9 +19,9 @@ vi.mock("@/services/companiesService");
 // Настраиваем Vuetify для тестов
 const vuetify = createVuetify();
 
-// Создаем простой роутер для тестов
+// Создаем простой роутер для тестов (используем memory history для тестов)
 const router = createRouter({
-  history: createWebHistory(),
+  history: createMemoryHistory(),
   routes: [{ path: "/accounts", component: Companies }],
 });
 

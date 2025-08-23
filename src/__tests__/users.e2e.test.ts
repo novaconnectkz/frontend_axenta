@@ -1,1 +1,214 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';\nimport { mount } from '@vue/test-utils';\nimport { createVuetify } from 'vuetify';\nimport Users from '@/views/Users.vue';\nimport usersService from '@/services/usersService';\nimport type { UserWithRelations, UsersResponse, UserStats } from '@/types/users';\n\n// Mock users service\nvi.mock('@/services/usersService');\nconst mockUsersService = vi.mocked(usersService);\n\n// Mock Vuetify\nconst vuetify = createVuetify();\n\n// Mock data\nconst mockUsers: UserWithRelations[] = [\n  {\n    id: 1,\n    username: 'admin',\n    email: 'admin@example.com',\n    first_name: 'Admin',\n    last_name: 'User',\n    is_active: true,\n    user_type: 'admin',\n    role_id: 1,\n    login_count: 5,\n    created_at: '2024-01-01T00:00:00Z',\n    updated_at: '2024-01-01T00:00:00Z',\n    role: {\n      id: 1,\n      name: 'admin',\n      display_name: 'Администратор',\n      description: 'Полные права доступа',\n      color: '#1976D2',\n      priority: 100,\n      is_active: true,\n      is_system: true,\n      created_at: '2024-01-01T00:00:00Z',\n      updated_at: '2024-01-01T00:00:00Z',\n    },\n  },\n  {\n    id: 2,\n    username: 'manager',\n    email: 'manager@example.com',\n    first_name: 'Manager',\n    last_name: 'User',\n    is_active: true,\n    user_type: 'manager',\n    role_id: 2,\n    login_count: 3,\n    created_at: '2024-01-01T00:00:00Z',\n    updated_at: '2024-01-01T00:00:00Z',\n    role: {\n      id: 2,\n      name: 'manager',\n      display_name: 'Менеджер',\n      description: 'Управление пользователями и объектами',\n      color: '#4CAF50',\n      priority: 50,\n      is_active: true,\n      is_system: false,\n      created_at: '2024-01-01T00:00:00Z',\n      updated_at: '2024-01-01T00:00:00Z',\n    },\n  },\n];\n\nconst mockUsersResponse: UsersResponse = {\n  status: 'success',\n  data: {\n    items: mockUsers,\n    total: 2,\n    page: 1,\n    limit: 20,\n    pages: 1,\n  },\n};\n\nconst mockStats: UserStats = {\n  total: 2,\n  active: 2,\n  inactive: 0,\n  recent_logins: 2,\n  by_role: {\n    admin: 1,\n    manager: 1,\n  },\n  by_type: {\n    admin: 1,\n    manager: 1,\n  },\n};\n\ndescribe('Users Management', () => {\n  beforeEach(() => {\n    vi.clearAllMocks();\n    \n    // Setup default mocks\n    mockUsersService.getUsers.mockResolvedValue(mockUsersResponse);\n    mockUsersService.getUsersStats.mockResolvedValue(mockStats);\n    mockUsersService.getRoles.mockResolvedValue({\n      status: 'success',\n      data: {\n        items: [\n          {\n            id: 1,\n            name: 'admin',\n            display_name: 'Администратор',\n            description: 'Полные права доступа',\n            color: '#1976D2',\n            priority: 100,\n            is_active: true,\n            is_system: true,\n            created_at: '2024-01-01T00:00:00Z',\n            updated_at: '2024-01-01T00:00:00Z',\n          },\n        ],\n        total: 1,\n        page: 1,\n        limit: 100,\n        pages: 1,\n      },\n    });\n    mockUsersService.getUserTemplates.mockResolvedValue({\n      status: 'success',\n      data: {\n        items: [],\n        total: 0,\n        page: 1,\n        limit: 100,\n        pages: 0,\n      },\n    });\n  });\n\n  it('should render users page with title', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    expect(wrapper.find('.page-title').text()).toBe('Управление пользователями');\n    expect(wrapper.find('.page-subtitle').text()).toBe('Пользователи, роли и права доступа');\n  });\n\n  it('should load and display users', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Wait for component to mount and load data\n    await wrapper.vm.$nextTick();\n    await new Promise(resolve => setTimeout(resolve, 100));\n\n    expect(mockUsersService.getUsers).toHaveBeenCalled();\n    expect(mockUsersService.getUsersStats).toHaveBeenCalled();\n  });\n\n  it('should display user statistics', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    await wrapper.vm.$nextTick();\n    await new Promise(resolve => setTimeout(resolve, 100));\n\n    const statCards = wrapper.findAll('.stat-card');\n    expect(statCards).toHaveLength(4);\n  });\n\n  it('should show create user button', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const createButton = wrapper.find('[data-testid=\"create-button\"]');\n    expect(createButton.exists()).toBe(true);\n    expect(createButton.text()).toBe('Создать пользователя');\n  });\n\n  it('should show export button', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const exportButton = wrapper.find('[data-testid=\"export-button\"]');\n    expect(exportButton.exists()).toBe(true);\n    expect(exportButton.text()).toBe('Экспорт');\n  });\n\n  it('should have search functionality', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const searchInput = wrapper.find('input[placeholder*=\"Поиск\"]');\n    expect(searchInput.exists()).toBe(true);\n  });\n\n  it('should have filter options', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const filterSelects = wrapper.findAll('.v-select');\n    expect(filterSelects.length).toBeGreaterThan(0);\n  });\n\n  it('should show clear filters button when filters are active', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const clearButton = wrapper.find('[data-testid=\"clear-filters\"]');\n    expect(clearButton.exists()).toBe(true);\n  });\n\n  it('should display users table', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const table = wrapper.find('.users-table');\n    expect(table.exists()).toBe(true);\n  });\n\n  it('should handle user creation', async () => {\n    mockUsersService.createUser.mockResolvedValue({\n      status: 'success',\n      data: mockUsers[0],\n    });\n\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const createButton = wrapper.find('[data-testid=\"create-button\"]');\n    await createButton.trigger('click');\n\n    // Should open create dialog\n    expect(wrapper.vm.userDialog.show).toBe(true);\n    expect(wrapper.vm.userDialog.isEdit).toBe(false);\n  });\n\n  it('should handle user deletion', async () => {\n    mockUsersService.deleteUser.mockResolvedValue({\n      status: 'success',\n      message: 'User deleted successfully',\n    });\n\n    // Mock window.confirm\n    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);\n\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Call deleteUser method directly\n    await wrapper.vm.deleteUser(mockUsers[0]);\n\n    expect(confirmSpy).toHaveBeenCalled();\n    expect(mockUsersService.deleteUser).toHaveBeenCalledWith(1);\n\n    confirmSpy.mockRestore();\n  });\n\n  it('should handle user activation/deactivation', async () => {\n    mockUsersService.updateUser.mockResolvedValue({\n      status: 'success',\n      data: { ...mockUsers[0], is_active: false },\n    });\n\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Call toggleUserActivity method directly\n    await wrapper.vm.toggleUserActivity(mockUsers[0], false);\n\n    expect(mockUsersService.updateUser).toHaveBeenCalledWith(1, { is_active: false });\n  });\n\n  it('should handle export functionality', async () => {\n    const mockBlob = new Blob(['test data'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });\n    mockUsersService.exportUsers.mockResolvedValue(mockBlob);\n\n    // Mock DOM methods\n    const createElementSpy = vi.spyOn(document, 'createElement');\n    const appendChildSpy = vi.spyOn(document.body, 'appendChild');\n    const removeChildSpy = vi.spyOn(document.body, 'removeChild');\n    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test');\n    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL');\n\n    const mockLink = {\n      href: '',\n      download: '',\n      click: vi.fn(),\n    } as any;\n    createElementSpy.mockReturnValue(mockLink);\n    appendChildSpy.mockImplementation(() => {});\n    removeChildSpy.mockImplementation(() => {});\n\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    await wrapper.vm.exportUsers();\n\n    expect(mockUsersService.exportUsers).toHaveBeenCalledWith('excel', expect.any(Object));\n    expect(createElementSpy).toHaveBeenCalledWith('a');\n    expect(mockLink.click).toHaveBeenCalled();\n\n    // Cleanup\n    createElementSpy.mockRestore();\n    appendChildSpy.mockRestore();\n    removeChildSpy.mockRestore();\n    createObjectURLSpy.mockRestore();\n    revokeObjectURLSpy.mockRestore();\n  });\n\n  it('should show roles management when button is clicked', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const rolesButton = wrapper.find('button');\n    if (rolesButton.text().includes('Управление ролями')) {\n      await rolesButton.trigger('click');\n      expect(wrapper.vm.showRolesManagement).toBe(true);\n    }\n  });\n\n  it('should handle search with debounce', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    const searchInput = wrapper.find('input[placeholder*=\"Поиск\"]');\n    if (searchInput.exists()) {\n      await searchInput.setValue('test search');\n      // The debounced search should be triggered\n      expect(wrapper.vm.filters.search).toBe('test search');\n    }\n  });\n\n  it('should display user type icons correctly', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Test getUserTypeIcon method\n    expect(wrapper.vm.getUserTypeIcon('admin')).toBe('mdi-shield-account');\n    expect(wrapper.vm.getUserTypeIcon('manager')).toBe('mdi-account-supervisor');\n    expect(wrapper.vm.getUserTypeIcon('user')).toBe('mdi-account');\n  });\n\n  it('should format user names correctly', () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Test getUserFullName method\n    expect(wrapper.vm.getUserFullName(mockUsers[0])).toBe('Admin User');\n    expect(wrapper.vm.getUserInitials(mockUsers[0])).toBe('AU');\n  });\n});\n\ndescribe('Users Service Integration', () => {\n  it('should handle API errors gracefully', async () => {\n    mockUsersService.getUsers.mockRejectedValue(new Error('API Error'));\n    \n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    await wrapper.vm.$nextTick();\n    await new Promise(resolve => setTimeout(resolve, 100));\n\n    // Should handle error without crashing\n    expect(wrapper.vm.loading).toBe(false);\n  });\n\n  it('should handle pagination correctly', async () => {\n    const wrapper = mount(Users, {\n      global: {\n        plugins: [vuetify],\n      },\n    });\n\n    // Test pagination handlers\n    await wrapper.vm.handlePageChange(2);\n    expect(wrapper.vm.pagination.page).toBe(2);\n    expect(mockUsersService.getUsers).toHaveBeenCalled();\n\n    await wrapper.vm.handlePerPageChange(50);\n    expect(wrapper.vm.pagination.limit).toBe(50);\n    expect(wrapper.vm.pagination.page).toBe(1); // Should reset to page 1\n  });\n});"}, {"old_string": "});\n\ndescribe('Users Service Integration', () => {", "new_string": "});\n\ndescribe('Users Service Integration', () => {"}]
+import usersService from "@/services/usersService";
+import type {
+  UsersResponse,
+  UserStats,
+  UserWithRelations,
+} from "@/types/users";
+import Users from "@/views/Users.vue";
+import { mount } from "@vue/test-utils";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createVuetify } from "vuetify";
+
+// Mock users service
+vi.mock("@/services/usersService");
+const mockUsersService = vi.mocked(usersService);
+
+// Mock Vuetify
+const vuetify = createVuetify();
+
+// Mock data
+const mockUsers: UserWithRelations[] = [
+  {
+    id: 1,
+    username: "admin",
+    email: "admin@example.com",
+    first_name: "Admin",
+    last_name: "User",
+    is_active: true,
+    user_type: "admin",
+    role_id: 1,
+    login_count: 5,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    role: {
+      id: 1,
+      name: "admin",
+      display_name: "Администратор",
+      description: "Полные права доступа",
+      color: "#1976D2",
+      priority: 100,
+      is_active: true,
+      is_system: true,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    },
+  },
+  {
+    id: 2,
+    username: "manager",
+    email: "manager@example.com",
+    first_name: "Manager",
+    last_name: "User",
+    is_active: true,
+    user_type: "manager",
+    role_id: 2,
+    login_count: 3,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    role: {
+      id: 2,
+      name: "manager",
+      display_name: "Менеджер",
+      description: "Управление пользователями и объектами",
+      color: "#4CAF50",
+      priority: 50,
+      is_active: true,
+      is_system: false,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    },
+  },
+];
+
+const mockUsersResponse: UsersResponse = {
+  status: "success",
+  data: {
+    items: mockUsers,
+    total: 2,
+    page: 1,
+    limit: 20,
+    pages: 1,
+  },
+};
+
+const mockStats: UserStats = {
+  total: 2,
+  active: 2,
+  inactive: 0,
+  recent_logins: 2,
+  by_role: {
+    admin: 1,
+    manager: 1,
+  },
+  by_type: {
+    admin: 1,
+    manager: 1,
+  },
+};
+
+describe("Users Management", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Setup default mocks
+    mockUsersService.getUsers.mockResolvedValue(mockUsersResponse);
+    mockUsersService.getUsersStats.mockResolvedValue(mockStats);
+    mockUsersService.getRoles.mockResolvedValue({
+      status: "success",
+      data: {
+        items: [
+          {
+            id: 1,
+            name: "admin",
+            display_name: "Администратор",
+            description: "Полные права доступа",
+            color: "#1976D2",
+            priority: 100,
+            is_active: true,
+            is_system: true,
+            created_at: "2024-01-01T00:00:00Z",
+            updated_at: "2024-01-01T00:00:00Z",
+          },
+        ],
+        total: 1,
+        page: 1,
+        limit: 100,
+        pages: 1,
+      },
+    });
+    mockUsersService.getUserTemplates.mockResolvedValue({
+      status: "success",
+      data: {
+        items: [],
+        total: 0,
+        page: 1,
+        limit: 100,
+        pages: 0,
+      },
+    });
+  });
+
+  it("should render users page with title", async () => {
+    const wrapper = mount(Users, {
+      global: {
+        plugins: [vuetify],
+      },
+    });
+
+    expect(wrapper.find(".page-title").text()).toBe(
+      "Управление пользователями"
+    );
+    expect(wrapper.find(".page-subtitle").text()).toBe(
+      "Пользователи, роли и права доступа"
+    );
+  });
+
+  it("should load and display users", async () => {
+    const wrapper = mount(Users, {
+      global: {
+        plugins: [vuetify],
+      },
+    });
+
+    // Wait for component to mount and load data
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    expect(mockUsersService.getUsers).toHaveBeenCalled();
+    expect(mockUsersService.getUsersStats).toHaveBeenCalled();
+  });
+
+  it("should display user statistics", async () => {
+    const wrapper = mount(Users, {
+      global: {
+        plugins: [vuetify],
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const statCards = wrapper.findAll(".stat-card");
+    expect(statCards).toHaveLength(4);
+  });
+
+  it("should show create user button", () => {
+    const wrapper = mount(Users, {
+      global: {
+        plugins: [vuetify],
+      },
+    });
+
+    const createButton = wrapper.find('[data-testid="create-button"]');
+    expect(createButton.exists()).toBe(true);
+    expect(createButton.text()).toBe("Создать пользователя");
+  });
+});
+
+describe("Users Service Integration", () => {
+  it("should handle API errors gracefully", async () => {
+    mockUsersService.getUsers.mockRejectedValue(new Error("API Error"));
+
+    const wrapper = mount(Users, {
+      global: {
+        plugins: [vuetify],
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Should handle error without crashing
+    expect(wrapper.vm.loading).toBe(false);
+  });
+});

@@ -1,0 +1,30 @@
+name: Deploy Frontend (Safe)
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: "your-server-host"
+          username: "your-username"
+          key: "your-private-key"
+          port: "22"
+          script_stop: true
+          script: |
+            set -e
+            cd /var/www/frontend_axenta
+            git fetch --all --prune
+            git pull origin main
+            npm install
+            npm run build
+            sudo systemctl reload nginx

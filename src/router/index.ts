@@ -279,4 +279,6 @@ router.onError((error) => {
   console.error("Router error:", error);
 });
 
+// Экспортируем routes для тестов
+export { routes };
 export default router;
