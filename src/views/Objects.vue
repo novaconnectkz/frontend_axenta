@@ -46,6 +46,31 @@
       </div>
     </div>
 
+    <!-- ТЕСТ: Простой поиск -->
+    <div style="background: red; padding: 20px; margin: 20px 0; color: white;">
+      <h2>ТЕСТ ПОИСКА - ДОЛЖЕН БЫТЬ ВИДЕН</h2>
+      <input type="text" placeholder="Тестовое поле поиска" style="padding: 10px; width: 100%;" />
+    </div>
+
+    <!-- Поиск объектов -->
+    <v-card class="mb-4" variant="outlined" elevation="2">
+      <v-card-title>
+        <v-icon icon="mdi-magnify" class="mr-2" />
+        Поиск объектов
+      </v-card-title>
+      
+      <v-card-text>
+        <v-text-field
+          v-model="filters.search"
+          placeholder="Поиск по названию, IMEI, номеру телефона..."
+          prepend-icon="mdi-magnify"
+          clearable
+          variant="outlined"
+          @input="debouncedSearch"
+        />
+      </v-card-text>
+    </v-card>
+
     <!-- Фильтры -->
     <AppleCard class="filters-card" variant="outlined">
       <template #header>
@@ -67,10 +92,10 @@
       
       <div class="filters-content">
         <v-row>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="3" v-if="!showAdvancedSearch">
             <AppleInput
               v-model="filters.search"
-              placeholder="Поиск по названию, IMEI, номеру..."
+              placeholder="Быстрый поиск..."
               prepend-icon="mdi-magnify"
               clearable
               @input="debouncedSearch"
@@ -981,6 +1006,29 @@ const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
 const showDeletedObjects = ref(false);
 
+// Поисковые состояния
+const showSearchHistory = ref(false);
+const showAdvancedSearch = ref(false);
+const loadingSuggestions = ref(false);
+const searchSuggestions = ref<Array<{ title: string; subtitle: string; icon: string; value: string }>>([]);
+const searchHistory = ref<string[]>([]);
+
+console.log('🔍 Search states initialized:', {
+  showSearchHistory: showSearchHistory.value,
+  showAdvancedSearch: showAdvancedSearch.value,
+  loadingSuggestions: loadingSuggestions.value
+});
+
+// Расширенные фильтры
+const advancedFilters = ref({
+  accountName: '',
+  creatorName: '',
+  deviceTypeName: '',
+  uniqueId: '',
+  imei: '',
+  phoneNumber: '',
+});
+
 // Состояние для массового выбора объектов
 const selectedObjects = ref<number[]>([]);
 const selectAll = ref(false);
@@ -1110,6 +1158,16 @@ const typeOptions = [
   { title: 'Контейнер', value: 'container' },
 ];
 
+// Быстрые фильтры
+const quickFilters = ref([
+  { key: 'active', label: 'Активные', icon: 'mdi-check-circle', filter: { is_active: true } },
+  { key: 'inactive', label: 'Неактивные', icon: 'mdi-pause-circle', filter: { is_active: false } },
+  { key: 'vehicles', label: 'Транспорт', icon: 'mdi-car', filter: { type: 'vehicle' } },
+  { key: 'equipment', label: 'Оборудование', icon: 'mdi-tools', filter: { type: 'equipment' } },
+  { key: 'scheduled_delete', label: 'К удалению', icon: 'mdi-clock-alert', filter: { status: 'scheduled_delete' } },
+  { key: 'recent', label: 'Недавние', icon: 'mdi-clock-outline', filter: { ordering: '-created_at' } },
+]);
+
 // Table headers
 const tableHeaders = computed(() => [
   { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
@@ -1230,6 +1288,25 @@ const loadTemplates = async () => {
 
 // Debounced search
 const debouncedSearch = debounce(() => {
+  // Добавляем в историю поиска
+  if (filters.value.search && filters.value.search.trim() && !searchHistory.value.includes(filters.value.search.trim())) {
+    searchHistory.value.unshift(filters.value.search.trim());
+    // Ограничиваем историю 10 элементами
+    if (searchHistory.value.length > 10) {
+      searchHistory.value = searchHistory.value.slice(0, 10);
+    }
+    // Сохраняем в localStorage
+    localStorage.setItem('objects_search_history', JSON.stringify(searchHistory.value));
+  }
+  
+  pagination.value.page = 1;
+  loadObjects();
+}, 500);
+
+// Debounced advanced search
+const debouncedAdvancedSearch = debounce(() => {
+  // Применяем расширенные фильтры к основным фильтрам
+  Object.assign(filters.value, advancedFilters.value);
   pagination.value.page = 1;
   loadObjects();
 }, 500);
@@ -1243,6 +1320,131 @@ const clearFilters = () => {
     location_id: undefined,
     template_id: undefined,
   };
+  
+  // Очищаем расширенные фильтры
+  advancedFilters.value = {
+    accountName: '',
+    creatorName: '',
+    deviceTypeName: '',
+    uniqueId: '',
+    imei: '',
+    phoneNumber: '',
+  };
+  
+  pagination.value.page = 1;
+  loadObjects();
+};
+
+// Методы для работы с поиском
+const handleSearchInput = async (value: string) => {
+  if (!value || value.length < 2) {
+    searchSuggestions.value = [];
+    return;
+  }
+  
+  loadingSuggestions.value = true;
+  
+  try {
+    // Получаем предложения на основе существующих объектов
+    const suggestions = [];
+    
+    // Добавляем предложения из истории поиска
+    searchHistory.value
+      .filter(item => item.toLowerCase().includes(value.toLowerCase()))
+      .forEach(item => {
+        suggestions.push({
+          title: item,
+          subtitle: 'Из истории поиска',
+          icon: 'mdi-history',
+          value: item
+        });
+      });
+    
+    // Добавляем предложения по типам поиска
+    if (value.match(/^\d+$/)) {
+      suggestions.push({
+        title: `Поиск по ID: ${value}`,
+        subtitle: 'Поиск объекта по идентификатору',
+        icon: 'mdi-identifier',
+        value: value
+      });
+    }
+    
+    if (value.match(/^\d{15}$/)) {
+      suggestions.push({
+        title: `Поиск по IMEI: ${value}`,
+        subtitle: 'Поиск объекта по IMEI',
+        icon: 'mdi-barcode',
+        value: value
+      });
+    }
+    
+    if (value.match(/^\+?\d[\d\s\-\(\)]+$/)) {
+      suggestions.push({
+        title: `Поиск по номеру: ${value}`,
+        subtitle: 'Поиск объекта по номеру телефона',
+        icon: 'mdi-phone',
+        value: value
+      });
+    }
+    
+    searchSuggestions.value = suggestions.slice(0, 8);
+  } catch (error) {
+    console.error('Ошибка получения предложений поиска:', error);
+  } finally {
+    loadingSuggestions.value = false;
+  }
+};
+
+// Методы для работы с историей поиска
+const loadSearchHistory = () => {
+  try {
+    const saved = localStorage.getItem('objects_search_history');
+    if (saved) {
+      searchHistory.value = JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки истории поиска:', error);
+  }
+};
+
+const clearSearchHistory = () => {
+  searchHistory.value = [];
+  localStorage.removeItem('objects_search_history');
+};
+
+const removeFromHistory = (index: number) => {
+  searchHistory.value.splice(index, 1);
+  localStorage.setItem('objects_search_history', JSON.stringify(searchHistory.value));
+};
+
+const applyHistorySearch = (searchTerm: string) => {
+  filters.value.search = searchTerm;
+  debouncedSearch();
+};
+
+// Методы для работы с быстрыми фильтрами
+const isQuickFilterActive = (filter: any) => {
+  return Object.entries(filter.filter).every(([key, value]) => {
+    return filters.value[key as keyof typeof filters.value] === value;
+  });
+};
+
+const toggleQuickFilter = (filter: any) => {
+  if (isQuickFilterActive(filter)) {
+    // Отключаем фильтр
+    Object.keys(filter.filter).forEach(key => {
+      if (key === 'ordering') {
+        filters.value.ordering = 'name'; // Возвращаем к сортировке по умолчанию
+      } else {
+        (filters.value as any)[key] = undefined;
+      }
+    });
+  } else {
+    // Включаем фильтр
+    Object.assign(filters.value, filter.filter);
+  }
+  
   pagination.value.page = 1;
   loadObjects();
 };
@@ -1746,6 +1948,11 @@ watch(showDeletedObjects, () => {
 
 // Lifecycle
 onMounted(async () => {
+  console.log('🚀 Objects component mounted');
+  
+  // Загружаем историю поиска
+  loadSearchHistory();
+  
   await Promise.all([
     loadObjects(),
     loadStats(),
@@ -1753,6 +1960,8 @@ onMounted(async () => {
     loadLocations(),
     loadTemplates(),
   ]);
+  
+  console.log('✅ Objects component fully loaded');
 });
 </script>
 
@@ -1817,6 +2026,94 @@ onMounted(async () => {
 
 .stat-card {
   text-align: center;
+}
+
+/* Поиск */
+.search-card {
+  margin: 0;
+}
+
+.search-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.search-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.search-content {
+  padding: 0;
+}
+
+.main-search-section {
+  margin-bottom: 16px;
+}
+
+.main-search-input {
+  width: 100%;
+}
+
+.quick-filters-section {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(60, 60, 67, 0.02);
+  border-radius: 8px;
+}
+
+.quick-filters-title {
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+}
+
+.quick-filters-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.search-history-section {
+  padding: 16px;
+  background: rgba(60, 60, 67, 0.02);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.search-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.search-history-title {
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.search-history-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.advanced-search-section {
+  padding: 16px;
+  background: rgba(60, 60, 67, 0.02);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.advanced-search-title {
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  font-size: 0.875rem;
 }
 
 /* Фильтры */
@@ -2035,6 +2332,25 @@ onMounted(async () => {
   border-bottom-color: rgba(84, 84, 136, 0.16);
 }
 
+/* Темная тема для поиска */
+[data-theme="dark"] .quick-filters-section {
+  background: rgba(84, 84, 136, 0.04);
+}
+
+[data-theme="dark"] .search-history-section {
+  background: rgba(84, 84, 136, 0.04);
+}
+
+[data-theme="dark"] .advanced-search-section {
+  background: rgba(84, 84, 136, 0.04);
+}
+
+[data-theme="dark"] .quick-filters-title,
+[data-theme="dark"] .search-history-title,
+[data-theme="dark"] .advanced-search-title {
+  color: var(--text-secondary-dark);
+}
+
 /* Адаптивность */
 @media (max-width: 960px) {
   .page-header {
@@ -2060,6 +2376,15 @@ onMounted(async () => {
   
   .objects-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .search-actions {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .quick-filters-chips {
+    justify-content: center;
   }
 }
 

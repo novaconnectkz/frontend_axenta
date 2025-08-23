@@ -11,6 +11,121 @@
       </div>
     </div>
 
+    <!-- Поиск объектов -->
+    <v-card class="search-card mb-4" variant="outlined" elevation="1">
+      <v-card-title class="d-flex align-center">
+        <v-icon icon="mdi-magnify" class="mr-2" color="primary" />
+        <span>Поиск объектов</span>
+        <v-spacer />
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-tune"
+          @click="showAdvancedSearch = !showAdvancedSearch"
+          :color="showAdvancedSearch ? 'primary' : 'default'"
+        >
+          {{ showAdvancedSearch ? 'Скрыть' : 'Расширенный' }}
+        </v-btn>
+      </v-card-title>
+      
+      <v-card-text>
+        <!-- Основное поле поиска -->
+        <v-text-field
+          v-model="searchQuery"
+          placeholder="Поиск по названию, IMEI, номеру телефона, адресу..."
+          prepend-icon="mdi-magnify"
+          clearable
+          variant="outlined"
+          density="comfortable"
+          @input="handleSearch"
+          class="mb-3"
+        />
+        
+        <!-- Быстрые фильтры -->
+        <div class="quick-filters mb-3">
+          <div class="text-subtitle-2 mb-2">Быстрые фильтры:</div>
+          <v-chip-group>
+            <v-chip
+              color="success"
+              variant="outlined"
+              size="small"
+              clickable
+              @click="filterActive(true)"
+            >
+              <v-icon icon="mdi-check-circle" size="16" class="mr-1" />
+              Активные
+            </v-chip>
+            <v-chip
+              color="warning"
+              variant="outlined"
+              size="small"
+              clickable
+              @click="filterActive(false)"
+            >
+              <v-icon icon="mdi-pause-circle" size="16" class="mr-1" />
+              Неактивные
+            </v-chip>
+            <v-chip
+              color="primary"
+              variant="outlined"
+              size="small"
+              clickable
+              @click="clearFilters"
+            >
+              <v-icon icon="mdi-refresh" size="16" class="mr-1" />
+              Все
+            </v-chip>
+          </v-chip-group>
+        </div>
+        
+        <!-- Расширенный поиск -->
+        <v-expand-transition>
+          <div v-if="showAdvancedSearch">
+            <v-divider class="mb-3" />
+            <div class="text-subtitle-2 mb-3">Расширенный поиск</div>
+            <v-row>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="advancedFilters.accountName"
+                  label="Название учетной записи"
+                  placeholder="Поиск по учетной записи"
+                  prepend-icon="mdi-account"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                  @input="handleAdvancedSearch"
+                />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="advancedFilters.creatorName"
+                  label="Создатель (ФИО)"
+                  placeholder="Поиск по создателю"
+                  prepend-icon="mdi-account-circle"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                  @input="handleAdvancedSearch"
+                />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="advancedFilters.deviceTypeName"
+                  label="Модель устройства"
+                  placeholder="Поиск по модели"
+                  prepend-icon="mdi-cellphone"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                  @input="handleAdvancedSearch"
+                />
+              </v-col>
+            </v-row>
+          </div>
+        </v-expand-transition>
+      </v-card-text>
+    </v-card>
+
     <!-- Список объектов -->
     <v-card class="objects-table-card" variant="outlined">
       <template #title>
@@ -156,6 +271,18 @@ const loading = ref(false);
 const selectedObjects = ref<number[]>([]);
 const selectAll = ref(false);
 
+// Поисковые переменные
+const searchQuery = ref('');
+const showAdvancedSearch = ref(false);
+const advancedFilters = ref({
+  accountName: '',
+  creatorName: '',
+  deviceTypeName: '',
+});
+
+// Фильтры
+const activeFilter = ref<boolean | null>(null);
+
 // Table headers
 const tableHeaders = computed(() => [
   { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
@@ -171,7 +298,7 @@ const tableHeaders = computed(() => [
 ]);
 
 // Mock data
-const objects = ref([
+const allObjects = ref([
   {
     id: 1,
     name: 'Тестовый объект 1',
@@ -202,6 +329,53 @@ const objects = ref([
   }
 ]);
 
+// Фильтрованные объекты
+const objects = computed(() => {
+  let filtered = allObjects.value;
+  
+  // Фильтр по активности
+  if (activeFilter.value !== null) {
+    filtered = filtered.filter(obj => obj.is_active === activeFilter.value);
+  }
+  
+  // Основной поиск
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase();
+    filtered = filtered.filter(obj => 
+      obj.name.toLowerCase().includes(query) ||
+      obj.accountName?.toLowerCase().includes(query) ||
+      obj.creatorName?.toLowerCase().includes(query) ||
+      obj.deviceTypeName?.toLowerCase().includes(query) ||
+      obj.uniqueId?.toLowerCase().includes(query) ||
+      obj.phoneNumbers?.some(phone => phone.toLowerCase().includes(query))
+    );
+  }
+  
+  // Расширенный поиск
+  if (advancedFilters.value.accountName) {
+    const query = advancedFilters.value.accountName.toLowerCase();
+    filtered = filtered.filter(obj => 
+      obj.accountName?.toLowerCase().includes(query)
+    );
+  }
+  
+  if (advancedFilters.value.creatorName) {
+    const query = advancedFilters.value.creatorName.toLowerCase();
+    filtered = filtered.filter(obj => 
+      obj.creatorName?.toLowerCase().includes(query)
+    );
+  }
+  
+  if (advancedFilters.value.deviceTypeName) {
+    const query = advancedFilters.value.deviceTypeName.toLowerCase();
+    filtered = filtered.filter(obj => 
+      obj.deviceTypeName?.toLowerCase().includes(query)
+    );
+  }
+  
+  return filtered;
+});
+
 // Utility methods
 const formatDate = (dateString: string): string => {
   if (!dateString) return 'Не указано';
@@ -218,13 +392,37 @@ const formatDate = (dateString: string): string => {
 // Функции для работы с активностью объектов
 const toggleObjectActivity = (object: any) => {
   // Находим объект в массиве и переключаем его активность
-  const index = objects.value.findIndex(obj => obj.id === object.id);
+  const index = allObjects.value.findIndex(obj => obj.id === object.id);
   if (index !== -1) {
-    objects.value[index].is_active = !objects.value[index].is_active;
+    allObjects.value[index].is_active = !allObjects.value[index].is_active;
   }
-  
-  // Здесь можно добавить вызов API для сохранения изменений
-  console.log(`Объект "${object.name}" ${objects.value[index].is_active ? 'активирован' : 'деактивирован'}`);
+};
+
+// Методы поиска
+const handleSearch = () => {
+  // Поиск выполняется автоматически через computed свойство
+  console.log('Поиск:', searchQuery.value);
+};
+
+const handleAdvancedSearch = () => {
+  // Расширенный поиск выполняется автоматически через computed свойство
+  console.log('Расширенный поиск:', advancedFilters.value);
+};
+
+const filterActive = (isActive: boolean) => {
+  activeFilter.value = activeFilter.value === isActive ? null : isActive;
+  console.log('Фильтр активности:', activeFilter.value);
+};
+
+const clearFilters = () => {
+  searchQuery.value = '';
+  activeFilter.value = null;
+  advancedFilters.value = {
+    accountName: '',
+    creatorName: '',
+    deviceTypeName: '',
+  };
+  console.log('Фильтры очищены');
 };
 
 const setSelectedObjectsActivity = (isActive: boolean) => {
@@ -233,7 +431,7 @@ const setSelectedObjectsActivity = (isActive: boolean) => {
   }
 
   // Обновляем активность для всех выбранных объектов
-  objects.value.forEach(obj => {
+  allObjects.value.forEach(obj => {
     if (selectedObjects.value.includes(obj.id)) {
       obj.is_active = isActive;
     }
