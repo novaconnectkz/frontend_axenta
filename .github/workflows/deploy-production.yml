@@ -1,8 +1,9 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: ["main"]
+  # Отключаем автозапуск при пуше - оставляем только ручной запуск
+  # push:
+  #   branches: ["main"]
   workflow_dispatch:
 
 jobs:
