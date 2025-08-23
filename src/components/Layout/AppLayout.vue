@@ -58,9 +58,14 @@
           <h1 class="welcome-title">
             Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!
           </h1>
-          <p class="welcome-date">
-            {{ formatDate(new Date()) }}
-          </p>
+          <div class="welcome-datetime">
+            <p class="welcome-date">
+              {{ formatDate(currentTime) }}
+            </p>
+            <p class="welcome-time">
+              {{ formatTime(currentTime) }}
+            </p>
+          </div>
         </div>
       </v-app-bar-title>
 
@@ -204,7 +209,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/context/auth';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
@@ -222,6 +227,8 @@ const drawer = ref(!mobile.value);
 const rail = ref(false);
 const isDarkTheme = ref(theme.current.value.dark);
 const notifications = ref([]);
+const currentTime = ref(new Date());
+const timeInterval = ref<NodeJS.Timeout | null>(null);
 const snackbar = ref({
   show: false,
   text: '',
@@ -418,6 +425,16 @@ const formatDate = (date: Date) => {
   return date.toLocaleDateString('ru-RU', options);
 };
 
+const formatTime = (date: Date) => {
+  const options: Intl.DateTimeFormatOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+  return date.toLocaleTimeString('ru-RU', options);
+};
+
 const getUserInitials = () => {
   const user = auth.user.value;
   if (!user?.name) return 'U';
@@ -482,8 +499,20 @@ onMounted(() => {
     document.body.setAttribute('data-theme', 'light');
   }
 
+  // Запускаем автообновление времени каждую секунду
+  timeInterval.value = setInterval(() => {
+    currentTime.value = new Date();
+  }, 1000);
+
   // Отключаем автоматическое переключение системной темы
   // Теперь тема управляется только вручную через кнопку переключения
+});
+
+onUnmounted(() => {
+  // Очищаем интервал при размонтировании компонента
+  if (timeInterval.value) {
+    clearInterval(timeInterval.value);
+  }
 });
 </script>
 
@@ -961,7 +990,7 @@ onMounted(() => {
 .welcome-section {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .welcome-title {
@@ -971,6 +1000,13 @@ onMounted(() => {
   line-height: 1.2;
   color: var(--apple-text-primary);
   margin: 0;
+}
+
+.welcome-datetime {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .welcome-date {
@@ -983,6 +1019,20 @@ onMounted(() => {
   text-transform: capitalize;
 }
 
+.welcome-time {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Mono', 'SF Mono', Consolas, monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--apple-blue);
+  margin: 0;
+  background: rgba(0, 122, 255, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 122, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
 /* Темная тема для приветствия */
 [data-theme="dark"] .welcome-title {
   color: var(--apple-text-primary-dark);
@@ -990,6 +1040,12 @@ onMounted(() => {
 
 [data-theme="dark"] .welcome-date {
   color: var(--apple-text-tertiary-dark);
+}
+
+[data-theme="dark"] .welcome-time {
+  color: var(--apple-blue-light);
+  background: rgba(77, 166, 255, 0.15);
+  border-color: rgba(77, 166, 255, 0.3);
 }
 
 
@@ -1213,11 +1269,18 @@ onMounted(() => {
     font-size: 1.1rem !important;
   }
 
+  .welcome-datetime {
+    gap: 8px;
+  }
+
   .welcome-date {
     font-size: 0.75rem;
   }
 
-
+  .welcome-time {
+    font-size: 0.75rem;
+    padding: 3px 6px;
+  }
 
   .theme-toggle-btn {
     margin-right: 4px;
@@ -1238,9 +1301,19 @@ onMounted(() => {
     font-size: 1rem !important;
   }
 
+  .welcome-datetime {
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+  }
+
   .welcome-date {
-    display: none;
-    /* Скрываем дату на очень маленьких экранах */
+    font-size: 0.7rem;
+  }
+
+  .welcome-time {
+    font-size: 0.7rem;
+    padding: 2px 5px;
   }
 }
 
