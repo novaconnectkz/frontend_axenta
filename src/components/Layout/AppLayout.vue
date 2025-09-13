@@ -121,7 +121,8 @@
         </v-card>
       </v-menu>
 
-      <!-- WebSocket статус -->
+      <!-- WebSocket статус - временно скрыт -->
+      <!-- 
       <v-tooltip location="bottom">
         <template #activator="{ props }">
           <v-btn v-bind="props" icon variant="text" :color="wsStatus.color">
@@ -130,6 +131,7 @@
         </template>
         <span>{{ wsStatus.text }}</span>
       </v-tooltip>
+      -->
 
       <!-- Аватар пользователя -->
       <v-menu location="bottom">
