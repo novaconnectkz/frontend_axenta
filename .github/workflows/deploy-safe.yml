@@ -17,6 +17,7 @@ jobs:
     steps:
       - name: Check if deployment is possible
         id: check
+        # Note: Context access warnings are expected when secrets are not yet configured
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -48,6 +49,7 @@ jobs:
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
+        # Note: Context access warnings are expected when secrets are not yet configured  
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
