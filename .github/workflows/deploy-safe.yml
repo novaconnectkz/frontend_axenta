@@ -6,7 +6,7 @@ on:
       force_deploy:
         description: 'Force deployment (only if secrets are configured)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -17,18 +17,22 @@ jobs:
     steps:
       - name: Check if deployment is possible
         id: check
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
           echo "🔍 Checking deployment prerequisites..."
           
-          if [[ -n "${{ secrets.HOST }}" && -n "${{ secrets.USERNAME }}" && -n "${{ secrets.PRIVATE_KEY }}" ]]; then
+          if [[ -n "$HOST" && -n "$USERNAME" && -n "$PRIVATE_KEY" ]]; then
             echo "✅ All required secrets are configured"
             echo "can-deploy=true" >> $GITHUB_OUTPUT
           else
             echo "❌ Required secrets are missing"
             echo "📋 Missing secrets:"
-            [[ -z "${{ secrets.HOST }}" ]] && echo "   • HOST"
-            [[ -z "${{ secrets.USERNAME }}" ]] && echo "   • USERNAME"
-            [[ -z "${{ secrets.PRIVATE_KEY }}" ]] && echo "   • PRIVATE_KEY"
+            [[ -z "$HOST" ]] && echo "   • HOST"
+            [[ -z "$USERNAME" ]] && echo "   • USERNAME"
+            [[ -z "$PRIVATE_KEY" ]] && echo "   • PRIVATE_KEY"
             echo ""
             echo "🔧 Configure secrets at: https://github.com/${{ github.repository }}/settings/secrets/actions"
             echo "can-deploy=false" >> $GITHUB_OUTPUT
