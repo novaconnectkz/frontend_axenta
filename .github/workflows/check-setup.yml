@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check GitHub Secrets Setup
+        # Note: Context access warnings are expected when secrets are not yet configured
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          PORT: ${{ secrets.PORT }}
         run: |
           echo "🔍 Проверка настройки GitHub Secrets для развертывания..."
           echo ""
@@ -18,7 +24,7 @@ jobs:
           SETUP_COMPLETE=true
           
           # Проверяем HOST
-          if [ -n "${{ secrets.HOST }}" ]; then
+          if [ -n "$HOST" ]; then
             echo "✅ HOST: настроен"
           else
             echo "❌ HOST: НЕ настроен"
@@ -26,7 +32,7 @@ jobs:
           fi
           
           # Проверяем USERNAME
-          if [ -n "${{ secrets.USERNAME }}" ]; then
+          if [ -n "$USERNAME" ]; then
             echo "✅ USERNAME: настроен"
           else
             echo "❌ USERNAME: НЕ настроен"
@@ -34,7 +40,7 @@ jobs:
           fi
           
           # Проверяем PRIVATE_KEY
-          if [ -n "${{ secrets.PRIVATE_KEY }}" ]; then
+          if [ -n "$PRIVATE_KEY" ]; then
             echo "✅ PRIVATE_KEY: настроен"
           else
             echo "❌ PRIVATE_KEY: НЕ настроен"
@@ -42,8 +48,8 @@ jobs:
           fi
           
           # Проверяем PORT (опционально)
-          if [ -n "${{ secrets.PORT }}" ]; then
-            echo "✅ PORT: настроен (${{ secrets.PORT }})"
+          if [ -n "$PORT" ]; then
+            echo "✅ PORT: настроен ($PORT)"
           else
             echo "ℹ️ PORT: не настроен (будет использован порт 22)"
           fi
