@@ -16,16 +16,21 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate secrets
+        # Note: Context access warnings are expected when secrets are not yet configured
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
         run: |
-          if [ -z "${{ secrets.HOST }}" ]; then
+          if [ -z "$HOST" ]; then
             echo "❌ HOST secret is not set"
             exit 1
           fi
-          if [ -z "${{ secrets.USERNAME }}" ]; then
+          if [ -z "$USERNAME" ]; then
             echo "❌ USERNAME secret is not set"
             exit 1
           fi
-          if [ -z "${{ secrets.PRIVATE_KEY }}" ]; then
+          if [ -z "$PRIVATE_KEY" ]; then
             echo "❌ PRIVATE_KEY secret is not set"
             exit 1
           fi
@@ -33,6 +38,7 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
+        # Note: Context access warnings are expected when secrets are not yet configured
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
@@ -45,8 +51,8 @@ jobs:
             set -e
             
             echo "🚀 Starting deployment to production..."
-            echo "📍 Server: ${{ secrets.HOST }}"
-            echo "👤 User: ${{ secrets.USERNAME }}"
+            echo "📍 Server: [CONFIGURED]"
+            echo "👤 User: [CONFIGURED]"
             echo "⏰ Time: $(date)"
             
             # Проверяем существование директории
