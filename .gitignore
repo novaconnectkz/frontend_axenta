@@ -30,6 +30,9 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# Разрешаем .env.production для деплоя
+!.env.production
+
 # Cache
 .cache
 .npm

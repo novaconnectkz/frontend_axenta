@@ -102,6 +102,23 @@ jobs:
               exit 1
             fi
             
+            # Настраиваем переменные окружения для продакшена
+            echo "⚙️ Setting up production environment..."
+            if [ -f ".env.production" ]; then
+              echo "✅ Using existing .env.production"
+            else
+              echo "📝 Creating .env.production from template..."
+              cat > .env.production << 'ENVEOF'
+            # Конфигурация фронтенда Axenta для продакшена
+            VITE_BACKEND_URL=https://api.axenta.glonass-saratov.ru
+            VITE_WS_BASE_URL=wss://api.axenta.glonass-saratov.ru
+            VITE_APP_NAME=Axenta CRM
+            VITE_API_VERSION=v1
+            VITE_APP_ENV=production
+            VITE_API_TIMEOUT=10000
+            ENVEOF
+            fi
+            
             # Устанавливаем зависимости
             echo "📦 Installing dependencies..."
             if command -v npm >/dev/null 2>&1; then
@@ -111,9 +128,9 @@ jobs:
               exit 1
             fi
             
-            # Собираем проект
-            echo "🏗️ Building project..."
-            npm run build
+            # Собираем проект с продакшен настройками
+            echo "🏗️ Building project for production..."
+            npm run build:production
             
             # Проверяем результат сборки
             if [ ! -d "dist" ]; then
