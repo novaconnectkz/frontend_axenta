@@ -1022,17 +1022,12 @@ onUnmounted(() => {
 }
 
 .welcome-time {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Mono', 'SF Mono', Consolas, monospace;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1;
-  color: var(--apple-blue);
+  color: var(--apple-text-tertiary);
   margin: 0;
-  background: rgba(0, 122, 255, 0.1);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid rgba(0, 122, 255, 0.2);
-  transition: all 0.3s ease;
 }
 
 /* Темная тема для приветствия */
@@ -1045,9 +1040,7 @@ onUnmounted(() => {
 }
 
 [data-theme="dark"] .welcome-time {
-  color: var(--apple-blue-light);
-  background: rgba(77, 166, 255, 0.15);
-  border-color: rgba(77, 166, 255, 0.3);
+  color: var(--apple-text-tertiary-dark);
 }
 
 
