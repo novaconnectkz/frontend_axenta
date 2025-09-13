@@ -1024,7 +1024,7 @@ onUnmounted(() => {
 .welcome-time {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   font-size: 0.875rem;
-  font-weight: 400;
+  font-weight: 700;
   line-height: 1;
   color: var(--apple-text-tertiary);
   margin: 0;
