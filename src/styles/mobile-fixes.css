@@ -1,0 +1,384 @@
+/* 📱 Исправления для мобильных устройств */
+
+/* ===========================================
+   ГЛОБАЛЬНЫЕ МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+/* Базовые настройки viewport */
+@media (max-width: 768px) {
+  html {
+    font-size: 14px;
+  }
+  
+  body {
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+  
+  /* Отключаем zoom при focus на input */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Улучшаем touch targets */
+  button, .v-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Убираем bounce scroll */
+  body {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+  }
+}
+
+/* ===========================================
+   VUETIFY КОМПОНЕНТЫ - МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Контейнеры */
+  .v-container {
+    padding: 8px !important;
+  }
+  
+  /* Карточки */
+  .v-card {
+    border-radius: 12px !important;
+    margin-bottom: 8px;
+  }
+  
+  .v-card-title {
+    font-size: 1rem !important;
+    padding: 12px 16px !important;
+    line-height: 1.3;
+  }
+  
+  .v-card-text {
+    padding: 12px 16px !important;
+    font-size: 0.875rem;
+  }
+  
+  /* Кнопки */
+  .v-btn {
+    font-size: 0.875rem !important;
+    border-radius: 8px !important;
+  }
+  
+  .v-btn--size-small {
+    min-height: 36px !important;
+    padding: 0 12px !important;
+  }
+  
+  .v-btn--size-default {
+    min-height: 44px !important;
+    padding: 0 16px !important;
+  }
+  
+  /* Навигация */
+  .v-navigation-drawer {
+    width: 280px !important;
+  }
+  
+  .v-app-bar {
+    height: 56px !important;
+  }
+  
+  .v-app-bar-title {
+    font-size: 1.1rem !important;
+  }
+  
+  /* Списки */
+  .v-list-item {
+    min-height: 44px !important;
+    padding: 8px 16px !important;
+  }
+  
+  .v-list-item-title {
+    font-size: 0.9rem !important;
+    line-height: 1.3;
+  }
+  
+  .v-list-item-subtitle {
+    font-size: 0.75rem !important;
+    line-height: 1.2;
+  }
+  
+  /* Таблицы */
+  .v-data-table {
+    font-size: 0.8rem !important;
+  }
+  
+  .v-data-table-header th {
+    font-size: 0.75rem !important;
+    padding: 8px 12px !important;
+  }
+  
+  .v-data-table tbody td {
+    padding: 8px 12px !important;
+  }
+}
+
+/* ===========================================
+   IPHONE SPECIFIC FIXES
+   =========================================== */
+
+/* iPhone 14 Pro Max */
+@media (max-width: 430px) and (max-height: 932px) {
+  /* Safe area adjustments */
+  .v-app {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Header adjustments */
+  .v-app-bar {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  
+  /* Navigation drawer */
+  .v-navigation-drawer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Compact layout */
+  .v-container {
+    padding: 4px !important;
+  }
+  
+  .v-card {
+    margin-bottom: 4px;
+  }
+  
+  .v-card-title {
+    font-size: 0.9rem !important;
+    padding: 8px 12px !important;
+  }
+  
+  .v-card-text {
+    padding: 8px 12px !important;
+    font-size: 0.8rem;
+  }
+}
+
+/* ===========================================
+   ДАШБОРД - МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Виджеты на полную ширину */
+  .dashboard-grid .v-col {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+  
+  /* Компактные виджеты */
+  .base-widget {
+    min-height: 200px !important;
+  }
+  
+  /* Быстрые действия */
+  .quick-action-btn {
+    height: 48px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  .quick-action-btn .v-icon {
+    font-size: 18px !important;
+  }
+  
+  /* Статистические карточки */
+  .stats-card {
+    text-align: center;
+    padding: 16px 12px !important;
+  }
+  
+  .stats-number {
+    font-size: 1.5rem !important;
+    font-weight: 700;
+  }
+  
+  .stats-label {
+    font-size: 0.75rem !important;
+    opacity: 0.8;
+  }
+}
+
+/* ===========================================
+   ФОРМЫ - МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Поля ввода */
+  .v-text-field {
+    margin-bottom: 16px;
+  }
+  
+  .v-text-field .v-field {
+    border-radius: 8px !important;
+  }
+  
+  .v-text-field .v-field__input {
+    padding: 12px 16px !important;
+    font-size: 16px !important; /* Предотвращает zoom на iOS */
+  }
+  
+  /* Селекты */
+  .v-select .v-field__input {
+    font-size: 16px !important;
+  }
+  
+  /* Чекбоксы и переключатели */
+  .v-checkbox,
+  .v-switch {
+    margin-bottom: 12px;
+  }
+  
+  /* Диалоги */
+  .v-dialog {
+    margin: 16px !important;
+    max-width: calc(100vw - 32px) !important;
+  }
+  
+  .v-dialog .v-card {
+    border-radius: 16px !important;
+  }
+}
+
+/* ===========================================
+   ТАБЛИЦЫ - МОБИЛЬНЫЕ ИСПРАВЛЕНИЯ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Горизонтальная прокрутка для таблиц */
+  .v-data-table {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Компактные ячейки */
+  .v-data-table th,
+  .v-data-table td {
+    padding: 6px 8px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Скрываем менее важные колонки */
+  .v-data-table .hide-on-mobile {
+    display: none !important;
+  }
+  
+  /* Мобильный вид таблицы */
+  .mobile-table-view .v-data-table tbody tr {
+    display: block;
+    border: 1px solid rgba(var(--v-border-color), 0.12);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 8px;
+  }
+  
+  .mobile-table-view .v-data-table tbody td {
+    display: block;
+    border: none;
+    padding: 4px 0;
+  }
+  
+  .mobile-table-view .v-data-table tbody td:before {
+    content: attr(data-label) ": ";
+    font-weight: 600;
+    display: inline-block;
+    min-width: 80px;
+  }
+}
+
+/* ===========================================
+   АНИМАЦИИ И ПЕРЕХОДЫ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Быстрые переходы для мобильных */
+  .v-navigation-drawer {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
+  
+  .v-overlay {
+    transition: opacity 0.2s ease !important;
+  }
+  
+  /* Уменьшаем анимации для экономии батареи */
+  .v-btn {
+    transition: all 0.15s ease !important;
+  }
+  
+  .v-card {
+    transition: box-shadow 0.15s ease !important;
+  }
+}
+
+/* ===========================================
+   ACCESSIBILITY НА МОБИЛЬНЫХ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Увеличиваем touch targets */
+  .v-btn,
+  .v-list-item,
+  .v-tab,
+  .v-chip {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Улучшаем контрастность */
+  .v-btn--variant-text {
+    background: rgba(var(--v-theme-on-surface), 0.04);
+  }
+  
+  /* Четкие границы для touch элементов */
+  .v-btn:focus-visible,
+  .v-list-item:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+  }
+}
+
+/* ===========================================
+   ПРОИЗВОДИТЕЛЬНОСТЬ
+   =========================================== */
+
+@media (max-width: 768px) {
+  /* Оптимизация для слабых устройств */
+  .v-card,
+  .v-btn,
+  .v-list-item {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+  
+  /* Отключаем тяжелые эффекты */
+  .backdrop-blur-disable {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(var(--v-theme-surface), 0.95) !important;
+  }
+}
+
+/* ===========================================
+   DARK MODE ADJUSTMENTS
+   =========================================== */
+
+@media (max-width: 768px) {
+  [data-theme="dark"] .v-card {
+    background: rgba(var(--v-theme-surface), 0.95) !important;
+  }
+  
+  [data-theme="dark"] .v-navigation-drawer {
+    background: rgba(var(--v-theme-surface), 0.98) !important;
+  }
+  
+  [data-theme="dark"] .v-app-bar {
+    background: rgba(var(--v-theme-surface), 0.95) !important;
+  }
+}

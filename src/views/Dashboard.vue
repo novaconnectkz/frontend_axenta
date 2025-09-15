@@ -19,7 +19,8 @@
     </v-row>
 
     <!-- Dashboard Grid -->
-    <DashboardGrid />
+    <MobileDashboard v-if="mobile" />
+    <DashboardGrid v-else />
 
     <!-- Mock Mode Toggle (только в development) -->
     <MockModeToggle />
@@ -58,22 +59,26 @@
 
 <script lang="ts">
 import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
+import MobileDashboard from '@/components/Dashboard/MobileDashboard.vue';
 import MockModeToggle from '@/components/Dashboard/MockModeToggle.vue';
 import { useAuth } from '@/context/auth';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
 import { computed, defineComponent, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { useDisplay } from 'vuetify';
 
 export default defineComponent({
   name: 'Dashboard',
   components: {
     DashboardGrid,
+    MobileDashboard,
     MockModeToggle
   },
   setup() {
     const router = useRouter();
     const dashboardStore = useDashboardStoreWithInit();
     const auth = useAuth();
+    const { mobile } = useDisplay();
     const isRefreshing = ref(false);
 
     // Computed properties
@@ -106,6 +111,7 @@ export default defineComponent({
 
     return {
       auth,
+      mobile,
       error,
       lastRefresh,
       isRefreshing,

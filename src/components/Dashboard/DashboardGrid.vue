@@ -10,8 +10,13 @@
     <div v-else-if="currentLayout" class="grid-container">
       <v-row>
         <template v-for="widget in visibleWidgets" :key="widget.id">
-          <v-col :cols="getColSize(widget.position.width)" :md="getColSize(widget.position.width)"
-            :lg="getColSize(widget.position.width)" class="widget-column">
+          <v-col 
+            cols="12" 
+            sm="12" 
+            md="6" 
+            lg="4" 
+            xl="3" 
+            class="widget-column">
             <component :is="getWidgetComponent(widget.type)" :refresh-interval="widget.config.refreshInterval || 300"
               @configure="configureWidget(widget)" @remove="removeWidget(widget.id)" v-bind="widget.config" />
           </v-col>
@@ -28,10 +33,10 @@
             </v-card-title>
             <v-card-text>
               <v-row>
-                <v-col v-for="action in availableQuickActions" :key="action.id" cols="6" sm="4" md="3" lg="2">
+                <v-col v-for="action in availableQuickActions" :key="action.id" cols="6" sm="6" md="4" lg="3" xl="2">
                   <v-btn :color="action.color" variant="outlined" block :to="action.route" class="quick-action-btn">
                     <v-icon start :icon="action.icon" />
-                    {{ action.title }}
+                    <span class="action-text">{{ action.title }}</span>
                   </v-btn>
                 </v-col>
               </v-row>
@@ -472,9 +477,94 @@ export default defineComponent({
   height: 64px;
   flex-direction: column;
   gap: 4px;
+  font-size: 0.875rem;
 }
 
 .quick-action-btn .v-icon {
   margin-bottom: 4px;
+}
+
+.action-text {
+  text-align: center;
+  line-height: 1.2;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    padding: 8px;
+  }
+  
+  .widget-column {
+    min-height: 280px;
+    margin-bottom: 8px;
+  }
+  
+  .quick-action-btn {
+    height: 56px;
+    font-size: 0.75rem;
+  }
+  
+  .action-text {
+    font-size: 0.7rem;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Ensure proper spacing on mobile */
+  .v-row {
+    margin: -4px;
+  }
+  
+  .v-col {
+    padding: 4px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-grid {
+    padding: 4px;
+  }
+  
+  .widget-column {
+    min-height: 250px;
+    margin-bottom: 4px;
+  }
+  
+  .quick-action-btn {
+    height: 48px;
+    font-size: 0.7rem;
+  }
+  
+  .action-text {
+    font-size: 0.65rem;
+  }
+  
+  .v-row {
+    margin: -2px;
+  }
+  
+  .v-col {
+    padding: 2px;
+  }
+}
+
+/* iPhone 14 Pro Max specific optimizations */
+@media (max-width: 430px) and (max-height: 932px) {
+  .dashboard-grid {
+    padding: 6px;
+  }
+  
+  .widget-column {
+    min-height: 240px;
+  }
+  
+  .quick-action-btn {
+    height: 52px;
+  }
 }
 </style>

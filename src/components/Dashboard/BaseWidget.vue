@@ -223,4 +223,73 @@ export default defineComponent({
 .widget-error {
   border-left: 4px solid rgb(var(--v-theme-error));
 }
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .base-widget .v-card-title {
+    padding: 12px 16px;
+    font-size: 1rem;
+  }
+  
+  .base-widget .v-card-text {
+    padding: 12px 16px;
+  }
+  
+  .widget-content {
+    min-height: auto !important;
+  }
+  
+  .widget-small .widget-content {
+    min-height: 120px;
+  }
+
+  .widget-medium .widget-content {
+    min-height: 180px;
+  }
+
+  .widget-large .widget-content {
+    min-height: 220px;
+  }
+
+  .widget-extra-large .widget-content {
+    min-height: 280px;
+  }
+  
+  .error-state,
+  .loading-state {
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .base-widget .v-card-title {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+  
+  .base-widget .v-card-text {
+    padding: 8px 12px;
+  }
+  
+  .widget-small .widget-content {
+    min-height: 100px;
+  }
+
+  .widget-medium .widget-content {
+    min-height: 140px;
+  }
+
+  .widget-large .widget-content {
+    min-height: 180px;
+  }
+
+  .widget-extra-large .widget-content {
+    min-height: 220px;
+  }
+  
+  .error-state,
+  .loading-state {
+    min-height: 100px;
+  }
+}
 </style>

@@ -11,6 +11,7 @@ import { aliases, mdi } from "vuetify/iconsets/mdi";
 import "./styles/apple-design-system.css";
 import "./styles/browser-compatibility.css";
 import "./styles/scroll-fixes.css"; // Исправления прокрутки для продакшена
+import "./styles/mobile-fixes.css"; // Исправления для мобильных устройств
 import appleTheme from "./styles/vuetify-apple-theme";
 
 import App from "./App.vue";

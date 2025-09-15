@@ -1,8 +1,13 @@
 <template>
   <v-app>
     <!-- Боковая панель навигации -->
-    <v-navigation-drawer v-model="drawer" :rail="rail" permanent class="apple-sidebar app-sidebar"
-      :class="{ 'sidebar-rail': rail }">
+    <v-navigation-drawer 
+      v-model="drawer" 
+      :rail="rail && !mobile" 
+      :permanent="!mobile" 
+      :temporary="mobile"
+      class="apple-sidebar app-sidebar"
+      :class="{ 'sidebar-rail': rail && !mobile }">
       <!-- Заголовок боковой панели -->
       <div class="sidebar-header">
         <div class="logo" @click="toggleRail">
@@ -54,11 +59,12 @@
 
       <!-- Приветствие и дата -->
       <v-app-bar-title>
-        <div class="welcome-section">
+        <div class="welcome-section" :class="{ 'mobile-welcome': mobile }">
           <h1 class="welcome-title">
-            Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!
+            <span v-if="!mobile">Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!</span>
+            <span v-else>{{ auth.user.value?.name || 'CRM' }}</span>
           </h1>
-          <div class="welcome-datetime">
+          <div v-if="!mobile" class="welcome-datetime">
             <p class="welcome-date">
               {{ formatDate(currentTime) }}
             </p>
@@ -1259,6 +1265,17 @@ onUnmounted(() => {
 }
 
 /* Mobile адаптация для приветствия */
+.mobile-welcome {
+  text-align: left;
+}
+
+.mobile-welcome .welcome-title {
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  margin: 0;
+  line-height: 1.2;
+}
+
 @media (max-width: 960px) {
   .welcome-title {
     font-size: 1.1rem !important;
@@ -1319,6 +1336,38 @@ onUnmounted(() => {
 
   .main-content {
     padding: 16px;
+  }
+}
+
+/* iPhone 14 Pro Max specific fixes */
+@media (max-width: 430px) and (max-height: 932px) {
+  .app-header {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  
+  .mobile-welcome .welcome-title {
+    font-size: 0.9rem !important;
+  }
+  
+  .theme-toggle-btn,
+  .user-avatar-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  
+  .user-avatar {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  
+  .main-content {
+    padding: 8px !important;
+  }
+  
+  /* Ensure sidebar is properly hidden on mobile */
+  .v-navigation-drawer--temporary {
+    z-index: 2000 !important;
   }
 }
 </style>
