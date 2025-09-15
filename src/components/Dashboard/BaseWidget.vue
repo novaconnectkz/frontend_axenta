@@ -18,20 +18,6 @@
           @click="handleRefresh"
           :disabled="loading"
         />
-        <v-tooltip v-if="realTimeEnabled" location="top">
-          <template v-slot:activator="{ props }">
-            <v-icon
-              v-bind="props"
-              :icon="isConnected ? 'mdi-wifi' : 'mdi-wifi-off'"
-              :color="isConnected ? 'success' : 'error'"
-              size="small"
-              class="me-2"
-            />
-          </template>
-          <span>
-            {{ isConnected ? 'Real-time обновления включены' : 'Real-time обновления отключены' }}
-          </span>
-        </v-tooltip>
 
         <v-menu v-if="configurable">
           <template v-slot:activator="{ props }">
@@ -142,14 +128,6 @@ export default defineComponent({
     elevation: {
       type: Number,
       default: 2
-    },
-    realTimeEnabled: {
-      type: Boolean,
-      default: false
-    },
-    isConnected: {
-      type: Boolean,
-      default: false
     }
   },
   emits: ['refresh', 'configure', 'remove'],

@@ -4,8 +4,6 @@
     icon="mdi-monitor"
     :loading="loading"
     :error="error"
-    :real-time-enabled="true"
-    :is-connected="isConnected"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
@@ -175,7 +173,6 @@ export default defineComponent({
       error,
       activePercentage,
       loadData,
-      isConnected: realTimeWidget.isConnected,
       lastUpdate: realTimeWidget.lastUpdate
     };
   }
