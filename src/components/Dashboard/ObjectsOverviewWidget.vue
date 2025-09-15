@@ -187,6 +187,8 @@ export default defineComponent({
 .stat-item {
   text-align: center;
   padding: 12px;
+  min-width: 120px;
+  flex: 1;
 }
 
 .stat-value {
@@ -194,6 +196,8 @@ export default defineComponent({
   font-weight: bold;
   line-height: 1;
   margin-bottom: 4px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-value.total {
@@ -217,5 +221,32 @@ export default defineComponent({
   color: rgb(var(--v-theme-on-surface-variant));
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  text-align: center;
+}
+
+/* Адаптивные размеры для длинных чисел */
+@media (max-width: 1200px) {
+  .stat-value {
+    font-size: 1.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .stat-item {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-value {
+    font-size: 1.25rem;
+  }
 }
 </style>

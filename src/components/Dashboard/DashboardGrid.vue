@@ -14,8 +14,8 @@
             cols="12" 
             sm="12" 
             md="6" 
-            lg="4" 
-            xl="3" 
+            lg="6" 
+            xl="6" 
             class="widget-column">
             <component :is="getWidgetComponent(widget.type)" :refresh-interval="widget.config.refreshInterval || 300"
               @configure="configureWidget(widget)" @remove="removeWidget(widget.id)" v-bind="widget.config" />
@@ -471,6 +471,14 @@ export default defineComponent({
 
 .widget-column {
   min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-column > * {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .quick-action-btn {
@@ -566,5 +574,35 @@ export default defineComponent({
   .quick-action-btn {
     height: 52px;
   }
+}
+
+/* Дополнительные стили для оптимизации текста */
+.widget-column :deep(.v-card) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-column :deep(.v-card-text) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Защита от переносов для всех текстовых элементов в виджетах */
+.widget-column :deep(.stat-label),
+.widget-column :deep(.stat-title) {
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  line-height: 1.3 !important;
+}
+
+.widget-column :deep(.v-list-item-title) {
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
 }
 </style>

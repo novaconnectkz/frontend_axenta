@@ -10,25 +10,25 @@
   >
     <div v-if="data" class="billing-overview">
       <v-row>
-        <v-col cols="12" md="4">
+        <v-col cols="12" lg="4">
           <v-card variant="tonal" color="success">
-            <v-card-text class="text-center">
+            <v-card-text class="text-center billing-stat-card">
               <div class="stat-value">{{ formatCurrency(data.total_revenue) }}</div>
               <div class="stat-label">Общая выручка</div>
             </v-card-text>
           </v-card>
         </v-col>
-        <v-col cols="12" md="4">
+        <v-col cols="12" lg="4">
           <v-card variant="tonal" color="primary">
-            <v-card-text class="text-center">
+            <v-card-text class="text-center billing-stat-card">
               <div class="stat-value">{{ formatCurrency(data.monthly_revenue) }}</div>
               <div class="stat-label">Выручка за месяц</div>
             </v-card-text>
           </v-card>
         </v-col>
-        <v-col cols="12" md="4">
+        <v-col cols="12" lg="4">
           <v-card variant="tonal" color="info">
-            <v-card-text class="text-center">
+            <v-card-text class="text-center billing-stat-card">
               <div class="stat-value">{{ data.active_contracts }}</div>
               <div class="stat-label">Активных договоров</div>
             </v-card-text>
@@ -254,6 +254,8 @@ export default defineComponent({
   font-weight: bold;
   line-height: 1;
   margin-bottom: 4px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-label {
@@ -261,6 +263,18 @@ export default defineComponent({
   opacity: 0.8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.billing-stat-card {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 8px !important;
 }
 
 .trend-item {
@@ -287,5 +301,24 @@ export default defineComponent({
 
 .trend-value.negative {
   color: rgb(var(--v-theme-error));
+}
+
+/* Адаптивные размеры для длинных чисел */
+@media (max-width: 1200px) {
+  .stat-value {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-value {
+    font-size: 1.1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stat-value {
+    font-size: 1rem;
+  }
 }
 </style>

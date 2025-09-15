@@ -263,6 +263,7 @@ export default defineComponent({
 .stat-item {
   text-align: center;
   padding: 8px;
+  min-width: fit-content;
 }
 
 .stat-value {
@@ -270,6 +271,8 @@ export default defineComponent({
   font-weight: bold;
   line-height: 1;
   margin-bottom: 4px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-value.total {
@@ -301,6 +304,10 @@ export default defineComponent({
   color: rgb(var(--v-theme-on-surface-variant));
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .progress-section {

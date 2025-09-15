@@ -889,7 +889,7 @@ const logout = () => {
 /* Сетка виджетов */
 .widgets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 16px;
   padding: 20px;
   flex: 1;
@@ -1003,6 +1003,9 @@ const logout = () => {
   color: #666;
   font-size: 14px;
   line-height: 1.5;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .widget-stats {
@@ -1016,6 +1019,8 @@ const logout = () => {
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-label {
@@ -1580,13 +1585,14 @@ const logout = () => {
   line-height: 1;
 }
 
-.info-value-compact {
-  font-size: 13px;
-  color: #1a1a1a;
-  font-weight: 600;
-  line-height: 1.2;
-  word-break: break-all;
-}
+  .info-value-compact {
+    font-size: 13px;
+    color: #1a1a1a;
+    font-weight: 600;
+    line-height: 1.2;
+    word-break: break-word;
+    white-space: nowrap;
+  }
 
 .account-name {
   font-size: 12px !important;
@@ -1633,17 +1639,18 @@ const logout = () => {
   color: #34C759;
 }
 
-.token-display-compact {
-  background: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-  font-size: 11px;
-  color: #666;
-  word-break: break-all;
-  line-height: 1.3;
-}
+  .token-display-compact {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: #666;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.3;
+  }
 
 /* Старые стили удалены - используем компактные версии */
 
@@ -1747,5 +1754,30 @@ const logout = () => {
   }
 
   /* Старые стили для темной темы удалены */
+}
+
+/* Дополнительная адаптивность для длинных чисел */
+@media (max-width: 1400px) {
+  .stat-number {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .stat-number {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 900px) {
+  .stat-number {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 600px) {
+  .stat-number {
+    font-size: 16px;
+  }
 }
 </style>

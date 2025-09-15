@@ -246,6 +246,8 @@ export default defineComponent({
 .stat-item {
   text-align: center;
   padding: 12px;
+  min-width: 120px;
+  flex: 1;
 }
 
 .stat-value {
@@ -253,6 +255,8 @@ export default defineComponent({
   font-weight: bold;
   line-height: 1;
   margin-bottom: 4px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-value.total {
@@ -276,6 +280,10 @@ export default defineComponent({
   color: rgb(var(--v-theme-on-surface-variant));
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  line-height: 1.3;
+  text-align: center;
 }
 
 .chart-container {
@@ -283,5 +291,19 @@ export default defineComponent({
   justify-content: center;
   align-items: center;
   height: 150px;
+}
+
+/* Исправление для списков */
+.users-overview :deep(.v-list-item-title) {
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  line-height: 1.3 !important;
+}
+
+.users-overview :deep(.v-list-item) {
+  min-height: 48px !important;
+  padding: 8px 16px !important;
 }
 </style>

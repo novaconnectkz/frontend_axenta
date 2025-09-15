@@ -775,7 +775,7 @@ const formatDate = (dateString: string) => {
 /* Сетка статистики */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -837,12 +837,17 @@ const formatDate = (dateString: string) => {
   color: #1a1a1a;
   margin: 0 0 4px 0;
   line-height: 1;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .stat-description {
   font-size: 14px;
   color: #666;
   margin: 0 0 8px 0;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .stat-change {
@@ -1278,6 +1283,31 @@ const formatDate = (dateString: string) => {
 
   .time-label {
     color: #ccc;
+  }
+}
+
+/* Дополнительная адаптивность для длинных чисел */
+@media (max-width: 1400px) {
+  .stat-number {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .stat-number {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 900px) {
+  .stat-number {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 600px) {
+  .stat-number {
+    font-size: 18px;
   }
 }
 </style>

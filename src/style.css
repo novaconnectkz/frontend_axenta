@@ -24,6 +24,11 @@ body {
   
   /* Стили будут переопределены Apple Design System */
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  
+  /* Защита цифр от некорректного переноса */
+  hyphens: none;
+  -webkit-hyphens: none;
+  -moz-hyphens: none;
 }
 
 /* Убираем стандартные стили Vite для #app */
@@ -88,4 +93,46 @@ button {
   #app {
     overflow: visible;
   }
+}
+
+/* 🔢 Глобальные правила для защиты числовых значений от переноса */
+.number-value,
+.stat-value,
+.stat-number,
+.currency-value,
+.percentage-value {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  -moz-hyphens: none !important;
+  /* Убираем ограничения на видимость чисел */
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* Защита для всех элементов содержащих только цифры, валюту или проценты */
+[data-type="number"],
+[data-type="currency"],
+[data-type="percentage"] {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  -moz-hyphens: none !important;
+  /* Убираем ограничения на видимость чисел */
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+/* Дополнительная защита для элементов с числовым содержимым */
+.no-break-numbers {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  /* Убираем ограничения на видимость чисел */
+  overflow: visible !important;
+  text-overflow: unset !important;
 }
