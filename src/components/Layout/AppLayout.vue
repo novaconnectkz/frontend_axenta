@@ -371,6 +371,8 @@ const wsStatus = computed(() => {
 // Methods
 const toggleRail = () => {
   rail.value = !rail.value;
+  // Сохраняем состояние rail mode в localStorage
+  localStorage.setItem('sidebar-rail', rail.value.toString());
 };
 
 const toggleTheme = () => {
@@ -505,6 +507,12 @@ onMounted(() => {
     theme.change(defaultTheme);
     localStorage.setItem('theme', defaultTheme);
     document.body.setAttribute('data-theme', 'light');
+  }
+
+  // Восстанавливаем состояние rail mode из localStorage
+  const savedRailState = localStorage.getItem('sidebar-rail');
+  if (savedRailState !== null) {
+    rail.value = savedRailState === 'true';
   }
 
   // Запускаем автообновление времени каждую секунду

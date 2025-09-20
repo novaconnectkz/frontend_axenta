@@ -53,23 +53,22 @@
       </v-card-title>
       
       <v-card-text class="pa-3">
-        <v-row dense>
-          <v-col cols="4" v-for="action in mobileQuickActions" :key="action.id">
-            <v-btn
-              :color="action.color"
-              variant="tonal"
-              block
-              size="small"
-              :to="action.route"
-              class="mobile-action-btn"
-            >
-              <div class="d-flex flex-column align-center">
-                <v-icon :icon="action.icon" size="18" class="mb-1" />
-                <span class="action-text">{{ action.shortTitle || action.title }}</span>
-              </div>
-            </v-btn>
-          </v-col>
-        </v-row>
+        <!-- Адаптивная сетка для мобильных быстрых действий -->
+        <div class="mobile-quick-actions-grid">
+          <v-btn
+            v-for="action in mobileQuickActions"
+            :key="action.id"
+            :color="action.color"
+            variant="tonal"
+            :to="action.route"
+            class="mobile-action-btn"
+          >
+            <div class="d-flex flex-column align-center">
+              <v-icon :icon="action.icon" size="18" class="mb-1" />
+              <span class="action-text">{{ action.shortTitle || action.title }}</span>
+            </div>
+          </v-btn>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -245,10 +244,42 @@ const navigateToSection = (route: string) => {
   background: rgb(var(--v-theme-surface));
 }
 
+/* Адаптивная сетка для мобильных быстрых действий */
+.mobile-quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+/* Для очень маленьких экранов - 2 кнопки в ряд */
+@media (max-width: 360px) {
+  .mobile-quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+}
+
+/* Для больших мобильных экранов - больше кнопок в ряд */
+@media (min-width: 480px) {
+  .mobile-quick-actions-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+}
+
 .mobile-action-btn {
   height: 56px !important;
   border-radius: 8px;
   font-size: 0.7rem;
+  min-width: unset;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.mobile-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .action-text {
@@ -256,6 +287,9 @@ const navigateToSection = (route: string) => {
   line-height: 1.1;
   text-align: center;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .recent-activity-mobile {
@@ -307,12 +341,18 @@ const navigateToSection = (route: string) => {
     font-size: 1.25rem;
   }
   
+  .mobile-quick-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  
   .mobile-action-btn {
     height: 48px !important;
   }
   
   .action-text {
     font-size: 0.6rem;
+    line-height: 1;
   }
 }
 </style>

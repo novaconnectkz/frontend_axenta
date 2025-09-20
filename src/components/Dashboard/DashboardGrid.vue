@@ -32,14 +32,21 @@
               Быстрые действия
             </v-card-title>
             <v-card-text>
-              <v-row>
-                <v-col v-for="action in availableQuickActions" :key="action.id" cols="6" sm="6" md="4" lg="3" xl="2">
-                  <v-btn :color="action.color" variant="outlined" block :to="action.route" class="quick-action-btn">
-                    <v-icon start :icon="action.icon" />
-                    <span class="action-text">{{ action.title }}</span>
-                  </v-btn>
-                </v-col>
-              </v-row>
+              <!-- Адаптивная сетка для одной строки -->
+              <div class="quick-actions-grid" :class="{ 'rail-mode': $vuetify.display.lgAndUp && isRailMode }">
+                <v-btn 
+                  v-for="action in availableQuickActions" 
+                  :key="action.id" 
+                  :color="action.color" 
+                  variant="outlined" 
+                  :to="action.route" 
+                  class="quick-action-btn"
+                  :class="{ 'rail-quick-btn': $vuetify.display.lgAndUp && isRailMode }"
+                >
+                  <v-icon start :icon="action.icon" />
+                  <span class="action-text">{{ action.title }}</span>
+                </v-btn>
+              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -198,7 +205,7 @@
 import { useAuth } from '@/context/auth';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
 import type { Widget, WidgetType } from '@/types/dashboard';
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 
 // Import widget components
 import BillingOverviewWidget from './BillingOverviewWidget.vue';
@@ -313,6 +320,9 @@ export default defineComponent({
       )
     );
 
+    // Определяем состояние rail mode из родительского компонента (AppLayout)
+    const isRailMode = ref(false);
+
     // Methods
     const getWidgetComponent = (type: WidgetType) => {
       const componentMap: Record<string, any> = {
@@ -406,13 +416,40 @@ export default defineComponent({
       dashboardStore.loadLayouts();
     };
 
+    // Определяем состояние rail mode через медиа-запросы и локальное хранилище
+    const checkRailMode = () => {
+      // Проверяем ширину экрана и состояние в localStorage
+      const isLargeScreen = window.innerWidth >= 1280;
+      const savedRailState = localStorage.getItem('sidebar-rail') === 'true';
+      isRailMode.value = isLargeScreen && savedRailState;
+    };
+
     // Lifecycle
     onMounted(async () => {
       try {
         await dashboardStore.refreshAll();
+        
+        // Проверяем rail mode при загрузке
+        checkRailMode();
+        
+        // Слушаем изменения размера окна
+        window.addEventListener('resize', checkRailMode);
+        
+        // Слушаем изменения в localStorage для rail mode
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'sidebar-rail') {
+            checkRailMode();
+          }
+        });
       } catch (error) {
         console.error('Ошибка инициализации Dashboard:', error);
       }
+    });
+
+    onUnmounted(() => {
+      // Очищаем event listeners
+      window.removeEventListener('resize', checkRailMode);
+      window.removeEventListener('storage', checkRailMode);
     });
 
     return {
@@ -434,6 +471,7 @@ export default defineComponent({
       // Computed
       visibleWidgets,
       availableQuickActions,
+      isRailMode,
 
       // Configuration
       refreshIntervals,
@@ -481,11 +519,53 @@ export default defineComponent({
   flex-direction: column;
 }
 
+/* Адаптивная сетка для быстрых действий */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* Для больших экранов - все кнопки в одну строку */
+@media (min-width: 1280px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* Для экстра больших экранов */
+@media (min-width: 1920px) {
+  .quick-actions-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 20px;
+  }
+}
+
+/* Режим свернутого меню - больше места для кнопок */
+.quick-actions-grid.rail-mode {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 20px;
+}
+
 .quick-action-btn {
   height: 64px;
   flex-direction: column;
   gap: 4px;
   font-size: 0.875rem;
+  min-width: 140px;
+  transition: all 0.2s ease;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.rail-quick-btn {
+  min-width: 180px;
+  height: 72px;
 }
 
 .quick-action-btn .v-icon {
@@ -497,6 +577,10 @@ export default defineComponent({
   line-height: 1.2;
   font-size: 0.75rem;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* Mobile optimizations */
@@ -510,9 +594,16 @@ export default defineComponent({
     margin-bottom: 8px;
   }
   
+  /* Мобильная сетка - 2 кнопки в ряд */
+  .quick-actions-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  
   .quick-action-btn {
     height: 56px;
     font-size: 0.75rem;
+    min-width: unset;
   }
   
   .action-text {
@@ -543,13 +634,22 @@ export default defineComponent({
     margin-bottom: 4px;
   }
   
+  /* Очень маленькие экраны - 3 кнопки в ряд */
+  .quick-actions-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  
   .quick-action-btn {
     height: 48px;
     font-size: 0.7rem;
+    min-width: unset;
+    padding: 4px;
   }
   
   .action-text {
     font-size: 0.65rem;
+    line-height: 1.1;
   }
   
   .v-row {

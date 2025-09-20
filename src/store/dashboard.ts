@@ -63,6 +63,22 @@ export const useDashboardStore = defineStore("dashboard", () => {
       route: "/reports/create",
       permission: "reports.create",
     },
+    {
+      id: "view-analytics",
+      title: "Аналитика",
+      icon: "mdi-chart-line",
+      color: "purple",
+      route: "/analytics",
+      permission: "analytics.view",
+    },
+    {
+      id: "settings",
+      title: "Настройки",
+      icon: "mdi-cog",
+      color: "grey",
+      route: "/settings",
+      permission: "settings.manage",
+    },
   ]);
 
   // Getters
