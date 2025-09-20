@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => {
 
     // Настройки dev сервера для SPA
     server: {
-      port: 3000,
+      port: 3001,
       host: true,
       // История API для SPA маршрутизации
       historyApiFallback: {
@@ -89,7 +89,7 @@ export default defineConfig(({ mode }) => {
 
     // Настройки preview для продакшена
     preview: {
-      port: 3000,
+      port: 3001,
       host: true,
       // История API для preview режима
       historyApiFallback: {
