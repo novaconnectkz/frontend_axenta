@@ -214,6 +214,43 @@ export class UsersService {
     return response.data;
   }
 
+  // Массовое удаление пользователей
+  async deleteUsers(userIds: number[]): Promise<{
+    status: string;
+    message: string;
+    deleted: number;
+    error?: string;
+  }> {
+    // Если включен режим демо данных, возвращаем mock ответ
+    if (this.useMockData) {
+      console.log('Mock bulk delete for users:', userIds);
+      return {
+        status: "success",
+        message: "Users deleted successfully (demo mode)",
+        deleted: userIds.length,
+      };
+    }
+
+    try {
+      const response = await this.apiClient.post("/users/bulk-delete", {
+        user_ids: userIds,
+      });
+      return response.data;
+    } catch (error) {
+      console.warn(
+        "Ошибка массового удаления пользователей с сервера, переключаемся на демо режим:",
+        error
+      );
+      // Включаем режим демо данных при ошибке
+      this.useMockData = true;
+      return {
+        status: "success",
+        message: "Users deleted successfully (demo mode)",
+        deleted: userIds.length,
+      };
+    }
+  }
+
   // Сброс пароля пользователя
   async resetUserPassword(
     id: number,

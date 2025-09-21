@@ -173,6 +173,51 @@ class CompaniesService {
   }
 
   /**
+   * Массовое удаление компаний
+   */
+  async deleteCompanies(ids: number[]): Promise<{
+    status: string;
+    message: string;
+    deleted: number;
+    error?: string;
+  }> {
+    const response = await this.apiClient.post(`${this.basePath}/bulk-delete`, {
+      company_ids: ids,
+    });
+    return response.data;
+  }
+
+  /**
+   * Массовая активация компаний
+   */
+  async activateCompanies(ids: number[]): Promise<{
+    status: string;
+    message: string;
+    activated: number;
+    error?: string;
+  }> {
+    const response = await this.apiClient.post(`${this.basePath}/bulk-activate`, {
+      company_ids: ids,
+    });
+    return response.data;
+  }
+
+  /**
+   * Массовая деактивация компаний
+   */
+  async deactivateCompanies(ids: number[]): Promise<{
+    status: string;
+    message: string;
+    deactivated: number;
+    error?: string;
+  }> {
+    const response = await this.apiClient.post(`${this.basePath}/bulk-deactivate`, {
+      company_ids: ids,
+    });
+    return response.data;
+  }
+
+  /**
    * Активировать компанию
    */
   async activateCompany(id: number): Promise<CompanyResponse> {

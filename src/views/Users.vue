@@ -82,8 +82,51 @@
       <div class="filters-content">
         <v-row>
           <v-col cols="12" md="4">
-            <AppleInput v-model="filters.search" placeholder="Поиск по имени, email, логину..."
-              prepend-icon="mdi-magnify" clearable @input="debouncedSearch" />
+            <AppleInput 
+              v-model="filters.search" 
+              placeholder="Поиск по имени, email, логину..."
+              clearable 
+              @input="debouncedSearch"
+              :color="isMultipleUserSearch ? 'primary' : undefined"
+            >
+              <template #prepend-icon>
+                <v-tooltip :text="userSearchHint" location="bottom">
+                  <template #activator="{ props }">
+                    <v-icon 
+                      v-bind="props" 
+                      :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'" 
+                      :color="isMultipleUserSearch ? 'primary' : undefined"
+                    />
+                  </template>
+                </v-tooltip>
+              </template>
+              
+              <template #append-inner v-if="isMultipleUserSearch">
+                <v-tooltip text="Активен точный поиск по нескольким пользователям">
+                  <template #activator="{ props }">
+                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
+                      {{ userSearchTermsArray.length }}
+                    </v-chip>
+                  </template>
+                </v-tooltip>
+              </template>
+            </AppleInput>
+            
+            <!-- Чипы с найденными пользователями -->
+            <div v-if="isMultipleUserSearch && userSearchTermsArray.length > 0" class="search-chips mt-2">
+              <v-chip
+                v-for="(term, index) in userSearchTermsArray"
+                :key="index"
+                size="small"
+                color="primary"
+                variant="outlined"
+                class="mr-1 mb-1"
+                closable
+                @click:close="removeUserSearchTerm(index)"
+              >
+                {{ term }}
+              </v-chip>
+            </div>
           </v-col>
 
           <v-col cols="12" md="3">
@@ -108,6 +151,61 @@
 
     <!-- Список пользователей -->
     <AppleCard class="users-table-card" variant="outlined">
+      <!-- Панель групповых действий -->
+      <div v-if="selectedUsers.length > 0" class="bulk-actions-panel">
+        <div class="bulk-actions-info">
+          <v-icon>mdi-checkbox-marked</v-icon>
+          Выбрано пользователей: {{ selectedUsers.length }}
+        </div>
+        <div class="bulk-actions-buttons">
+          <AppleButton 
+            variant="text" 
+            size="small" 
+            prepend-icon="mdi-close" 
+            @click="clearSelection"
+          >
+            Снять выделение
+          </AppleButton>
+          
+          <!-- Активация/деактивация -->
+          <AppleButton 
+            v-if="hasInactiveUsers"
+            variant="secondary" 
+            size="small" 
+            prepend-icon="mdi-check-circle" 
+            color="success"
+            :loading="bulkActionsLoading"
+            @click="bulkActivateUsers"
+          >
+            Активировать ({{ inactiveUsersCount }})
+          </AppleButton>
+          
+          <AppleButton 
+            v-if="hasActiveUsers"
+            variant="secondary" 
+            size="small" 
+            prepend-icon="mdi-pause-circle" 
+            color="warning"
+            :loading="bulkActionsLoading"
+            @click="bulkDeactivateUsers"
+          >
+            Деактивировать ({{ activeUsersCount }})
+          </AppleButton>
+          
+          <!-- Удаление -->
+          <AppleButton 
+            variant="secondary" 
+            size="small" 
+            prepend-icon="mdi-delete" 
+            color="error"
+            :loading="bulkActionsLoading"
+            @click="bulkDeleteUsers"
+          >
+            Удалить ({{ selectedUsers.length }})
+          </AppleButton>
+        </div>
+      </div>
+
       <template #header>
         <div class="table-header">
           <div class="table-title-section">
@@ -125,6 +223,27 @@
           @update:page="handlePageChange" @update:items-per-page="handlePerPageChange"
           @update:sort-by="handleSortChange" item-value="id" class="users-table" no-data-text="Пользователи не найдены"
           loading-text="Загрузка пользователей...">
+          <!-- Чекбокс выделения -->
+          <template #item.select="{ item }">
+            <v-checkbox 
+              :model-value="isUserSelected(item)" 
+              @update:model-value="toggleUserSelection(item)"
+              hide-details 
+              density="compact" 
+            />
+          </template>
+
+          <!-- Заголовок чекбокса -->
+          <template #header.select>
+            <v-checkbox 
+              :model-value="selectAll" 
+              :indeterminate="selectedUsers.length > 0 && selectedUsers.length < users.length"
+              @update:model-value="toggleSelectAll"
+              hide-details 
+              density="compact"
+            />
+          </template>
+
           <!-- Активность -->
           <template #item.is_active="{ item }">
             <v-checkbox :model-value="item.is_active" @update:model-value="toggleUserActivity(item, $event)"
@@ -220,6 +339,16 @@
     <InactiveUsersDialog v-model="inactiveUsersDialog.show" @success="onInactiveUsersSuccess"
       @error="showSnackbar($event, 'error')" />
 
+    <!-- Диалог подтверждения массового удаления -->
+    <BulkDeleteConfirmDialog
+      v-model="showBulkDeleteDialog"
+      :items="selectedUsers"
+      item-type="пользователей"
+      :loading="bulkActionsLoading"
+      @confirm="executeBulkDelete"
+      @cancel="showBulkDeleteDialog = false"
+    />
+
     <!-- Snackbar для уведомлений -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
       {{ snackbar.text }}
@@ -229,6 +358,16 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Красивые уведомления об успехе -->
+    <SuccessNotification
+      :show="successNotification.show"
+      :title="successNotification.title"
+      :message="successNotification.message"
+      :details="successNotification.details"
+      :icon="successNotification.icon"
+      @close="successNotification.show = false"
+    />
   </div>
 </template>
 
@@ -236,6 +375,8 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
+import BulkDeleteConfirmDialog from '@/components/Common/BulkDeleteConfirmDialog.vue';
+import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import RolesManagement from '@/components/Users/RolesManagement.vue';
@@ -249,7 +390,7 @@ import type {
 } from '@/types/users';
 import { disableDemoMode as disableDemo, enableDemoMode as enableDemo } from '@/utils/demoMode';
 import { debounce } from 'lodash-es';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 // Reactive data
 const loading = ref(false);
@@ -259,6 +400,11 @@ const exporting = ref(false);
 const users = ref<UserWithRelations[]>([]);
 const usersData = ref<any>(null);
 const showRolesManagement = ref(false);
+
+// Bulk selection
+const selectedUsers = ref<UserWithRelations[]>([]);
+const selectAll = ref(false);
+const bulkActionsLoading = ref(false);
 
 // Pagination
 const pagination = ref({
@@ -337,6 +483,9 @@ const inactiveUsersDialog = ref({
   show: false,
 });
 
+// Bulk delete dialog
+const showBulkDeleteDialog = ref(false);
+
 // Snackbar
 const snackbar = ref({
   show: false,
@@ -345,11 +494,62 @@ const snackbar = ref({
   timeout: 5000,
 });
 
+// Красивые уведомления об успехе
+const successNotification = reactive({
+  show: false,
+  title: '',
+  message: '',
+  details: '',
+  icon: 'mdi-check-circle'
+});
+
 // Computed
 const hasActiveFilters = computed(() => {
   return Object.values(filters.value).some(value =>
     value !== undefined && value !== null && value !== ''
   );
+});
+
+// Computed properties для групповых действий
+const activeUsersCount = computed(() => {
+  return selectedUsers.value.filter(user => user.is_active).length;
+});
+
+const inactiveUsersCount = computed(() => {
+  return selectedUsers.value.filter(user => !user.is_active).length;
+});
+
+const hasActiveUsers = computed(() => {
+  return activeUsersCount.value > 0;
+});
+
+const hasInactiveUsers = computed(() => {
+  return inactiveUsersCount.value > 0;
+});
+
+// Computed properties для множественного поиска пользователей
+const isMultipleUserSearch = computed(() => {
+  if (!filters.value.search) return false;
+  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
+  return searchTerms.length > 1;
+});
+
+const userSearchTermsArray = computed(() => {
+  if (!filters.value.search) return [];
+  return filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
+});
+
+const userSearchHint = computed(() => {
+  if (!filters.value.search) {
+    return 'Введите имя, email или логин. Для поиска нескольких пользователей разделите запятой';
+  }
+  
+  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
+  if (searchTerms.length > 1) {
+    return `Точный поиск по ${searchTerms.length} пользователям: ${searchTerms.join(', ')}`;
+  }
+  
+  return 'Поиск по частичному совпадению или добавьте запятую для точного поиска';
 });
 
 // Options
@@ -363,6 +563,7 @@ const userTypeOptions = [
 
 // Table headers
 const tableHeaders = computed(() => [
+  { title: '', value: 'select', sortable: false, width: 50 },
   { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
   { title: 'ID', value: 'id', sortable: true, width: 80 },
   { title: 'Пользователь', value: 'user', sortable: false, width: 200 },
@@ -503,6 +704,8 @@ const onUserSaved = async (user: UserWithRelations) => {
   );
   await loadUsers();
   await loadStats();
+  // Очищаем выделение после изменений
+  clearSelection();
 };
 
 const deleteUser = async (user: UserWithRelations) => {
@@ -640,6 +843,14 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
 };
 
+const showSuccessNotification = (title: string, message: string, details?: string, icon?: string) => {
+  successNotification.title = title;
+  successNotification.message = message;
+  successNotification.details = details || '';
+  successNotification.icon = icon || 'mdi-check-circle';
+  successNotification.show = true;
+};
+
 // Методы для управления демо режимом
 const enableDemoMode = async () => {
   enableDemo();
@@ -688,10 +899,242 @@ const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) =>
   }
 };
 
+// Функции для работы с выделением
+const isUserSelected = (user: UserWithRelations): boolean => {
+  return selectedUsers.value.some(u => u.id === user.id);
+};
+
+const toggleUserSelection = (user: UserWithRelations) => {
+  const index = selectedUsers.value.findIndex(u => u.id === user.id);
+  if (index > -1) {
+    selectedUsers.value.splice(index, 1);
+  } else {
+    selectedUsers.value.push(user);
+  }
+  updateSelectAllState();
+};
+
+const updateSelectAllState = () => {
+  if (selectedUsers.value.length === 0) {
+    selectAll.value = false;
+  } else if (selectedUsers.value.length === users.value.length) {
+    selectAll.value = true;
+  } else {
+    selectAll.value = false;
+  }
+};
+
+const toggleSelectAll = () => {
+  if (selectAll.value || selectedUsers.value.length === users.value.length) {
+    // Снимаем выделение со всех
+    selectedUsers.value = [];
+    selectAll.value = false;
+  } else {
+    // Выделяем всех видимых пользователей
+    selectedUsers.value = [...users.value];
+    selectAll.value = true;
+  }
+};
+
+const clearSelection = () => {
+  selectedUsers.value = [];
+  selectAll.value = false;
+};
+
+// Удаление отдельного поискового термина для пользователей
+const removeUserSearchTerm = (index: number) => {
+  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
+  searchTerms.splice(index, 1);
+  filters.value.search = searchTerms.join(', ');
+  debouncedSearch();
+};
+
+// Групповые действия
+const bulkDeleteUsers = () => {
+  if (selectedUsers.value.length === 0) {
+    showSnackbar('Выберите пользователей для удаления', 'warning');
+    return;
+  }
+
+  // Проверяем, есть ли администраторы среди выбранных пользователей
+  const adminUsers = selectedUsers.value.filter(user => 
+    user.role && (user.role.name === 'admin' || user.role.name === 'administrator')
+  );
+
+  if (adminUsers.length > 0) {
+    const adminUsernames = adminUsers.map(u => u.username).join(', ');
+    showSnackbar(
+      `Нельзя удалить администраторов: ${adminUsernames}. Сначала смените им роль.`,
+      'error'
+    );
+    return;
+  }
+
+  // Проверяем, есть ли активные пользователи с недавней активностью
+  const recentlyActiveUsers = selectedUsers.value.filter(user => {
+    if (!user.last_login) return false;
+    const lastLogin = new Date(user.last_login);
+    const dayAgo = new Date();
+    dayAgo.setDate(dayAgo.getDate() - 1);
+    return lastLogin > dayAgo;
+  });
+
+  if (recentlyActiveUsers.length > 0) {
+    const activeUsernames = recentlyActiveUsers.map(u => u.username).join(', ');
+    if (!confirm(`Внимание! Среди выбранных пользователей есть те, кто заходил в систему за последние 24 часа: ${activeUsernames}.\n\nВы действительно хотите продолжить?`)) {
+      return;
+    }
+  }
+
+  showBulkDeleteDialog.value = true;
+};
+
+const executeBulkDelete = async () => {
+  try {
+    bulkActionsLoading.value = true;
+    const userIds = selectedUsers.value.map(u => u.id);
+    
+    const response = await usersService.deleteUsers(userIds);
+    
+    if (response.status === 'success') {
+      const deletedCount = selectedUsers.value.length;
+      showBulkDeleteDialog.value = false;
+      clearSelection();
+      await loadUsers();
+      await loadStats();
+      showSuccessNotification(
+        'Пользователи удалены',
+        'Выбранные пользователи были успешно удалены из системы',
+        `Удалено пользователей: ${response.deleted}`,
+        'mdi-account-remove'
+      );
+    } else {
+      showSnackbar(response.error || 'Ошибка группового удаления пользователей', 'error');
+    }
+  } catch (error: any) {
+    console.error('Ошибка группового удаления пользователей:', error);
+    showSnackbar('Ошибка группового удаления пользователей', 'error');
+  } finally {
+    bulkActionsLoading.value = false;
+  }
+};
+
+// Массовая активация пользователей
+const bulkActivateUsers = async () => {
+  if (inactiveUsersCount.value === 0) {
+    showSnackbar('Нет неактивных пользователей для активации', 'warning');
+    return;
+  }
+
+  const inactiveUsers = selectedUsers.value.filter(user => !user.is_active);
+  const usernames = inactiveUsers.map(u => u.username).join(', ');
+  
+  if (!confirm(`Вы уверены, что хотите активировать ${inactiveUsers.length} пользователей?\n\n${usernames}`)) {
+    return;
+  }
+
+  try {
+    bulkActionsLoading.value = true;
+    const userIds = inactiveUsers.map(u => u.id);
+    
+    // В реальном API здесь будет вызов usersService.activateUsers(userIds)
+    // Для демо имитируем успешный ответ
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Обновляем статус в локальных данных (для демо)
+    inactiveUsers.forEach(user => {
+      user.is_active = true;
+    });
+    
+    clearSelection();
+    await loadUsers();
+    await loadStats();
+    showSuccessNotification(
+      'Пользователи активированы',
+      'Выбранные пользователи были успешно активированы',
+      `Активировано пользователей: ${inactiveUsers.length}`,
+      'mdi-account-check'
+    );
+  } catch (error: any) {
+    console.error('Ошибка массовой активации пользователей:', error);
+    showSnackbar('Ошибка массовой активации пользователей', 'error');
+  } finally {
+    bulkActionsLoading.value = false;
+  }
+};
+
+// Массовая деактивация пользователей  
+const bulkDeactivateUsers = async () => {
+  if (activeUsersCount.value === 0) {
+    showSnackbar('Нет активных пользователей для деактивации', 'warning');
+    return;
+  }
+
+  const activeUsers = selectedUsers.value.filter(user => user.is_active);
+  
+  // Проверяем, есть ли администраторы
+  const adminUsers = activeUsers.filter(user => 
+    user.role && (user.role.name === 'admin' || user.role.name === 'administrator')
+  );
+
+  if (adminUsers.length > 0) {
+    const adminUsernames = adminUsers.map(u => u.username).join(', ');
+    showSnackbar(
+      `Нельзя деактивировать администраторов: ${adminUsernames}. Сначала смените им роль.`,
+      'error'
+    );
+    return;
+  }
+
+  const usernames = activeUsers.map(u => u.username).join(', ');
+  if (!confirm(`Вы уверены, что хотите деактивировать ${activeUsers.length} пользователей?\n\n${usernames}`)) {
+    return;
+  }
+
+  try {
+    bulkActionsLoading.value = true;
+    const userIds = activeUsers.map(u => u.id);
+    
+    // В реальном API здесь будет вызов usersService.deactivateUsers(userIds)
+    // Для демо имитируем успешный ответ
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    // Обновляем статус в локальных данных (для демо)
+    activeUsers.forEach(user => {
+      user.is_active = false;
+    });
+    
+    clearSelection();
+    await loadUsers();
+    await loadStats();
+    showSuccessNotification(
+      'Пользователи деактивированы',
+      'Выбранные пользователи были успешно деактивированы',
+      `Деактивировано пользователей: ${activeUsers.length}`,
+      'mdi-account-cancel'
+    );
+  } catch (error: any) {
+    console.error('Ошибка массовой деактивации пользователей:', error);
+    showSnackbar('Ошибка массовой деактивации пользователей', 'error');
+  } finally {
+    bulkActionsLoading.value = false;
+  }
+};
+
 // Watchers
 watch([filters], () => {
   pagination.value.page = 1;
+  clearSelection(); // Очищаем выделение при изменении фильтров
   loadUsers();
+}, { deep: true });
+
+// Очищаем выделение при изменении пользователей
+watch(users, () => {
+  // Удаляем из выделения пользователей, которых больше нет в списке
+  selectedUsers.value = selectedUsers.value.filter(selectedUser =>
+    users.value.some(user => user.id === selectedUser.id)
+  );
+  updateSelectAllState();
 }, { deep: true });
 
 // Lifecycle
@@ -829,11 +1272,48 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  gap: 16px;
 }
 
 .table-title-section {
   display: flex;
   align-items: center;
+  flex: 1;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.bulk-actions-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.bulk-actions-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+}
+
+.bulk-actions-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .table-container {
@@ -934,6 +1414,22 @@ onMounted(async () => {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  }
+
+  .bulk-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .bulk-actions-panel {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .bulk-actions-buttons {
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 }
 

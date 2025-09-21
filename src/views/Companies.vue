@@ -93,8 +93,53 @@
       <v-card-text>
         <v-row align="center">
           <v-col cols="12" md="4">
-            <v-text-field v-model="filters.search" label="Поиск компаний" prepend-inner-icon="mdi-magnify"
-              variant="outlined" density="compact" clearable @input="debouncedSearch" />
+            <v-text-field 
+              v-model="filters.search" 
+              label="Поиск компаний" 
+              variant="outlined" 
+              density="compact" 
+              clearable 
+              @input="debouncedSearch"
+              :color="isMultipleSearch ? 'primary' : undefined"
+            >
+              <template #prepend-inner>
+                <v-tooltip :text="searchHint" location="bottom">
+                  <template #activator="{ props }">
+                    <v-icon 
+                      v-bind="props" 
+                      :icon="isMultipleSearch ? 'mdi-format-list-checks' : 'mdi-magnify'" 
+                      :color="isMultipleSearch ? 'primary' : undefined"
+                    />
+                  </template>
+                </v-tooltip>
+              </template>
+              
+              <template #append-inner v-if="isMultipleSearch">
+                <v-tooltip text="Активен точный поиск по нескольким компаниям">
+                  <template #activator="{ props }">
+                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
+                      {{ searchTermsArray.length }}
+                    </v-chip>
+                  </template>
+                </v-tooltip>
+              </template>
+            </v-text-field>
+            
+            <!-- Чипы с найденными компаниями -->
+            <div v-if="isMultipleSearch && searchTermsArray.length > 0" class="search-chips mt-2">
+              <v-chip
+                v-for="(term, index) in searchTermsArray"
+                :key="index"
+                size="small"
+                color="primary"
+                variant="outlined"
+                class="mr-1 mb-1"
+                closable
+                @click:close="removeSearchTerm(index)"
+              >
+                {{ term }}
+              </v-chip>
+            </div>
           </v-col>
           <v-col cols="12" md="3">
             <v-select v-model="filters.is_active" label="Статус" :items="statusOptions" variant="outlined"
@@ -115,9 +160,80 @@
 
     <!-- Таблица компаний -->
     <v-card class="companies-table-card">
+      <!-- Панель групповых действий -->
+      <div v-if="selectedCompanies.length > 0" class="bulk-actions-panel">
+        <div class="bulk-actions-info">
+          <v-icon>mdi-checkbox-marked</v-icon>
+          Выбрано компаний: {{ selectedCompanies.length }}
+        </div>
+        <div class="bulk-actions-buttons">
+          <v-btn variant="text" size="small" prepend-icon="mdi-close" @click="clearSelection">
+            Снять выделение
+          </v-btn>
+          
+          <!-- Активация/деактивация -->
+          <v-btn 
+            v-if="hasInactiveCompanies"
+            variant="outlined" 
+            size="small" 
+            prepend-icon="mdi-play" 
+            color="success"
+            :loading="bulkActionsLoading"
+            @click="bulkActivateCompanies"
+          >
+            Активировать ({{ inactiveCompaniesCount }})
+          </v-btn>
+          
+          <v-btn 
+            v-if="hasActiveCompanies"
+            variant="outlined" 
+            size="small" 
+            prepend-icon="mdi-pause" 
+            color="warning"
+            :loading="bulkActionsLoading"
+            @click="bulkDeactivateCompanies"
+          >
+            Деактивировать ({{ activeCompaniesCount }})
+          </v-btn>
+          
+          <!-- Удаление -->
+          <v-btn 
+            variant="outlined" 
+            size="small" 
+            prepend-icon="mdi-delete" 
+            color="error"
+            :loading="bulkActionsLoading"
+            @click="bulkDeleteCompanies"
+          >
+            Удалить ({{ selectedCompanies.length }})
+          </v-btn>
+        </div>
+      </div>
+      
       <v-data-table :headers="headers" :items="companies" :loading="loading" :items-per-page="filters.limit"
         :page="filters.page" :server-items-length="totalItems" @update:page="onPageChange"
         @update:items-per-page="onLimitChange" class="companies-table">
+        <!-- Чекбокс выделения -->
+        <template #item.select="{ item }">
+          <v-checkbox 
+            :model-value="isCompanySelected(item)" 
+            @update:model-value="toggleCompanySelection(item)"
+            hide-details 
+            density="compact" 
+          />
+        </template>
+
+        <!-- Заголовок чекбокса -->
+        <template #header.select>
+          <v-checkbox 
+            :model-value="selectAll" 
+            :indeterminate="selectedCompanies.length > 0 && selectedCompanies.length < companies.length"
+            @update:model-value="toggleSelectAll"
+            hide-details 
+            density="compact"
+          />
+        </template>
+
         <!-- Название компании -->
         <template #item.name="{ item }">
           <div class="company-name">
@@ -216,6 +332,16 @@
     <!-- Диалог просмотра компании -->
     <CompanyViewDialog v-model="showViewDialog" :company="selectedCompany" />
 
+    <!-- Диалог подтверждения массового удаления -->
+    <BulkDeleteConfirmDialog
+      v-model="showBulkDeleteDialog"
+      :items="selectedCompanies"
+      item-type="компаний"
+      :loading="bulkActionsLoading"
+      @confirm="executeBulkDelete"
+      @cancel="showBulkDeleteDialog = false"
+    />
+
     <!-- Диалог подтверждения удаления -->
     <v-dialog v-model="showDeleteDialog" max-width="500">
       <v-card>
@@ -238,10 +364,22 @@
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000">
       {{ snackbar.text }}
     </v-snackbar>
+
+    <!-- Красивые уведомления об успехе -->
+    <SuccessNotification
+      :show="successNotification.show"
+      :title="successNotification.title"
+      :message="successNotification.message"
+      :details="successNotification.details"
+      :icon="successNotification.icon"
+      @close="successNotification.show = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import BulkDeleteConfirmDialog from '@/components/Common/BulkDeleteConfirmDialog.vue'
+import SuccessNotification from '@/components/Common/SuccessNotification.vue'
 import CompanyDialog from '@/components/Companies/CompanyDialog.vue'
 import CompanyViewDialog from '@/components/Companies/CompanyViewDialog.vue'
 import type {
@@ -250,7 +388,7 @@ import type {
   CompanyStats
 } from '@/types/companies'
 import { COMPANY_FILTERS_DEFAULTS } from '@/types/companies'
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
 // Реактивные данные
 const companies = ref<Company[]>([])
@@ -268,10 +406,16 @@ const exporting = ref(false)
 const deleting = ref(false)
 const totalItems = ref(0)
 
+// Bulk selection
+const selectedCompanies = ref<Company[]>([])
+const selectAll = ref(false)
+const bulkActionsLoading = ref(false)
+
 // Диалоги
 const showDialog = ref(false)
 const showViewDialog = ref(false)
 const showDeleteDialog = ref(false)
+const showBulkDeleteDialog = ref(false)
 const selectedCompany = ref<Company | null>(null)
 const dialogMode = ref<'create' | 'edit'>('create')
 
@@ -282,8 +426,18 @@ const snackbar = reactive({
   color: 'success'
 })
 
+// Красивые уведомления об успехе
+const successNotification = reactive({
+  show: false,
+  title: '',
+  message: '',
+  details: '',
+  icon: 'mdi-check-circle'
+})
+
 // Заголовки таблицы
 const headers = [
+  { title: '', key: 'select', sortable: false, width: 50 },
   { title: 'Компания', key: 'name', sortable: true },
   { title: 'Статус', key: 'is_active', sortable: true },
   { title: 'Контакты', key: 'contact', sortable: false },
@@ -315,6 +469,50 @@ const debouncedSearch = debounce(() => {
   filters.page = 1
   loadCompanies()
 }, 500)
+
+// Computed properties для групповых действий
+const activeCompaniesCount = computed(() => {
+  return selectedCompanies.value.filter(company => company.is_active).length
+})
+
+const inactiveCompaniesCount = computed(() => {
+  return selectedCompanies.value.filter(company => !company.is_active).length
+})
+
+const hasActiveCompanies = computed(() => {
+  return activeCompaniesCount.value > 0
+})
+
+const hasInactiveCompanies = computed(() => {
+  return inactiveCompaniesCount.value > 0
+})
+
+// Подсказка для поля поиска
+const searchHint = computed(() => {
+  if (!filters.search) {
+    return 'Введите название компании или несколько через запятую для точного поиска'
+  }
+  
+  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
+  if (searchTerms.length > 1) {
+    return `Поиск по ${searchTerms.length} компаниям: ${searchTerms.join(', ')}`
+  }
+  
+  return 'Поиск по частичному совпадению или добавьте запятую для точного поиска'
+})
+
+// Определяем, активен ли множественный поиск
+const isMultipleSearch = computed(() => {
+  if (!filters.search) return false
+  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
+  return searchTerms.length > 1
+})
+
+// Массив поисковых терминов для чипов
+const searchTermsArray = computed(() => {
+  if (!filters.search) return []
+  return filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
+})
 
 // Демо данные для компаний
 const demoCompanies: Company[] = [
@@ -466,14 +664,25 @@ const loadCompanies = async () => {
     // Используем демо данные вместо API
     let filteredCompanies = [...demoCompanies]
 
-    // Применяем фильтры
+    // Применяем фильтры поиска
     if (filters.search) {
-      const searchLower = filters.search.toLowerCase()
-      filteredCompanies = filteredCompanies.filter(company =>
-        company.name.toLowerCase().includes(searchLower) ||
-        company.contact_person.toLowerCase().includes(searchLower) ||
-        company.city.toLowerCase().includes(searchLower)
-      )
+      const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
+      
+      if (searchTerms.length > 1) {
+        // Множественный поиск по точному совпадению названий
+        const exactNames = searchTerms.map(term => term.toLowerCase())
+        filteredCompanies = filteredCompanies.filter(company =>
+          exactNames.includes(company.name.toLowerCase())
+        )
+      } else if (searchTerms.length === 1) {
+        // Обычный поиск по частичному совпадению
+        const searchLower = searchTerms[0].toLowerCase()
+        filteredCompanies = filteredCompanies.filter(company =>
+          company.name.toLowerCase().includes(searchLower) ||
+          company.contact_person.toLowerCase().includes(searchLower) ||
+          company.city.toLowerCase().includes(searchLower)
+        )
+      }
     }
 
     if (filters.is_active !== null) {
@@ -673,6 +882,235 @@ const showSnackbar = (text: string, color: string = 'success') => {
   snackbar.show = true
 }
 
+const showSuccessNotification = (title: string, message: string, details?: string, icon?: string) => {
+  successNotification.title = title
+  successNotification.message = message
+  successNotification.details = details || ''
+  successNotification.icon = icon || 'mdi-check-circle'
+  successNotification.show = true
+}
+
+// Функции для работы с выделением
+const isCompanySelected = (company: Company): boolean => {
+  return selectedCompanies.value.some(c => c.id === company.id)
+}
+
+const toggleCompanySelection = (company: Company) => {
+  const index = selectedCompanies.value.findIndex(c => c.id === company.id)
+  if (index > -1) {
+    selectedCompanies.value.splice(index, 1)
+  } else {
+    selectedCompanies.value.push(company)
+  }
+  updateSelectAllState()
+}
+
+const updateSelectAllState = () => {
+  if (selectedCompanies.value.length === 0) {
+    selectAll.value = false
+  } else if (selectedCompanies.value.length === companies.value.length) {
+    selectAll.value = true
+  } else {
+    selectAll.value = false
+  }
+}
+
+const toggleSelectAll = () => {
+  if (selectAll.value || selectedCompanies.value.length === companies.value.length) {
+    // Снимаем выделение со всех
+    selectedCompanies.value = []
+    selectAll.value = false
+  } else {
+    // Выделяем всех видимых компаний
+    selectedCompanies.value = [...companies.value]
+    selectAll.value = true
+  }
+}
+
+const clearSelection = () => {
+  selectedCompanies.value = []
+  selectAll.value = false
+}
+
+// Удаление отдельного поискового термина
+const removeSearchTerm = (index: number) => {
+  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
+  searchTerms.splice(index, 1)
+  filters.search = searchTerms.join(', ')
+  debouncedSearch()
+}
+
+// Групповые действия
+const bulkDeleteCompanies = () => {
+  if (selectedCompanies.value.length === 0) {
+    showSnackbar('Выберите компании для удаления', 'warning')
+    return
+  }
+
+  // Проверяем, есть ли активные компании с пользователями
+  const activeCompaniesWithUsers = selectedCompanies.value.filter(company => 
+    company.is_active && company.usage_stats && company.usage_stats.users_count > 0
+  )
+
+  if (activeCompaniesWithUsers.length > 0) {
+    const companyNames = activeCompaniesWithUsers.map(c => c.name).join(', ')
+    showSnackbar(
+      `Нельзя удалить активные компании с пользователями: ${companyNames}. Сначала деактивируйте их или удалите пользователей.`,
+      'error'
+    )
+    return
+  }
+
+  showBulkDeleteDialog.value = true
+}
+
+const executeBulkDelete = async () => {
+  try {
+    bulkActionsLoading.value = true
+    
+    // Имитируем API вызов для демо
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    // Удаляем из демо данных
+    selectedCompanies.value.forEach(selectedCompany => {
+      const index = demoCompanies.findIndex(c => c.id === selectedCompany.id)
+      if (index > -1) {
+        demoCompanies.splice(index, 1)
+      }
+    })
+    
+    const deletedCount = selectedCompanies.value.length
+    showBulkDeleteDialog.value = false
+    clearSelection()
+    await refreshData()
+    showSuccessNotification(
+      'Компании удалены',
+      'Выбранные компании были успешно удалены из системы',
+      `Удалено компаний: ${deletedCount}`,
+      'mdi-delete-circle'
+    )
+  } catch (error: any) {
+    console.error('Ошибка группового удаления компаний:', error)
+    showSnackbar('Ошибка группового удаления компаний', 'error')
+  } finally {
+    bulkActionsLoading.value = false
+  }
+}
+
+// Массовая активация компаний
+const bulkActivateCompanies = async () => {
+  if (inactiveCompaniesCount.value === 0) {
+    showSnackbar('Нет неактивных компаний для активации', 'warning')
+    return
+  }
+
+  const inactiveCompanies = selectedCompanies.value.filter(company => !company.is_active)
+  const companyNames = inactiveCompanies.map(c => c.name).join(', ')
+  
+  if (!confirm(`Вы уверены, что хотите активировать ${inactiveCompanies.length} компаний?\n\n${companyNames}`)) {
+    return
+  }
+
+  try {
+    bulkActionsLoading.value = true
+    
+    // Имитируем API вызов для демо
+    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // Активируем в демо данных
+    inactiveCompanies.forEach(selectedCompany => {
+      const demoCompany = demoCompanies.find(c => c.id === selectedCompany.id)
+      if (demoCompany) {
+        demoCompany.is_active = true
+      }
+    })
+    
+    clearSelection()
+    await refreshData()
+    showSuccessNotification(
+      'Компании активированы',
+      'Выбранные компании были успешно активированы',
+      `Активировано компаний: ${inactiveCompanies.length}`,
+      'mdi-play-circle'
+    )
+  } catch (error: any) {
+    console.error('Ошибка массовой активации компаний:', error)
+    showSnackbar('Ошибка массовой активации компаний', 'error')
+  } finally {
+    bulkActionsLoading.value = false
+  }
+}
+
+// Массовая деактивация компаний
+const bulkDeactivateCompanies = async () => {
+  if (activeCompaniesCount.value === 0) {
+    showSnackbar('Нет активных компаний для деактивации', 'warning')
+    return
+  }
+
+  const activeCompanies = selectedCompanies.value.filter(company => company.is_active)
+  
+  // Проверяем, есть ли компании с пользователями
+  const companiesWithUsers = activeCompanies.filter(company => 
+    company.usage_stats && company.usage_stats.users_count > 0
+  )
+
+  if (companiesWithUsers.length > 0) {
+    const companyNames = companiesWithUsers.map(c => c.name).join(', ')
+    if (!confirm(`Внимание! Некоторые компании имеют активных пользователей: ${companyNames}.\n\nДеактивация может повлиять на работу пользователей. Продолжить?`)) {
+      return
+    }
+  }
+
+  const companyNames = activeCompanies.map(c => c.name).join(', ')
+  if (!confirm(`Вы уверены, что хотите деактивировать ${activeCompanies.length} компаний?\n\n${companyNames}`)) {
+    return
+  }
+
+  try {
+    bulkActionsLoading.value = true
+    
+    // Имитируем API вызов для демо
+    await new Promise(resolve => setTimeout(resolve, 800))
+    
+    // Деактивируем в демо данных
+    activeCompanies.forEach(selectedCompany => {
+      const demoCompany = demoCompanies.find(c => c.id === selectedCompany.id)
+      if (demoCompany) {
+        demoCompany.is_active = false
+      }
+    })
+    
+    clearSelection()
+    await refreshData()
+    showSuccessNotification(
+      'Компании деактивированы',
+      'Выбранные компании были успешно деактивированы',
+      `Деактивировано компаний: ${activeCompanies.length}`,
+      'mdi-pause-circle'
+    )
+  } catch (error: any) {
+    console.error('Ошибка массовой деактивации компаний:', error)
+    showSnackbar('Ошибка массовой деактивации компаний', 'error')
+  } finally {
+    bulkActionsLoading.value = false
+  }
+}
+
+// Watchers
+watch(filters, () => {
+  clearSelection() // Очищаем выделение при изменении фильтров
+}, { deep: true })
+
+// Очищаем выделение при изменении компаний
+watch(companies, () => {
+  // Удаляем из выделения компании, которых больше нет в списке
+  selectedCompanies.value = selectedCompanies.value.filter(selectedCompany =>
+    companies.value.some(company => company.id === selectedCompany.id)
+  )
+  updateSelectAllState()
+}, { deep: true })
+
 // Инициализация
 onMounted(() => {
   refreshData()
@@ -771,8 +1209,36 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 .companies-table-card {
   border-radius: 12px;
+}
+
+.bulk-actions-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.bulk-actions-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-primary));
+}
+
+.bulk-actions-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .company-name .name {
@@ -850,6 +1316,16 @@ onMounted(() => {
 
   .header-actions .v-btn {
     flex: 1;
+  }
+
+  .bulk-actions-panel {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .bulk-actions-buttons {
+    justify-content: flex-end;
   }
 }
 </style>
