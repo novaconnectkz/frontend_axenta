@@ -36,8 +36,31 @@
             </div>
           </div>
 
+          <!-- Кнопки управления -->
+          <div class="notification-controls">
+            <v-btn
+              variant="text"
+              size="small"
+              :prepend-icon="isAutoCloseEnabled ? 'mdi-timer-off' : 'mdi-timer'"
+              @click="toggleAutoClose"
+              class="control-btn"
+            >
+              {{ isAutoCloseEnabled ? 'Остановить таймер' : 'Запустить таймер' }}
+            </v-btn>
+            
+            <v-btn
+              variant="text"
+              size="small"
+              prepend-icon="mdi-close"
+              @click="closeManually"
+              class="control-btn close-btn"
+            >
+              Закрыть
+            </v-btn>
+          </div>
+
           <!-- Прогресс-бар автозакрытия -->
-          <div class="auto-close-progress">
+          <div v-if="isAutoCloseEnabled" class="auto-close-progress" :key="progressKey">
             <div 
               class="progress-bar" 
               :style="{ animationDuration: `${duration}ms` }"
@@ -59,6 +82,7 @@ interface Props {
   details?: string
   icon?: string
   duration?: number
+  autoClose?: boolean
 }
 
 interface Emits {
@@ -67,14 +91,21 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   icon: 'mdi-check-circle',
-  duration: 3000
+  duration: 3000,
+  autoClose: false
 })
 
 const emit = defineEmits<Emits>()
 
+// Reactive data
+import { ref } from 'vue'
+const isAutoCloseEnabled = ref(props.autoClose)
+const progressKey = ref(0) // Для перезапуска анимации прогресс-бара
 let autoCloseTimer: NodeJS.Timeout | null = null
 
 const startAutoClose = () => {
+  if (!isAutoCloseEnabled.value) return
+  
   if (autoCloseTimer) {
     clearTimeout(autoCloseTimer)
   }
@@ -91,8 +122,24 @@ const stopAutoClose = () => {
   }
 }
 
+const toggleAutoClose = () => {
+  isAutoCloseEnabled.value = !isAutoCloseEnabled.value
+  
+  if (isAutoCloseEnabled.value) {
+    progressKey.value++ // Перезапускаем анимацию прогресс-бара
+    startAutoClose()
+  } else {
+    stopAutoClose()
+  }
+}
+
+const closeManually = () => {
+  stopAutoClose()
+  emit('close')
+}
+
 onMounted(() => {
-  if (props.show) {
+  if (props.show && isAutoCloseEnabled.value) {
     startAutoClose()
   }
 })
@@ -104,7 +151,7 @@ onUnmounted(() => {
 // Перезапускаем таймер при изменении show
 import { watch } from 'vue'
 watch(() => props.show, (newValue) => {
-  if (newValue) {
+  if (newValue && isAutoCloseEnabled.value) {
     startAutoClose()
   } else {
     stopAutoClose()
@@ -229,6 +276,31 @@ watch(() => props.show, (newValue) => {
   color: #4CAF50;
 }
 
+/* Кнопки управления */
+.notification-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.control-btn {
+  font-size: 12px;
+  height: 32px;
+  min-width: auto;
+  padding: 0 12px;
+}
+
+.close-btn {
+  color: #666;
+}
+
+.close-btn:hover {
+  color: #f44336;
+}
+
 /* Прогресс-бар автозакрытия */
 .auto-close-progress {
   position: absolute;
@@ -350,6 +422,18 @@ watch(() => props.show, (newValue) => {
   background: rgba(255, 255, 255, 0.1);
 }
 
+[data-theme="dark"] .notification-controls {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .close-btn {
+  color: #ccc;
+}
+
+[data-theme="dark"] .close-btn:hover {
+  color: #ff5252;
+}
+
 /* Мобильная адаптация */
 @media (max-width: 600px) {
   .success-notification-card {
@@ -379,6 +463,16 @@ watch(() => props.show, (newValue) => {
   
   .success-message {
     font-size: 14px;
+  }
+  
+  .notification-controls {
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .control-btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>

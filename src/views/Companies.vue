@@ -236,10 +236,18 @@
 
         <!-- Название компании -->
         <template #item.name="{ item }">
-          <div class="company-name">
-            <div class="name">{{ item.name }}</div>
-            <div class="schema" v-if="item.database_schema">{{ item.database_schema }}</div>
-          </div>
+          <CompanyMenuFixed 
+            :company="item"
+            @edit="openEditDialog"
+            @view="openViewDialog"
+            @delete="confirmDelete"
+            @toggle-status="toggleCompanyStatus"
+            @manage-users="handleManageUsers"
+            @manage-objects="handleManageObjects"
+            @export-data="handleExportCompanyData"
+            @view-logs="handleViewLogs"
+            @view-storage="handleViewStorage"
+          />
         </template>
 
         <!-- Статус -->
@@ -382,6 +390,7 @@ import BulkDeleteConfirmDialog from '@/components/Common/BulkDeleteConfirmDialog
 import SuccessNotification from '@/components/Common/SuccessNotification.vue'
 import CompanyDialog from '@/components/Companies/CompanyDialog.vue'
 import CompanyViewDialog from '@/components/Companies/CompanyViewDialog.vue'
+import CompanyMenuFixed from '@/components/Companies/CompanyMenuFixed.vue'
 import type {
   Company,
   CompanyFilters,
@@ -1110,6 +1119,74 @@ watch(companies, () => {
   )
   updateSelectAllState()
 }, { deep: true })
+
+// Обработчики для меню настроек компании
+const handleManageUsers = (company: Company) => {
+  // TODO: Реализовать переход к управлению пользователями компании
+  showSnackbar(`Управление пользователями для ${company.name} будет реализовано`, 'info')
+}
+
+const handleManageObjects = (company: Company) => {
+  // TODO: Реализовать переход к управлению объектами компании  
+  showSnackbar(`Управление объектами для ${company.name} будет реализовано`, 'info')
+}
+
+const handleExportCompanyData = async (company: Company) => {
+  try {
+    // Имитируем экспорт данных конкретной компании
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
+    const companyData = {
+      company: {
+        id: company.id,
+        name: company.name,
+        database_schema: company.database_schema,
+        contact_person: company.contact_person,
+        contact_email: company.contact_email,
+        contact_phone: company.contact_phone,
+        city: company.city,
+        is_active: company.is_active
+      },
+      usage_stats: company.usage_stats,
+      limits: {
+        max_users: company.max_users,
+        max_objects: company.max_objects,
+        storage_quota: company.storage_quota
+      }
+    }
+    
+    const jsonContent = JSON.stringify(companyData, null, 2)
+    const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${company.name.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_')}_data.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    showSuccessNotification(
+      'Данные экспортированы',
+      `Данные компании "${company.name}" успешно экспортированы`,
+      'Файл сохранен в папку загрузок',
+      'mdi-download-circle'
+    )
+  } catch (error) {
+    showSnackbar('Ошибка экспорта данных компании', 'error')
+    console.error('Error exporting company data:', error)
+  }
+}
+
+const handleViewLogs = (company: Company) => {
+  // TODO: Реализовать просмотр логов компании
+  showSnackbar(`Просмотр логов для ${company.name} будет реализован`, 'info')
+}
+
+const handleViewStorage = (company: Company) => {
+  // TODO: Реализовать просмотр использования хранилища компании
+  showSnackbar(`Просмотр хранилища для ${company.name} будет реализован`, 'info')
+}
 
 // Инициализация
 onMounted(() => {
