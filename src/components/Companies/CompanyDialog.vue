@@ -23,7 +23,6 @@
           <v-tabs v-model="activeTab" class="mb-4">
             <v-tab value="general">Основное</v-tab>
             <v-tab value="contact">Контакты</v-tab>
-            <v-tab value="integration">Интеграции</v-tab>
             <v-tab value="settings">Настройки</v-tab>
           </v-tabs>
 
@@ -103,65 +102,6 @@
               </v-row>
             </v-tabs-window-item>
 
-            <!-- Интеграции -->
-            <v-tabs-window-item value="integration">
-              <v-row>
-                <v-col cols="12">
-                  <h3 class="mb-4">Axenta.cloud API</h3>
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="formData.axetna_login"
-                    label="Логин Axenta *"
-                    :rules="requiredRules"
-                    variant="outlined"
-                    required
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="formData.axetna_password"
-                    label="Пароль Axenta *"
-                    :rules="requiredRules"
-                    :type="showPassword ? 'text' : 'password'"
-                    :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                    @click:append-inner="showPassword = !showPassword"
-                    variant="outlined"
-                    required
-                  />
-                </v-col>
-
-                <v-col cols="12">
-                  <v-divider class="my-4" />
-                  <h3 class="mb-4">Битрикс24 (опционально)</h3>
-                </v-col>
-                <v-col cols="12">
-                  <v-text-field
-                    v-model="formData.bitrix24_webhook_url"
-                    label="URL вебхука Битрикс24"
-                    variant="outlined"
-                    placeholder="https://your-domain.bitrix24.ru/rest/..."
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="formData.bitrix24_client_id"
-                    label="Client ID"
-                    variant="outlined"
-                  />
-                </v-col>
-                <v-col cols="12" md="6">
-                  <v-text-field
-                    v-model="formData.bitrix24_client_secret"
-                    label="Client Secret"
-                    :type="showBitrixSecret ? 'text' : 'password'"
-                    :append-inner-icon="showBitrixSecret ? 'mdi-eye' : 'mdi-eye-off'"
-                    @click:append-inner="showBitrixSecret = !showBitrixSecret"
-                    variant="outlined"
-                  />
-                </v-col>
-              </v-row>
-            </v-tabs-window-item>
 
             <!-- Настройки -->
             <v-tabs-window-item value="settings">
@@ -228,6 +168,64 @@
                     variant="outlined"
                   />
                 </v-col>
+
+                <!-- Интеграции (только при редактировании) -->
+                <template v-if="mode === 'edit'">
+                  <v-col cols="12">
+                    <v-divider class="my-4" />
+                    <h3 class="mb-4">Интеграции</h3>
+                  </v-col>
+                  
+                  <v-col cols="12">
+                    <h4 class="mb-3">Axenta.cloud API</h4>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="formData.axetna_login"
+                      label="Логин Axenta"
+                      variant="outlined"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="formData.axetna_password"
+                      label="Пароль Axenta"
+                      :type="showPassword ? 'text' : 'password'"
+                      :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showPassword = !showPassword"
+                      variant="outlined"
+                    />
+                  </v-col>
+
+                  <v-col cols="12">
+                    <h4 class="mb-3">Битрикс24 (опционально)</h4>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="formData.bitrix24_webhook_url"
+                      label="URL вебхука Битрикс24"
+                      variant="outlined"
+                      placeholder="https://your-domain.bitrix24.ru/rest/..."
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="formData.bitrix24_client_id"
+                      label="Client ID"
+                      variant="outlined"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="formData.bitrix24_client_secret"
+                      label="Client Secret"
+                      :type="showBitrixSecret ? 'text' : 'password'"
+                      :append-inner-icon="showBitrixSecret ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showBitrixSecret = !showBitrixSecret"
+                      variant="outlined"
+                    />
+                  </v-col>
+                </template>
               </v-row>
             </v-tabs-window-item>
           </v-tabs-window>
@@ -318,6 +316,10 @@ const requiredRules = [
   (v: string) => !!v || 'Поле обязательно для заполнения'
 ]
 
+const integrationRules = [
+  // Интеграционные поля не обязательны при создании
+]
+
 const positiveNumberRules = [
   (v: number) => v > 0 || 'Значение должно быть больше 0'
 ]
@@ -356,7 +358,7 @@ const loadCompanyData = () => {
 }
 
 const validateForm = (): boolean => {
-  validationErrors.value = companiesService.validateCompanyData(formData)
+  validationErrors.value = companiesService.validateCompanyData(formData, props.mode === 'create')
   return validationErrors.value.length === 0
 }
 

@@ -304,7 +304,7 @@ class CompaniesService {
   /**
    * Валидация данных компании
    */
-  validateCompanyData(data: Partial<CompanyRequest>): string[] {
+  validateCompanyData(data: Partial<CompanyRequest>, isCreating: boolean = false): string[] {
     const errors: string[] = [];
 
     if (!data.name || data.name.trim().length === 0) {
@@ -315,12 +315,15 @@ class CompaniesService {
       errors.push("Название компании не должно превышать 100 символов");
     }
 
-    if (!data.axetna_login || data.axetna_login.trim().length === 0) {
-      errors.push("Логин Axenta обязателен для заполнения");
-    }
+    // Интеграционные поля обязательны только при редактировании
+    if (!isCreating) {
+      if (!data.axetna_login || data.axetna_login.trim().length === 0) {
+        errors.push("Логин Axenta обязателен для заполнения");
+      }
 
-    if (!data.axetna_password || data.axetna_password.trim().length === 0) {
-      errors.push("Пароль Axenta обязателен для заполнения");
+      if (!data.axetna_password || data.axetna_password.trim().length === 0) {
+        errors.push("Пароль Axenta обязателен для заполнения");
+      }
     }
 
     if (
