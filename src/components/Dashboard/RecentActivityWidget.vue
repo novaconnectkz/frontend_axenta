@@ -239,7 +239,9 @@ export default defineComponent({
 <style scoped>
 .recent-activity {
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Прокрутка для списка активности */
 }
 
 .no-activity {

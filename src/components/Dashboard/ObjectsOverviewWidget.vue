@@ -182,6 +182,9 @@ export default defineComponent({
 <style scoped>
 .objects-overview {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Прокрутка если содержимое не помещается */
 }
 
 .stat-item {

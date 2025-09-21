@@ -12,6 +12,7 @@ import "./styles/apple-design-system.css";
 import "./styles/browser-compatibility.css";
 import "./styles/scroll-fixes.css"; // Исправления прокрутки для продакшена
 import "./styles/mobile-fixes.css"; // Исправления для мобильных устройств
+import "./styles/widget-layout.css"; // Стили для виджетов с фиксированной высотой
 import appleTheme from "./styles/vuetify-apple-theme";
 
 import App from "./App.vue";

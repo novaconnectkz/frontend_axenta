@@ -247,6 +247,9 @@ export default defineComponent({
 <style scoped>
 .billing-overview {
   height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Прокрутка если содержимое не помещается */
 }
 
 .stat-value {
@@ -270,11 +273,11 @@ export default defineComponent({
 }
 
 .billing-stat-card {
-  min-height: 80px;
+  height: 70px; /* Фиксированная высота для статистических карточек */
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 16px 8px !important;
+  padding: 12px 8px !important;
 }
 
 .trend-item {

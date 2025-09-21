@@ -669,7 +669,7 @@ export default defineComponent({
 }
 
 .widget-column {
-  min-height: 300px;
+  height: 400px; /* Фиксированная высота для всех виджетов */
   display: flex;
   flex-direction: column;
 }
@@ -678,6 +678,7 @@ export default defineComponent({
   flex: 1;
   display: flex;
   flex-direction: column;
+  height: 100%; /* Заполняем всю высоту колонки */
 }
 
 
@@ -688,7 +689,7 @@ export default defineComponent({
   }
   
   .widget-column {
-    min-height: 280px;
+    height: 350px; /* Фиксированная высота для мобильных */
     margin-bottom: 8px;
   }
   
@@ -709,7 +710,7 @@ export default defineComponent({
   }
   
   .widget-column {
-    min-height: 250px;
+    height: 320px; /* Фиксированная высота для маленьких мобильных */
     margin-bottom: 4px;
   }
   
@@ -730,7 +731,7 @@ export default defineComponent({
   }
   
   .widget-column {
-    min-height: 240px;
+    height: 300px; /* Фиксированная высота для iPhone 14 Pro Max */
   }
   
 }
@@ -748,6 +749,9 @@ export default defineComponent({
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 16px;
   min-height: 200px;
+  max-height: calc(100vh - 200px); /* Ограничиваем высоту для прокрутки */
+  overflow-y: auto; /* Прокрутка в режиме перетаскивания */
+  padding: 8px;
 }
 
 .draggable-widget-wrapper {

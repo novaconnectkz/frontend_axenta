@@ -185,10 +185,56 @@ export default defineComponent({
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* Прокрутка если содержимое не помещается */
+  overflow-x: hidden; /* Скрываем горизонтальную прокрутку */
+  scrollbar-width: thin; /* Firefox - тонкая прокрутка */
+  scrollbar-color: rgba(var(--v-theme-on-surface), 0.2) transparent; /* Firefox - цвет прокрутки */
+}
+
+/* Webkit стилизация прокрутки (Chrome, Safari, Edge) */
+.widget-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-content::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--v-theme-on-surface), 0.2);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--v-theme-on-surface), 0.3);
 }
 
 .content {
   flex: 1;
+  padding: 4px 0; /* Небольшие отступы для лучшего использования пространства */
+}
+
+/* Компактный режим для содержимого виджетов */
+.widget-content :deep(.v-row) {
+  margin: -4px !important; /* Уменьшаем отступы между рядами */
+}
+
+.widget-content :deep(.v-col) {
+  padding: 4px !important; /* Уменьшаем отступы в колонках */
+}
+
+.widget-content :deep(.v-card) {
+  margin-bottom: 8px; /* Уменьшаем отступы между карточками */
+}
+
+.widget-content :deep(.v-list-item) {
+  min-height: 36px !important; /* Компактные элементы списка */
+  padding: 6px 12px !important;
+}
+
+.widget-content :deep(.v-alert) {
+  margin-bottom: 8px !important; /* Компактные алерты */
 }
 
 .error-state,
@@ -197,23 +243,16 @@ export default defineComponent({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 200px;
+  flex: 1; /* Заполняем доступное пространство */
 }
 
-.widget-small .widget-content {
-  min-height: 150px;
-}
-
-.widget-medium .widget-content {
-  min-height: 250px;
-}
-
-.widget-large .widget-content {
-  min-height: 350px;
-}
-
+/* Убираем min-height для всех размеров виджетов, 
+   так как высота теперь контролируется родительским контейнером */
+.widget-small .widget-content,
+.widget-medium .widget-content,
+.widget-large .widget-content,
 .widget-extra-large .widget-content {
-  min-height: 450px;
+  height: 100%;
 }
 
 .widget-loading {
@@ -227,69 +266,69 @@ export default defineComponent({
 /* Mobile optimizations */
 @media (max-width: 768px) {
   .base-widget .v-card-title {
-    padding: 12px 16px;
-    font-size: 1rem;
+    padding: 10px 12px; /* Уменьшаем отступы на мобильных */
+    font-size: 0.95rem;
   }
   
   .base-widget .v-card-text {
-    padding: 12px 16px;
+    padding: 8px 12px; /* Уменьшаем отступы на мобильных */
   }
   
+  /* Сохраняем фиксированную высоту на мобильных */
   .widget-content {
-    min-height: auto !important;
+    height: 100% !important;
   }
   
-  .widget-small .widget-content {
-    min-height: 120px;
+  /* Более компактные элементы на мобильных */
+  .widget-content :deep(.v-list-item) {
+    min-height: 32px !important;
+    padding: 4px 8px !important;
   }
-
-  .widget-medium .widget-content {
-    min-height: 180px;
+  
+  .widget-content :deep(.v-row) {
+    margin: -2px !important;
   }
-
-  .widget-large .widget-content {
-    min-height: 220px;
-  }
-
-  .widget-extra-large .widget-content {
-    min-height: 280px;
+  
+  .widget-content :deep(.v-col) {
+    padding: 2px !important;
   }
   
   .error-state,
   .loading-state {
-    min-height: 120px;
+    flex: 1;
   }
 }
 
 @media (max-width: 480px) {
   .base-widget .v-card-title {
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    padding: 6px 10px; /* Еще более компактные отступы */
+    font-size: 0.85rem;
   }
   
   .base-widget .v-card-text {
-    padding: 8px 12px;
+    padding: 6px 10px; /* Еще более компактные отступы */
   }
   
-  .widget-small .widget-content {
-    min-height: 100px;
+  /* Сохраняем фиксированную высоту на маленьких мобильных */
+  .widget-content {
+    height: 100% !important;
   }
-
-  .widget-medium .widget-content {
-    min-height: 140px;
+  
+  /* Максимально компактные элементы на маленьких экранах */
+  .widget-content :deep(.v-list-item) {
+    min-height: 28px !important;
+    padding: 3px 6px !important;
+    font-size: 0.8rem;
   }
-
-  .widget-large .widget-content {
-    min-height: 180px;
-  }
-
-  .widget-extra-large .widget-content {
-    min-height: 220px;
+  
+  .widget-content :deep(.v-chip) {
+    font-size: 0.7rem !important;
+    height: 20px !important;
   }
   
   .error-state,
   .loading-state {
-    min-height: 100px;
+    flex: 1;
   }
 }
 </style>

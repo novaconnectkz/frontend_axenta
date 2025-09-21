@@ -1,0 +1,97 @@
+/* Глобальные стили для виджетов с фиксированной высотой */
+
+/* Убираем лишние отступы в виджетах для экономии места */
+.widget-column .v-card-text {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* Компактные прогресс-бары в виджетах */
+.widget-column .v-progress-linear {
+  margin: 8px 0 !important;
+}
+
+/* Компактные алерты в виджетах */
+.widget-column .v-alert {
+  margin: 6px 0 !important;
+  padding: 8px 12px !important;
+}
+
+/* Улучшенная прокрутка для всех виджетов */
+.widget-column .v-card-text {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.widget-column .v-card-text::-webkit-scrollbar {
+  width: 4px;
+}
+
+.widget-column .v-card-text::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-column .v-card-text::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.widget-column .v-card-text::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Адаптивные размеры статистики в виджетах */
+@media (max-width: 1200px) {
+  .widget-column .stat-value {
+    font-size: 1.6rem !important;
+  }
+  
+  .widget-column .stat-label {
+    font-size: 0.8rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .widget-column .stat-value {
+    font-size: 1.4rem !important;
+  }
+  
+  .widget-column .stat-label {
+    font-size: 0.75rem !important;
+  }
+  
+  .widget-column .v-card-text {
+    padding: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .widget-column .stat-value {
+    font-size: 1.2rem !important;
+  }
+  
+  .widget-column .stat-label {
+    font-size: 0.7rem !important;
+  }
+  
+  .widget-column .v-card-text {
+    padding: 6px !important;
+  }
+  
+  /* Более компактные кнопки на мобильных */
+  .widget-column .v-btn--size-small {
+    font-size: 0.7rem !important;
+    padding: 0 8px !important;
+  }
+}
+
+/* Специальные стили для темной темы */
+@media (prefers-color-scheme: dark) {
+  .widget-column .v-card-text::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .widget-column .v-card-text::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+}
