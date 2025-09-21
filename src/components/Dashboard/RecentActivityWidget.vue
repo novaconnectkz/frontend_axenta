@@ -8,9 +8,91 @@
     @configure="$emit('configure')"
     @remove="$emit('remove')"
   >
-    <div v-if="activities.length > 0" class="recent-activity">
+    <!-- Filters Panel -->
+    <v-expand-transition>
+      <div v-if="showFilters" class="filters-panel">
+        <v-card variant="outlined" class="mb-4">
+          <v-card-text class="pb-2">
+            <v-row dense>
+              <!-- Activity Type Filter -->
+              <v-col cols="12" md="4">
+                <v-select
+                  v-model="filters.types"
+                  :items="activityTypeOptions"
+                  label="Тип активности"
+                  multiple
+                  chips
+                  closable-chips
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                >
+                  <template v-slot:chip="{ props, item }">
+                    <v-chip
+                      v-bind="props"
+                      :color="getActivityColor(item.value)"
+                      size="small"
+                      variant="tonal"
+                    >
+                      {{ item.title }}
+                    </v-chip>
+                  </template>
+                </v-select>
+              </v-col>
+
+              <!-- Date Range Filter -->
+              <v-col cols="12" md="4">
+                <v-select
+                  v-model="filters.dateRange"
+                  :items="dateRangeOptions"
+                  label="Период"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                />
+              </v-col>
+
+              <!-- User Filter -->
+              <v-col cols="12" md="4">
+                <v-autocomplete
+                  v-model="filters.users"
+                  :items="userOptions"
+                  label="Пользователи"
+                  multiple
+                  chips
+                  closable-chips
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+
+            <v-row dense class="mt-2">
+              <v-col cols="auto">
+                <v-btn
+                  size="small"
+                  variant="outlined"
+                  @click="clearFilters"
+                  :disabled="!hasActiveFilters"
+                >
+                  Очистить фильтры
+                </v-btn>
+              </v-col>
+              <v-col cols="auto" v-if="hasActiveFilters">
+                <v-chip color="primary" size="small" variant="tonal">
+                  Активных фильтров: {{ activeFiltersCount }}
+                </v-chip>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </div>
+    </v-expand-transition>
+
+    <div v-if="filteredActivities.length > 0" class="recent-activity">
       <v-list density="compact">
-        <template v-for="(activity, index) in activities" :key="activity.id">
+        <template v-for="(activity, index) in filteredActivities" :key="activity.id">
           <v-list-item>
             <template v-slot:prepend>
               <v-avatar :color="getActivityColor(activity.type)" size="32">
@@ -47,7 +129,7 @@
             </template>
           </v-list-item>
 
-          <v-divider v-if="index < activities.length - 1" />
+          <v-divider v-if="index < filteredActivities.length - 1" />
         </template>
       </v-list>
     </div>
@@ -55,8 +137,21 @@
     <div v-else-if="!loading" class="no-activity">
       <div class="text-center py-8">
         <v-icon icon="mdi-history" size="48" color="disabled" class="mb-4" />
-        <div class="text-subtitle-1 text-disabled">Нет недавней активности</div>
-        <div class="text-caption text-disabled">Активность будет отображаться здесь</div>
+        <div class="text-subtitle-1 text-disabled">
+          {{ hasActiveFilters ? 'Нет активности по выбранным фильтрам' : 'Нет недавней активности' }}
+        </div>
+        <div class="text-caption text-disabled">
+          {{ hasActiveFilters ? 'Попробуйте изменить параметры фильтрации' : 'Активность будет отображаться здесь' }}
+        </div>
+        <v-btn
+          v-if="hasActiveFilters"
+          variant="outlined"
+          size="small"
+          class="mt-4"
+          @click="clearFilters"
+        >
+          Очистить фильтры
+        </v-btn>
       </div>
     </div>
 
@@ -73,9 +168,21 @@
       <v-btn
         icon="mdi-filter"
         size="small"
-        variant="text"
+        :variant="hasActiveFilters ? 'tonal' : 'text'"
+        :color="hasActiveFilters ? 'primary' : undefined"
         @click="showFilters = !showFilters"
-      />
+      >
+        <v-badge
+          v-if="hasActiveFilters"
+          :content="activeFiltersCount"
+          color="error"
+          offset-x="2"
+          offset-y="2"
+        >
+          <v-icon>mdi-filter</v-icon>
+        </v-badge>
+        <v-icon v-else>mdi-filter</v-icon>
+      </v-btn>
     </template>
   </BaseWidget>
 </template>
@@ -83,7 +190,7 @@
 <script lang="ts">
 import { dashboardService } from '@/services/dashboardService';
 import type { ActivityItem } from '@/types/dashboard';
-import { defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { defineComponent, onMounted, onUnmounted, ref, computed, watch } from 'vue';
 import BaseWidget from './BaseWidget.vue';
 
 export default defineComponent({
@@ -108,6 +215,51 @@ export default defineComponent({
     const error = ref<string | null>(null);
     const showFilters = ref(false);
     let refreshTimer: NodeJS.Timeout | null = null;
+
+    // Load saved filters from localStorage
+    const loadSavedFilters = () => {
+      try {
+        const saved = localStorage.getItem('activity-widget-filters');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return {
+            types: parsed.types || [],
+            dateRange: parsed.dateRange || 'all',
+            users: parsed.users || []
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to load saved filters:', error);
+      }
+      return {
+        types: [] as string[],
+        dateRange: 'all',
+        users: [] as string[]
+      };
+    };
+
+    // Filter state
+    const filters = ref(loadSavedFilters());
+
+    // Filter options
+    const activityTypeOptions = [
+      { title: 'Объекты созданы', value: 'object_created' },
+      { title: 'Объекты обновлены', value: 'object_updated' },
+      { title: 'Объекты удалены', value: 'object_deleted' },
+      { title: 'Пользователи созданы', value: 'user_created' },
+      { title: 'Монтажи запланированы', value: 'installation_scheduled' },
+      { title: 'Счета сгенерированы', value: 'invoice_generated' },
+      { title: 'Платежи получены', value: 'payment_received' }
+    ];
+
+    const dateRangeOptions = [
+      { title: 'Все время', value: 'all' },
+      { title: 'Последний час', value: 'hour' },
+      { title: 'Сегодня', value: 'today' },
+      { title: 'Вчера', value: 'yesterday' },
+      { title: 'Последние 7 дней', value: 'week' },
+      { title: 'Последние 30 дней', value: 'month' }
+    ];
 
     const getActivityIcon = (type: string): string => {
       const iconMap: Record<string, string> = {
@@ -183,6 +335,96 @@ export default defineComponent({
       });
     };
 
+    // Unique users for filter options
+    const userOptions = computed(() => {
+      const uniqueUsers = new Set<string>();
+      activities.value.forEach(activity => {
+        uniqueUsers.add(activity.userName);
+      });
+      return Array.from(uniqueUsers).map(userName => ({
+        title: userName,
+        value: userName
+      }));
+    });
+
+    // Date filtering helper
+    const isWithinDateRange = (timestamp: string, range: string): boolean => {
+      const activityDate = new Date(timestamp);
+      const now = new Date();
+      
+      switch (range) {
+        case 'all':
+          return true;
+        case 'hour':
+          return (now.getTime() - activityDate.getTime()) <= 60 * 60 * 1000;
+        case 'today':
+          return activityDate.toDateString() === now.toDateString();
+        case 'yesterday': {
+          const yesterday = new Date(now);
+          yesterday.setDate(yesterday.getDate() - 1);
+          return activityDate.toDateString() === yesterday.toDateString();
+        }
+        case 'week':
+          return (now.getTime() - activityDate.getTime()) <= 7 * 24 * 60 * 60 * 1000;
+        case 'month':
+          return (now.getTime() - activityDate.getTime()) <= 30 * 24 * 60 * 60 * 1000;
+        default:
+          return true;
+      }
+    };
+
+    // Filtered activities
+    const filteredActivities = computed(() => {
+      return activities.value.filter(activity => {
+        // Type filter
+        if (filters.value.types.length > 0 && !filters.value.types.includes(activity.type)) {
+          return false;
+        }
+
+        // Date range filter
+        if (!isWithinDateRange(activity.timestamp, filters.value.dateRange)) {
+          return false;
+        }
+
+        // User filter
+        if (filters.value.users.length > 0 && !filters.value.users.includes(activity.userName)) {
+          return false;
+        }
+
+        return true;
+      });
+    });
+
+    // Filter state helpers
+    const hasActiveFilters = computed(() => {
+      return filters.value.types.length > 0 || 
+             filters.value.dateRange !== 'all' || 
+             filters.value.users.length > 0;
+    });
+
+    const activeFiltersCount = computed(() => {
+      let count = 0;
+      if (filters.value.types.length > 0) count++;
+      if (filters.value.dateRange !== 'all') count++;
+      if (filters.value.users.length > 0) count++;
+      return count;
+    });
+
+    const clearFilters = () => {
+      filters.value.types = [];
+      filters.value.dateRange = 'all';
+      filters.value.users = [];
+    };
+
+    // Save filters to localStorage when they change
+    watch(filters, (newFilters) => {
+      try {
+        localStorage.setItem('activity-widget-filters', JSON.stringify(newFilters));
+      } catch (error) {
+        console.warn('Failed to save filters:', error);
+      }
+    }, { deep: true });
+
     const loadData = async () => {
       try {
         loading.value = true;
@@ -225,6 +467,14 @@ export default defineComponent({
       loading,
       error,
       showFilters,
+      filters,
+      activityTypeOptions,
+      dateRangeOptions,
+      userOptions,
+      filteredActivities,
+      hasActiveFilters,
+      activeFiltersCount,
+      clearFilters,
       getActivityIcon,
       getActivityColor,
       getActivityTypeLabel,
@@ -237,6 +487,10 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.filters-panel {
+  margin-bottom: 16px;
+}
+
 .recent-activity {
   height: 100%;
   display: flex;
