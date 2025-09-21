@@ -8,7 +8,95 @@
     </v-row>
 
     <div v-else-if="currentLayout" class="grid-container">
-      <v-row>
+      <!-- Drag and Drop Toggle -->
+      <div class="drag-controls mb-4">
+        <v-btn
+          :color="isDragMode ? 'success' : 'primary'"
+          :variant="isDragMode ? 'flat' : 'outlined'"
+          @click="toggleDragMode"
+          class="me-2"
+        >
+          <v-icon start :icon="isDragMode ? 'mdi-check' : 'mdi-drag'" />
+          {{ isDragMode ? 'Завершить перестановку' : 'Переставить виджеты' }}
+        </v-btn>
+        
+        <v-chip v-if="isDragMode" color="info" variant="outlined" class="me-2">
+          <v-icon start icon="mdi-information" />
+          Перетащите виджеты для изменения порядка
+        </v-chip>
+        
+        <v-btn
+          v-if="isDragMode"
+          color="secondary"
+          variant="outlined"
+          @click="resetWidgetOrder"
+          class="me-2"
+        >
+          <v-icon start icon="mdi-restore" />
+          Сбросить порядок
+        </v-btn>
+
+        <!-- Quick Actions Position Control -->
+        <v-btn
+          v-if="isDragMode"
+          :color="quickActionsPosition === 'top' ? 'warning' : 'info'"
+          variant="outlined"
+          @click="toggleQuickActionsPosition"
+        >
+          <v-icon start :icon="quickActionsPosition === 'top' ? 'mdi-arrow-down' : 'mdi-arrow-up'" />
+          {{ quickActionsPosition === 'top' ? 'Быстрые действия вниз' : 'Быстрые действия вверх' }}
+        </v-btn>
+      </div>
+
+      <!-- Quick Actions Section - Top Position -->
+      <div v-if="showQuickActions && quickActionsPosition === 'top'">
+        <QuickActionsBlock 
+          :is-drag-mode="isDragMode"
+          :is-quick-actions-drag-mode="isQuickActionsDragMode"
+          :available-quick-actions="availableQuickActions"
+          :draggable-quick-actions="draggableQuickActions"
+          :is-rail-mode="isRailMode"
+          @toggle-quick-actions-drag="toggleQuickActionsDragMode"
+          @quick-action-drag-start="onQuickActionDragStart"
+          @quick-action-drag-end="onQuickActionDragEnd"
+        />
+      </div>
+
+      <!-- Draggable Widgets Container -->
+      <VueDraggable
+        v-if="isDragMode"
+        v-model="draggableWidgets"
+        :animation="200"
+        ghost-class="ghost-widget"
+        chosen-class="chosen-widget"
+        drag-class="drag-widget"
+        @start="onDragStart"
+        @end="onDragEnd"
+        class="draggable-container"
+      >
+        <div 
+          v-for="widget in visibleWidgets" 
+          :key="widget.id"
+          class="draggable-widget-wrapper"
+        >
+          <div class="drag-handle">
+            <v-icon icon="mdi-drag-horizontal" />
+            <span class="widget-title">{{ widget.title }}</span>
+          </div>
+          <div class="widget-content">
+            <component 
+              :is="getWidgetComponent(widget.type)" 
+              :refresh-interval="widget.config.refreshInterval || 300"
+              @configure="configureWidget(widget)" 
+              @remove="removeWidget(widget.id)" 
+              v-bind="widget.config" 
+            />
+          </div>
+        </div>
+      </VueDraggable>
+
+      <!-- Normal Grid View -->
+      <v-row v-else>
         <template v-for="widget in visibleWidgets" :key="widget.id">
           <v-col 
             cols="12" 
@@ -23,34 +111,19 @@
         </template>
       </v-row>
 
-      <!-- Quick Actions Section -->
-      <v-row v-if="showQuickActions" class="mt-4">
-        <v-col cols="12">
-          <v-card>
-            <v-card-title>
-              <v-icon start icon="mdi-lightning-bolt" />
-              Быстрые действия
-            </v-card-title>
-            <v-card-text>
-              <!-- Адаптивная сетка для одной строки -->
-              <div class="quick-actions-grid" :class="{ 'rail-mode': $vuetify.display.lgAndUp && isRailMode }">
-                <v-btn 
-                  v-for="action in availableQuickActions" 
-                  :key="action.id" 
-                  :color="action.color" 
-                  variant="outlined" 
-                  :to="action.route" 
-                  class="quick-action-btn"
-                  :class="{ 'rail-quick-btn': $vuetify.display.lgAndUp && isRailMode }"
-                >
-                  <v-icon start :icon="action.icon" />
-                  <span class="action-text">{{ action.title }}</span>
-                </v-btn>
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+      <!-- Quick Actions Section - Bottom Position -->
+      <QuickActionsBlock 
+        v-if="showQuickActions && quickActionsPosition === 'bottom'"
+        :is-drag-mode="isDragMode"
+        :is-quick-actions-drag-mode="isQuickActionsDragMode"
+        :available-quick-actions="availableQuickActions"
+        :draggable-quick-actions="draggableQuickActions"
+        :is-rail-mode="isRailMode"
+        @toggle-quick-actions-drag="toggleQuickActionsDragMode"
+        @quick-action-drag-start="onQuickActionDragStart"
+        @quick-action-drag-end="onQuickActionDragEnd"
+        class="mt-4"
+      />
     </div>
 
     <!-- Widget Configuration Dialog -->
@@ -206,6 +279,7 @@ import { useAuth } from '@/context/auth';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
 import type { Widget, WidgetType } from '@/types/dashboard';
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
 
 // Import widget components
 import BillingOverviewWidget from './BillingOverviewWidget.vue';
@@ -214,6 +288,7 @@ import ObjectsOverviewWidget from './ObjectsOverviewWidget.vue';
 import RecentActivityWidget from './RecentActivityWidget.vue';
 import UsersOverviewWidget from './UsersOverviewWidget.vue';
 import WarehouseOverviewWidget from './WarehouseOverviewWidget.vue';
+import QuickActionsBlock from './QuickActionsBlock.vue';
 
 export default defineComponent({
   name: 'DashboardGrid',
@@ -223,7 +298,9 @@ export default defineComponent({
     BillingOverviewWidget,
     InstallationsOverviewWidget,
     WarehouseOverviewWidget,
-    RecentActivityWidget
+    RecentActivityWidget,
+    VueDraggable,
+    QuickActionsBlock
   },
   setup() {
     const dashboardStore = useDashboardStoreWithInit();
@@ -237,6 +314,9 @@ export default defineComponent({
     const layoutTab = ref('current');
     const selectedWidget = ref<Widget | null>(null);
     const widgetConfig = ref<any>({});
+    const isDragMode = ref(false);
+    const isDragging = ref(false);
+    const isQuickActionsDragMode = ref(false);
 
     // Configuration options
     const refreshIntervals = [
@@ -309,10 +389,29 @@ export default defineComponent({
       isLoading: loading,
       isLayoutLoaded
     } = dashboardStore;
+    
+    // Реактивное свойство для позиции быстрых действий
+    const quickActionsPosition = computed(() => dashboardStore.quickActionsPosition);
 
     const visibleWidgets = computed(() =>
       currentLayout?.widgets.filter(w => w.visible) || []
     );
+
+    // Draggable widgets model
+    const draggableWidgets = computed({
+      get: () => visibleWidgets.value,
+      set: (newOrder: Widget[]) => {
+        dashboardStore.updateWidgetOrder(newOrder);
+      }
+    });
+
+    // Draggable quick actions model
+    const draggableQuickActions = computed({
+      get: () => availableQuickActions.value,
+      set: (newOrder: any[]) => {
+        dashboardStore.saveQuickActionsOrder(newOrder);
+      }
+    });
 
     const availableQuickActions = computed(() =>
       quickActions.filter(action =>
@@ -416,6 +515,54 @@ export default defineComponent({
       dashboardStore.loadLayouts();
     };
 
+    // Drag and Drop methods
+    const toggleDragMode = () => {
+      isDragMode.value = !isDragMode.value;
+      if (!isDragMode.value) {
+        // Сохраняем позиции при выходе из режима перетаскивания
+        dashboardStore.saveWidgetPositions();
+        // Выключаем режим перетаскивания быстрых действий
+        isQuickActionsDragMode.value = false;
+      }
+    };
+
+    const onDragStart = () => {
+      isDragging.value = true;
+    };
+
+    const onDragEnd = () => {
+      isDragging.value = false;
+      // Сохраняем новый порядок
+      dashboardStore.saveWidgetPositions();
+    };
+
+    const resetWidgetOrder = () => {
+      // Сбрасываем к исходному порядку (можно загрузить из бэкенда или использовать дефолтный)
+      dashboardStore.clearError();
+      dashboardStore.loadLayouts();
+      isDragMode.value = false;
+    };
+
+    // Quick Actions Drag and Drop methods
+    const toggleQuickActionsDragMode = () => {
+      isQuickActionsDragMode.value = !isQuickActionsDragMode.value;
+    };
+
+    const onQuickActionDragStart = () => {
+      console.log('Начало перетаскивания быстрого действия');
+    };
+
+    const onQuickActionDragEnd = () => {
+      console.log('Завершение перетаскивания быстрого действия');
+      // Сохранение произойдет автоматически через draggableQuickActions setter
+    };
+
+    const toggleQuickActionsPosition = () => {
+      console.log('Нажата кнопка переключения позиции, текущая позиция:', quickActionsPosition.value);
+      dashboardStore.toggleQuickActionsPosition();
+      console.log('После переключения позиция:', quickActionsPosition.value);
+    };
+
     // Определяем состояние rail mode через медиа-запросы и локальное хранилище
     const checkRailMode = () => {
       // Проверяем ширину экрана и состояние в localStorage
@@ -461,6 +608,9 @@ export default defineComponent({
       layoutTab,
       selectedWidget,
       widgetConfig,
+      isDragMode,
+      isDragging,
+      isQuickActionsDragMode,
 
       // Store
       currentLayout,
@@ -470,7 +620,10 @@ export default defineComponent({
 
       // Computed
       visibleWidgets,
+      draggableWidgets,
+      draggableQuickActions,
       availableQuickActions,
+      quickActionsPosition,
       isRailMode,
 
       // Configuration
@@ -491,7 +644,15 @@ export default defineComponent({
       switchLayout,
       setDefaultLayout,
       deleteLayout,
-      resetToDefault
+      resetToDefault,
+      toggleDragMode,
+      onDragStart,
+      onDragEnd,
+      resetWidgetOrder,
+      toggleQuickActionsDragMode,
+      onQuickActionDragStart,
+      onQuickActionDragEnd,
+      toggleQuickActionsPosition
     };
   }
 });
@@ -519,69 +680,6 @@ export default defineComponent({
   flex-direction: column;
 }
 
-/* Адаптивная сетка для быстрых действий */
-.quick-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-  align-items: stretch;
-}
-
-/* Для больших экранов - все кнопки в одну строку */
-@media (min-width: 1280px) {
-  .quick-actions-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-  }
-}
-
-/* Для экстра больших экранов */
-@media (min-width: 1920px) {
-  .quick-actions-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
-  }
-}
-
-/* Режим свернутого меню - больше места для кнопок */
-.quick-actions-grid.rail-mode {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 20px;
-}
-
-.quick-action-btn {
-  height: 64px;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.875rem;
-  min-width: 140px;
-  transition: all 0.2s ease;
-}
-
-.quick-action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.rail-quick-btn {
-  min-width: 180px;
-  height: 72px;
-}
-
-.quick-action-btn .v-icon {
-  margin-bottom: 4px;
-}
-
-.action-text {
-  text-align: center;
-  line-height: 1.2;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
 
 /* Mobile optimizations */
 @media (max-width: 768px) {
@@ -594,25 +692,6 @@ export default defineComponent({
     margin-bottom: 8px;
   }
   
-  /* Мобильная сетка - 2 кнопки в ряд */
-  .quick-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
-  }
-  
-  .quick-action-btn {
-    height: 56px;
-    font-size: 0.75rem;
-    min-width: unset;
-  }
-  
-  .action-text {
-    font-size: 0.7rem;
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   
   /* Ensure proper spacing on mobile */
   .v-row {
@@ -634,23 +713,6 @@ export default defineComponent({
     margin-bottom: 4px;
   }
   
-  /* Очень маленькие экраны - 3 кнопки в ряд */
-  .quick-actions-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-  
-  .quick-action-btn {
-    height: 48px;
-    font-size: 0.7rem;
-    min-width: unset;
-    padding: 4px;
-  }
-  
-  .action-text {
-    font-size: 0.65rem;
-    line-height: 1.1;
-  }
   
   .v-row {
     margin: -2px;
@@ -671,10 +733,141 @@ export default defineComponent({
     min-height: 240px;
   }
   
-  .quick-action-btn {
-    height: 52px;
+}
+
+/* Drag and Drop Styles */
+.drag-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.draggable-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 16px;
+  min-height: 200px;
+}
+
+.draggable-widget-wrapper {
+  border: 2px dashed rgba(var(--v-theme-primary), 0.3);
+  border-radius: 8px;
+  background: rgba(var(--v-theme-surface), 0.8);
+  transition: all 0.3s ease;
+  cursor: move;
+}
+
+.draggable-widget-wrapper:hover {
+  border-color: rgba(var(--v-theme-primary), 0.6);
+  background: rgba(var(--v-theme-surface), 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.drag-handle {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(var(--v-theme-primary), 0.1);
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.2);
+  border-radius: 8px 8px 0 0;
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.widget-title {
+  margin-left: 8px;
+  font-weight: 500;
+  color: rgba(var(--v-theme-on-surface), 0.87);
+}
+
+.widget-content {
+  padding: 0;
+}
+
+.widget-content :deep(.v-card) {
+  border-radius: 0 0 8px 8px;
+  box-shadow: none;
+}
+
+/* Ghost element during drag */
+.ghost-widget {
+  opacity: 0.5;
+  background: rgba(var(--v-theme-primary), 0.1);
+  border: 2px dashed rgba(var(--v-theme-primary), 0.5);
+}
+
+/* Element being dragged */
+.drag-widget {
+  transform: rotate(5deg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+}
+
+/* Chosen element */
+.chosen-widget {
+  border-color: rgba(var(--v-theme-primary), 0.8);
+  background: rgba(var(--v-theme-primary), 0.05);
+}
+
+/* Mobile optimizations for drag mode */
+@media (max-width: 768px) {
+  .draggable-container {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .drag-controls {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .drag-handle {
+    padding: 12px 16px;
+  }
+  
+  .widget-title {
+    font-size: 0.9rem;
   }
 }
+
+@media (max-width: 480px) {
+  .draggable-container {
+    gap: 8px;
+  }
+  
+  .drag-handle {
+    padding: 8px 12px;
+  }
+  
+  .widget-title {
+    font-size: 0.85rem;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1280px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 20px;
+  }
+  
+  .drag-handle {
+    padding: 10px 20px;
+  }
+}
+
 
 /* Дополнительные стили для оптимизации текста */
 .widget-column :deep(.v-card) {

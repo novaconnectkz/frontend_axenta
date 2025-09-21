@@ -20,6 +20,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   const lastRefresh = ref<Date | null>(null);
+  const quickActionsPosition = ref<'top' | 'bottom'>('bottom');
 
   // Quick Actions Configuration
   const quickActions = ref<QuickAction[]>([
@@ -162,10 +163,18 @@ export const useDashboardStore = defineStore("dashboard", () => {
           currentLayout.value = createDefaultLayout();
         }
       }
+      
+      // Загружаем сохраненные позиции виджетов, порядок быстрых действий и позицию блока
+      loadWidgetPositions();
+      loadQuickActionsOrder();
+      loadQuickActionsPosition();
     } catch (err: any) {
       console.error("Ошибка загрузки макетов:", err);
       // Создаем макет по умолчанию при ошибке
       currentLayout.value = createDefaultLayout();
+      loadWidgetPositions();
+      loadQuickActionsOrder();
+      loadQuickActionsPosition();
     }
   };
 
@@ -250,6 +259,118 @@ export const useDashboardStore = defineStore("dashboard", () => {
         ...currentLayout.value.widgets[widgetIndex],
         ...updates,
       };
+    }
+  };
+
+  const updateWidgetOrder = (newOrder: Widget[]) => {
+    if (!currentLayout.value) return;
+    
+    currentLayout.value.widgets = newOrder;
+    // Автоматически сохраняем изменения в localStorage
+    saveWidgetPositions();
+  };
+
+  const saveWidgetPositions = () => {
+    if (!currentLayout.value) return;
+    
+    try {
+      const positions = currentLayout.value.widgets.map(widget => ({
+        id: widget.id,
+        position: widget.position,
+        visible: widget.visible
+      }));
+      
+      localStorage.setItem(`dashboard-positions-${currentLayout.value.id}`, JSON.stringify(positions));
+    } catch (error) {
+      console.error('Ошибка сохранения позиций виджетов:', error);
+    }
+  };
+
+  const saveQuickActionsOrder = (newOrder: QuickAction[]) => {
+    try {
+      const orderIds = newOrder.map(action => action.id);
+      localStorage.setItem('dashboard-quick-actions-order', JSON.stringify(orderIds));
+      quickActions.value = newOrder;
+    } catch (error) {
+      console.error('Ошибка сохранения порядка быстрых действий:', error);
+    }
+  };
+
+  const loadQuickActionsOrder = () => {
+    try {
+      const savedOrder = localStorage.getItem('dashboard-quick-actions-order');
+      if (savedOrder) {
+        const orderIds = JSON.parse(savedOrder);
+        
+        // Переупорядочиваем быстрые действия согласно сохраненному порядку
+        const orderedActions: QuickAction[] = [];
+        const remainingActions = [...quickActions.value];
+        
+        // Сначала добавляем действия в сохраненном порядке
+        orderIds.forEach((id: string) => {
+          const actionIndex = remainingActions.findIndex(action => action.id === id);
+          if (actionIndex >= 0) {
+            orderedActions.push(remainingActions.splice(actionIndex, 1)[0]);
+          }
+        });
+        
+        // Добавляем оставшиеся действия (новые, которых не было в сохраненном порядке)
+        orderedActions.push(...remainingActions);
+        
+        quickActions.value = orderedActions;
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки порядка быстрых действий:', error);
+    }
+  };
+
+  const saveQuickActionsPosition = (position: 'top' | 'bottom') => {
+    try {
+      console.log('Сохранение позиции быстрых действий:', position);
+      localStorage.setItem('dashboard-quick-actions-position', position);
+      quickActionsPosition.value = position;
+      console.log('Позиция сохранена, новое значение:', quickActionsPosition.value);
+    } catch (error) {
+      console.error('Ошибка сохранения позиции блока быстрых действий:', error);
+    }
+  };
+
+  const loadQuickActionsPosition = () => {
+    try {
+      const savedPosition = localStorage.getItem('dashboard-quick-actions-position') as 'top' | 'bottom' | null;
+      if (savedPosition && (savedPosition === 'top' || savedPosition === 'bottom')) {
+        quickActionsPosition.value = savedPosition;
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки позиции блока быстрых действий:', error);
+    }
+  };
+
+  const toggleQuickActionsPosition = () => {
+    const newPosition = quickActionsPosition.value === 'top' ? 'bottom' : 'top';
+    console.log('Переключение позиции быстрых действий:', quickActionsPosition.value, '->', newPosition);
+    saveQuickActionsPosition(newPosition);
+  };
+
+  const loadWidgetPositions = () => {
+    if (!currentLayout.value) return;
+    
+    try {
+      const savedPositions = localStorage.getItem(`dashboard-positions-${currentLayout.value.id}`);
+      if (savedPositions) {
+        const positions = JSON.parse(savedPositions);
+        
+        // Обновляем позиции виджетов из сохраненных данных
+        positions.forEach((savedPos: any) => {
+          const widgetIndex = currentLayout.value!.widgets.findIndex(w => w.id === savedPos.id);
+          if (widgetIndex >= 0) {
+            currentLayout.value!.widgets[widgetIndex].position = savedPos.position;
+            currentLayout.value!.widgets[widgetIndex].visible = savedPos.visible;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки позиций виджетов:', error);
     }
   };
 
@@ -480,6 +601,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     recentActivity,
     notifications,
     quickActions,
+    quickActionsPosition,
     isLoading,
     error,
     lastRefresh,
@@ -501,6 +623,14 @@ export const useDashboardStore = defineStore("dashboard", () => {
     setDefaultLayout,
     deleteLayout,
     updateWidget,
+    updateWidgetOrder,
+    saveWidgetPositions,
+    loadWidgetPositions,
+    saveQuickActionsOrder,
+    loadQuickActionsOrder,
+    saveQuickActionsPosition,
+    loadQuickActionsPosition,
+    toggleQuickActionsPosition,
     addWidget,
     removeWidget,
     refreshAll,

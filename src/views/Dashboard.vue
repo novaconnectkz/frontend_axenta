@@ -25,35 +25,7 @@
     <!-- Mock Mode Toggle (только в development) -->
     <MockModeToggle />
 
-    <!-- System Status Bar -->
-    <v-row class="mt-4">
-      <v-col cols="12">
-        <v-card variant="tonal" color="surface">
-          <v-card-text class="py-2">
-            <div class="d-flex align-center justify-space-between text-caption">
-              <div class="d-flex align-center">
-                <v-icon icon="mdi-circle" size="8" color="success" class="me-2" />
-                <span>Система работает нормально</span>
-              </div>
-
-              <div class="d-flex align-center gap-4">
-                <span v-if="lastRefresh">
-                  Последнее обновление: {{ formatTime(lastRefresh) }}
-                </span>
-
-                <span>
-                  Компания: {{ auth?.company?.value?.name || 'Не указана' }}
-                </span>
-
-                <span>
-                  Версия: 1.0.0
-                </span>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
+    <!-- System Status Bar перенесен в боковое меню -->
   </v-container>
 </template>
 
@@ -62,8 +34,9 @@ import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
 import MobileDashboard from '@/components/Dashboard/MobileDashboard.vue';
 import MockModeToggle from '@/components/Dashboard/MockModeToggle.vue';
 import { useAuth } from '@/context/auth';
+import { useSystemRefresh } from '@/composables/useSystemRefresh';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useDisplay } from 'vuetify';
 
@@ -80,10 +53,10 @@ export default defineComponent({
     const auth = useAuth();
     const { mobile } = useDisplay();
     const isRefreshing = ref(false);
+    const updateLastRefresh = useSystemRefresh();
 
     // Computed properties
     const error = computed(() => dashboardStore.error);
-    const lastRefresh = computed(() => dashboardStore.lastRefresh);
 
     // Methods
 
@@ -91,6 +64,8 @@ export default defineComponent({
       try {
         isRefreshing.value = true;
         await dashboardStore.refreshAll();
+        // Обновляем время последнего обновления после успешной загрузки данных
+        updateLastRefresh();
       } catch (error) {
         console.error('Ошибка обновления Dashboard:', error);
       } finally {
@@ -102,22 +77,21 @@ export default defineComponent({
       dashboardStore.clearError();
     };
 
-    const formatTime = (date: Date): string => {
-      return date.toLocaleTimeString('ru-RU', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
+    // Обновляем время при монтировании компонента (когда данные уже загружены)
+    onMounted(() => {
+      // Небольшая задержка, чтобы дать время данным загрузиться
+      setTimeout(() => {
+        updateLastRefresh();
+      }, 100);
+    });
 
     return {
       auth,
       mobile,
       error,
-      lastRefresh,
       isRefreshing,
       refreshDashboard,
-      clearError,
-      formatTime
+      clearError
     };
   }
 });

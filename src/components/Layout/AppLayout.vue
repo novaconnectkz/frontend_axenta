@@ -44,10 +44,46 @@
         </template>
       </v-list>
 
-      <!-- Футер боковой панели - теперь пустой -->
+      <!-- Футер боковой панели - информация о системе -->
       <template #append>
         <div class="sidebar-footer">
-          <!-- Пользователь перенесен в header -->
+          <!-- Системная информация -->
+          <div v-if="!rail" class="system-info-card">
+            <div class="system-status">
+              <div class="d-flex align-center mb-2">
+                <v-icon icon="mdi-circle" size="8" color="success" class="me-2" />
+                <span class="status-text">Система работает нормально</span>
+              </div>
+              
+              <div class="system-details">
+                <div class="detail-item">
+                  <v-icon icon="mdi-update" size="14" class="me-1" />
+                  <span>{{ lastRefresh ? formatTimeAgo(lastRefresh) : 'Не обновлялось' }}</span>
+                </div>
+                
+                <div class="detail-item">
+                  <v-icon icon="mdi-domain" size="14" class="me-1" />
+                  <span>{{ auth.user.value?.company || 'Не указана' }}</span>
+                </div>
+                
+                <div class="detail-item">
+                  <v-icon icon="mdi-information" size="14" class="me-1" />
+                  <span>{{ appVersion }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Компактная версия для свернутого меню -->
+          <div v-else class="system-info-rail">
+            <v-tooltip location="end" text="Система работает нормально">
+              <template #activator="{ props }">
+                <div v-bind="props" class="rail-status-indicator">
+                  <v-icon icon="mdi-circle" size="12" color="success" />
+                </div>
+              </template>
+            </v-tooltip>
+          </div>
         </div>
       </template>
     </v-navigation-drawer>
@@ -217,9 +253,10 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/context/auth';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
+import { getVersionString } from '@/utils/buildInfo';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -237,6 +274,7 @@ const isDarkTheme = ref(theme.current.value.dark);
 const notifications = ref([]);
 const currentTime = ref(new Date());
 const timeInterval = ref<NodeJS.Timeout | null>(null);
+const lastRefresh = ref(new Date());
 const snackbar = ref({
   show: false,
   text: '',
@@ -368,6 +406,10 @@ const wsStatus = computed(() => {
   */
 });
 
+const appVersion = computed(() => {
+  return getVersionString();
+});
+
 // Methods
 const toggleRail = () => {
   rail.value = !rail.value;
@@ -445,6 +487,24 @@ const formatTime = (date: Date) => {
   return date.toLocaleTimeString('ru-RU', options);
 };
 
+const formatTimeAgo = (date: Date) => {
+  const now = currentTime.value;
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} сек. назад`;
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes} мин. назад`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours} ч. назад`;
+  } else {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days} дн. назад`;
+  }
+};
+
 const getUserInitials = () => {
   const user = auth.user.value;
   if (!user?.name) return 'U';
@@ -453,6 +513,11 @@ const getUserInitials = () => {
     return `${names[0][0]}${names[1][0]}`.toUpperCase();
   }
   return names[0][0].toUpperCase();
+};
+
+const updateLastRefresh = () => {
+  lastRefresh.value = new Date();
+  console.log('🔄 System data refreshed at:', lastRefresh.value.toLocaleTimeString());
 };
 
 const handleRailNavClick = (path: string) => {
@@ -491,6 +556,9 @@ watch(mobile, (newValue) => {
   drawer.value = !newValue;
   rail.value = newValue;
 });
+
+// Provide функцию обновления для использования в дочерних компонентах
+provide('updateLastRefresh', updateLastRefresh);
 
 // Lifecycle
 onMounted(() => {
@@ -984,6 +1052,93 @@ onUnmounted(() => {
 .sidebar-footer {
   padding: 20px;
   border-top: 1px solid rgba(var(--v-border-color), 0.12);
+}
+
+/* Системная информация в боковом меню */
+.system-info-card {
+  background: rgba(0, 122, 255, 0.05);
+  border: 1px solid rgba(0, 122, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.system-status {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.status-text {
+  font-weight: 500;
+  color: var(--apple-text-primary);
+  font-size: 0.75rem;
+}
+
+.system-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  color: var(--apple-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+
+.detail-item span {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+/* Компактная версия для rail режима */
+.system-info-rail {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+}
+
+.rail-status-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 122, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rail-status-indicator:hover {
+  background: rgba(0, 122, 255, 0.2);
+  transform: scale(1.1);
+}
+
+/* Темная тема для системной информации */
+[data-theme="dark"] .system-info-card {
+  background: rgba(77, 166, 255, 0.08);
+  border-color: rgba(77, 166, 255, 0.15);
+}
+
+[data-theme="dark"] .status-text {
+  color: var(--apple-text-primary-dark);
+}
+
+[data-theme="dark"] .detail-item {
+  color: var(--apple-text-secondary-dark);
+}
+
+[data-theme="dark"] .rail-status-indicator {
+  background: rgba(77, 166, 255, 0.15);
+}
+
+[data-theme="dark"] .rail-status-indicator:hover {
+  background: rgba(77, 166, 255, 0.25);
 }
 
 /* Стили для theme-switcher удалены - теперь в header */

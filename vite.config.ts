@@ -5,6 +5,10 @@ import { defineConfig, loadEnv } from "vite";
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  
+  // Генерируем информацию о сборке
+  const buildTime = new Date().toISOString();
+  const commitHash = process.env.GITHUB_SHA?.substring(0, 7) || 'dev';
 
   return {
     plugins: [
@@ -131,6 +135,9 @@ export default defineConfig(({ mode }) => {
       "process.env.VITE_APP_NAME": JSON.stringify(
         env.VITE_APP_NAME || "Axenta CRM"
       ),
+      // Информация о сборке
+      "__BUILD_TIME__": JSON.stringify(buildTime),
+      "__COMMIT_HASH__": JSON.stringify(commitHash),
     },
 
     // Настройки для совместимости с Node.js модулями
