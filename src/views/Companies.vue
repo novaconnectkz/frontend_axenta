@@ -89,74 +89,13 @@
     </div>
 
     <!-- Фильтры -->
-    <v-card class="filters-card">
-      <v-card-text>
-        <v-row align="center">
-          <v-col cols="12" md="4">
-            <v-text-field 
-              v-model="filters.search" 
-              label="Поиск компаний" 
-              variant="outlined" 
-              density="compact" 
-              clearable 
-              @input="debouncedSearch"
-              :color="isMultipleSearch ? 'primary' : undefined"
-            >
-              <template #prepend-inner>
-                <v-tooltip :text="searchHint" location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon 
-                      v-bind="props" 
-                      :icon="isMultipleSearch ? 'mdi-format-list-checks' : 'mdi-magnify'" 
-                      :color="isMultipleSearch ? 'primary' : undefined"
-                    />
-                  </template>
-                </v-tooltip>
-              </template>
-              
-              <template #append-inner v-if="isMultipleSearch">
-                <v-tooltip text="Активен точный поиск по нескольким компаниям">
-                  <template #activator="{ props }">
-                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
-                      {{ searchTermsArray.length }}
-                    </v-chip>
-                  </template>
-                </v-tooltip>
-              </template>
-            </v-text-field>
-            
-            <!-- Чипы с найденными компаниями -->
-            <div v-if="isMultipleSearch && searchTermsArray.length > 0" class="search-chips mt-2">
-              <v-chip
-                v-for="(term, index) in searchTermsArray"
-                :key="index"
-                size="small"
-                color="primary"
-                variant="outlined"
-                class="mr-1 mb-1"
-                closable
-                @click:close="removeSearchTerm(index)"
-              >
-                {{ term }}
-              </v-chip>
-            </div>
-          </v-col>
-          <v-col cols="12" md="3">
-            <v-select v-model="filters.is_active" label="Статус" :items="statusOptions" variant="outlined"
-              density="compact" clearable @update:model-value="loadCompanies" />
-          </v-col>
-          <v-col cols="12" md="2">
-            <v-select v-model="filters.limit" label="На странице" :items="[10, 25, 50, 100]" variant="outlined"
-              density="compact" @update:model-value="loadCompanies" />
-          </v-col>
-          <v-col cols="12" md="3" class="text-right">
-            <v-btn variant="outlined" prepend-icon="mdi-refresh" @click="refreshData" :loading="loading">
-              Обновить
-            </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <CompaniesFilter 
+      :filters="filters"
+      :loading="loading"
+      :companies="companies"
+      @update:filters="onFiltersUpdate"
+      @refresh="refreshData"
+    />
 
     <!-- Таблица компаний -->
     <v-card class="companies-table-card">
@@ -391,6 +330,7 @@ import SuccessNotification from '@/components/Common/SuccessNotification.vue'
 import CompanyDialog from '@/components/Companies/CompanyDialog.vue'
 import CompanyViewDialog from '@/components/Companies/CompanyViewDialog.vue'
 import CompanyMenuFixed from '@/components/Companies/CompanyMenuFixed.vue'
+import CompaniesFilter from '@/components/Companies/CompaniesFilter.vue'
 import type {
   Company,
   CompanyFilters,
@@ -457,27 +397,11 @@ const headers = [
   { title: 'Действия', key: 'actions', sortable: false, width: 200 }
 ]
 
-// Опции для фильтров
-const statusOptions = [
-  { title: 'Все', value: null },
-  { title: 'Активные', value: true },
-  { title: 'Неактивные', value: false }
-]
-
-// Debounce функция
-const debounce = <T extends (...args: any[]) => void>(func: T, delay: number): T => {
-  let timeoutId: ReturnType<typeof setTimeout>
-  return ((...args: any[]) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func.apply(null, args), delay)
-  }) as T
-}
-
-// Вычисляемые свойства
-const debouncedSearch = debounce(() => {
-  filters.page = 1
+// Обработчик обновления фильтров
+const onFiltersUpdate = (newFilters: CompanyFilters) => {
+  Object.assign(filters, newFilters)
   loadCompanies()
-}, 500)
+}
 
 // Computed properties для групповых действий
 const activeCompaniesCount = computed(() => {
@@ -494,33 +418,6 @@ const hasActiveCompanies = computed(() => {
 
 const hasInactiveCompanies = computed(() => {
   return inactiveCompaniesCount.value > 0
-})
-
-// Подсказка для поля поиска
-const searchHint = computed(() => {
-  if (!filters.search) {
-    return 'Введите название компании или несколько через запятую для точного поиска'
-  }
-  
-  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
-  if (searchTerms.length > 1) {
-    return `Поиск по ${searchTerms.length} компаниям: ${searchTerms.join(', ')}`
-  }
-  
-  return 'Поиск по частичному совпадению или добавьте запятую для точного поиска'
-})
-
-// Определяем, активен ли множественный поиск
-const isMultipleSearch = computed(() => {
-  if (!filters.search) return false
-  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
-  return searchTerms.length > 1
-})
-
-// Массив поисковых терминов для чипов
-const searchTermsArray = computed(() => {
-  if (!filters.search) return []
-  return filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
 })
 
 // Демо данные для компаний
@@ -659,6 +556,87 @@ const demoCompanies: Company[] = [
       storage_used_mb: 2800,
       last_activity: '2024-03-15T12:00:00Z'
     }
+  },
+  {
+    id: 6,
+    created_at: '2024-02-15T10:00:00Z',
+    updated_at: '2024-03-10T14:30:00Z',
+    name: 'ООО "Казань Логистик"',
+    database_schema: 'kazan_logistic',
+    domain: 'kazan-logistic.ru',
+    contact_email: 'info@kazan-logistic.ru',
+    contact_phone: '+7 (843) 555-999',
+    contact_person: 'Галимов Рустем Наилевич',
+    address: 'ул. Баумана, д. 12',
+    city: 'Казань',
+    country: 'Russia',
+    is_active: false,
+    max_users: 30,
+    max_objects: 600,
+    storage_quota: 3072, // 3GB
+    language: 'ru',
+    timezone: 'Europe/Moscow',
+    currency: 'RUB',
+    usage_stats: {
+      users_count: 18,
+      objects_count: 420,
+      storage_used_mb: 1800,
+      last_activity: '2024-03-08T16:20:00Z'
+    }
+  },
+  {
+    id: 7,
+    created_at: '2024-01-25T12:15:00Z',
+    updated_at: '2024-03-14T09:45:00Z',
+    name: 'ИП Волков В.С.',
+    database_schema: 'volkov_transport',
+    domain: 'volkov-transport.com',
+    contact_email: 'volkov@transport.com',
+    contact_phone: '+7 (343) 777-111',
+    contact_person: 'Волков Владимир Сергеевич',
+    address: 'пр. Ленина, д. 55',
+    city: 'Екатеринбург',
+    country: 'Russia',
+    is_active: true,
+    max_users: 15,
+    max_objects: 300,
+    storage_quota: 1536, // 1.5GB
+    language: 'ru',
+    timezone: 'Asia/Yekaterinburg',
+    currency: 'RUB',
+    usage_stats: {
+      users_count: 12,
+      objects_count: 280,
+      storage_used_mb: 1100,
+      last_activity: '2024-03-14T11:30:00Z'
+    }
+  },
+  {
+    id: 8,
+    created_at: '2024-03-05T15:30:00Z',
+    updated_at: '2024-03-15T18:00:00Z',
+    name: 'ООО "Красноярск Авто"',
+    database_schema: 'krasnoyarsk_auto',
+    domain: 'krs-auto.ru',
+    contact_email: 'office@krs-auto.ru',
+    contact_phone: '+7 (391) 888-222',
+    contact_person: 'Соколова Марина Александровна',
+    address: 'ул. Мира, д. 33',
+    city: 'Красноярск',
+    country: 'Russia',
+    is_active: false,
+    max_users: 25,
+    max_objects: 500,
+    storage_quota: 2560, // 2.5GB
+    language: 'ru',
+    timezone: 'Asia/Krasnoyarsk',
+    currency: 'RUB',
+    usage_stats: {
+      users_count: 8,
+      objects_count: 180,
+      storage_used_mb: 900,
+      last_activity: '2024-03-12T13:15:00Z'
+    }
   }
 ]
 
@@ -694,9 +672,39 @@ const loadCompanies = async () => {
       }
     }
 
+    // Фильтр по статусу активности
     if (filters.is_active !== null) {
       filteredCompanies = filteredCompanies.filter(company =>
         company.is_active === filters.is_active
+      )
+    }
+
+    // Фильтр по городу
+    if (filters.city) {
+      const cityLower = filters.city.toLowerCase()
+      filteredCompanies = filteredCompanies.filter(company =>
+        company.city.toLowerCase().includes(cityLower)
+      )
+    }
+
+    // Фильтр по стране
+    if (filters.country) {
+      filteredCompanies = filteredCompanies.filter(company =>
+        company.country === filters.country
+      )
+    }
+
+    // Фильтр по языку
+    if (filters.language) {
+      filteredCompanies = filteredCompanies.filter(company =>
+        company.language === filters.language
+      )
+    }
+
+    // Фильтр по валюте
+    if (filters.currency) {
+      filteredCompanies = filteredCompanies.filter(company =>
+        company.currency === filters.currency
       )
     }
 
@@ -941,13 +949,6 @@ const clearSelection = () => {
   selectAll.value = false
 }
 
-// Удаление отдельного поискового термина
-const removeSearchTerm = (index: number) => {
-  const searchTerms = filters.search.split(',').map(term => term.trim()).filter(term => term.length > 0)
-  searchTerms.splice(index, 1)
-  filters.search = searchTerms.join(', ')
-  debouncedSearch()
-}
 
 // Групповые действия
 const bulkDeleteCompanies = () => {
@@ -1280,16 +1281,6 @@ onMounted(() => {
 .stat-label {
   font-size: 14px;
   color: rgb(var(--v-theme-on-surface-variant));
-}
-
-.filters-card {
-  margin-bottom: 24px;
-}
-
-.search-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 
 .companies-table-card {

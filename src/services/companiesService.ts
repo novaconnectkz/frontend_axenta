@@ -75,6 +75,10 @@ export interface CompanyListParams {
   limit?: number;
   search?: string;
   is_active?: boolean;
+  city?: string;
+  country?: string;
+  language?: string;
+  currency?: string;
   include_usage?: boolean;
 }
 
@@ -125,6 +129,10 @@ class CompaniesService {
     if (params.search) queryParams.append("search", params.search);
     if (params.is_active !== undefined)
       queryParams.append("is_active", params.is_active.toString());
+    if (params.city) queryParams.append("city", params.city);
+    if (params.country) queryParams.append("country", params.country);
+    if (params.language) queryParams.append("language", params.language);
+    if (params.currency) queryParams.append("currency", params.currency);
     if (params.include_usage) queryParams.append("include_usage", "true");
 
     const query = queryParams.toString();
@@ -248,6 +256,20 @@ class CompaniesService {
     const response = await this.apiClient.post(
       `${this.basePath}/${id}/test-connection`
     );
+    return response.data.data;
+  }
+
+  /**
+   * Получить опции для фильтров
+   */
+  async getFilterOptions(): Promise<{
+    cities: Array<{ value: string; label: string; count: number }>;
+    countries: Array<{ value: string; label: string; count: number }>;
+    languages: Array<{ value: string; label: string; count: number }>;
+    currencies: Array<{ value: string; label: string; count: number }>;
+    statuses: Array<{ value: string; label: string; count: number }>;
+  }> {
+    const response = await this.apiClient.get(`${this.basePath}/filter-options`);
     return response.data.data;
   }
 

@@ -71,6 +71,10 @@ export interface CompanyFormData {
 export interface CompanyFilters {
   search: string;
   is_active: boolean | null;
+  city: string;
+  country?: string;
+  language?: string;
+  currency?: string;
   page: number;
   limit: number;
   include_usage: boolean;
@@ -119,6 +123,7 @@ export const COMPANY_FORM_DEFAULTS: CompanyFormData = {
 export const COMPANY_FILTERS_DEFAULTS: CompanyFilters = {
   search: "",
   is_active: null,
+  city: "",
   page: 1,
   limit: 10,
   include_usage: true,
