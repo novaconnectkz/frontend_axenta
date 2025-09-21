@@ -193,12 +193,6 @@
                 <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" />
               </template>
             </v-tooltip>
-            <v-tooltip text="Тест подключения">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-connection" size="small" variant="text" @click="testConnection(item)"
-                  :loading="testingConnection === item.id" />
-              </template>
-            </v-tooltip>
             <v-tooltip :text="item.is_active ? 'Деактивировать' : 'Активировать'">
               <template #activator="{ props }">
                 <v-btn v-bind="props" :icon="item.is_active ? 'mdi-pause' : 'mdi-play'" size="small" variant="text"
@@ -272,7 +266,6 @@ const filters = reactive<CompanyFilters>({ ...COMPANY_FILTERS_DEFAULTS })
 const loading = ref(false)
 const exporting = ref(false)
 const deleting = ref(false)
-const testingConnection = ref<number | null>(null)
 const totalItems = ref(0)
 
 // Диалоги
@@ -595,28 +588,6 @@ const toggleCompanyStatus = async (company: Company) => {
   }
 }
 
-const testConnection = async (company: Company) => {
-  try {
-    testingConnection.value = company.id
-
-    // Имитируем тестирование подключения
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Случайный результат для демо
-    const isSuccess = Math.random() > 0.3 // 70% успешных подключений
-
-    if (isSuccess) {
-      showSnackbar('Подключение успешно', 'success')
-    } else {
-      showSnackbar('Ошибка подключения: Превышено время ожидания', 'error')
-    }
-  } catch (error) {
-    showSnackbar('Ошибка тестирования подключения', 'error')
-    console.error('Error testing connection:', error)
-  } finally {
-    testingConnection.value = null
-  }
-}
 
 const confirmDelete = (company: Company) => {
   selectedCompany.value = company
