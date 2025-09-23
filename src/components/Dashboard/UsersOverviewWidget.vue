@@ -140,7 +140,7 @@ export default defineComponent({
 
     const loadData = async () => {
       try {
-        loading.value = true;
+        // loading.value = true; // Убираем loading, чтобы не было размытия экрана
         error.value = null;
         const stats = await dashboardService.getStats();
         data.value = stats.users;
@@ -151,7 +151,7 @@ export default defineComponent({
         error.value = err.message || 'Ошибка загрузки данных пользователей';
         console.error('Ошибка загрузки данных пользователей:', err);
       } finally {
-        loading.value = false;
+        // loading.value = false; // Убираем loading состояние
       }
     };
 

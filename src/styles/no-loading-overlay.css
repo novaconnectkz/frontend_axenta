@@ -1,0 +1,94 @@
+/* 
+ * Глобальные стили для отключения loading overlay и размытия экрана
+ * Этот файл убирает все источники размытия экрана в приложении
+ */
+
+/* Отключаем backdrop для всех overlay */
+.v-overlay--active .v-overlay__scrim {
+  opacity: 0 !important;
+  display: none !important;
+}
+
+/* Убираем размытие с основного контента */
+.v-application--wrap {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Отключаем loading overlay для таблиц */
+.v-data-table .v-data-table__loading {
+  display: none !important;
+}
+
+/* Отключаем skeleton loader overlay */
+.v-skeleton-loader {
+  position: relative !important;
+  background: transparent !important;
+}
+
+/* Убираем backdrop filter со всех элементов, которые могут его использовать */
+.v-dialog .v-overlay__content,
+.v-menu .v-overlay__content,
+.v-tooltip .v-overlay__content {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Принудительно скрываем loading screen */
+#app-loading {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Показываем основное приложение */
+#app {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Отключаем все виды loading overlay */
+.v-overlay--loading,
+.v-overlay--persistent {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.v-overlay--loading .v-overlay__scrim,
+.v-overlay--persistent .v-overlay__scrim {
+  opacity: 0 !important;
+  display: none !important;
+}
+
+/* Убираем размытие с progress компонентов */
+.v-progress-circular,
+.v-progress-linear {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Отключаем loading состояния для всех компонентов */
+.loading-state,
+.v-data-table--loading {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Принудительно убираем backdrop со всех элементов */
+* {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Исключения для элементов, где backdrop нужен (snackbar, tooltip) */
+.modern-snackbar .v-snackbar__wrapper {
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+
+.v-tooltip .v-overlay__content {
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}

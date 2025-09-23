@@ -29,7 +29,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       title: "Создать объект",
       icon: "mdi-plus-circle",
       color: "primary",
-      route: "/objects/create",
+      route: "/objects?action=create",
       permission: "objects.create",
     },
     {
@@ -96,10 +96,10 @@ export const useDashboardStore = defineStore("dashboard", () => {
   // Actions
   const loadStats = async () => {
     try {
-      // В mock режиме не показываем состояние загрузки
-      if (!dashboardService.isMockMode()) {
-        isLoading.value = true;
-      }
+      // Убираем loading состояние, чтобы не было размытия экрана
+      // if (!dashboardService.isMockMode()) {
+      //   isLoading.value = true;
+      // }
       error.value = null;
       stats.value = await dashboardService.getStats();
       lastRefresh.value = new Date();
@@ -107,7 +107,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       error.value = err.message || "Ошибка загрузки статистики";
       throw err;
     } finally {
-      isLoading.value = false;
+      // isLoading.value = false; // Убираем, чтобы не было loading состояний
     }
   };
 
@@ -400,18 +400,18 @@ export const useDashboardStore = defineStore("dashboard", () => {
           loadLayouts(),
         ]);
       } else {
-        // В реальном режиме загружаем последовательно с индикацией
-        isLoading.value = true;
+        // В реальном режиме загружаем без loading индикации
+        // isLoading.value = true; // Убираем loading состояние
         await Promise.all([
           loadStats(),
           loadRecentActivity(),
           loadNotifications(),
           loadLayouts(),
         ]);
-        isLoading.value = false;
+        // isLoading.value = false; // Убираем loading состояние
       }
     } catch (error) {
-      isLoading.value = false;
+      // isLoading.value = false; // Убираем loading состояние
       throw error;
     }
   };

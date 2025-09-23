@@ -88,7 +88,7 @@ export class ObjectsService {
     if (filters.uniqueId) params.append("uniqueId", filters.uniqueId);
 
     const response = await this.getAuth().apiClient.get(
-      `/cms/objects/?${params.toString()}`
+      `/objects/?${params.toString()}`
     );
     return response.data;
   }
@@ -97,7 +97,7 @@ export class ObjectsService {
   async getObject(
     id: number
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.getAuth().apiClient.get(`/cms/objects/${id}/`);
+    const response = await this.getAuth().apiClient.get(`/objects/${id}/`);
     return response.data;
   }
 
@@ -106,7 +106,7 @@ export class ObjectsService {
     object: ObjectForm
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
     const response = await this.getAuth().apiClient.post(
-      "/cms/objects/",
+      "/objects/",
       object
     );
     return response.data;
@@ -118,7 +118,7 @@ export class ObjectsService {
     object: Partial<ObjectForm>
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/cms/objects/${id}/`,
+      `/objects/${id}/`,
       object
     );
     return response.data;
@@ -129,7 +129,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/cms/objects/${id}/`
+      `/objects/${id}/`
     );
     return response.data;
   }
@@ -140,7 +140,7 @@ export class ObjectsService {
     data: ScheduleDeleteForm
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/cms/objects/${id}/schedule-delete/`,
+      `/objects/${id}/schedule-delete/`,
       data
     );
     return response.data;
@@ -151,7 +151,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/cms/objects/${id}/cancel-delete/`
+      `/objects/${id}/cancel-delete/`
     );
     return response.data;
   }
@@ -171,7 +171,7 @@ export class ObjectsService {
     if (search) params.append("search", search);
 
     const response = await this.getAuth().apiClient.get(
-      `/cms/objects-trash/?${params.toString()}`
+      `/objects-trash/?${params.toString()}`
     );
     return response.data;
   }
@@ -181,7 +181,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/cms/objects/${id}/restore/`
+      `/objects/${id}/restore/`
     );
     return response.data;
   }
@@ -191,7 +191,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/cms/objects/${id}/permanent/`
+      `/objects/${id}/permanent/`
     );
     return response.data;
   }
@@ -226,7 +226,7 @@ export class ObjectsService {
       params.append("active_only", filters.active_only.toString());
 
     const response = await this.getAuth().apiClient.get(
-      `/cms/object-templates/?${params.toString()}`
+      `/object-templates/?${params.toString()}`
     );
     return response.data;
   }
@@ -236,7 +236,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.get(
-      `/cms/object-templates/${id}/`
+      `/object-templates/${id}/`
     );
     return response.data;
   }
@@ -249,7 +249,7 @@ export class ObjectsService {
     >
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.post(
-      "/cms/object-templates/",
+      "/object-templates/",
       template
     );
     return response.data;
@@ -261,7 +261,7 @@ export class ObjectsService {
     template: Partial<ObjectTemplate>
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/cms/object-templates/${id}/`,
+      `/object-templates/${id}/`,
       template
     );
     return response.data;
@@ -272,7 +272,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/cms/object-templates/${id}/`
+      `/object-templates/${id}/`
     );
     return response.data;
   }
@@ -288,7 +288,7 @@ export class ObjectsService {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
-    const response = await this.getAuth().apiClient.get("/cms/objects/stats/");
+    const response = await this.getAuth().apiClient.get("/objects/stats/");
     return response.data.data;
   }
 
@@ -307,12 +307,27 @@ export class ObjectsService {
     });
 
     const response = await this.getAuth().apiClient.get(
-      `/cms/objects/export/?${params.toString()}`,
+      `/objects/export/?${params.toString()}`,
       {
         responseType: "blob",
       }
     );
     return response.data;
+  }
+
+  // Проверка демо режима
+  isMockDataEnabled(): boolean {
+    return localStorage.getItem('objects_demo_mode') === 'true';
+  }
+
+  // Включение демо режима
+  enableMockData(): void {
+    localStorage.setItem('objects_demo_mode', 'true');
+  }
+
+  // Отключение демо режима
+  disableMockData(): void {
+    localStorage.removeItem('objects_demo_mode');
   }
 }
 

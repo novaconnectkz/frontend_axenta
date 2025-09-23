@@ -1,13 +1,14 @@
 <template>
   <div class="dashboard-grid" ref="gridContainer">
-    <v-row v-if="!isLayoutLoaded" class="fill-height">
+    <!-- Убираем loading spinner, чтобы не было размытия экрана -->
+    <!-- <v-row v-if="!isLayoutLoaded" class="fill-height">
       <v-col cols="12" class="d-flex align-center justify-center">
         <v-progress-circular indeterminate size="64" />
         <span class="ml-4">Загрузка панели управления...</span>
       </v-col>
-    </v-row>
+    </v-row> -->
 
-    <div v-else-if="currentLayout" class="grid-container">
+    <div v-if="currentLayout" class="grid-container">
       <!-- Drag and Drop Toggle -->
       <div class="drag-controls mb-4">
         <v-btn

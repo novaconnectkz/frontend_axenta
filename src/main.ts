@@ -13,11 +13,13 @@ import "./styles/browser-compatibility.css";
 import "./styles/scroll-fixes.css"; // Исправления прокрутки для продакшена
 import "./styles/mobile-fixes.css"; // Исправления для мобильных устройств
 import "./styles/widget-layout.css"; // Стили для виджетов с фиксированной высотой
+import "./styles/no-loading-overlay.css"; // Отключаем loading overlay
 import appleTheme from "./styles/vuetify-apple-theme";
 
 import App from "./App.vue";
 import router from "./router";
 import { initDemoMode } from "./utils/demoMode";
+import { disableAllLoading } from "./utils/disableLoading";
 import "./utils/themeDebug"; // Утилиты отладки темы
 
 const app = createApp(App);
@@ -122,19 +124,37 @@ nextTick(() => {
   // Даем время на первичный рендеринг и инициализацию
   setTimeout(() => {
     console.log('🚀 App mounted, hiding loading screen...');
-    if (window.hideLoadingScreen) {
-      window.hideLoadingScreen();
-    } else {
-      console.warn('⚠️ hideLoadingScreen function not available');
-      // Fallback - скрываем загрузочный экран напрямую
-      const loadingScreen = document.getElementById('app-loading');
-      const app = document.getElementById('app');
-      if (loadingScreen) {
-        loadingScreen.style.display = 'none';
-      }
-      if (app) {
-        app.style.opacity = '1';
-      }
+    
+    // Принудительно скрываем загрузочный экран
+    const loadingScreen = document.getElementById('app-loading');
+    const app = document.getElementById('app');
+    
+    if (loadingScreen) {
+      console.log('🎯 Hiding loading screen element...');
+      loadingScreen.style.display = 'none';
+      loadingScreen.style.opacity = '0';
+      loadingScreen.style.visibility = 'hidden';
+      loadingScreen.style.pointerEvents = 'none';
     }
-  }, 300); // Увеличиваем время для более надежной инициализации
+    
+    if (app) {
+      console.log('🎯 Showing main app...');
+      app.style.opacity = '1';
+      app.style.visibility = 'visible';
+      app.classList.add('loaded');
+    }
+    
+    // Дополнительная проверка через секунду
+    setTimeout(() => {
+      const stillVisible = document.getElementById('app-loading');
+      if (stillVisible && stillVisible.style.display !== 'none') {
+        console.warn('⚠️ Loading screen still visible, force hiding...');
+        stillVisible.remove(); // Полностью удаляем элемент
+      }
+      
+      // Принудительно отключаем все loading состояния
+      disableAllLoading();
+    }, 1000);
+    
+  }, 100); // Уменьшаем время для более быстрого скрытия
 });

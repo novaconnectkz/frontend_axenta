@@ -1,5 +1,6 @@
 <template>
   <div class="objects-page">
+
     <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
@@ -11,6 +12,24 @@
       </div>
       
       <div class="page-actions">
+        <AppleButton 
+          v-if="!objectsService.isMockDataEnabled()" 
+          variant="secondary" 
+          prepend-icon="mdi-play-circle"
+          @click="enableDemoMode" 
+          color="success"
+        >
+          Демо режим
+        </AppleButton>
+        <AppleButton 
+          v-else 
+          variant="secondary" 
+          prepend-icon="mdi-stop-circle" 
+          @click="disableDemoMode" 
+          color="warning"
+        >
+          Выйти из демо
+        </AppleButton>
         <AppleButton
           variant="secondary"
           prepend-icon="mdi-export"
@@ -30,6 +49,21 @@
       </div>
     </div>
 
+    <!-- Уведомление о демо режиме -->
+    <v-alert v-if="objectsService.isMockDataEnabled && objectsService.isMockDataEnabled()" type="info" variant="tonal" prominent border="start"
+      class="demo-alert">
+      <template #prepend>
+        <v-icon icon="mdi-play-circle" size="24" />
+      </template>
+      <div class="alert-content">
+        <div class="alert-title">Демонстрационный режим</div>
+        <div class="alert-text">
+          Отображаются демо данные. Это позволяет увидеть, как будет выглядеть интерфейс управления объектами.
+          Все изменения в демо режиме не сохраняются.
+        </div>
+      </div>
+    </v-alert>
+
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
@@ -46,119 +80,127 @@
       </div>
     </div>
 
-    <!-- ТЕСТ: Простой поиск -->
-    <div style="background: red; padding: 20px; margin: 20px 0; color: white;">
-      <h2>ТЕСТ ПОИСКА - ДОЛЖЕН БЫТЬ ВИДЕН</h2>
-      <input type="text" placeholder="Тестовое поле поиска" style="padding: 10px; width: 100%;" />
-    </div>
-
-    <!-- Поиск объектов -->
+    <!-- Поиск и фильтры в одной строке -->
     <v-card class="mb-4" variant="outlined" elevation="2">
-      <v-card-title>
-        <v-icon icon="mdi-magnify" class="mr-2" />
-        Поиск объектов
-      </v-card-title>
-      
-      <v-card-text>
-        <v-text-field
-          v-model="filters.search"
-          placeholder="Поиск по названию, IMEI, номеру телефона..."
-          prepend-icon="mdi-magnify"
-          clearable
-          variant="outlined"
-          @input="debouncedSearch"
-        />
-      </v-card-text>
-    </v-card>
-
-    <!-- Фильтры -->
-    <AppleCard class="filters-card" variant="outlined">
-      <template #header>
-        <div class="filters-header">
-          <v-icon icon="mdi-filter" class="mr-2" />
-          Фильтры
-          <v-spacer />
-          <AppleButton
-            variant="text"
-            size="small"
-            @click="clearFilters"
-            :disabled="!hasActiveFilters"
-            data-testid="clear-filters"
-          >
-            Очистить
-          </AppleButton>
-        </div>
-      </template>
-      
-      <div class="filters-content">
-        <v-row>
-          <v-col cols="12" md="3" v-if="!showAdvancedSearch">
-            <AppleInput
+      <v-card-text class="py-3">
+        <v-row align="center" no-gutters>
+          <!-- Поиск -->
+          <v-col cols="12" md="8" class="pr-3">
+            <v-text-field
               v-model="filters.search"
-              placeholder="Быстрый поиск..."
+              placeholder="Поиск по названию, IMEI, номеру телефона..."
               prepend-icon="mdi-magnify"
               clearable
+              variant="outlined"
+              density="compact"
+              hide-details
               @input="debouncedSearch"
             />
           </v-col>
           
-          <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.status"
-              :items="statusOptions"
-              label="Статус"
-              clearable
-              variant="outlined"
-              density="comfortable"
-            />
-          </v-col>
-          
-          <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.type"
-              :items="typeOptions"
-              label="Тип"
-              clearable
-              variant="outlined"
-              density="comfortable"
-            />
-          </v-col>
-          
-          <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.contract_id"
-              :items="contractOptions"
-              label="Договор"
-              clearable
-              variant="outlined"
-              density="comfortable"
-              :loading="loadingContracts"
-            />
-          </v-col>
-          
-          <v-col cols="12" md="2">
-            <v-select
-              v-model="filters.location_id"
-              :items="locationOptions"
-              label="Локация"
-              clearable
-              variant="outlined"
-              density="comfortable"
-              :loading="loadingLocations"
-            />
-          </v-col>
-          
-          <v-col cols="12" md="1">
-            <v-switch
-              v-model="showDeletedObjects"
-              label="Корзина"
-              color="error"
-              hide-details
-            />
+          <!-- Компактные фильтры -->
+          <v-col cols="12" md="4">
+            <div class="inline-filters">
+              <div class="filters-toggle-inline" @click="showFilters = !showFilters">
+                <v-icon icon="mdi-filter" size="18" class="mr-2" />
+                <span>Фильтры</span>
+                <v-chip
+                  v-if="hasActiveFilters"
+                  size="x-small"
+                  color="primary"
+                  class="ml-2"
+                >
+                  {{ activeFiltersCount }}
+                </v-chip>
+                <v-spacer />
+                <v-icon 
+                  :icon="showFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'" 
+                  size="18"
+                  class="ml-1"
+                />
+              </div>
+            </div>
           </v-col>
         </v-row>
-      </div>
-    </AppleCard>
+        
+        <!-- Развернутые фильтры -->
+        <v-expand-transition>
+          <div v-show="showFilters" class="expanded-filters">
+            <v-divider class="my-3" />
+            <v-row>
+              <v-col cols="12" md="2">
+                <v-select
+                  v-model="filters.status"
+                  :items="statusOptions"
+                  label="Статус"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="2">
+                <v-select
+                  v-model="filters.type"
+                  :items="typeOptions"
+                  label="Тип"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="filters.contract_id"
+                  :items="contractOptions"
+                  label="Договор"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                  :loading="false"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="3">
+                <v-select
+                  v-model="filters.location_id"
+                  :items="locationOptions"
+                  label="Локация"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                  :loading="false"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="1">
+                <v-switch
+                  v-model="showDeletedObjects"
+                  label="Корзина"
+                  color="error"
+                  hide-details
+                  density="compact"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="1">
+                <AppleButton
+                  variant="text"
+                  size="small"
+                  @click="clearFilters"
+                  :disabled="!hasActiveFilters"
+                  data-testid="clear-filters"
+                  block
+                >
+                  Очистить
+                </AppleButton>
+              </v-col>
+            </v-row>
+          </div>
+        </v-expand-transition>
+      </v-card-text>
+    </v-card>
 
     <!-- Список объектов -->
     <AppleCard class="objects-table-card" variant="outlined">
@@ -231,7 +273,7 @@
         <v-data-table
           :headers="tableHeaders"
           :items="objects"
-          :loading="loading"
+          :loading="false"
           :items-per-page="pagination.per_page"
           :page="pagination.page"
           :server-items-length="objectsData?.total || 0"
@@ -527,7 +569,7 @@
     <v-dialog
       v-model="objectDialog.show"
       max-width="800"
-      persistent
+      @click:outside="closeObjectDialog"
     >
       <AppleCard>
         <template #header>
@@ -546,11 +588,42 @@
         
         <v-form ref="objectFormRef" @submit.prevent="saveObject">
           <div class="form-content">
+            <!-- Шаблон объекта -->
+            <v-row v-if="!objectDialog.isEdit">
+              <v-col cols="12">
+                <v-select
+                  v-model="selectedTemplate"
+                  :items="templateOptions"
+                  label="Шаблон объекта (опционально)"
+                  variant="outlined"
+                  density="comfortable"
+                  clearable
+                  prepend-icon="mdi-file-document-outline"
+                  @update:model-value="applyTemplate"
+                >
+                  <template #item="{ props, item }">
+                    <v-list-item v-bind="props">
+                      <template #prepend>
+                        <v-icon :icon="item.raw.icon || 'mdi-file-document-outline'" />
+                      </template>
+                      <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
+                      <v-list-item-subtitle>{{ item.raw.description }}</v-list-item-subtitle>
+                    </v-list-item>
+                  </template>
+                </v-select>
+              </v-col>
+            </v-row>
+            
+            <!-- Основная информация -->
             <v-row>
+              <v-col cols="12">
+                <h3 class="form-section-title">Основная информация</h3>
+              </v-col>
+              
               <v-col cols="12" md="6">
                 <AppleInput
                   v-model="objectForm.name"
-                  label="Название объекта"
+                  label="Название объекта *"
                   placeholder="Введите название"
                   required
                   :error-message="formErrors.name"
@@ -561,9 +634,10 @@
                 <v-select
                   v-model="objectForm.type"
                   :items="typeOptions"
-                  label="Тип объекта"
+                  label="Тип объекта *"
                   variant="outlined"
                   density="comfortable"
+                  required
                   :error-messages="formErrors.type"
                 />
               </v-col>
@@ -682,7 +756,7 @@
                   variant="outlined"
                   density="comfortable"
                   :error-messages="formErrors.contract_id"
-                  :loading="loadingContracts"
+                  :loading="false"
                 />
               </v-col>
               
@@ -693,7 +767,7 @@
                   label="Локация"
                   variant="outlined"
                   density="comfortable"
-                  :loading="loadingLocations"
+                  :loading="false"
                 />
               </v-col>
               
@@ -705,7 +779,7 @@
                   clearable
                   variant="outlined"
                   density="comfortable"
-                  :loading="loadingTemplates"
+                  :loading="false"
                 />
               </v-col>
               
@@ -962,18 +1036,42 @@
       v-model="snackbar.show"
       :color="snackbar.color"
       :timeout="snackbar.timeout"
-      location="bottom right"
+      location="top right"
+      variant="flat"
+      :multi-line="false"
+      :vertical="false"
+      elevation="8"
+      rounded="xl"
+      class="modern-snackbar"
     >
-      {{ snackbar.text }}
+      <div class="snackbar-content">
+        <v-icon 
+          :icon="getSnackbarIcon(snackbar.color)" 
+          size="20" 
+          class="mr-3"
+        />
+        <span class="snackbar-text">{{ snackbar.text }}</span>
+      </div>
       <template #actions>
         <v-btn
           variant="text"
+          size="small"
+          icon="mdi-close"
           @click="snackbar.show = false"
-        >
-          Закрыть
-        </v-btn>
+        />
       </template>
     </v-snackbar>
+
+    <!-- Красивое уведомление об успехе -->
+    <SuccessNotification
+      v-model="successNotification.show"
+      :title="successNotification.title"
+      :message="successNotification.message"
+      :details="successNotification.details"
+      :show-timer="successNotification.showTimer"
+      @timer-complete="onNotificationTimerComplete"
+    />
+
   </div>
 </template>
 
@@ -981,6 +1079,7 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
+import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import getObjectsService from '@/services/objectsService';
 import type {
     ObjectFilters,
@@ -992,9 +1091,14 @@ import type {
 } from '@/types/objects';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 // Получаем экземпляр сервиса
 const objectsService = getObjectsService();
+
+// Получаем текущий маршрут и роутер
+const route = useRoute();
+const router = useRouter();
 
 // Reactive data
 const loading = ref(false);
@@ -1009,6 +1113,7 @@ const showDeletedObjects = ref(false);
 // Поисковые состояния
 const showSearchHistory = ref(false);
 const showAdvancedSearch = ref(false);
+const showFilters = ref(false);
 const loadingSuggestions = ref(false);
 const searchSuggestions = ref<Array<{ title: string; subtitle: string; icon: string; value: string }>>([]);
 const searchHistory = ref<string[]>([]);
@@ -1056,6 +1161,9 @@ const templateOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadingContracts = ref(false);
 const loadingLocations = ref(false);
 const loadingTemplates = ref(false);
+
+// Template selection
+const selectedTemplate = ref(null);
 
 // Statistics
 const stats = ref([
@@ -1129,11 +1237,32 @@ const snackbar = ref({
   timeout: 5000,
 });
 
+// Success notification
+const successNotification = ref({
+  show: false,
+  title: '',
+  message: '',
+  details: '',
+  showTimer: false,
+});
+
 // Computed
 const hasActiveFilters = computed(() => {
   return Object.values(filters.value).some(value => 
     value !== undefined && value !== null && value !== ''
   );
+});
+
+const activeFiltersCount = computed(() => {
+  let count = 0;
+  if (filters.value.status) count++;
+  if (filters.value.type) count++;
+  if (filters.value.contract_id) count++;
+  if (filters.value.location_id) count++;
+  if (filters.value.template_id) count++;
+  if (filters.value.has_scheduled_delete !== undefined) count++;
+  if (filters.value.is_active !== undefined) count++;
+  return count;
 });
 
 const minDeleteDate = computed(() => {
@@ -1198,7 +1327,7 @@ const perPageOptions = [
 // Methods
 const loadObjects = async () => {
   try {
-    loading.value = true;
+    // Убираем loading.value = true; чтобы не было размытия экрана
     
     const response = showDeletedObjects.value
       ? await objectsService.getDeletedObjects(
@@ -1221,9 +1350,8 @@ const loadObjects = async () => {
   } catch (error: any) {
     console.error('Ошибка загрузки объектов:', error);
     showSnackbar('Ошибка загрузки объектов', 'error');
-  } finally {
-    loading.value = false;
   }
+  // Убираем finally блок с loading.value = false;
 };
 
 const loadStats = async () => {
@@ -1240,7 +1368,7 @@ const loadStats = async () => {
 
 const loadContracts = async () => {
   try {
-    loadingContracts.value = true;
+    // Убираем loadingContracts.value = true; чтобы не было loading индикаторов
     // TODO: Реализовать загрузку договоров из API
     contractOptions.value = [
       { title: 'Договор №1 - ООО "Тест"', value: 1 },
@@ -1248,14 +1376,14 @@ const loadContracts = async () => {
     ];
   } catch (error) {
     console.error('Ошибка загрузки договоров:', error);
-  } finally {
-    loadingContracts.value = false;
+    showSnackbar('Ошибка загрузки договоров', 'error');
   }
+  // Убираем finally блок
 };
 
 const loadLocations = async () => {
   try {
-    loadingLocations.value = true;
+    // Убираем loadingLocations.value = true; чтобы не было loading индикаторов
     // TODO: Реализовать загрузку локаций из API
     locationOptions.value = [
       { title: 'Москва', value: 1 },
@@ -1264,27 +1392,60 @@ const loadLocations = async () => {
     ];
   } catch (error) {
     console.error('Ошибка загрузки локаций:', error);
-  } finally {
-    loadingLocations.value = false;
+    showSnackbar('Ошибка загрузки локаций', 'error');
   }
+  // Убираем finally блок
 };
 
+// Load templates
 const loadTemplates = async () => {
   try {
-    loadingTemplates.value = true;
-    const response = await objectsService.getObjectTemplates(1, 100, { active_only: true });
+    // Убираем loadingTemplates.value = true; чтобы не было loading индикаторов
+    const response = await objectsService.getObjectTemplates();
+    
     if (response.status === 'success') {
-      templateOptions.value = response.data.items.map(template => ({
+      templateOptions.value = response.data.items.map((template: any) => ({
         title: template.name,
         value: template.id,
+        name: template.name,
+        description: template.description,
+        icon: template.icon,
+        config: template.config,
+        default_settings: template.default_settings,
+        category: template.category
       }));
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка загрузки шаблонов:', error);
-  } finally {
-    loadingTemplates.value = false;
+    showSnackbar('Ошибка загрузки шаблонов', 'error');
   }
+  // Убираем finally блок
 };
+
+// Apply template to form
+const applyTemplate = (templateId: number | null) => {
+  if (!templateId) return;
+  
+  const template = templateOptions.value.find(t => t.value === templateId);
+  if (!template) return;
+  
+  // Применяем настройки шаблона к форме
+  objectForm.value.template_id = templateId;
+  objectForm.value.type = template.category || objectForm.value.type;
+  
+  // Применяем настройки по умолчанию из шаблона
+  if (template.default_settings) {
+    try {
+      const settings = JSON.parse(template.default_settings);
+      objectForm.value.settings = JSON.stringify(settings);
+    } catch (error) {
+      console.warn('Ошибка парсинга настроек шаблона:', error);
+    }
+  }
+  
+  showSnackbar(`Шаблон "${template.name}" применен`, 'success');
+};
+
 
 // Debounced search
 const debouncedSearch = debounce(() => {
@@ -1451,12 +1612,16 @@ const toggleQuickFilter = (filter: any) => {
 
 // Dialog methods
 const openCreateDialog = () => {
+  console.log('🎯 openCreateDialog вызван');
   objectDialog.value = {
     show: true,
     isEdit: false,
     object: null,
   };
+  console.log('🎯 Диалог установлен в show: true');
   resetObjectForm();
+  loadTemplates(); // Загружаем шаблоны при открытии диалога
+  console.log('🎯 openCreateDialog завершен, состояние:', objectDialog.value);
 };
 
 const editObject = (object: ObjectWithRelations) => {
@@ -1469,9 +1634,19 @@ const editObject = (object: ObjectWithRelations) => {
 };
 
 const closeObjectDialog = () => {
+  console.log('🎯 closeObjectDialog вызван');
   objectDialog.value.show = false;
+  console.log('🎯 Диалог установлен в show: false');
   resetObjectForm();
   formErrors.value = {};
+  selectedTemplate.value = null;
+  
+  // Очищаем параметр action из URL, если он есть
+  if (route.query.action === 'create') {
+    console.log('🎯 Очищаем параметр action из URL');
+    router.replace({ path: route.path });
+  }
+  console.log('🎯 closeObjectDialog завершен, состояние:', objectDialog.value);
 };
 
 const resetObjectForm = () => {
@@ -1559,10 +1734,16 @@ const saveObject = async () => {
       : await objectsService.createObject(objectForm.value);
     
     if (response.status === 'success') {
-      showSnackbar(
-        objectDialog.value.isEdit ? 'Объект успешно обновлен' : 'Объект успешно создан',
-        'success'
-      );
+      if (objectDialog.value.isEdit) {
+        showSnackbar('Объект успешно обновлен', 'success');
+      } else {
+        showSuccessNotification(
+          'Объект успешно создан',
+          'Новый объект мониторинга добавлен в систему',
+          `Создан объект: ${objectForm.value.name}`,
+          true
+        );
+      }
       closeObjectDialog();
       await loadObjects();
       await loadStats();
@@ -1755,6 +1936,24 @@ const exportObjects = async () => {
   }
 };
 
+// Demo mode functions
+const enableDemoMode = () => {
+  objectsService.enableMockData();
+  showSuccessNotification(
+    'Демо режим включен',
+    'Теперь отображаются демонстрационные данные',
+    'Все изменения в демо режиме не сохраняются',
+    false
+  );
+  loadObjects(); // Перезагружаем данные
+};
+
+const disableDemoMode = () => {
+  objectsService.disableMockData();
+  showSnackbar('Демо режим отключен', 'info');
+  loadObjects(); // Перезагружаем данные
+};
+
 // Pagination handlers
 const handlePageChange = (page: number) => {
   pagination.value.page = page;
@@ -1834,8 +2033,68 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
-  snackbar.value = { show: true, text, color, timeout };
+const showSnackbar = (text: string, color = 'info', timeout?: number) => {
+  // Автоматически устанавливаем время показа в зависимости от типа
+  const defaultTimeouts = {
+    error: 6000,    // Ошибки показываем дольше
+    warning: 5000,  // Предупреждения - стандартное время
+    success: 4000,  // Успех - чуть меньше
+    info: 4000,     // Информация - стандартное время
+  };
+  
+  const finalTimeout = timeout || defaultTimeouts[color as keyof typeof defaultTimeouts] || 5000;
+  
+  snackbar.value = { 
+    show: true, 
+    text, 
+    color, 
+    timeout: finalTimeout 
+  };
+  
+  // Логируем для отладки
+  console.log(`📢 Snackbar: ${text} (${color}, ${finalTimeout}ms)`);
+};
+
+const getSnackbarIcon = (color: string): string => {
+  const iconMap = {
+    success: 'mdi-check-circle',
+    error: 'mdi-alert-circle',
+    warning: 'mdi-alert',
+    info: 'mdi-information',
+  };
+  return iconMap[color as keyof typeof iconMap] || 'mdi-information';
+};
+
+// Функция для принудительного закрытия всех диалогов (для отладки)
+const forceCloseAllDialogs = () => {
+  console.log('🚨 Принудительно закрываем все диалоги');
+  objectDialog.value.show = false;
+  scheduleDeleteDialog.value.show = false;
+  viewDialog.value.show = false;
+  console.log('🎯 Все диалоги закрыты:', {
+    objectDialog: objectDialog.value.show,
+    scheduleDeleteDialog: scheduleDeleteDialog.value.show,
+    viewDialog: viewDialog.value.show
+  });
+};
+
+// Добавляем функцию в window для отладки
+if (typeof window !== 'undefined') {
+  (window as any).forceCloseAllDialogs = forceCloseAllDialogs;
+}
+
+const showSuccessNotification = (title: string, message: string, details?: string, showTimer = false) => {
+  successNotification.value = {
+    show: true,
+    title,
+    message,
+    details: details || '',
+    showTimer,
+  };
+};
+
+const onNotificationTimerComplete = () => {
+  console.log('Таймер уведомления завершен');
 };
 
 // Функции для работы с активностью объектов
@@ -1950,16 +2209,38 @@ watch(showDeletedObjects, () => {
 onMounted(async () => {
   console.log('🚀 Objects component mounted');
   
+  // Принудительно закрываем все диалоги при инициализации
+  objectDialog.value.show = false;
+  scheduleDeleteDialog.value.show = false;
+  viewDialog.value.show = false;
+  console.log('🎯 Все диалоги принудительно закрыты');
+  
   // Загружаем историю поиска
   loadSearchHistory();
   
-  await Promise.all([
-    loadObjects(),
-    loadStats(),
-    loadContracts(),
-    loadLocations(),
-    loadTemplates(),
-  ]);
+  try {
+    await Promise.all([
+      loadObjects(),
+      loadStats(),
+      loadContracts(),
+      loadLocations(),
+      loadTemplates(),
+    ]);
+  } catch (error: any) {
+    console.error('Ошибка инициализации страницы объектов:', error);
+    showSnackbar('Ошибка загрузки данных. Проверьте подключение к серверу.', 'error', 8000);
+  }
+  
+  // Проверяем, нужно ли открыть диалог создания объекта
+  if (route.query.action === 'create') {
+    console.log('🎯 Автоматически открываем диалог создания объекта');
+    // Добавляем небольшую задержку, чтобы компонент полностью загрузился
+    setTimeout(() => {
+      console.log('🎯 Открываем диалог создания объекта с задержкой');
+      openCreateDialog();
+      console.log('🎯 Состояние диалога:', objectDialog.value);
+    }, 500);
+  }
   
   console.log('✅ Objects component fully loaded');
 });
@@ -1978,7 +2259,9 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0;
+  margin-bottom: 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
 }
 
 .page-title-section {
@@ -2011,6 +2294,8 @@ onMounted(async () => {
 .page-actions {
   display: flex;
   gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 /* Статистика */
@@ -2349,6 +2634,150 @@ onMounted(async () => {
 [data-theme="dark"] .search-history-title,
 [data-theme="dark"] .advanced-search-title {
   color: var(--text-secondary-dark);
+}
+
+/* Inline фильтры */
+.inline-filters {
+  display: flex;
+  justify-content: flex-end;
+  height: 40px;
+  align-items: center;
+}
+
+.filters-toggle-inline {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  background: var(--bg-secondary, #f8f9fa);
+  height: 40px;
+  min-width: 120px;
+  font-size: 14px;
+}
+
+.filters-toggle-inline:hover {
+  background-color: var(--bg-tertiary, #e9ecef);
+  border-color: var(--apple-blue, #007AFF);
+}
+
+.expanded-filters {
+  margin-top: 12px;
+}
+
+/* Демо уведомление */
+.demo-alert {
+  margin-bottom: 24px;
+}
+
+.alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.alert-text {
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+/* Snackbar стили */
+.v-snackbar {
+  z-index: 2000 !important;
+}
+
+.v-snackbar .v-snackbar__wrapper {
+  min-width: 320px;
+  max-width: 500px;
+}
+
+.modern-snackbar {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+}
+
+.modern-snackbar .v-snackbar__wrapper {
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.snackbar-content {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.snackbar-text {
+  line-height: 1.4;
+}
+
+/* Анимация появления snackbar */
+.modern-snackbar .v-snackbar__wrapper {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Темная тема для snackbar */
+[data-theme="dark"] .modern-snackbar .v-snackbar__wrapper {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Принудительно отключаем backdrop для диалогов, если он создает проблемы */
+.v-overlay--active .v-overlay__scrim {
+  opacity: 0.3 !important; /* Уменьшаем прозрачность backdrop */
+}
+
+/* Альтернативно - полностью отключаем backdrop */
+.no-backdrop .v-overlay__scrim {
+  display: none !important;
+}
+
+/* Убираем размытие с основного контента */
+.v-application--wrap {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Стили для диалога создания объекта */
+.form-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border-color, #e0e0e0);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.form-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 16px 0;
 }
 
 /* Адаптивность */

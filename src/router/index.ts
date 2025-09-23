@@ -63,7 +63,7 @@ const routes = [
       {
         path: "objects",
         name: "Objects",
-        component: () => import("@/views/ObjectsSimplified.vue"),
+        component: () => import("@/views/Objects.vue"),
         meta: {
           title: "Объекты",
           requiresAuth: true,

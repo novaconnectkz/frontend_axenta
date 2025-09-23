@@ -59,14 +59,15 @@
         </v-btn>
       </div>
       
-      <div v-else-if="loading" class="loading-state">
+      <!-- Убираем loading состояние, чтобы не было размытия -->
+      <!-- <div v-else-if="loading" class="loading-state">
         <v-skeleton-loader
           :type="skeletonType"
           class="mx-auto"
         />
-      </div>
+      </div> -->
       
-      <div v-else class="content">
+      <div class="content">
         <slot />
       </div>
     </v-card-text>

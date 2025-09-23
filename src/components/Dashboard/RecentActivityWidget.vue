@@ -427,14 +427,14 @@ export default defineComponent({
 
     const loadData = async () => {
       try {
-        loading.value = true;
+        // loading.value = true; // Убираем loading, чтобы не было размытия экрана
         error.value = null;
         activities.value = await dashboardService.getRecentActivity(props.limit);
       } catch (err: any) {
         error.value = err.message || 'Ошибка загрузки активности';
         console.error('Ошибка загрузки активности:', err);
       } finally {
-        loading.value = false;
+        // loading.value = false; // Убираем loading состояние
       }
     };
 
