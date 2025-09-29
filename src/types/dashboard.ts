@@ -61,6 +61,7 @@ export interface Widget {
   type: WidgetType;
   size: WidgetSize;
   position: WidgetPosition;
+  dimensions?: WidgetDimensions;
   config: WidgetConfig;
   visible: boolean;
 }
@@ -84,6 +85,51 @@ export interface WidgetPosition {
   col: number;
   width: number;
   height: number;
+}
+
+export interface WidgetDimensions {
+  width: number;
+  height: number;
+  minWidth?: number;
+  minHeight?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+}
+
+export interface WidgetBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface CollisionResult {
+  hasCollision: boolean;
+  conflictingWidgets: string[];
+  suggestedPosition?: WidgetBounds;
+}
+
+export interface SnapPoint {
+  x: number;
+  y: number;
+  type: 'edge' | 'center' | 'grid';
+  widgetId?: string;
+  direction: 'horizontal' | 'vertical' | 'both';
+}
+
+export interface SnapResult {
+  snapped: boolean;
+  snapPoints: SnapPoint[];
+  adjustedBounds: WidgetBounds;
+}
+
+export interface GridSettings {
+  enabled: boolean;
+  size: number;
+  snapThreshold: number;
+  showGrid: boolean;
+  snapToWidgets: boolean;
+  snapToGrid: boolean;
 }
 
 export interface WidgetConfig {

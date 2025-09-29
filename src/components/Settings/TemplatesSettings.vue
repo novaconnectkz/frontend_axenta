@@ -391,6 +391,99 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог создания/редактирования шаблона -->
+    <v-dialog v-model="createTemplateDialog.show" max-width="600" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center gap-3">
+          <v-icon 
+            :icon="createTemplateDialog.isEdit ? 'mdi-pencil' : 'mdi-plus'" 
+            :color="createTemplateDialog.isEdit ? 'warning' : 'primary'" 
+          />
+          {{ createTemplateDialog.isEdit ? 'Редактирование шаблона' : 'Создание шаблона' }}
+        </v-card-title>
+
+        <v-divider />
+
+        <v-card-text class="py-4">
+          <v-form>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="createTemplateForm.name"
+                  label="Название шаблона"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="createTemplateErrors.name"
+                  required
+                />
+              </v-col>
+              
+              <v-col cols="12">
+                <v-text-field
+                  v-model="createTemplateForm.category"
+                  label="Категория"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="createTemplateErrors.category"
+                  placeholder="Например: Транспорт, Оборудование"
+                  required
+                />
+              </v-col>
+              
+              <v-col cols="12">
+                <v-textarea
+                  v-model="createTemplateForm.description"
+                  label="Описание"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="createTemplateErrors.description"
+                  rows="3"
+                  placeholder="Описание шаблона (необязательно)"
+                />
+              </v-col>
+              
+              <v-col cols="6">
+                <v-text-field
+                  v-model="createTemplateForm.icon"
+                  label="Иконка"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="createTemplateErrors.icon"
+                  placeholder="mdi-office-building"
+                  prepend-inner-icon="mdi-emoticon-outline"
+                />
+              </v-col>
+              
+              <v-col cols="6">
+                <v-text-field
+                  v-model="createTemplateForm.color"
+                  label="Цвет"
+                  variant="outlined"
+                  density="compact"
+                  type="color"
+                  :error-messages="createTemplateErrors.color"
+                />
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+
+        <v-divider />
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="closeCreateTemplateDialog">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            @click="confirmCreateTemplate"
+            :loading="loading"
+          >
+            {{ createTemplateDialog.isEdit ? 'Сохранить' : 'Создать' }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar для уведомлений -->
     <v-snackbar
       v-model="snackbar.show"
@@ -433,6 +526,22 @@ const deleteDialog = ref({
   template: null as TemplateBase | null,
   deleting: false
 });
+
+const createTemplateDialog = ref({
+  show: false,
+  isEdit: false,
+  template: null as TemplateBase | null,
+});
+
+const createTemplateForm = ref({
+  name: '',
+  description: '',
+  category: '',
+  icon: '',
+  color: '',
+});
+
+const createTemplateErrors = ref<Record<string, string>>({});
 
 const snackbar = ref({
   show: false,
@@ -570,13 +679,35 @@ const viewTemplate = (template: ObjectTemplate | UserTemplate | NotificationTemp
 };
 
 const editTemplate = (template: TemplateBase) => {
-  // В реальном приложении здесь был бы переход к форме редактирования
-  showSnackbar('Функция редактирования шаблонов будет реализована в следующей версии', 'info');
+  createTemplateDialog.value = {
+    show: true,
+    isEdit: true,
+    template,
+  };
+  createTemplateForm.value = {
+    name: template.name,
+    description: template.description,
+    category: template.category,
+    icon: (template as any).icon || 'mdi-office-building',
+    color: (template as any).color || '#1976D2',
+  };
+  createTemplateErrors.value = {};
 };
 
 const createTemplate = () => {
-  // В реальном приложении здесь был бы переход к форме создания
-  showSnackbar('Функция создания шаблонов будет реализована в следующей версии', 'info');
+  createTemplateDialog.value = {
+    show: true,
+    isEdit: false,
+    template: null,
+  };
+  createTemplateForm.value = {
+    name: '',
+    description: '',
+    category: '',
+    icon: 'mdi-office-building',
+    color: '#1976D2',
+  };
+  createTemplateErrors.value = {};
 };
 
 const deleteTemplate = (template: TemplateBase) => {
@@ -610,6 +741,69 @@ const confirmDelete = async () => {
     showSnackbar('Ошибка удаления шаблона', 'error');
   } finally {
     deleteDialog.value.deleting = false;
+  }
+};
+
+const closeCreateTemplateDialog = () => {
+  createTemplateDialog.value.show = false;
+  createTemplateDialog.value.isEdit = false;
+  createTemplateDialog.value.template = null;
+  createTemplateForm.value = {
+    name: '',
+    description: '',
+    category: '',
+    icon: '',
+    color: '',
+  };
+  createTemplateErrors.value = {};
+};
+
+const confirmCreateTemplate = async () => {
+  try {
+    createTemplateErrors.value = {};
+    
+    // Валидация
+    if (!createTemplateForm.value.name.trim()) {
+      createTemplateErrors.value.name = 'Название шаблона обязательно';
+      return;
+    }
+    if (!createTemplateForm.value.category.trim()) {
+      createTemplateErrors.value.category = 'Категория шаблона обязательна';
+      return;
+    }
+    
+    const templateData = {
+      ...createTemplateForm.value,
+      type: 'object', // По умолчанию создаем шаблон объекта
+      is_active: true,
+      is_system: false,
+      usage_count: 0,
+    };
+    
+    if (createTemplateDialog.value.isEdit && createTemplateDialog.value.template) {
+      // Редактирование существующего шаблона
+      const response = await settingsService.updateTemplate(createTemplateDialog.value.template.id, templateData);
+      if (response.status === 'success') {
+        showSnackbar('Шаблон успешно обновлен', 'success');
+        await loadTemplates();
+      } else {
+        showSnackbar(response.error || 'Ошибка обновления шаблона', 'error');
+      }
+    } else {
+      // Создание нового шаблона
+      const response = await settingsService.createTemplate(templateData);
+      if (response.status === 'success') {
+        showSnackbar('Шаблон успешно создан', 'success');
+        await loadTemplates();
+      } else {
+        showSnackbar(response.error || 'Ошибка создания шаблона', 'error');
+      }
+    }
+    
+    closeCreateTemplateDialog();
+  } catch (error) {
+    console.error('Ошибка сохранения шаблона:', error);
+    showSnackbar('Ошибка сохранения шаблона', 'error');
   }
 };
 

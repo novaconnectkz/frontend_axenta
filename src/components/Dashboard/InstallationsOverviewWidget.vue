@@ -2,11 +2,15 @@
   <BaseWidget
     title="Обзор монтажей"
     icon="mdi-hammer-wrench"
+    :widget-id="widgetId"
+    :is-resize-mode="isResizeMode"
+    :dimensions="dimensions"
     :loading="loading"
     :error="error"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
+    @resize="$emit('resize', $event)"
   >
     <div v-if="data" class="installations-overview">
       <v-row>
@@ -173,7 +177,8 @@
 
 <script lang="ts">
 import { dashboardService } from '@/services/dashboardService';
-import type { InstallationStats } from '@/types/dashboard';
+import type { InstallationStats, WidgetDimensions } from '@/types/dashboard';
+import type { PropType } from 'vue';
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import BaseWidget from './BaseWidget.vue';
 
@@ -186,9 +191,21 @@ export default defineComponent({
     refreshInterval: {
       type: Number,
       default: 300
+    },
+    widgetId: {
+      type: String,
+      required: true
+    },
+    isResizeMode: {
+      type: Boolean,
+      default: false
+    },
+    dimensions: {
+      type: Object as PropType<WidgetDimensions>,
+      default: null
     }
   },
-  emits: ['configure', 'remove'],
+  emits: ['configure', 'remove', 'resize'],
   setup(props) {
     const data = ref<InstallationStats | null>(null);
     const loading = ref(false);

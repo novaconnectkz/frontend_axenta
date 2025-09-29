@@ -37,6 +37,7 @@ export interface ObjectBase {
   last_activity_at?: string;
 
   // Связи
+  company_id: number; // ID компании
   contract_id: number;
   template_id?: number;
   location_id: number;
@@ -49,11 +50,17 @@ export interface ObjectBase {
 }
 
 export interface ObjectWithRelations extends ObjectBase {
+  company?: CompanyInfo;
   contract?: Contract;
   template?: ObjectTemplate;
   location?: Location;
   equipment?: Equipment[];
   installations?: Installation[];
+}
+
+export interface CompanyInfo {
+  id: number;
+  name: string;
 }
 
 export interface ObjectTemplate {
@@ -175,6 +182,7 @@ export interface ObjectForm {
   imei: string;
   phone_number: string;
   serial_number: string;
+  company_id: number; // ID компании
   contract_id: number;
   template_id?: number;
   location_id: number;

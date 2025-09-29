@@ -837,6 +837,59 @@ class SettingsService {
     console.log(`Шаблон ${id} удален`);
   }
 
+  async createTemplate(templateData: any): Promise<{ status: string; data?: any; error?: string }> {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    try {
+      // В реальном приложении здесь был бы API вызов
+      const newTemplate = {
+        id: Date.now().toString(),
+        created_at: new Date(),
+        updated_at: new Date(),
+        ...templateData,
+      };
+
+      console.log('Создан новый шаблон:', newTemplate);
+      return { status: 'success', data: newTemplate };
+    } catch (error) {
+      console.error('Ошибка создания шаблона:', error);
+      return { status: 'error', error: 'Ошибка создания шаблона' };
+    }
+  }
+
+  async updateTemplate(id: string, templateData: any): Promise<{ status: string; data?: any; error?: string }> {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    try {
+      const template = [
+        ...demoObjectTemplates,
+        ...demoUserTemplates,
+        ...demoNotificationTemplates,
+      ].find((t) => t.id === id);
+
+      if (!template) {
+        return { status: 'error', error: 'Шаблон не найден' };
+      }
+
+      if (template.is_system) {
+        return { status: 'error', error: 'Системные шаблоны нельзя изменять' };
+      }
+
+      // В реальном приложении здесь был бы API вызов
+      const updatedTemplate = {
+        ...template,
+        ...templateData,
+        updated_at: new Date(),
+      };
+
+      console.log('Обновлен шаблон:', updatedTemplate);
+      return { status: 'success', data: updatedTemplate };
+    } catch (error) {
+      console.error('Ошибка обновления шаблона:', error);
+      return { status: 'error', error: 'Ошибка обновления шаблона' };
+    }
+  }
+
   // === СИСТЕМНЫЕ НАСТРОЙКИ ===
 
   async getSystemSettings(): Promise<SystemSettings> {

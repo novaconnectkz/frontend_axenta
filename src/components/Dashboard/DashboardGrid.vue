@@ -37,6 +37,7 @@
           Сбросить порядок
         </v-btn>
 
+
         <!-- Quick Actions Position Control -->
         <v-btn
           v-if="isDragMode"
@@ -87,9 +88,10 @@
           <div class="widget-content">
             <component 
               :is="getWidgetComponent(widget.type)" 
+              :widget-id="widget.id"
               :refresh-interval="widget.config.refreshInterval || 300"
               @configure="configureWidget(widget)" 
-              @remove="removeWidget(widget.id)" 
+              @remove="removeWidget(widget.id)"
               v-bind="widget.config" 
             />
           </div>
@@ -106,8 +108,14 @@
             lg="6" 
             xl="6" 
             class="widget-column">
-            <component :is="getWidgetComponent(widget.type)" :refresh-interval="widget.config.refreshInterval || 300"
-              @configure="configureWidget(widget)" @remove="removeWidget(widget.id)" v-bind="widget.config" />
+            <component 
+              :is="getWidgetComponent(widget.type)" 
+              :widget-id="widget.id"
+              :refresh-interval="widget.config.refreshInterval || 300"
+              @configure="configureWidget(widget)" 
+              @remove="removeWidget(widget.id)"
+              v-bind="widget.config" 
+            />
           </v-col>
         </template>
       </v-row>
@@ -278,7 +286,7 @@
 <script lang="ts">
 import { useAuth } from '@/context/auth';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
-import type { Widget, WidgetType } from '@/types/dashboard';
+import type { Widget, WidgetType, WidgetDimensions } from '@/types/dashboard';
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import { VueDraggable } from 'vue-draggable-plus';
 
@@ -563,6 +571,7 @@ export default defineComponent({
       dashboardStore.toggleQuickActionsPosition();
       console.log('После переключения позиция:', quickActionsPosition.value);
     };
+
 
     // Определяем состояние rail mode через медиа-запросы и локальное хранилище
     const checkRailMode = () => {

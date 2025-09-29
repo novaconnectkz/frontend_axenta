@@ -262,6 +262,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
     }
   };
 
+
   const updateWidgetOrder = (newOrder: Widget[]) => {
     if (!currentLayout.value) return;
     
@@ -277,6 +278,7 @@ export const useDashboardStore = defineStore("dashboard", () => {
       const positions = currentLayout.value.widgets.map(widget => ({
         id: widget.id,
         position: widget.position,
+        dimensions: widget.dimensions,
         visible: widget.visible
       }));
       
@@ -365,6 +367,9 @@ export const useDashboardStore = defineStore("dashboard", () => {
           const widgetIndex = currentLayout.value!.widgets.findIndex(w => w.id === savedPos.id);
           if (widgetIndex >= 0) {
             currentLayout.value!.widgets[widgetIndex].position = savedPos.position;
+            if (savedPos.dimensions) {
+              currentLayout.value!.widgets[widgetIndex].dimensions = savedPos.dimensions;
+            }
             currentLayout.value!.widgets[widgetIndex].visible = savedPos.visible;
           }
         });
@@ -387,6 +392,8 @@ export const useDashboardStore = defineStore("dashboard", () => {
       (w) => w.id !== widgetId
     );
   };
+
+
 
   const refreshAll = async () => {
     try {

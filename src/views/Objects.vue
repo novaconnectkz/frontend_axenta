@@ -445,6 +445,12 @@
                   
                   <v-list density="compact">
                     <v-list-item
+                      prepend-icon="mdi-file-document-plus"
+                      title="Создать шаблон"
+                      @click="createTemplateFromObject(item)"
+                    />
+                    <v-divider />
+                    <v-list-item
                       v-if="item.scheduled_delete_at"
                       prepend-icon="mdi-restore"
                       title="Отменить удаление"
@@ -644,10 +650,19 @@
               
               <!-- Новые поля -->
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.accountName"
-                  label="Название учетной записи"
-                  placeholder="Введите название учетной записи"
+                <v-select
+                  v-model="objectForm.company_id"
+                  :items="companyOptions"
+                  label="Название учетной записи (компании) *"
+                  variant="outlined"
+                  density="comfortable"
+                  required
+                  :loading="loadingCompanies"
+                  :error-messages="formErrors.company_id"
+                  prepend-icon="mdi-domain"
+                  item-title="name"
+                  item-value="id"
+                  placeholder="Выберите компанию"
                 />
               </v-col>
               
@@ -882,6 +897,85 @@
               :loading="scheduling"
             >
               Запланировать
+            </AppleButton>
+          </div>
+        </template>
+      </AppleCard>
+    </v-dialog>
+
+    <!-- Диалог создания шаблона -->
+    <v-dialog
+      v-model="createTemplateDialog.show"
+      max-width="600"
+    >
+      <AppleCard>
+        <template #header>
+          <v-icon icon="mdi-file-document-plus" class="mr-2" color="primary" />
+          Создание шаблона на основе объекта
+        </template>
+        
+        <div class="dialog-content">
+          <p class="mb-4">
+            Создание шаблона на основе объекта <strong>{{ createTemplateDialog.object?.name }}</strong>
+          </p>
+          
+          <div class="form-grid">
+            <AppleInput
+              v-model="createTemplateForm.name"
+              label="Название шаблона"
+              required
+              :error-message="createTemplateErrors.name"
+              placeholder="Введите название шаблона"
+            />
+            
+            <AppleInput
+              v-model="createTemplateForm.category"
+              label="Категория"
+              required
+              :error-message="createTemplateErrors.category"
+              placeholder="Например: Транспорт, Оборудование"
+            />
+            
+            <AppleInput
+              v-model="createTemplateForm.description"
+              label="Описание"
+              type="textarea"
+              :error-message="createTemplateErrors.description"
+              placeholder="Описание шаблона (необязательно)"
+              rows="3"
+            />
+            
+            <div class="form-row">
+              <AppleInput
+                v-model="createTemplateForm.icon"
+                label="Иконка"
+                placeholder="mdi-office-building"
+                :error-message="createTemplateErrors.icon"
+              />
+              
+              <AppleInput
+                v-model="createTemplateForm.color"
+                label="Цвет"
+                type="color"
+                :error-message="createTemplateErrors.color"
+              />
+            </div>
+          </div>
+        </div>
+        
+        <template #footer>
+          <div class="dialog-actions">
+            <AppleButton
+              variant="secondary"
+              @click="closeCreateTemplateDialog"
+            >
+              Отмена
+            </AppleButton>
+            <AppleButton
+              @click="confirmCreateTemplate"
+              :loading="saving"
+            >
+              Создать шаблон
             </AppleButton>
           </div>
         </template>
@@ -1155,9 +1249,11 @@ const filters = ref<ObjectFilters>({
 });
 
 // Options for selects
+const companyOptions = ref<Array<{ id: number; name: string }>>([]);
 const contractOptions = ref<Array<{ title: string; value: number }>>([]);
 const locationOptions = ref<Array<{ title: string; value: number }>>([]);
 const templateOptions = ref<Array<{ title: string; value: number }>>([]);
+const loadingCompanies = ref(false);
 const loadingContracts = ref(false);
 const loadingLocations = ref(false);
 const loadingTemplates = ref(false);
@@ -1199,6 +1295,7 @@ const objectForm = ref<ObjectForm>({
   imei: '',
   phone_number: '',
   serial_number: '',
+    company_id: 0, // ID компании
   contract_id: 0,
   template_id: undefined,
   location_id: 0,
@@ -1228,6 +1325,22 @@ const viewDialog = ref({
   show: false,
   object: null as ObjectWithRelations | null,
 });
+
+// Create template dialog
+const createTemplateDialog = ref({
+  show: false,
+  object: null as ObjectWithRelations | null,
+});
+
+const createTemplateForm = ref({
+  name: '',
+  description: '',
+  category: '',
+  icon: '',
+  color: '',
+});
+
+const createTemplateErrors = ref<Record<string, string>>({});
 
 // Snackbar
 const snackbar = ref({
@@ -1342,14 +1455,16 @@ const loadObjects = async () => {
         );
     
     if (response.status === 'success') {
-      objects.value = response.data.items;
+      objects.value = response.data.items || [];
       objectsData.value = response.data;
     } else {
       showSnackbar(response.error || 'Ошибка загрузки объектов', 'error');
+      objects.value = []; // Устанавливаем пустой массив в случае ошибки
     }
   } catch (error: any) {
     console.error('Ошибка загрузки объектов:', error);
     showSnackbar('Ошибка загрузки объектов', 'error');
+    objects.value = []; // Устанавливаем пустой массив в случае исключения
   }
   // Убираем finally блок с loading.value = false;
 };
@@ -1363,6 +1478,24 @@ const loadStats = async () => {
     stats.value[3].value = statsData.scheduled_for_delete;
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error);
+  }
+};
+
+const loadCompanies = async () => {
+  try {
+    loadingCompanies.value = true;
+    const response = await objectsService.getCompanies();
+    
+    if (response.status === 'success') {
+      companyOptions.value = response.data;
+    } else {
+      showSnackbar(response.error || 'Ошибка загрузки компаний', 'error');
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки компаний:', error);
+    showSnackbar('Ошибка загрузки компаний', 'error');
+  } finally {
+    loadingCompanies.value = false;
   }
 };
 
@@ -1620,6 +1753,7 @@ const openCreateDialog = () => {
   };
   console.log('🎯 Диалог установлен в show: true');
   resetObjectForm();
+  loadCompanies(); // Загружаем компании при открытии диалога
   loadTemplates(); // Загружаем шаблоны при открытии диалога
   console.log('🎯 openCreateDialog завершен, состояние:', objectDialog.value);
 };
@@ -1669,6 +1803,7 @@ const resetObjectForm = () => {
     imei: '',
     phone_number: '',
     serial_number: '',
+    company_id: 0, // ID компании
     contract_id: 0,
     template_id: undefined,
     location_id: 0,
@@ -1699,6 +1834,7 @@ const fillObjectForm = (object: ObjectWithRelations) => {
     imei: object.imei,
     phone_number: object.phone_number,
     serial_number: object.serial_number,
+    company_id: object.company_id,
     contract_id: object.contract_id,
     template_id: object.template_id,
     location_id: object.location_id,
@@ -1820,6 +1956,19 @@ const closeScheduleDeleteDialog = () => {
   scheduleDeleteErrors.value = {};
 };
 
+const closeCreateTemplateDialog = () => {
+  createTemplateDialog.value.show = false;
+  createTemplateDialog.value.object = null;
+  createTemplateForm.value = {
+    name: '',
+    description: '',
+    category: '',
+    icon: '',
+    color: '',
+  };
+  createTemplateErrors.value = {};
+};
+
 const confirmScheduleDelete = async () => {
   try {
     scheduleDeleteErrors.value = {};
@@ -1852,6 +2001,42 @@ const confirmScheduleDelete = async () => {
   }
 };
 
+const confirmCreateTemplate = async () => {
+  try {
+    createTemplateErrors.value = {};
+    
+    // Валидация
+    if (!createTemplateForm.value.name.trim()) {
+      createTemplateErrors.value.name = 'Название шаблона обязательно';
+      return;
+    }
+    if (!createTemplateForm.value.category.trim()) {
+      createTemplateErrors.value.category = 'Категория шаблона обязательна';
+      return;
+    }
+    
+    saving.value = true;
+    
+    const response = await objectsService.createTemplateFromObject(
+      createTemplateDialog.value.object!.id,
+      createTemplateForm.value
+    );
+    
+    if (response.status === 'success') {
+      showSnackbar('Шаблон успешно создан на основе объекта', 'success');
+      closeCreateTemplateDialog();
+      // Можно добавить перезагрузку шаблонов если нужно
+    } else {
+      showSnackbar(response.error || 'Ошибка создания шаблона', 'error');
+    }
+  } catch (error: any) {
+    console.error('Ошибка создания шаблона:', error);
+    showSnackbar('Ошибка создания шаблона', 'error');
+  } finally {
+    saving.value = false;
+  }
+};
+
 const cancelScheduledDelete = async (object: ObjectWithRelations) => {
   if (!confirm(`Отменить плановое удаление объекта "${object.name}"?`)) {
     return;
@@ -1870,6 +2055,21 @@ const cancelScheduledDelete = async (object: ObjectWithRelations) => {
     console.error('Ошибка отмены планового удаления:', error);
     showSnackbar('Ошибка отмены планового удаления', 'error');
   }
+};
+
+const createTemplateFromObject = (object: ObjectWithRelations) => {
+  createTemplateDialog.value = {
+    show: true,
+    object,
+  };
+  createTemplateForm.value = {
+    name: `Шаблон на основе "${object.name}"`,
+    description: `Шаблон создан на основе объекта "${object.name}"`,
+    category: object.type || 'Стандартные',
+    icon: 'mdi-office-building',
+    color: '#1976D2',
+  };
+  createTemplateErrors.value = {};
 };
 
 const restoreObject = async (object: ObjectWithRelations) => {
@@ -2222,6 +2422,7 @@ onMounted(async () => {
     await Promise.all([
       loadObjects(),
       loadStats(),
+      loadCompanies(),
       loadContracts(),
       loadLocations(),
       loadTemplates(),
@@ -2909,6 +3110,22 @@ onMounted(async () => {
   font-size: 0.875rem;
 }
 
+/* Стили для формы создания шаблона */
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row > * {
+  flex: 1;
+}
+
 /* Адаптивность для массовых действий */
 @media (max-width: 960px) {
   .mass-actions {
@@ -2921,6 +3138,11 @@ onMounted(async () => {
   .table-actions {
     flex-direction: column;
     align-items: flex-start;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
   }
 }
 </style>

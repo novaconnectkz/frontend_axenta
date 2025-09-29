@@ -2,11 +2,15 @@
   <BaseWidget
     title="Последняя активность"
     icon="mdi-history"
+    :widget-id="widgetId"
+    :is-resize-mode="isResizeMode"
+    :dimensions="dimensions"
     :loading="loading"
     :error="error"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
+    @resize="$emit('resize', $event)"
   >
     <!-- Filters Panel -->
     <v-expand-transition>

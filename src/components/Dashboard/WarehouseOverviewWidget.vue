@@ -2,11 +2,15 @@
   <BaseWidget
     title="Обзор склада"
     icon="mdi-warehouse"
+    :widget-id="widgetId"
+    :is-resize-mode="isResizeMode"
+    :dimensions="dimensions"
     :loading="loading"
     :error="error"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
+    @resize="$emit('resize', $event)"
   >
     <div v-if="data" class="warehouse-overview">
       <v-row>

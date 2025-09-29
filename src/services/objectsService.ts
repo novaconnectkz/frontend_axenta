@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/context/auth";
 import type {
+  CompanyInfo,
   ObjectFilters,
   ObjectForm,
   ObjectTemplate,
@@ -87,18 +88,49 @@ export class ObjectsService {
       params.append("deviceTypeName", filters.deviceTypeName);
     if (filters.uniqueId) params.append("uniqueId", filters.uniqueId);
 
-    const response = await this.getAuth().apiClient.get(
-      `/objects/?${params.toString()}`
-    );
-    return response.data;
+    try {
+      // Пробуем аутентифицированный эндпоинт
+      const response = await this.getAuth().apiClient.get(
+        `/auth/objects?${params.toString()}`
+      );
+      return response.data;
+    } catch (error: any) {
+      console.log("🔍 Error in getObjects:", error.response?.status, error.message);
+      // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
+      if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
+        console.warn("🔄 Fallback to public endpoint for objects");
+        try {
+          const response = await this.getAuth().apiClient.get(
+            `/objects?${params.toString()}`
+          );
+          console.log("✅ Fallback successful for objects");
+          return response.data;
+        } catch (fallbackError: any) {
+          console.error("❌ Fallback failed for objects:", fallbackError);
+          throw fallbackError;
+        }
+      }
+      throw error;
+    }
   }
 
   // Получение одного объекта
   async getObject(
     id: number
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.getAuth().apiClient.get(`/objects/${id}/`);
-    return response.data;
+    try {
+      // Пробуем аутентифицированный эндпоинт
+      const response = await this.getAuth().apiClient.get(`/auth/objects/${id}`);
+      return response.data;
+    } catch (error: any) {
+      // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
+      if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
+        console.warn("🔄 Fallback to public endpoint for object");
+        const response = await this.getAuth().apiClient.get(`/objects/${id}`);
+        return response.data;
+      }
+      throw error;
+    }
   }
 
   // Создание объекта
@@ -106,7 +138,7 @@ export class ObjectsService {
     object: ObjectForm
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
     const response = await this.getAuth().apiClient.post(
-      "/objects/",
+      "/auth/objects",
       object
     );
     return response.data;
@@ -118,7 +150,7 @@ export class ObjectsService {
     object: Partial<ObjectForm>
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/objects/${id}/`,
+      `/auth/objects/${id}`,
       object
     );
     return response.data;
@@ -129,7 +161,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/objects/${id}/`
+      `/auth/objects/${id}`
     );
     return response.data;
   }
@@ -140,7 +172,7 @@ export class ObjectsService {
     data: ScheduleDeleteForm
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/objects/${id}/schedule-delete/`,
+      `/auth/objects/${id}/schedule-delete`,
       data
     );
     return response.data;
@@ -151,7 +183,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/objects/${id}/cancel-delete/`
+      `/auth/objects/${id}/cancel-delete`
     );
     return response.data;
   }
@@ -171,7 +203,7 @@ export class ObjectsService {
     if (search) params.append("search", search);
 
     const response = await this.getAuth().apiClient.get(
-      `/objects-trash/?${params.toString()}`
+      `/auth/objects-trash?${params.toString()}`
     );
     return response.data;
   }
@@ -181,7 +213,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/objects/${id}/restore/`
+      `/auth/objects/${id}/restore`
     );
     return response.data;
   }
@@ -191,7 +223,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/objects/${id}/permanent/`
+      `/auth/objects/${id}/permanent`
     );
     return response.data;
   }
@@ -226,7 +258,7 @@ export class ObjectsService {
       params.append("active_only", filters.active_only.toString());
 
     const response = await this.getAuth().apiClient.get(
-      `/object-templates/?${params.toString()}`
+      `/object-templates?${params.toString()}`
     );
     return response.data;
   }
@@ -236,7 +268,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.get(
-      `/object-templates/${id}/`
+      `/object-templates/${id}`
     );
     return response.data;
   }
@@ -249,7 +281,7 @@ export class ObjectsService {
     >
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.post(
-      "/object-templates/",
+      "/object-templates",
       template
     );
     return response.data;
@@ -261,7 +293,7 @@ export class ObjectsService {
     template: Partial<ObjectTemplate>
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
     const response = await this.getAuth().apiClient.put(
-      `/object-templates/${id}/`,
+      `/object-templates/${id}`,
       template
     );
     return response.data;
@@ -272,7 +304,7 @@ export class ObjectsService {
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
     const response = await this.getAuth().apiClient.delete(
-      `/object-templates/${id}/`
+      `/object-templates/${id}`
     );
     return response.data;
   }
@@ -288,8 +320,26 @@ export class ObjectsService {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
-    const response = await this.getAuth().apiClient.get("/objects/stats/");
-    return response.data.data;
+    try {
+      // Пробуем аутентифицированный эндпоинт
+      const response = await this.getAuth().apiClient.get("/auth/objects/stats");
+      return response.data.data;
+    } catch (error: any) {
+      console.log("🔍 Error in getObjectsStats:", error.response?.status, error.message);
+      // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
+      if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
+        console.warn("🔄 Fallback to public endpoint for objects stats");
+        try {
+          const response = await this.getAuth().apiClient.get("/objects/stats");
+          console.log("✅ Fallback successful for objects stats");
+          return response.data.data;
+        } catch (fallbackError: any) {
+          console.error("❌ Fallback failed for objects stats:", fallbackError);
+          throw fallbackError;
+        }
+      }
+      throw error;
+    }
   }
 
   // Экспорт объектов
@@ -307,7 +357,7 @@ export class ObjectsService {
     });
 
     const response = await this.getAuth().apiClient.get(
-      `/objects/export/?${params.toString()}`,
+      `/auth/objects/export?${params.toString()}`,
       {
         responseType: "blob",
       }
@@ -316,8 +366,55 @@ export class ObjectsService {
   }
 
   // Проверка демо режима
+  // Создание шаблона на основе объекта
+  async createTemplateFromObject(
+    objectId: number,
+    templateData: {
+      name: string;
+      description: string;
+      category: string;
+      icon: string;
+      color: string;
+    }
+  ): Promise<{ status: string; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`/api/objects/${objectId}/create-template`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(templateData),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Ошибка создания шаблона:', error);
+      return { status: 'error', error: 'Ошибка создания шаблона' };
+    }
+  }
+
   isMockDataEnabled(): boolean {
     return localStorage.getItem('objects_demo_mode') === 'true';
+  }
+
+  // Получение списка компаний для селектора
+  async getCompanies(): Promise<{ status: string; data: CompanyInfo[]; error?: string }> {
+    try {
+      const response = await this.getAuth().apiClient.get("/admin/accounts/list");
+      return {
+        status: response.data.status,
+        data: response.data.data || [], // Обеспечиваем, что data всегда массив
+        error: response.data.error
+      };
+    } catch (error: any) {
+      console.error("Ошибка получения списка компаний:", error);
+      return {
+        status: "error",
+        data: [],
+        error: error.response?.data?.error || "Ошибка получения списка компаний"
+      };
+    }
   }
 
   // Включение демо режима

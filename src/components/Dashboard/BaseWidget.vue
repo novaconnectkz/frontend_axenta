@@ -1,9 +1,13 @@
 <template>
-  <v-card
-    :class="widgetClasses"
-    :elevation="elevation"
-    :loading="loading"
+  <div 
+    class="widget-container"
+    :style="widgetStyle"
   >
+    <v-card
+      :class="widgetClasses"
+      :elevation="elevation"
+      :loading="loading"
+    >
     <v-card-title v-if="showHeader" class="d-flex align-center justify-space-between">
       <div class="d-flex align-center">
         <v-icon v-if="icon" :icon="icon" class="me-2" />
@@ -75,12 +79,13 @@
     <v-card-actions v-if="$slots.actions">
       <slot name="actions" />
     </v-card-actions>
-  </v-card>
+    </v-card>
+
+  </div>
 </template>
 
 <script lang="ts">
 import type { WidgetSize } from '@/types/dashboard';
-import type { PropType } from 'vue';
 import { computed, defineComponent } from 'vue';
 
 export default defineComponent({
@@ -129,10 +134,15 @@ export default defineComponent({
     elevation: {
       type: Number,
       default: 2
+    },
+    widgetId: {
+      type: String,
+      required: true
     }
   },
   emits: ['refresh', 'configure', 'remove'],
   setup(props, { emit }) {
+
     const widgetClasses = computed(() => [
       'base-widget',
       `widget-${props.size}`,
@@ -145,6 +155,10 @@ export default defineComponent({
     const displayTitle = computed(() => 
       props.customTitle || props.title
     );
+
+    const widgetStyle = computed(() => {
+      return {};
+    });
 
     const skeletonType = computed(() => {
       switch (props.size) {
@@ -165,8 +179,10 @@ export default defineComponent({
       emit('refresh');
     };
 
+
     return {
       widgetClasses,
+      widgetStyle,
       displayTitle,
       skeletonType,
       handleRefresh
@@ -176,11 +192,19 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.widget-container {
+  position: relative;
+  height: 100%;
+  transition: all 0.2s ease;
+}
+
+
 .base-widget {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
+
 
 .widget-content {
   flex: 1;
@@ -298,6 +322,7 @@ export default defineComponent({
   .loading-state {
     flex: 1;
   }
+
 }
 
 @media (max-width: 480px) {
