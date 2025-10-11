@@ -192,6 +192,7 @@
               />
             </v-btn>
             <v-btn
+              icon="mdi-filter-remove"
               :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
               :color="hasAnyActiveFilters ? 'primary' : 'default'"
               size="small"
@@ -199,12 +200,6 @@
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }"
             >
-              <img 
-                src="/filter-icon.svg" 
-                alt="Фильтр" 
-                class="filter-icon-image"
-                :class="{ 'filter-icon-active': hasAnyActiveFilters }"
-              />
               <v-badge
                 v-if="hasAnyActiveFilters"
                 :content="getActiveFiltersCount()"
@@ -2324,22 +2319,6 @@ onUnmounted(() => {
   height: 40px !important;
 }
 
-/* Стили для кастомной иконки фильтра */
-.filter-icon-image {
-  width: 24px;
-  height: 24px;
-  transition: all 0.3s ease;
-  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(119%) contrast(119%);
-}
-
-.filter-icon-image.filter-icon-active {
-  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
-  transform: scale(1.1);
-}
-
-.filter-icon-image:hover {
-  transform: scale(1.15);
-}
 
 /* Стили для активной кнопки очистки фильтров */
 .filter-clear-active {
