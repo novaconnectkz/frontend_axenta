@@ -85,13 +85,51 @@
             <v-text-field
               v-model="searchQuery"
               label="Поиск по названию"
-              prepend-inner-icon="mdi-magnify"
+              placeholder="Поиск по названию компании (через запятую для нескольких)"
               variant="outlined"
               density="compact"
-              :color="isSearchActive ? 'primary' : undefined"
+              :color="isMultipleCompanySearch ? 'primary' : (isSearchActive ? 'primary' : undefined)"
               :class="{ 'filter-active': isSearchActive }"
               @input="debouncedSearch"
-            />
+            >
+              <template #prepend-inner>
+                <v-tooltip :text="companySearchHint" location="bottom">
+                  <template #activator="{ props }">
+                    <v-icon 
+                      v-bind="props" 
+                      :icon="isMultipleCompanySearch ? 'mdi-office-building-marker' : 'mdi-magnify'" 
+                      :color="isMultipleCompanySearch ? 'primary' : undefined"
+                    />
+                  </template>
+                </v-tooltip>
+              </template>
+              
+              <template #append-inner v-if="isMultipleCompanySearch">
+                <v-tooltip text="Активен точный поиск по нескольким компаниям">
+                  <template #activator="{ props }">
+                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
+                      {{ companySearchTermsArray.length }}
+                    </v-chip>
+                  </template>
+                </v-tooltip>
+              </template>
+            </v-text-field>
+            
+            <!-- Чипы с найденными компаниями -->
+            <div v-if="isMultipleCompanySearch && companySearchTermsArray.length > 0" class="search-chips mt-2">
+              <v-chip
+                v-for="(term, index) in companySearchTermsArray"
+                :key="index"
+                size="small"
+                color="primary"
+                variant="outlined"
+                class="mr-1 mb-1"
+                closable
+                @click:close="removeCompanySearchTerm(index)"
+              >
+                {{ term }}
+              </v-chip>
+            </div>
           </v-col>
           <v-col cols="12" md="3">
             <v-select
@@ -141,16 +179,19 @@
           </v-col>
           <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
             <v-btn
-              :icon="isAutoRefreshEnabled ? 'mdi-refresh' : 'mdi-refresh-off'"
-              :color="isAutoRefreshEnabled ? 'success' : 'default'"
               variant="outlined"
               size="small"
               @click="toggleAutoRefresh"
               :title="isAutoRefreshEnabled ? 'Отключить автообновление' : 'Включить автообновление'"
               :class="{ 'rotating': isLoading || isBackgroundLoading }"
-            />
+              :color="isAutoRefreshEnabled ? 'success' : 'default'"
+            >
+              <v-icon 
+                :icon="isAutoRefreshEnabled ? 'mdi-refresh' : 'mdi-refresh-off'"
+                size="24"
+              />
+            </v-btn>
             <v-btn
-              icon="mdi-filter-remove"
               :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
               :color="hasAnyActiveFilters ? 'primary' : 'default'"
               size="small"
@@ -158,6 +199,12 @@
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }"
             >
+              <img 
+                src="/filter-icon.svg" 
+                alt="Фильтр" 
+                class="filter-icon-image"
+                :class="{ 'filter-icon-active': hasAnyActiveFilters }"
+              />
               <v-badge
                 v-if="hasAnyActiveFilters"
                 :content="getActiveFiltersCount()"
@@ -682,6 +729,25 @@ const hasAnyActiveFilters = computed(() => {
          isStatusFilterActive.value || isParentFilterActive.value;
 });
 
+// Computed properties для множественного поиска компаний
+const isMultipleCompanySearch = computed(() => {
+  if (!searchQuery.value) return false;
+  const searchTerms = searchQuery.value.split(',').map(term => term.trim()).filter(term => term.length > 0);
+  return searchTerms.length > 1;
+});
+
+const companySearchTermsArray = computed(() => {
+  if (!searchQuery.value) return [];
+  return searchQuery.value.split(',').map(term => term.trim()).filter(term => term.length > 0);
+});
+
+const companySearchHint = computed(() => {
+  if (isMultipleCompanySearch.value) {
+    return `Поиск по ${companySearchTermsArray.value.length} компаниям: ${companySearchTermsArray.value.join(', ')}`;
+  }
+  return 'Введите названия компаний через запятую для поиска нескольких одновременно';
+});
+
 // Вычисляемые свойства для кастомной пагинации
 const totalPages = computed(() => {
   if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
@@ -798,12 +864,29 @@ const loadAccounts = async (isBackground = false) => {
       
       // Фильтр по поиску (если есть) - дополнительная фильтрация поверх серверного поиска
       if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        allFilteredResults = allFilteredResults.filter(account =>
-          account.name.toLowerCase().includes(query) ||
-          account.adminFullname?.toLowerCase().includes(query) ||
-          account.parentAccountName?.toLowerCase().includes(query)
-        );
+        if (isMultipleCompanySearch.value) {
+          // Множественный поиск - ищем точные совпадения по терминам
+          const searchTerms = companySearchTermsArray.value.map(term => term.toLowerCase());
+          allFilteredResults = allFilteredResults.filter(account => {
+            const accountName = account.name.toLowerCase();
+            const adminName = account.adminFullname?.toLowerCase() || '';
+            const parentName = account.parentAccountName?.toLowerCase() || '';
+            
+            return searchTerms.some(term => 
+              accountName.includes(term) ||
+              adminName.includes(term) ||
+              parentName.includes(term)
+            );
+          });
+        } else {
+          // Обычный поиск
+          const query = searchQuery.value.toLowerCase();
+          allFilteredResults = allFilteredResults.filter(account =>
+            account.name.toLowerCase().includes(query) ||
+            account.adminFullname?.toLowerCase().includes(query) ||
+            account.parentAccountName?.toLowerCase().includes(query)
+          );
+        }
       }
       
       // Фильтр по родительскому аккаунту (пустое значение = "Все родители", не фильтруем)
@@ -1021,6 +1104,26 @@ const resetFilters = () => {
   cacheTimestamp.value = null;
   
   loadAccounts();
+};
+
+// Метод для удаления отдельного термина поиска компании
+const removeCompanySearchTerm = (index: number) => {
+  const terms = companySearchTermsArray.value;
+  terms.splice(index, 1);
+  searchQuery.value = terms.join(', ');
+  
+  // Очищаем кэш при изменении поиска
+  allAccountsCache.value = [];
+  cacheTimestamp.value = null;
+  
+  // Если остался только один термин или меньше, перезагружаем
+  if (terms.length <= 1) {
+    currentPage.value = 1;
+    loadAccounts();
+  } else {
+    // Для множественного поиска тоже перезагружаем
+    debouncedSearch();
+  }
 };
 
 const onParentChange = (parent: string) => {
@@ -2214,6 +2317,30 @@ onUnmounted(() => {
   opacity: 0.15;
 }
 
+/* Унификация размеров кнопок и иконок */
+.d-flex.justify-end.align-start.gap-3 .v-btn {
+  min-width: 40px !important;
+  width: 40px !important;
+  height: 40px !important;
+}
+
+/* Стили для кастомной иконки фильтра */
+.filter-icon-image {
+  width: 24px;
+  height: 24px;
+  transition: all 0.3s ease;
+  filter: brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(1352%) hue-rotate(87deg) brightness(119%) contrast(119%);
+}
+
+.filter-icon-image.filter-icon-active {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(346deg) brightness(104%) contrast(97%);
+  transform: scale(1.1);
+}
+
+.filter-icon-image:hover {
+  transform: scale(1.15);
+}
+
 /* Стили для активной кнопки очистки фильтров */
 .filter-clear-active {
   position: relative;
@@ -2231,6 +2358,25 @@ onUnmounted(() => {
   100% {
     box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
   }
+}
+
+/* Стили для чипов поиска компаний */
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.search-chips .v-chip {
+  font-size: 0.75rem;
+  height: 24px;
+  transition: all 0.2s ease;
+}
+
+.search-chips .v-chip:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
 }
 
 /* Дополнительная подсветка для активных полей */
