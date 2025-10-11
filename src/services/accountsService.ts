@@ -50,26 +50,41 @@ class AccountsService {
   constructor() {
     // Добавляем interceptor для автоматического добавления токена авторизации
     this.apiClient.interceptors.request.use((config) => {
-      const token = localStorage.getItem("axenta_token");
-      const company = localStorage.getItem("axenta_company");
+      // Проверяем разные ключи для токена (для совместимости)
+      const token = localStorage.getItem("axenta_token") || 
+                   localStorage.getItem("token") ||
+                   localStorage.getItem("authToken");
+      
+      const company = localStorage.getItem("axenta_company") || 
+                     localStorage.getItem("company");
 
       console.log("AccountsService API request:", {
         url: config.url,
-        token: token ? "EXISTS" : "MISSING",
+        baseURL: config.baseURL,
+        fullURL: `${config.baseURL}${config.url}`,
+        token: token ? `EXISTS (${token.substring(0, 10)}...)` : "MISSING",
         company: company ? "EXISTS" : "MISSING",
       });
 
       if (token) {
-        config.headers["authorization"] = `Token ${token}`;
-        config.headers["Authorization"] = `Token ${token}`;
+        // Поддерживаем разные форматы токенов
+        if (token.startsWith('Token ') || token.startsWith('Bearer ')) {
+          config.headers["authorization"] = token;
+          config.headers["Authorization"] = token;
+        } else {
+          config.headers["authorization"] = `Token ${token}`;
+          config.headers["Authorization"] = `Token ${token}`;
+        }
       }
 
       if (company) {
         try {
           const companyData = JSON.parse(company);
-          config.headers["X-Tenant-ID"] = companyData.id;
+          if (companyData.id) {
+            config.headers["X-Tenant-ID"] = companyData.id;
+          }
         } catch (e) {
-          console.warn("Invalid company data in localStorage");
+          console.warn("Invalid company data in localStorage:", e);
         }
       }
 
@@ -122,7 +137,7 @@ class AccountsService {
       console.log("📡 Запрос учетных записей:", params);
 
       const response = await this.apiClient.get<AccountsResponse>(
-        "/auth/accounts/", // Используем наш прокси эндпоинт
+        "/accounts", // Используем наш прокси эндпоинт
         { params }
       );
 
@@ -151,7 +166,7 @@ class AccountsService {
   async getAccount(id: number): Promise<Account> {
     try {
       const response = await this.apiClient.get<Account>(
-        `/auth/accounts/${id}/` // Используем наш прокси эндпоинт
+        `/accounts/${id}` // Используем наш прокси эндпоинт
       );
       return response.data;
     } catch (error) {
