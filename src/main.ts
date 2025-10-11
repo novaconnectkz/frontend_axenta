@@ -6,6 +6,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import "vuetify/dist/vuetify.css";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
+import { ru } from "vuetify/locale";
 
 // Apple Design System
 import "./styles/apple-design-system.css";
@@ -42,6 +43,10 @@ const vuetify = createVuetify({
       "apple-light": appleTheme.light,
       "apple-dark": appleTheme.dark,
     },
+  },
+  locale: {
+    locale: 'ru',
+    messages: { ru },
   },
   defaults: appleTheme.components,
   display: {

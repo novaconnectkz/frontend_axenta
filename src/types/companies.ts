@@ -125,7 +125,7 @@ export const COMPANY_FILTERS_DEFAULTS: CompanyFilters = {
   is_active: null,
   city: "",
   page: 1,
-  limit: 10,
+  limit: 50,
   include_usage: true,
 };
 

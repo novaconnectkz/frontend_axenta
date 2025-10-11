@@ -5,7 +5,7 @@
         <h1 class="page-title">Учетные записи</h1>
         <p class="page-subtitle">Управление компаниями и организациями</p>
         <!-- Демо режим уведомление -->
-        <v-alert type="info" variant="tonal" density="compact" class="mt-3" icon="mdi-information">
+        <v-alert v-if="isDemoUser" type="info" variant="tonal" density="compact" class="mt-3" icon="mdi-information">
           <template #text>
             <strong>Демо режим:</strong> Отображаются тестовые данные. Все действия работают, но не сохраняются на
             сервере.
@@ -151,7 +151,12 @@
       
       <v-data-table :headers="headers" :items="companies" :loading="loading" :items-per-page="filters.limit"
         :page="filters.page" :server-items-length="totalItems" @update:page="onPageChange"
-        @update:items-per-page="onLimitChange" class="companies-table">
+        @update:items-per-page="onLimitChange" class="companies-table"
+        :no-data-text="'Нет данных для отображения'"
+        :items-per-page-text="'Элементов на странице:'"
+        :loading-text="'Загрузка данных...'"
+        :page-text="'{0}-{1} из {2}'"
+        :items-per-page-options="[10, 25, 50, 100]">
         <!-- Чекбокс выделения -->
         <template #item.select="{ item }">
           <v-checkbox 
@@ -338,6 +343,15 @@ import type {
 } from '@/types/companies'
 import { COMPANY_FILTERS_DEFAULTS } from '@/types/companies'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useAuth } from '@/context/auth'
+
+// Auth контекст
+const { user } = useAuth()
+
+// Проверяем, является ли пользователь демо пользователем
+const isDemoUser = computed(() => {
+  return user.value?.accountType === 'demo' && user.value?.name === 'Демо Пользователь'
+})
 
 // Реактивные данные
 const companies = ref<Company[]>([])
@@ -648,8 +662,8 @@ const loadCompanies = async () => {
     // Имитируем задержку API
     await new Promise(resolve => setTimeout(resolve, 800))
 
-    // Используем демо данные вместо API
-    let filteredCompanies = [...demoCompanies]
+    // Используем демо данные только для демо пользователя
+    let filteredCompanies = isDemoUser.value ? [...demoCompanies] : []
 
     // Применяем фильтры поиска
     if (filters.search) {
@@ -727,20 +741,22 @@ const loadStats = async () => {
     // Имитируем задержку API
     await new Promise(resolve => setTimeout(resolve, 500))
 
-    // Вычисляем статистику из демо данных
-    const activeCompanies = demoCompanies.filter(c => c.is_active)
-    const inactiveCompanies = demoCompanies.filter(c => !c.is_active)
+    // Вычисляем статистику только для демо пользователя
+    const dataToUse = isDemoUser.value ? demoCompanies : []
+    
+    const activeCompanies = dataToUse.filter(c => c.is_active)
+    const inactiveCompanies = dataToUse.filter(c => !c.is_active)
 
-    const totalUsers = demoCompanies.reduce((sum, company) =>
+    const totalUsers = dataToUse.reduce((sum, company) =>
       sum + (company.usage_stats?.users_count || 0), 0
     )
 
-    const totalObjects = demoCompanies.reduce((sum, company) =>
+    const totalObjects = dataToUse.reduce((sum, company) =>
       sum + (company.usage_stats?.objects_count || 0), 0
     )
 
     stats.value = {
-      total: demoCompanies.length,
+      total: dataToUse.length,
       active: activeCompanies.length,
       inactive: inactiveCompanies.length,
       total_users: totalUsers,
@@ -851,14 +867,20 @@ const exportCompanies = async () => {
   try {
     exporting.value = true
 
+    // Проверяем, есть ли данные для экспорта
+    if (!isDemoUser.value && companies.value.length === 0) {
+      showSnackbar('Нет данных для экспорта', 'warning')
+      return
+    }
+
     // Имитируем экспорт
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // Создаем простой CSV с демо данными
+    // Создаем простой CSV с текущими данными (демо или реальными)
     const headers = ['ID', 'Название', 'Город', 'Статус', 'Пользователи', 'Объекты']
     const csvContent = [
       headers.join(','),
-      ...demoCompanies.map(company => [
+      ...companies.value.map(company => [
         company.id,
         `"${company.name}"`,
         `"${company.city}"`,
@@ -1120,6 +1142,11 @@ watch(companies, () => {
   )
   updateSelectAllState()
 }, { deep: true })
+
+// Обновляем данные при изменении пользователя
+watch(() => user.value, () => {
+  refreshData()
+}, { immediate: false })
 
 // Обработчики для меню настроек компании
 const handleManageUsers = (company: Company) => {

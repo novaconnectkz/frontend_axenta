@@ -101,7 +101,7 @@ const routes = [
       {
         path: "accounts",
         name: "Accounts",
-        component: () => import("@/views/Companies.vue"),
+        component: () => import("@/views/AccountsPage.vue"),
         meta: {
           title: "Учетные записи",
           requiresAuth: true,
