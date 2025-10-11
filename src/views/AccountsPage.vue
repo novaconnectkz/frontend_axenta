@@ -79,14 +79,6 @@
 
     <!-- Фильтры и поиск -->
     <v-card class="filters-card" :class="{ 'filters-card-active': hasAnyActiveFilters }">
-      <v-card-title v-if="hasAnyActiveFilters" class="filters-title-active">
-        <v-icon color="primary" class="mr-2">mdi-filter</v-icon>
-        Активные фильтры ({{ getActiveFiltersCount() }})
-        <v-spacer />
-        <v-chip size="small" color="primary" variant="flat">
-          {{ getActiveFiltersCount() }} из 4
-        </v-chip>
-      </v-card-title>
       <v-card-text class="pb-2">
         <v-row align="center">
           <v-col cols="12" md="4">
@@ -158,6 +150,7 @@
               :class="{ 'rotating': isLoading || isBackgroundLoading }"
             />
             <v-btn
+              icon="mdi-filter-remove"
               :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
               :color="hasAnyActiveFilters ? 'primary' : 'default'"
               size="small"
@@ -165,7 +158,6 @@
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }"
             >
-              <v-icon>mdi-filter-remove</v-icon>
               <v-badge
                 v-if="hasAnyActiveFilters"
                 :content="getActiveFiltersCount()"
@@ -1433,14 +1425,6 @@ onUnmounted(() => {
   border: 2px solid #1976d2 !important;
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15) !important;
   background: linear-gradient(135deg, #fafafa, #f5f5f5);
-}
-
-.filters-title-active {
-  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
-  color: #1976d2;
-  font-weight: 600;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
 }
 
 .filters-card .v-card-text {
