@@ -208,13 +208,17 @@
                 <span class="legend-color company-status"></span>
                 <span class="legend-text">{{ item.name }}</span>
               </div>
-              <div class="legend-item">
-                <span class="legend-color hierarchy-status"></span>
-                <span class="legend-text">{{ item.hierarchy }}</span>
+              <div v-if="item.contactEmail" class="legend-item">
+                <span class="legend-color email-status"></span>
+                <span class="legend-text">Email: {{ item.contactEmail }}</span>
               </div>
-              <div v-if="item.parentAccountName" class="legend-item">
-                <span class="legend-color parent-status"></span>
-                <span class="legend-text">Родитель: {{ item.parentAccountName }}</span>
+              <div v-if="item.contactPhone" class="legend-item">
+                <span class="legend-color phone-status"></span>
+                <span class="legend-text">Телефон: {{ item.contactPhone }}</span>
+              </div>
+              <div v-if="item.maxUsers" class="legend-item">
+                <span class="legend-color users-status"></span>
+                <span class="legend-text">Макс. пользователей: {{ item.maxUsers }}</span>
               </div>
               <div class="legend-description">
                 📊 ID: {{ item.id }} | Создан: {{ formatDateShort(item.creationDatetime) }}
@@ -283,36 +287,93 @@
           </v-tooltip>
         </template>
 
+        <!-- Колонка "Страна" -->
+        <template #item.country="{ item }">
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <span class="country-minimal" v-bind="props">
+                {{ item.country || 'Не указана' }}
+              </span>
+            </template>
+            <div class="country-legend">
+              <div class="legend-title">🌍 Страна</div>
+              <div class="legend-item">
+                <span class="legend-color country-status"></span>
+                <span class="legend-text">{{ item.country || 'Не указана' }}</span>
+              </div>
+              <div v-if="item.city" class="legend-item">
+                <span class="legend-color city-status"></span>
+                <span class="legend-text">Город: {{ item.city }}</span>
+              </div>
+              <div v-if="item.address" class="legend-item">
+                <span class="legend-color address-status"></span>
+                <span class="legend-text">Адрес: {{ item.address }}</span>
+              </div>
+            </div>
+          </v-tooltip>
+        </template>
+
+        <!-- Колонка "Язык" -->
+        <template #item.language="{ item }">
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <span class="language-minimal" v-bind="props">
+                {{ item.language?.toUpperCase() || 'RU' }}
+              </span>
+            </template>
+            <div class="language-legend">
+              <div class="legend-title">🌐 Локализация</div>
+              <div class="legend-item">
+                <span class="legend-color language-status"></span>
+                <span class="legend-text">Язык: {{ item.language?.toUpperCase() || 'RU' }}</span>
+              </div>
+              <div v-if="item.timezone" class="legend-item">
+                <span class="legend-color timezone-status"></span>
+                <span class="legend-text">Часовой пояс: {{ item.timezone }}</span>
+              </div>
+              <div v-if="item.currency" class="legend-item">
+                <span class="legend-color currency-status"></span>
+                <span class="legend-text">Валюта: {{ item.currency }}</span>
+              </div>
+            </div>
+          </v-tooltip>
+        </template>
+
         <!-- Колонка "Объекты" -->
-        <template #item.objects="{ item }">
+        <template #item.objectsTotal="{ item }">
           <v-tooltip location="top">
             <template #activator="{ props }">
               <div class="objects-compact" v-bind="props">
-                <span class="objects-active">{{ item.objectsActive }}</span>
-                <span class="objects-separator">/</span>
-                <span class="objects-total">{{ item.objectsTotal }}</span>
-                <span v-if="item.objectsDeleted > 0" class="objects-deleted">
-                  <span class="objects-separator">/</span>
-                  <span class="deleted-count">{{ item.objectsDeleted }}</span>
+                <span v-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
+                  Нет объектов
                 </span>
+                <div v-else class="objects-display">
+                  <span class="objects-active">{{ item.objectsActive || 0 }}</span>
+                  <span class="objects-separator">/</span>
+                  <span class="objects-total">{{ item.objectsTotal || 0 }}</span>
+                  <span v-if="item.objectsDeleted > 0" class="objects-deleted">
+                    <span class="objects-separator">/</span>
+                    <span class="deleted-count">{{ item.objectsDeleted }}</span>
+                  </span>
+                </div>
               </div>
             </template>
             <div class="objects-legend">
               <div class="legend-title">📊 Статистика объектов</div>
               <div class="legend-item">
                 <span class="legend-color active"></span>
-                <span class="legend-text">{{ item.objectsActive }} - Активные объекты</span>
+                <span class="legend-text">{{ item.objectsActive || 0 }} - Активные объекты</span>
               </div>
               <div class="legend-item">
                 <span class="legend-color total"></span>
-                <span class="legend-text">{{ item.objectsTotal }} - Всего объектов</span>
+                <span class="legend-text">{{ item.objectsTotal || 0 }} - Всего объектов</span>
               </div>
               <div v-if="item.objectsDeleted > 0" class="legend-item">
                 <span class="legend-color deleted"></span>
                 <span class="legend-text">{{ item.objectsDeleted }} - Удаленные объекты</span>
               </div>
               <div class="legend-formula">
-                Формула: <code>{{ item.objectsActive }}/{{ item.objectsTotal }}{{ item.objectsDeleted > 0 ? `/${item.objectsDeleted}` : '' }}</code>
+                Формула: <code>{{ item.objectsActive || 0 }}/{{ item.objectsTotal || 0 }}{{ item.objectsDeleted > 0 ? `/${item.objectsDeleted}` : '' }}</code>
               </div>
             </div>
           </v-tooltip>
@@ -651,14 +712,15 @@ const itemsPerPageOptions = [
 
 // Заголовки таблицы
 const headers = [
-  { title: 'Компания', key: 'name', sortable: true, width: '28%' },
-  { title: 'Тип', key: 'type', sortable: true, width: '10%' },
-  { title: 'Администратор', key: 'adminFullname', sortable: true, width: '18%' },
-  { title: 'Объекты', key: 'objectsActive', sortable: true, width: '10%' },
-  { title: 'Статус', key: 'isActive', sortable: true, width: '10%' },
-  { title: 'Блокировка', key: 'blockingDatetime', sortable: true, width: '14%' },
+  { title: 'Компания', key: 'name', sortable: true, width: '20%' },
+  { title: 'Тип', key: 'type', sortable: true, width: '8%' },
+  { title: 'Администратор', key: 'adminFullname', sortable: true, width: '15%' },
+  { title: 'Страна', key: 'country', sortable: true, width: '10%' },
+  { title: 'Язык', key: 'language', sortable: true, width: '8%' },
+  { title: 'Объекты', key: 'objectsTotal', sortable: true, width: '8%' },
+  { title: 'Статус', key: 'isActive', sortable: true, width: '8%' },
   { title: 'Создан', key: 'creationDatetime', sortable: true, width: '10%' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '10%' },
+  { title: 'Действия', key: 'actions', sortable: false, width: '13%' },
 ];
 
 // Вычисляемые свойства для кастомной пагинации
@@ -707,7 +769,9 @@ const loadAccounts = async (isBackground = false) => {
       ordering: sortOrder.value === 'desc' ? `-${sortBy.value}` : sortBy.value,
     };
 
+    console.log('🔍 Загрузка учетных записей с параметрами:', requestParams);
     const response = await accountsService.getAccounts(requestParams);
+    console.log('✅ Получен ответ:', { count: response.count, results: response.results.length });
 
 
     // Обновляем totalItems только если получили валидное значение
@@ -731,6 +795,24 @@ const loadAccounts = async (isBackground = false) => {
 
   } catch (error) {
     console.error('❌ Ошибка загрузки учетных записей:', error);
+    
+    // Показываем детальную информацию об ошибке
+    if (error.response) {
+      console.error('Статус ошибки:', error.response.status);
+      console.error('Данные ошибки:', error.response.data);
+      
+      if (error.response.status === 401) {
+        console.error('🔐 Ошибка авторизации - проверьте токен');
+      } else if (error.response.status === 403) {
+        console.error('🚫 Доступ запрещен - недостаточно прав');
+      } else if (error.response.status === 404) {
+        console.error('🔍 Endpoint не найден - проверьте URL API');
+      }
+    } else if (error.request) {
+      console.error('🌐 Ошибка сети - нет ответа от сервера');
+    } else {
+      console.error('⚙️ Ошибка конфигурации:', error.message);
+    }
   } finally {
     if (isBackground) {
       isBackgroundLoading.value = false;
@@ -1082,6 +1164,14 @@ const formatTime = (date: Date) => {
     minute: '2-digit',
     second: '2-digit',
   });
+};
+
+const formatStorage = (bytes: number) => {
+  if (bytes === 0) return '0 Б';
+  const k = 1024;
+  const sizes = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 const getBlockingColor = (days: number) => {
@@ -1514,6 +1604,75 @@ onUnmounted(() => {
 
 .admin-minimal.admin-inactive:hover {
   background-color: rgba(211, 47, 47, 0.1);
+}
+
+/* Минималистичное отображение страны */
+.country-minimal {
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: #5e35b1;
+}
+
+.country-minimal:hover {
+  background-color: rgba(94, 53, 177, 0.1);
+}
+
+/* Минималистичное отображение языка */
+.language-minimal {
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  padding: 2px 6px;
+  border-radius: 12px;
+  background-color: rgba(121, 85, 72, 0.1);
+  color: #795548;
+  border: 1px solid rgba(121, 85, 72, 0.2);
+}
+
+.language-minimal:hover {
+  background-color: rgba(121, 85, 72, 0.2);
+  transform: scale(1.05);
+}
+
+/* Отображение объектов */
+.no-objects {
+  font-size: 0.75rem;
+  color: #9e9e9e;
+  font-style: italic;
+}
+
+.objects-display {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.objects-active {
+  color: #2e7d32;
+}
+
+.objects-total {
+  color: #1976d2;
+}
+
+.objects-separator {
+  color: #666;
+  margin: 0 1px;
+}
+
+.objects-deleted {
+  color: #d32f2f;
+}
+
+.deleted-count {
+  color: #d32f2f;
 }
 
 /* Минималистичное отображение статуса */

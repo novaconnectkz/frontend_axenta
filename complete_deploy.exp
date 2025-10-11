@@ -1,0 +1,86 @@
+#!/usr/bin/expect -f
+
+set timeout 120
+set server "194.87.143.169"
+set username "root"
+set password "g-t+XM#3an2YJM"
+
+spawn ssh -o StrictHostKeyChecking=no $username@$server
+
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "Password:" { send "$password\r"; exp_continue }
+    "# " {
+        send "cd /var/www/app/backend_axenta\r"
+        expect "# "
+        
+        send "git config --global --add safe.directory /var/www/app/backend_axenta\r"
+        expect "# "
+        
+        send "ssh-keyscan github.com >> ~/.ssh/known_hosts\r"
+        expect "# "
+        
+        send "git fetch --all\r"
+        expect "# "
+        
+        send "git reset --hard origin/main\r"
+        expect "# "
+        
+        send "echo 'Checking handlers/accounts.go:'\r"
+        expect "# "
+        
+        send "ls -la handlers/accounts.go\r"
+        expect "# "
+        
+        send "echo 'Building new version:'\r"
+        expect "# "
+        
+        send "go build -buildvcs=false -o axenta_backend_new .\r"
+        expect "# "
+        
+        send "echo 'Stopping service:'\r"
+        expect "# "
+        
+        send "systemctl stop axenta-backend\r"
+        expect "# "
+        
+        send "echo 'Replacing binary:'\r"
+        expect "# "
+        
+        send "mv axenta_backend axenta_backend_old\r"
+        expect "# "
+        
+        send "mv axenta_backend_new axenta_backend\r"
+        expect "# "
+        
+        send "chmod +x axenta_backend\r"
+        expect "# "
+        
+        send "echo 'Starting service:'\r"
+        expect "# "
+        
+        send "systemctl start axenta-backend\r"
+        expect "# "
+        
+        send "sleep 5\r"
+        expect "# "
+        
+        send "echo 'Testing API:'\r"
+        expect "# "
+        
+        send "curl -s -w 'HTTP Status: %{http_code}\\n' http://localhost:8080/api/accounts\r"
+        expect "# "
+        
+        send "echo 'Checking service status:'\r"
+        expect "# "
+        
+        send "systemctl status axenta-backend --no-pager -l | head -10\r"
+        expect "# "
+        
+        send "echo '=== DEPLOY COMPLETED ==='\r"
+        expect "# "
+        
+        send "exit\r"
+    }
+}
+expect eof

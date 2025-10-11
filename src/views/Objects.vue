@@ -12,6 +12,41 @@
       </div>
       
       <div class="page-actions">
+        <!-- Автообновление -->
+        <div class="auto-refresh-controls">
+          <AppleButton
+            v-if="!autoRefresh.isEnabled.value"
+            variant="secondary"
+            prepend-icon="mdi-refresh"
+            @click="autoRefresh.start()"
+            color="primary"
+            size="small"
+          >
+            Автообновление
+          </AppleButton>
+          <AppleButton
+            v-else
+            variant="secondary"
+            prepend-icon="mdi-refresh-off"
+            @click="autoRefresh.stop()"
+            color="warning"
+            size="small"
+          >
+            Остановить
+          </AppleButton>
+          
+          <div v-if="autoRefresh.isEnabled.value" class="refresh-status">
+            <v-chip 
+              size="small" 
+              color="success" 
+              variant="tonal"
+              prepend-icon="mdi-clock-outline"
+            >
+              {{ autoRefresh.nextRefreshIn.value }}с
+            </v-chip>
+          </div>
+        </div>
+
         <AppleButton 
           v-if="!objectsService.isMockDataEnabled()" 
           variant="secondary" 
@@ -1184,8 +1219,9 @@ import type {
     ScheduleDeleteForm,
 } from '@/types/objects';
 import { debounce } from 'lodash-es';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 
 // Получаем экземпляр сервиса
 const objectsService = getObjectsService();
@@ -1193,6 +1229,9 @@ const objectsService = getObjectsService();
 // Получаем текущий маршрут и роутер
 const route = useRoute();
 const router = useRouter();
+
+// Автоматическое обновление данных
+const autoRefresh = useAxentaAutoRefresh();
 
 // Reactive data
 const loading = ref(false);
@@ -2405,6 +2444,9 @@ watch(showDeletedObjects, () => {
   loadObjects();
 });
 
+// Подписка на автообновление
+let unsubscribeFromAutoRefresh: (() => void) | null = null;
+
 // Lifecycle
 onMounted(async () => {
   console.log('🚀 Objects component mounted');
@@ -2432,6 +2474,16 @@ onMounted(async () => {
     showSnackbar('Ошибка загрузки данных. Проверьте подключение к серверу.', 'error', 8000);
   }
   
+  // Настраиваем автообновление на 30 секунд
+  autoRefresh.setInterval(30);
+  
+  // Подписываемся на изменения автообновления
+  unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
+    // Перезагружаем данные при автообновлении
+    loadObjects();
+    loadStats();
+  });
+  
   // Проверяем, нужно ли открыть диалог создания объекта
   if (route.query.action === 'create') {
     console.log('🎯 Автоматически открываем диалог создания объекта');
@@ -2444,6 +2496,15 @@ onMounted(async () => {
   }
   
   console.log('✅ Objects component fully loaded');
+});
+
+onUnmounted(() => {
+  // Отписываемся от автообновления
+  if (unsubscribeFromAutoRefresh) {
+    unsubscribeFromAutoRefresh();
+  }
+  
+  console.log('🔄 Objects component unmounted, auto-refresh unsubscribed');
 });
 </script>
 
@@ -2497,6 +2558,22 @@ onMounted(async () => {
   gap: 12px;
   align-items: center;
   flex-shrink: 0;
+}
+
+.auto-refresh-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(var(--v-theme-surface), 0.8);
+  border: 1px solid rgba(var(--v-theme-outline), 0.2);
+  border-radius: 12px;
+}
+
+.refresh-status {
+  display: flex;
+  align-items: center;
+}
 }
 
 /* Статистика */

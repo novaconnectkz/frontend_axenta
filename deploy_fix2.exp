@@ -1,0 +1,125 @@
+#!/usr/bin/expect -f
+
+set timeout 120
+set server "194.87.143.169"
+set username "root"
+set password "g-t+XM#3an2YJM"
+
+# Подключаемся к серверу
+spawn ssh -o StrictHostKeyChecking=no $username@$server
+
+# Ожидаем запрос пароля
+expect {
+    "password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "Password:" {
+        send "$password\r"
+        exp_continue
+    }
+    "# " {
+        # Успешное подключение, выполняем исправленный деплой
+        send "echo '🚀 Исправляем проблемы и деплоим backend...'\r"
+        expect "# "
+        
+        send "cd /var/www/app/backend_axenta\r"
+        expect "# "
+        
+        send "echo '🔧 Исправляем права доступа Git...'\r"
+        expect "# "
+        
+        send "git config --global --add safe.directory /var/www/app/backend_axenta\r"
+        expect "# "
+        
+        send "echo '📋 Текущая версия:' && git log --oneline -3\r"
+        expect "# "
+        
+        send "echo '🔄 Обновляем код из GitHub...'\r"
+        expect "# "
+        
+        send "git fetch --all\r"
+        expect "# "
+        
+        send "git reset --hard origin/main\r"
+        expect "# "
+        
+        send "echo '📋 Новая версия:' && git log --oneline -3\r"
+        expect "# "
+        
+        send "echo '🔍 Проверяем наличие handlers/accounts.go...'\r"
+        expect "# "
+        
+        send "ls -la handlers/accounts.go\r"
+        expect "# "
+        
+        send "echo '🔨 Собираем новую версию (отключаем VCS)...'\r"
+        expect "# "
+        
+        send "go build -buildvcs=false -o axenta_backend_new .\r"
+        expect "# "
+        
+        send "echo '✅ Проверяем, что сборка создалась...'\r"
+        expect "# "
+        
+        send "ls -la axenta_backend_new\r"
+        expect "# "
+        
+        send "echo '💾 Создаем бэкап старой версии...'\r"
+        expect "# "
+        
+        send "cp axenta_backend axenta_backend_backup_\$(date +%Y%m%d_%H%M%S)\r"
+        expect "# "
+        
+        send "echo '🔄 Заменяем исполняемый файл...'\r"
+        expect "# "
+        
+        send "mv axenta_backend_new axenta_backend\r"
+        expect "# "
+        
+        send "chmod +x axenta_backend\r"
+        expect "# "
+        
+        send "echo '🔄 Перезапускаем сервис...'\r"
+        expect "# "
+        
+        send "systemctl restart axenta-backend\r"
+        expect "# "
+        
+        send "sleep 5\r"
+        expect "# "
+        
+        send "echo '📊 Проверяем статус сервиса...'\r"
+        expect "# "
+        
+        send "systemctl status axenta-backend --no-pager -l | head -20\r"
+        expect "# "
+        
+        send "echo '🧪 Тестируем новый эндпоинт...'\r"
+        expect "# "
+        
+        send "curl -s -w 'HTTP Status: %{http_code}\\n' http://localhost:8080/api/accounts\r"
+        expect "# "
+        
+        send "echo '📋 Проверяем логи на наличие accounts эндпоинтов...'\r"
+        expect "# "
+        
+        send "journalctl -u axenta-backend --no-pager -n 20 | grep -i accounts || echo 'Accounts эндпоинты не найдены в логах'\r"
+        expect "# "
+        
+        send "echo '✅ Деплой завершен!'\r"
+        expect "# "
+        
+        send "exit\r"
+    }
+    timeout {
+        puts "Timeout при подключении"
+        exit 1
+    }
+    eof {
+        puts "Соединение закрыто"
+        exit 1
+    }
+}
+
+expect eof

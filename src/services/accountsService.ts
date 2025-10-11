@@ -5,6 +5,46 @@
 import { config } from "@/config/env";
 import axios from "axios";
 
+// Интерфейс для ответа от бэкенда
+interface BackendCompany {
+  id: number;
+  name: string;
+  database_schema: string;
+  domain: string;
+  contact_email: string;
+  contact_phone: string;
+  contact_person: string;
+  address: string;
+  city: string;
+  country: string;
+  is_active: boolean;
+  max_users: number;
+  max_objects: number;
+  storage_quota: number;
+  language: string;
+  timezone: string;
+  currency: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+  subscription_id: number | null;
+}
+
+interface BackendPagination {
+  current_page: number;
+  per_page: number;
+  total_items: number;
+  total_pages: number;
+}
+
+interface BackendAccountsResponse {
+  data: {
+    companies: BackendCompany[];
+    pagination: BackendPagination;
+  };
+  status: string;
+}
+
 export interface Account {
   id: number;
   name: string;
@@ -22,6 +62,17 @@ export interface Account {
   hierarchy: string;
   daysBeforeBlocking: number | null;
   creationDatetime: string;
+  // Дополнительные поля из API
+  country?: string;
+  city?: string;
+  address?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  language?: string;
+  timezone?: string;
+  currency?: string;
+  maxUsers?: number;
+  storageQuota?: number;
 }
 
 export interface AccountsResponse {
@@ -43,9 +94,10 @@ export interface AccountsFilters {
 class AccountsService {
   private static instance: AccountsService;
   private apiClient = axios.create({
-    baseURL: config.apiBaseUrl, // Используем наш бэкенд как прокси
+    baseURL: "https://axenta.cloud", // Прямое обращение к Axenta Cloud API
     timeout: 30000,
   });
+
 
   constructor() {
     // Добавляем interceptor для автоматического добавления токена авторизации
@@ -64,6 +116,10 @@ class AccountsService {
         fullURL: `${config.baseURL}${config.url}`,
         token: token ? `EXISTS (${token.substring(0, 10)}...)` : "MISSING",
         company: company ? "EXISTS" : "MISSING",
+        headers: {
+          authorization: config.headers["authorization"] ? "Token ***" : "none",
+          tenantId: "DISABLED (CORS issue)"
+        }
       });
 
       if (token) {
@@ -77,16 +133,17 @@ class AccountsService {
         }
       }
 
-      if (company) {
-        try {
-          const companyData = JSON.parse(company);
-          if (companyData.id) {
-            config.headers["X-Tenant-ID"] = companyData.id;
-          }
-        } catch (e) {
-          console.warn("Invalid company data in localStorage:", e);
-        }
-      }
+      // Временно отключаем X-Tenant-ID из-за CORS ограничений
+      // if (company) {
+      //   try {
+      //     const companyData = JSON.parse(company);
+      //     if (companyData.id) {
+      //       config.headers["X-Tenant-ID"] = companyData.id;
+      //     }
+      //   } catch (e) {
+      //     console.warn("Invalid company data in localStorage:", e);
+      //   }
+      // }
 
       return config;
     });
@@ -136,24 +193,81 @@ class AccountsService {
 
       console.log("📡 Запрос учетных записей:", params);
 
-      const response = await this.apiClient.get<AccountsResponse>(
-        "/accounts", // Используем наш прокси эндпоинт
+      const response = await this.apiClient.get<any>(
+        "/api/cms/accounts/", // Используем правильный эндпоинт Axenta Cloud API
         { params }
       );
 
-      console.log("✅ Получены учетные записи:", {
+      console.log("✅ Получен ответ от Axenta Cloud API:", {
         count: response.data.count,
-        results: response.data.results.length,
-        hasNext: !!response.data.next,
-        totalFromAPI: response.data.count,
+        resultsCount: response.data.results?.length,
+        next: response.data.next,
+        previous: response.data.previous,
       });
 
-      // Убеждаемся, что count правильно передается
-      if (!response.data.count || response.data.count === 0) {
-        console.error("⚠️ API не вернул правильный count:", response.data);
+      // Работаем напрямую с данными от Axenta Cloud API
+      const accounts = response.data.results || [];
+      const count = response.data.count || 0;
+      
+      // Преобразуем данные аккаунтов в формат Account
+      const results: Account[] = accounts.map((account: any) => ({
+        id: account.id,
+        name: account.name,
+        type: account.type === "partner" ? "partner" : "client",
+        adminFullname: account.adminFullname || "Не указано",
+        adminId: account.adminId || 0,
+        adminIsActive: account.adminIsActive !== false,
+        parentAccountName: account.parentAccountName || "",
+        objectsActive: account.objectsActive || 0,
+        objectsTotal: account.objectsTotal || 0,
+        objectsDeleted: account.objectsDeleted || 0,
+        comment: account.comment || null,
+        isActive: account.isActive !== false,
+        blockingDatetime: account.blockingDatetime || null,
+        hierarchy: account.hierarchy || "",
+        daysBeforeBlocking: account.daysBeforeBlocking || null,
+        creationDatetime: account.creationDatetime || new Date().toISOString(),
+        // Дополнительные поля из API
+        country: account.country,
+        city: account.city,
+        address: account.address,
+        contactEmail: account.contactEmail,
+        contactPhone: account.contactPhone,
+        language: account.language,
+        timezone: account.timezone,
+        currency: account.currency,
+        maxUsers: account.maxUsers,
+        storageQuota: account.storageQuota,
+      }));
+
+      // Формируем ответ в том же формате, что и от API
+      const finalResponse = {
+        count: count,
+        next: response.data.next,
+        previous: response.data.previous,
+        results,
+      };
+
+      console.log("✅ Финальный ответ:", {
+        count: finalResponse.count,
+        results: finalResponse.results.length,
+        hasNext: !!finalResponse.next,
+      });
+
+      // Логируем hierarchy и type для отладки
+      if (results.length > 0) {
+        console.log("🔧 DEBUG: First account data:", {
+          name: results[0].name,
+          type: results[0].type,
+          hierarchy: results[0].hierarchy,
+          creationDatetime: results[0].creationDatetime
+        });
+        console.log("🔧 DEBUG: All accounts with type and hierarchy:", 
+          results.map(acc => ({ name: acc.name, type: acc.type, hierarchy: acc.hierarchy }))
+        );
       }
 
-      return response.data;
+      return finalResponse;
     } catch (error) {
       console.error("❌ Ошибка получения учетных записей:", error);
       throw error;
@@ -165,10 +279,41 @@ class AccountsService {
    */
   async getAccount(id: number): Promise<Account> {
     try {
-      const response = await this.apiClient.get<Account>(
-        `/accounts/${id}` // Используем наш прокси эндпоинт
+      const response = await this.apiClient.get<any>(
+        `/api/cms/accounts/${id}/` // Используем правильный эндпоинт Axenta Cloud API
       );
-      return response.data;
+      
+      // Преобразуем данные аккаунта
+      const account = response.data;
+      return {
+        id: account.id,
+        name: account.name,
+        type: account.type === "partner" ? "partner" : "client",
+        adminFullname: account.adminFullname || "Не указано",
+        adminId: account.adminId || 0,
+        adminIsActive: account.adminIsActive !== false,
+        parentAccountName: account.parentAccountName || "",
+        objectsActive: account.objectsActive || 0,
+        objectsTotal: account.objectsTotal || 0,
+        objectsDeleted: account.objectsDeleted || 0,
+        comment: account.comment || null,
+        isActive: account.isActive !== false,
+        blockingDatetime: account.blockingDatetime || null,
+        hierarchy: account.hierarchy || "",
+        daysBeforeBlocking: account.daysBeforeBlocking || null,
+        creationDatetime: account.creationDatetime || new Date().toISOString(),
+        // Дополнительные поля из API
+        country: account.country,
+        city: account.city,
+        address: account.address,
+        contactEmail: account.contactEmail,
+        contactPhone: account.contactPhone,
+        language: account.language,
+        timezone: account.timezone,
+        currency: account.currency,
+        maxUsers: account.maxUsers,
+        storageQuota: account.storageQuota,
+      };
     } catch (error) {
       console.error(`❌ Ошибка получения учетной записи ${id}:`, error);
       throw error;

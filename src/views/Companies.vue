@@ -151,12 +151,7 @@
       
       <v-data-table :headers="headers" :items="companies" :loading="loading" :items-per-page="filters.limit"
         :page="filters.page" :server-items-length="totalItems" @update:page="onPageChange"
-        @update:items-per-page="onLimitChange" class="companies-table"
-        :no-data-text="'Нет данных для отображения'"
-        :items-per-page-text="'Элементов на странице:'"
-        :loading-text="'Загрузка данных...'"
-        :page-text="'{0}-{1} из {2}'"
-        :items-per-page-options="[10, 25, 50, 100]">
+        @update:items-per-page="onLimitChange" class="companies-table">
         <!-- Чекбокс выделения -->
         <template #item.select="{ item }">
           <v-checkbox 

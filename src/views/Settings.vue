@@ -124,6 +124,11 @@
               <SystemSettingsForm />
             </div>
 
+            <!-- Автообновление -->
+            <div v-if="activeTab === 'auto-refresh'">
+              <AutoRefreshSettings />
+            </div>
+
             <!-- Безопасность -->
             <div v-if="activeTab === 'security'">
               <SecuritySettings />
@@ -271,6 +276,7 @@ import { settingsService } from '@/services/settingsService';
 import { computed, onMounted, ref, watch } from 'vue';
 
 // Импорты компонентов (будут созданы далее)
+import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';
@@ -397,6 +403,12 @@ const tabs = computed(() => [
     title: 'Система',
     subtitle: 'Общие параметры',
     icon: 'mdi-cog'
+  },
+  {
+    value: 'auto-refresh',
+    title: 'Автообновление',
+    subtitle: 'Обновление данных',
+    icon: 'mdi-refresh-auto'
   },
   {
     value: 'security',

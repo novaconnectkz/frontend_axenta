@@ -1,0 +1,50 @@
+#!/usr/bin/expect -f
+
+set timeout 60
+set server "194.87.143.169"
+set username "root"
+set password "g-t+XM#3an2YJM"
+
+spawn ssh -o StrictHostKeyChecking=no $username@$server
+
+expect {
+    "password:" { send "$password\r"; exp_continue }
+    "Password:" { send "$password\r"; exp_continue }
+    "# " {
+        send "cd /var/www/app/backend_axenta && git config --global --add safe.directory /var/www/app/backend_axenta\r"
+        expect "# "
+        
+        send "git fetch --all && git reset --hard origin/main\r"
+        expect "# "
+        
+        send "ls -la handlers/accounts.go\r"
+        expect "# "
+        
+        send "go build -buildvcs=false -o axenta_backend_new .\r"
+        expect "# "
+        
+        send "systemctl stop axenta-backend\r"
+        expect "# "
+        
+        send "mv axenta_backend axenta_backend_old && mv axenta_backend_new axenta_backend\r"
+        expect "# "
+        
+        send "chmod +x axenta_backend\r"
+        expect "# "
+        
+        send "systemctl start axenta-backend\r"
+        expect "# "
+        
+        send "sleep 3\r"
+        expect "# "
+        
+        send "curl -s -w 'Status: %{http_code}' http://localhost:8080/api/accounts\r"
+        expect "# "
+        
+        send "echo 'Deploy completed'\r"
+        expect "# "
+        
+        send "exit\r"
+    }
+}
+expect eof

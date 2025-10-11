@@ -99,8 +99,9 @@ import { createUpdateDebouncer, useObjectsWidget } from '@/composables/useRealTi
 import { dashboardService } from '@/services/dashboardService';
 import type { ObjectStats, WidgetDimensions } from '@/types/dashboard';
 import type { PropType } from 'vue';
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import BaseWidget from './BaseWidget.vue';
+import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 
 export default defineComponent({
   name: 'ObjectsOverviewWidget',
@@ -134,6 +135,10 @@ export default defineComponent({
     // Real-time обновления
     const realTimeWidget = useObjectsWidget('objects-overview', props.refreshInterval);
     const updateDebouncer = createUpdateDebouncer(2000); // 2 секунды задержка
+    
+    // Автоматическое обновление данных
+    const autoRefresh = useAxentaAutoRefresh();
+    let unsubscribeFromAutoRefresh: (() => void) | null = null;
 
     const activePercentage = computed(() => {
       if (!data.value || data.value.total === 0) return 0;
@@ -182,6 +187,21 @@ export default defineComponent({
 
     onMounted(() => {
       loadData();
+      
+      // Подписываемся на автообновление
+      unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
+        loadData();
+      });
+    });
+
+    onUnmounted(() => {
+      // Отписываемся от автообновления
+      if (unsubscribeFromAutoRefresh) {
+        unsubscribeFromAutoRefresh();
+      }
+      
+      // Останавливаем real-time обновления
+      realTimeWidget.stopAutoRefresh();
     });
 
     return {

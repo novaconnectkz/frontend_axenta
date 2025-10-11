@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест API Учетных записей Axenta</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+        button {
+            background: #1976d2;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #1565c0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            color: #2e7d32;
+        }
+        .error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+        .info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            color: #1976d2;
+        }
+        .accounts-table {
+            margin-top: 20px;
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .accounts-table th,
+        .accounts-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .accounts-table th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        .accounts-table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .status-active {
+            color: #2e7d32;
+            font-weight: 600;
+        }
+        .status-inactive {
+            color: #d32f2f;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Тест API Учетных записей Axenta Cloud</h1>
+        <p>Этот инструмент позволяет протестировать запрос к <code>https://axenta.cloud/api/cms/accounts/</code> с вашими учетными данными.</p>
+        
+        <form id="testForm">
+            <div class="form-group">
+                <label for="token">Токен авторизации:</label>
+                <input type="password" id="token" placeholder="Введите ваш токен Axenta" required>
+                <small>Токен можно скопировать из профиля в CRM системе</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="companyId">ID компании (необязательно):</label>
+                <input type="text" id="companyId" placeholder="Введите ID компании">
+                <small>Если не указан, будет использован токен без X-Tenant-ID</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="page">Страница:</label>
+                <input type="number" id="page" value="1" min="1">
+            </div>
+            
+            <div class="form-group">
+                <label for="perPage">Записей на странице:</label>
+                <input type="number" id="perPage" value="50" min="1" max="1000">
+            </div>
+            
+            <div class="form-group">
+                <label for="ordering">Сортировка:</label>
+                <input type="text" id="ordering" value="name" placeholder="name, -name, id, -id">
+            </div>
+            
+            <button type="submit" id="testBtn">🚀 Тестировать API</button>
+            <button type="button" id="clearBtn">🗑️ Очистить</button>
+            <button type="button" id="loadFromStorageBtn">📋 Загрузить из localStorage</button>
+        </form>
+        
+        <div id="response"></div>
+        <div id="accountsTable"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('testForm');
+        const responseDiv = document.getElementById('response');
+        const accountsTableDiv = document.getElementById('accountsTable');
+        const testBtn = document.getElementById('testBtn');
+        
+        // Загрузка данных из localStorage
+        document.getElementById('loadFromStorageBtn').addEventListener('click', () => {
+            const token = localStorage.getItem('axenta_token') || localStorage.getItem('token');
+            const company = localStorage.getItem('axenta_company');
+            
+            if (token) {
+                document.getElementById('token').value = token;
+                showResponse('✅ Токен загружен из localStorage', 'success');
+            }
+            
+            if (company) {
+                try {
+                    const companyData = JSON.parse(company);
+                    if (companyData.id) {
+                        document.getElementById('companyId').value = companyData.id;
+                        showResponse('✅ ID компании загружен из localStorage: ' + companyData.id, 'success');
+                    }
+                } catch (e) {
+                    console.warn('Ошибка парсинга данных компании:', e);
+                }
+            }
+            
+            if (!token) {
+                showResponse('⚠️ Токен не найден в localStorage. Войдите в систему сначала.', 'error');
+            }
+        });
+        
+        // Очистка формы
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            form.reset();
+            responseDiv.innerHTML = '';
+            accountsTableDiv.innerHTML = '';
+            document.getElementById('page').value = '1';
+            document.getElementById('perPage').value = '50';
+            document.getElementById('ordering').value = 'name';
+        });
+        
+        // Отправка запроса
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const token = document.getElementById('token').value.trim();
+            const companyId = document.getElementById('companyId').value.trim();
+            const page = document.getElementById('page').value;
+            const perPage = document.getElementById('perPage').value;
+            const ordering = document.getElementById('ordering').value.trim();
+            
+            if (!token) {
+                showResponse('❌ Токен обязателен для заполнения', 'error');
+                return;
+            }
+            
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Отправляем запрос...';
+            
+            try {
+                const url = new URL('https://axenta.cloud/api/cms/accounts/');
+                url.searchParams.append('page', page);
+                url.searchParams.append('per_page', perPage);
+                if (ordering) {
+                    url.searchParams.append('ordering', ordering);
+                }
+                
+                const headers = {
+                    'Authorization': token.startsWith('Token ') ? token : `Token ${token}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                };
+                
+                if (companyId) {
+                    headers['X-Tenant-ID'] = companyId;
+                }
+                
+                showResponse(`📡 Отправляем запрос к: ${url.toString()}\n\nЗаголовки:\n${JSON.stringify(headers, null, 2)}`, 'info');
+                
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResponse(`✅ Успешный ответ (${response.status}):\n\n${JSON.stringify(data, null, 2)}`, 'success');
+                    displayAccountsTable(data.results || []);
+                } else {
+                    showResponse(`❌ Ошибка (${response.status}):\n\n${JSON.stringify(data, null, 2)}`, 'error');
+                }
+                
+            } catch (error) {
+                showResponse(`💥 Ошибка сети:\n\n${error.message}`, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🚀 Тестировать API';
+            }
+        });
+        
+        function showResponse(text, type) {
+            responseDiv.innerHTML = `<div class="response ${type}">${text}</div>`;
+        }
+        
+        function displayAccountsTable(accounts) {
+            if (!accounts || accounts.length === 0) {
+                accountsTableDiv.innerHTML = '<p>📭 Учетные записи не найдены</p>';
+                return;
+            }
+            
+            let tableHTML = `
+                <h3>📊 Найдено учетных записей: ${accounts.length}</h3>
+                <table class="accounts-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Тип</th>
+                            <th>Администратор</th>
+                            <th>Статус</th>
+                            <th>Объекты</th>
+                            <th>Страна</th>
+                            <th>Дата создания</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            accounts.forEach(account => {
+                const statusClass = account.isActive ? 'status-active' : 'status-inactive';
+                const statusText = account.isActive ? 'Активен' : 'Заблокирован';
+                const objectsText = `${account.objectsActive || 0}/${account.objectsTotal || 0}`;
+                
+                tableHTML += `
+                    <tr>
+                        <td>${account.id}</td>
+                        <td>${account.name || 'Не указано'}</td>
+                        <td>${account.type === 'partner' ? 'Партнер' : 'Клиент'}</td>
+                        <td>${account.adminFullname || 'Не указано'}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${objectsText}</td>
+                        <td>${account.country || 'Не указана'}</td>
+                        <td>${account.creationDatetime ? new Date(account.creationDatetime).toLocaleDateString('ru-RU') : 'Не указана'}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            accountsTableDiv.innerHTML = tableHTML;
+        }
+        
+        // Автозагрузка данных при загрузке страницы
+        window.addEventListener('load', () => {
+            document.getElementById('loadFromStorageBtn').click();
+        });
+    </script>
+</body>
+</html>
