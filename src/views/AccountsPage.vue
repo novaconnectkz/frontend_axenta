@@ -150,7 +150,6 @@
               :class="{ 'rotating': isLoading || isBackgroundLoading }"
             />
             <v-btn
-              icon="mdi-filter-remove"
               :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
               :color="hasAnyActiveFilters ? 'primary' : 'default'"
               size="small"
@@ -158,6 +157,7 @@
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }"
             >
+              <v-icon>mdi-filter-remove</v-icon>
               <v-badge
                 v-if="hasAnyActiveFilters"
                 :content="getActiveFiltersCount()"
