@@ -22,8 +22,6 @@
     <MobileDashboard v-if="mobile" />
     <DashboardGrid v-else />
 
-    <!-- Mock Mode Toggle (только в development) -->
-    <MockModeToggle />
 
     <!-- System Status Bar перенесен в боковое меню -->
   </v-container>
@@ -32,7 +30,6 @@
 <script lang="ts">
 import DashboardGrid from '@/components/Dashboard/DashboardGrid.vue';
 import MobileDashboard from '@/components/Dashboard/MobileDashboard.vue';
-import MockModeToggle from '@/components/Dashboard/MockModeToggle.vue';
 import { useAuth } from '@/context/auth';
 import { useSystemRefresh } from '@/composables/useSystemRefresh';
 import { useDashboardStoreWithInit } from '@/store/dashboard';
@@ -44,8 +41,7 @@ export default defineComponent({
   name: 'Dashboard',
   components: {
     DashboardGrid,
-    MobileDashboard,
-    MockModeToggle
+    MobileDashboard
   },
   setup() {
     const router = useRouter();

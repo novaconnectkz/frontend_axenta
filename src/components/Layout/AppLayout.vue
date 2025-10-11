@@ -187,20 +187,63 @@
           </v-btn>
         </template>
 
-        <v-card width="280">
+        <v-card width="320">
           <v-card-text class="pa-4">
+            <!-- Заголовок профиля -->
             <div class="d-flex align-center mb-3">
               <v-avatar :image="userAvatar" size="48" class="me-3">
                 <span v-if="!userAvatar" class="user-initials">
                   {{ getUserInitials() }}
                 </span>
               </v-avatar>
-              <div>
+              <div class="flex-grow-1">
                 <div class="text-h6 font-weight-medium">
                   {{ auth.user.value?.name || 'Пользователь' }}
                 </div>
                 <div class="text-caption text-medium-emphasis">
                   {{ auth.user.value?.email || 'email@example.com' }}
+                </div>
+                <div class="d-flex align-center mt-1">
+                  <v-chip 
+                    v-if="auth.user.value?.accountType"
+                    :color="getAccountTypeColor(auth.user.value.accountType)" 
+                    size="x-small" 
+                    variant="tonal"
+                    class="me-2"
+                  >
+                    {{ getAccountTypeLabel(auth.user.value.accountType) }}
+                  </v-chip>
+                  <v-chip 
+                    v-if="auth.user.value?.isAdmin"
+                    color="warning" 
+                    size="x-small" 
+                    variant="tonal"
+                  >
+                    Админ
+                  </v-chip>
+                </div>
+              </div>
+            </div>
+
+            <!-- Дополнительная информация -->
+            <div v-if="auth.user.value" class="user-info-section mb-3">
+              <div class="text-caption text-medium-emphasis mb-2">Информация об аккаунте:</div>
+              <div class="user-info-grid">
+                <div class="info-item">
+                  <v-icon icon="mdi-domain" size="14" class="me-1" />
+                  <span class="text-caption">{{ auth.user.value.accountName || 'Не указано' }}</span>
+                </div>
+                <div class="info-item" v-if="auth.user.value.accountId">
+                  <v-icon icon="mdi-identifier" size="14" class="me-1" />
+                  <span class="text-caption">ID: {{ auth.user.value.accountId }}</span>
+                </div>
+                <div class="info-item" v-if="auth.user.value.lastLogin">
+                  <v-icon icon="mdi-clock-outline" size="14" class="me-1" />
+                  <span class="text-caption">{{ formatLastLogin(auth.user.value.lastLogin) }}</span>
+                </div>
+                <div class="info-item text-error" v-if="auth.user.value.accountBlockingDatetime">
+                  <v-icon icon="mdi-alert" size="14" class="me-1" />
+                  <span class="text-caption">Блокировка: {{ formatBlockingDate(auth.user.value.accountBlockingDatetime) }}</span>
                 </div>
               </div>
             </div>
@@ -210,6 +253,26 @@
             <v-list density="compact" class="pa-0">
               <v-list-item prepend-icon="mdi-account" title="Профиль" @click="goToProfile" class="profile-menu-item" />
               <v-list-item prepend-icon="mdi-cog" title="Настройки" @click="goToSettings" class="profile-menu-item" />
+              
+              <!-- Копирование токена -->
+              <v-list-item 
+                v-if="auth.token.value"
+                prepend-icon="mdi-content-copy" 
+                title="Копировать токен" 
+                @click="copyCurrentToken"
+                class="profile-menu-item"
+              >
+                <template #append>
+                  <v-icon 
+                    v-if="tokenCopied" 
+                    color="success" 
+                    size="small"
+                  >
+                    mdi-check
+                  </v-icon>
+                </template>
+              </v-list-item>
+              
               <v-divider class="my-2" />
               <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="handleLogout"
                 class="profile-menu-item logout-item" />
@@ -275,6 +338,7 @@ const notifications = ref([]);
 const currentTime = ref(new Date());
 const timeInterval = ref<NodeJS.Timeout | null>(null);
 const lastRefresh = ref(new Date());
+const tokenCopied = ref(false);
 const snackbar = ref({
   show: false,
   text: '',
@@ -443,6 +507,46 @@ const goToSettings = () => {
   router.push('/settings');
 };
 
+const copyCurrentToken = async () => {
+  const token = auth.token.value;
+  if (!token) return;
+  
+  try {
+    await navigator.clipboard.writeText(token);
+    tokenCopied.value = true;
+    showSnackbar('Токен скопирован в буфер обмена!', 'success');
+    
+    // Сбрасываем состояние через 2 секунды
+    setTimeout(() => {
+      tokenCopied.value = false;
+    }, 2000);
+    
+  } catch (error) {
+    console.error('Failed to copy token:', error);
+    
+    // Fallback для старых браузеров
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = token;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      
+      tokenCopied.value = true;
+      showSnackbar('Токен скопирован!', 'success');
+      
+      setTimeout(() => {
+        tokenCopied.value = false;
+      }, 2000);
+      
+    } catch (fallbackError) {
+      console.error('Fallback copy failed:', fallbackError);
+      showSnackbar('Ошибка копирования токена', 'error');
+    }
+  }
+};
+
 const handleLogout = async () => {
   try {
     await auth.logout();
@@ -513,6 +617,72 @@ const getUserInitials = () => {
     return `${names[0][0]}${names[1][0]}`.toUpperCase();
   }
   return names[0][0].toUpperCase();
+};
+
+const getAccountTypeColor = (type: string) => {
+  const colors: Record<string, string> = {
+    partner: 'deep-purple',
+    client: 'blue-grey',
+    premium: 'amber',
+    basic: 'blue',
+    trial: 'orange',
+    demo: 'purple',
+    free: 'grey'
+  };
+  return colors[type] || 'primary';
+};
+
+const getAccountTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    partner: 'Партнерский',
+    client: 'Клиентский',
+    premium: 'Премиум',
+    basic: 'Базовый',
+    trial: 'Пробный',
+    demo: 'Демо',
+    free: 'Бесплатный'
+  };
+  return labels[type] || type;
+};
+
+const formatLastLogin = (dateString: string) => {
+  if (!dateString) return 'Не указано';
+  
+  try {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'Только что';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} ч. назад`;
+    } else if (diffInHours < 48) {
+      return 'Вчера';
+    } else {
+      return date.toLocaleDateString('ru-RU', {
+        day: 'numeric',
+        month: 'short'
+      });
+    }
+  } catch (error) {
+    return 'Неизвестно';
+  }
+};
+
+const formatBlockingDate = (dateString: string) => {
+  if (!dateString) return 'Не указано';
+  
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  } catch (error) {
+    return dateString;
+  }
 };
 
 const updateLastRefresh = () => {
@@ -1425,6 +1595,40 @@ onUnmounted(() => {
 [data-theme="dark"] .logout-item:hover {
   background: rgba(255, 105, 97, 0.15) !important;
   color: var(--apple-red-light);
+}
+
+/* Стили для информации о пользователе в меню */
+.user-info-section {
+  background: rgba(var(--v-theme-surface-variant), 0.5);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.user-info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.info-item:hover {
+  opacity: 1;
+}
+
+.info-item .v-icon {
+  opacity: 0.7;
+}
+
+/* Темная тема для информации о пользователе */
+[data-theme="dark"] .user-info-section {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* Mobile адаптация для приветствия */

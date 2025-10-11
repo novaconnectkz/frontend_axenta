@@ -254,33 +254,96 @@
             </div>
             <div class="card-content" v-if="user">
               <div class="user-details">
-                <div class="detail-row">
-                  <span class="detail-label">Имя пользователя:</span>
-                  <span class="detail-value">{{ user.name }}</span>
+                <!-- Основная информация -->
+                <div class="detail-section">
+                  <h4 class="section-title">Основная информация</h4>
+                  <div class="detail-row">
+                    <span class="detail-label">Полное имя:</span>
+                    <span class="detail-value">{{ user.name }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Логин:</span>
+                    <span class="detail-value">{{ user.username }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">ID пользователя:</span>
+                    <span class="detail-value">{{ user.id }}</span>
+                  </div>
+                  <div class="detail-row" v-if="user.email">
+                    <span class="detail-label">Email:</span>
+                    <span class="detail-value">
+                      <a :href="`mailto:${user.email}`" class="email-link">{{ user.email }}</a>
+                    </span>
+                  </div>
                 </div>
-                <div class="detail-row">
-                  <span class="detail-label">Логин:</span>
-                  <span class="detail-value">{{ user.username }}</span>
+
+                <!-- Статус и права -->
+                <div class="detail-section">
+                  <h4 class="section-title">Статус и права</h4>
+                  <div class="detail-row">
+                    <span class="detail-label">Статус:</span>
+                    <span class="detail-value">
+                      <span class="status-badge" :class="user.isActive ? 'status-active' : 'status-inactive'">
+                        {{ user.isActive ? 'Активен' : 'Неактивен' }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Администратор:</span>
+                    <span class="detail-value">
+                      <span class="admin-badge" :class="user.isAdmin ? 'admin-yes' : 'admin-no'">
+                        {{ user.isAdmin ? 'Да' : 'Нет' }}
+                      </span>
+                    </span>
+                  </div>
                 </div>
-                <div class="detail-row">
-                  <span class="detail-label">ID пользователя:</span>
-                  <span class="detail-value">{{ user.id }}</span>
+
+                <!-- Информация об аккаунте -->
+                <div class="detail-section">
+                  <h4 class="section-title">Аккаунт</h4>
+                  <div class="detail-row">
+                    <span class="detail-label">Компания:</span>
+                    <span class="detail-value">{{ user.accountName || 'Не указано' }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Тип аккаунта:</span>
+                    <span class="detail-value">
+                      <span class="account-type-badge" :class="`account-${user.accountType}`">
+                        {{ getAccountTypeLabel(user.accountType) }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="detail-row" v-if="user.accountId">
+                    <span class="detail-label">ID аккаунта:</span>
+                    <span class="detail-value">{{ user.accountId }}</span>
+                  </div>
+                  <div class="detail-row" v-if="user.creatorName">
+                    <span class="detail-label">Создатель:</span>
+                    <span class="detail-value">{{ user.creatorName }}</span>
+                  </div>
+                  <div class="detail-row" v-if="user.accountBlockingDatetime">
+                    <span class="detail-label">Блокировка:</span>
+                    <span class="detail-value blocking-warning">
+                      ⚠️ {{ formatDate(user.accountBlockingDatetime) }}
+                    </span>
+                  </div>
                 </div>
-                <div class="detail-row">
-                  <span class="detail-label">Аккаунт:</span>
-                  <span class="detail-value">{{ user.accountName }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Тип аккаунта:</span>
-                  <span class="detail-value account-type">{{ user.accountType }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Создатель:</span>
-                  <span class="detail-value">{{ user.creatorName }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">Последний вход:</span>
-                  <span class="detail-value">{{ formatDate(user.lastLogin) }}</span>
+
+                <!-- Системная информация -->
+                <div class="detail-section" v-if="user.language || user.timezone || user.lastLogin">
+                  <h4 class="section-title">Системная информация</h4>
+                  <div class="detail-row" v-if="user.language">
+                    <span class="detail-label">Язык:</span>
+                    <span class="detail-value">{{ getLanguageLabel(user.language) }}</span>
+                  </div>
+                  <div class="detail-row" v-if="user.timezone">
+                    <span class="detail-label">Часовой пояс:</span>
+                    <span class="detail-value">UTC{{ user.timezone >= 0 ? '+' : '' }}{{ user.timezone }}</span>
+                  </div>
+                  <div class="detail-row" v-if="user.lastLogin">
+                    <span class="detail-label">Последний вход:</span>
+                    <span class="detail-value">{{ formatDate(user.lastLogin) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -469,6 +532,30 @@ const formatDate = (dateString: string) => {
   } catch {
     return dateString;
   }
+};
+
+const getAccountTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    partner: 'Партнерский',
+    client: 'Клиентский',
+    premium: 'Премиум',
+    basic: 'Базовый',
+    trial: 'Пробный',
+    demo: 'Демо',
+    free: 'Бесплатный'
+  };
+  return labels[type] || type;
+};
+
+const getLanguageLabel = (lang: string) => {
+  const languages: Record<string, string> = {
+    ru: 'Русский',
+    en: 'English',
+    de: 'Deutsch',
+    fr: 'Français',
+    es: 'Español'
+  };
+  return languages[lang] || lang;
 };
 </script>
 
@@ -973,6 +1060,118 @@ const formatDate = (dateString: string) => {
   text-align: center;
   color: #666;
   font-style: italic;
+}
+
+/* Новые стили для секций */
+.detail-section {
+  margin-bottom: 24px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+/* Стили для бейджей */
+.status-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-active {
+  background: rgba(72, 187, 120, 0.1);
+  color: #48bb78;
+}
+
+.status-inactive {
+  background: rgba(245, 101, 101, 0.1);
+  color: #f56565;
+}
+
+.admin-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-yes {
+  background: rgba(237, 137, 54, 0.1);
+  color: #ed8936;
+}
+
+.admin-no {
+  background: rgba(160, 174, 192, 0.1);
+  color: #a0aec0;
+}
+
+.account-type-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.account-partner {
+  background: rgba(128, 90, 213, 0.1);
+  color: #805ad5;
+}
+
+.account-premium {
+  background: rgba(236, 201, 75, 0.1);
+  color: #ecc94b;
+}
+
+.account-basic {
+  background: rgba(66, 153, 225, 0.1);
+  color: #4299e1;
+}
+
+.account-trial {
+  background: rgba(237, 137, 54, 0.1);
+  color: #ed8936;
+}
+
+.account-demo {
+  background: rgba(159, 122, 234, 0.1);
+  color: #9f7aea;
+}
+
+.account-free {
+  background: rgba(160, 174, 192, 0.1);
+  color: #a0aec0;
+}
+
+.email-link {
+  color: #4299e1;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.email-link:hover {
+  color: #3182ce;
+  text-decoration: underline;
+}
+
+.blocking-warning {
+  color: #f56565 !important;
+  font-weight: 600;
 }
 
 /* Активность */

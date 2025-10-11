@@ -2,8 +2,12 @@
 import { useAuthProvider, provideAuth } from "@/context/auth";
 import { onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
+import { restoreAuthState, debugAuthStorage } from "@/utils/authInit";
 
 const route = useRoute();
+
+// Восстанавливаем состояние авторизации перед инициализацией
+const authState = restoreAuthState();
 
 // Инициализируем auth provider и предоставляем его глобально
 const auth = useAuthProvider();
@@ -11,9 +15,14 @@ provideAuth(auth);
 
 // Простая отладочная информация
 onMounted(() => {
-  console.log('App mounted, current path:', route.path);
-  console.log('Auth initialized:', !!auth);
-  console.log('Is authenticated:', auth.isAuthenticated.value);
+  console.log('🚀 App mounted, current path:', route.path);
+  console.log('🔐 Auth initialized:', !!auth);
+  console.log('✅ Is authenticated:', auth.isAuthenticated.value);
+  console.log('👤 Current user:', auth.user.value?.name || 'None');
+  console.log('🏢 Current company:', auth.company.value?.name || 'None');
+  
+  // Отладочная информация о localStorage
+  debugAuthStorage();
   
   // Дополнительная проверка скрытия загрузочного экрана
   setTimeout(() => {

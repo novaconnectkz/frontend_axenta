@@ -11,7 +11,7 @@ function getEnvVar(key: string, defaultValue: string): string {
  * Конфигурация приложения
  */
 export const config = {
-  // URL бэкенда
+  // URL бэкенда - используем локальный сервер для разработки
   backendUrl: getEnvVar("VITE_BACKEND_URL", "http://localhost:8080"),
 
   // WebSocket URL для реального времени

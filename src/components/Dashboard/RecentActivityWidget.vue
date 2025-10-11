@@ -203,6 +203,18 @@ export default defineComponent({
     BaseWidget
   },
   props: {
+    widgetId: {
+      type: String,
+      required: true
+    },
+    isResizeMode: {
+      type: Boolean,
+      default: false
+    },
+    dimensions: {
+      type: Object,
+      default: () => ({ width: 12, height: 4 })
+    },
     refreshInterval: {
       type: Number,
       default: 120 // 2 минуты

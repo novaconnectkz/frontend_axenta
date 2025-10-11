@@ -1,4 +1,5 @@
 // Сервис для работы с настройками системы
+import { config } from "@/config/env";
 import type {
   ConnectionStatus,
   IntegrationLog,
@@ -649,7 +650,7 @@ const demoIntegrationLogs: IntegrationLog[] = [
 ];
 
 class SettingsService {
-  private baseUrl = import.meta.env.VITE_API_URL || "http://localhost:8080";
+  private baseUrl = config.apiBaseUrl;
 
   // === ИНТЕГРАЦИИ ===
 

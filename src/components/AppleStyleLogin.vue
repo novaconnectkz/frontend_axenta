@@ -19,6 +19,20 @@
         <p class="app-subtitle">Система управления</p>
       </div>
 
+      <!-- Информация для авторизации -->
+      <div class="info-section">
+        <div class="info-card">
+          <h3>🔐 Вход в систему</h3>
+          <p class="info-main">
+            <strong>Используйте ваши учетные данные от Axenta Cloud</strong>
+          </p>
+          <p class="info-note">
+            При первом входе система автоматически создаст локальную учетную запись<br>
+            с вашими данными из Axenta (имя, email, роли)
+          </p>
+        </div>
+      </div>
+
       <!-- Форма авторизации -->
       <div class="form-section">
         <form @submit.prevent="handleLogin" class="login-form">
@@ -318,7 +332,46 @@ onMounted(() => {
 
 .logo-section {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
+}
+
+.info-section {
+  margin-bottom: 30px;
+}
+
+.info-card {
+  background: rgba(0, 122, 255, 0.1);
+  border: 1px solid rgba(0, 122, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.info-card h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #007AFF;
+}
+
+.info-card p {
+  margin: 4px 0;
+  font-size: 14px;
+  color: #1d1d1f;
+}
+
+.info-main {
+  font-size: 14px !important;
+  color: #007AFF !important;
+  font-weight: 600 !important;
+  margin: 0 0 8px 0 !important;
+}
+
+.info-note {
+  font-size: 12px !important;
+  color: #8e8e93 !important;
+  margin: 8px 0 0 0 !important;
+  line-height: 1.4 !important;
 }
 
 .logo-icon {

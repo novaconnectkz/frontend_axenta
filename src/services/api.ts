@@ -1,9 +1,10 @@
 // Простой HTTP клиент для API запросов
 import axios from "axios";
+import { config } from "@/config/env";
 
 // Создаем экземпляр axios с базовой конфигурацией
 export const apiClient = axios.create({
-  baseURL: "/api", // Базовый URL для API
+  baseURL: config.apiBaseUrl, // Используем конфигурацию из env
   timeout: 10000, // Таймаут 10 секунд
   headers: {
     "Content-Type": "application/json",

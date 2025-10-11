@@ -21,6 +21,7 @@ import router from "./router";
 import { initDemoMode } from "./utils/demoMode";
 import { disableAllLoading } from "./utils/disableLoading";
 import "./utils/themeDebug"; // Утилиты отладки темы
+import "./utils/authDebug"; // Утилиты отладки авторизации
 
 const app = createApp(App);
 

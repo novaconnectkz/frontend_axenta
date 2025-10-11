@@ -9,46 +9,6 @@
     </v-row> -->
 
     <div v-if="currentLayout" class="grid-container">
-      <!-- Drag and Drop Toggle -->
-      <div class="drag-controls mb-4">
-        <v-btn
-          :color="isDragMode ? 'success' : 'primary'"
-          :variant="isDragMode ? 'flat' : 'outlined'"
-          @click="toggleDragMode"
-          class="me-2"
-        >
-          <v-icon start :icon="isDragMode ? 'mdi-check' : 'mdi-drag'" />
-          {{ isDragMode ? 'Завершить перестановку' : 'Переставить виджеты' }}
-        </v-btn>
-        
-        <v-chip v-if="isDragMode" color="info" variant="outlined" class="me-2">
-          <v-icon start icon="mdi-information" />
-          Перетащите виджеты для изменения порядка
-        </v-chip>
-        
-        <v-btn
-          v-if="isDragMode"
-          color="secondary"
-          variant="outlined"
-          @click="resetWidgetOrder"
-          class="me-2"
-        >
-          <v-icon start icon="mdi-restore" />
-          Сбросить порядок
-        </v-btn>
-
-
-        <!-- Quick Actions Position Control -->
-        <v-btn
-          v-if="isDragMode"
-          :color="quickActionsPosition === 'top' ? 'warning' : 'info'"
-          variant="outlined"
-          @click="toggleQuickActionsPosition"
-        >
-          <v-icon start :icon="quickActionsPosition === 'top' ? 'mdi-arrow-down' : 'mdi-arrow-up'" />
-          {{ quickActionsPosition === 'top' ? 'Быстрые действия вниз' : 'Быстрые действия вверх' }}
-        </v-btn>
-      </div>
 
       <!-- Quick Actions Section - Top Position -->
       <div v-if="showQuickActions && quickActionsPosition === 'top'">
@@ -133,6 +93,52 @@
         @quick-action-drag-end="onQuickActionDragEnd"
         class="mt-4"
       />
+
+      <!-- Drag and Drop Toggle - Moved to Bottom -->
+      <div class="drag-controls mt-4 d-flex align-center gap-2">
+        <v-fab
+          :color="isDragMode ? 'success' : 'primary'"
+          :icon="isDragMode ? 'mdi-check' : 'mdi-drag'"
+          @click="toggleDragMode"
+          size="small"
+          location="static"
+        />
+        
+        <v-chip v-if="isDragMode" color="info" variant="outlined">
+          <v-icon start icon="mdi-information" />
+          Перетащите виджеты для изменения порядка
+        </v-chip>
+        
+        <v-btn
+          v-if="isDragMode"
+          color="secondary"
+          variant="outlined"
+          @click="resetWidgetOrder"
+        >
+          <v-icon start icon="mdi-restore" />
+          Сбросить порядок
+        </v-btn>
+
+        <!-- Quick Actions Position Control -->
+        <v-btn
+          v-if="isDragMode"
+          :color="quickActionsPosition === 'top' ? 'warning' : 'info'"
+          variant="outlined"
+          @click="toggleQuickActionsPosition"
+        >
+          <v-icon start :icon="quickActionsPosition === 'top' ? 'mdi-arrow-down' : 'mdi-arrow-up'" />
+          {{ quickActionsPosition === 'top' ? 'Быстрые действия вниз' : 'Быстрые действия вверх' }}
+        </v-btn>
+
+        <!-- Layout Management Button -->
+        <v-fab
+          size="small"
+          icon="mdi-cog"
+          color="primary"
+          @click="showLayoutDialog = true"
+          location="static"
+        />
+      </div>
     </div>
 
     <!-- Widget Configuration Dialog -->
@@ -173,8 +179,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Layout Management FAB -->
-    <v-fab location="bottom end" size="small" icon="mdi-cog" color="primary" @click="showLayoutDialog = true" />
 
     <!-- Layout Management Dialog -->
     <v-dialog v-model="showLayoutDialog" max-width="800">
@@ -292,6 +296,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 
 // Import widget components
 import BillingOverviewWidget from './BillingOverviewWidget.vue';
+import CurrentUserWidget from './CurrentUserWidget.vue';
 import InstallationsOverviewWidget from './InstallationsOverviewWidget.vue';
 import ObjectsOverviewWidget from './ObjectsOverviewWidget.vue';
 import RecentActivityWidget from './RecentActivityWidget.vue';
@@ -305,6 +310,7 @@ export default defineComponent({
     ObjectsOverviewWidget,
     UsersOverviewWidget,
     BillingOverviewWidget,
+    CurrentUserWidget,
     InstallationsOverviewWidget,
     WarehouseOverviewWidget,
     RecentActivityWidget,
@@ -352,6 +358,12 @@ export default defineComponent({
     ];
 
     const availableWidgetTypes = [
+      {
+        type: 'current-user',
+        title: 'Текущий пользователь',
+        description: 'Информация о текущем авторизованном пользователе',
+        icon: 'mdi-account-circle'
+      },
       {
         type: 'objects-overview',
         title: 'Обзор объектов',
@@ -434,6 +446,7 @@ export default defineComponent({
     // Methods
     const getWidgetComponent = (type: WidgetType) => {
       const componentMap: Record<string, any> = {
+        'current-user': CurrentUserWidget,
         'objects-overview': ObjectsOverviewWidget,
         'users-overview': UsersOverviewWidget,
         'billing-overview': BillingOverviewWidget,

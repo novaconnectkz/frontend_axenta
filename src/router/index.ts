@@ -42,6 +42,21 @@ const routes = [
     title: "Диагностическая форма входа",
   }),
 
+  // === ЛОКАЛЬНАЯ АВТОРИЗАЦИЯ ===
+  createGuestRoute("/local-login", () => import("@/views/LocalLogin.vue"), {
+    title: "Локальный вход в систему",
+  }),
+
+  // === ГИБРИДНАЯ АВТОРИЗАЦИЯ ===
+  createGuestRoute("/hybrid-login", () => import("@/views/HybridLogin.vue"), {
+    title: "Гибридный вход в систему",
+  }),
+
+  // === ОЧИСТКА АВТОРИЗАЦИИ ===
+  createPublicRoute("/clear-auth", () => import("@/views/ClearAuth.vue"), {
+    title: "Очистка авторизации",
+  }),
+
   // === ОСНОВНЫЕ МАРШРУТЫ ПРИЛОЖЕНИЯ (С LAYOUT) ===
 
   {
@@ -184,6 +199,17 @@ const routes = [
           requiresAuth: true,
         },
       },
+
+      // Профиль локального пользователя
+      {
+        path: "local-profile",
+        name: "LocalProfile",
+        component: () => import("@/views/LocalProfile.vue"),
+        meta: {
+          title: "Локальный профиль",
+          requiresAuth: true,
+        },
+      },
     ],
   },
 
@@ -196,6 +222,36 @@ const routes = [
   // Тестовые страницы
   createPublicRoute("/test", () => import("@/views/TestPage.vue"), {
     title: "Тестовая страница",
+  }),
+
+  // Тест API Axenta
+  createPublicRoute("/axenta-api-test", () => import("@/views/AxentaApiTest.vue"), {
+    title: "Тест API Axenta",
+  }),
+
+  // Быстрый тест авторизации
+  createPublicRoute("/quick-auth-test", () => import("@/views/QuickAuthTest.vue"), {
+    title: "Быстрый тест авторизации",
+  }),
+
+  // Диагностика API Axenta
+  createPublicRoute("/axenta-diagnostics", () => import("@/views/AxentaDiagnostics.vue"), {
+    title: "Диагностика API Axenta",
+  }),
+
+  // Статус исправлений
+  createPublicRoute("/status", () => import("@/views/StatusCheck.vue"), {
+    title: "Статус системы",
+  }),
+
+  // Простой тест без проблемных заголовков
+  createPublicRoute("/simple-test", () => import("@/views/SimpleAxentaTest.vue"), {
+    title: "Простой тест API",
+  }),
+
+  // Тест через CORS прокси
+  createPublicRoute("/proxy-test", () => import("@/views/ProxyAxentaTest.vue"), {
+    title: "Тест через прокси",
   }),
 
   // === СЛУЖЕБНЫЕ СТРАНИЦЫ ===
@@ -230,14 +286,10 @@ router.beforeEach(titleGuard);
 // Простая проверка auth без context
 router.beforeEach((to, from, next) => {
   let token = localStorage.getItem("axenta_token");
+  let localToken = localStorage.getItem("local_access_token");
 
-  // Для демонстрации - создаем демо токен если его нет
-  if (!token && to.meta?.requiresAuth) {
-    console.log("Создаем демо токен для тестирования");
-    const demoToken = "demo-token-" + Date.now();
-    localStorage.setItem("axenta_token", demoToken);
-    token = demoToken;
-  }
+  // Проверяем, есть ли любой валидный токен
+  const hasAnyToken = token || localToken;
 
   const requiresAuth = to.meta?.requiresAuth;
   const requiresGuest = to.meta?.requiresGuest;
@@ -247,19 +299,21 @@ router.beforeEach((to, from, next) => {
     path: to.path,
     name: to.name,
     fullPath: to.fullPath,
-    token: token ? "EXISTS" : "MISSING",
+    axentaToken: token ? "EXISTS" : "MISSING",
+    localToken: localToken ? "EXISTS" : "MISSING",
+    hasAnyToken,
     requiresAuth,
     requiresGuest,
     meta: to.meta,
   });
 
-  if (requiresAuth && !token) {
+  if (requiresAuth && !hasAnyToken) {
     console.log("Redirecting to login: no token for protected route");
     next({ path: "/login", query: { redirect: to.fullPath } });
     return;
   }
 
-  if (requiresGuest && token) {
+  if (requiresGuest && hasAnyToken) {
     console.log("Redirecting to dashboard: token exists for guest route");
     next("/dashboard");
     return;
