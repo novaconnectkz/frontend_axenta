@@ -1,33 +1,12 @@
 <template>
   <div class="accounts-page">
     <!-- Заголовок страницы -->
-    <div class="page-header">
+    <div class="page-header compact-header">
       <div class="header-content">
         <h1 class="page-title">
           <i class="mdi mdi-account-group"></i>
           Учетные записи
         </h1>
-        <div class="header-actions">
-          <v-chip
-            :color="isAutoRefreshEnabled ? 'success' : 'default'"
-            variant="outlined"
-            size="small"
-            @click="toggleAutoRefresh"
-          >
-            <i class="mdi mdi-refresh" :class="{ 'rotating': isLoading || isBackgroundLoading }"></i>
-            Автообновление: {{ isAutoRefreshEnabled ? 'ВКЛ' : 'ВЫКЛ' }}
-          </v-chip>
-          <v-chip
-            v-if="lastUpdateTime"
-            :color="isBackgroundLoading ? 'warning' : 'info'"
-            variant="outlined"
-            size="small"
-          >
-            <i class="mdi mdi-clock-outline" :class="{ 'rotating': isBackgroundLoading }"></i>
-            {{ formatTime(lastUpdateTime) }}
-            <span v-if="isBackgroundLoading" class="ml-1">обновляется...</span>
-          </v-chip>
-        </div>
       </div>
     </div>
 
@@ -100,7 +79,7 @@
 
     <!-- Фильтры и поиск -->
     <v-card class="filters-card">
-      <v-card-text>
+      <v-card-text class="pb-2">
         <v-row align="center">
           <v-col cols="12" md="4">
             <v-text-field
@@ -135,7 +114,7 @@
               @update:model-value="() => loadAccounts()"
             />
           </v-col>
-          <v-col cols="12" md="3">
+          <v-col cols="12" md="2">
             <v-select
               v-model="selectedParent"
               label="Родительский аккаунт"
@@ -146,16 +125,23 @@
               @update:model-value="onParentChange"
             />
           </v-col>
-          <v-col cols="12" md="2">
+          <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
             <v-btn
-              color="primary"
+              :icon="isAutoRefreshEnabled ? 'mdi-refresh' : 'mdi-refresh-off'"
+              :color="isAutoRefreshEnabled ? 'success' : 'default'"
               variant="outlined"
+              size="small"
+              @click="toggleAutoRefresh"
+              :title="isAutoRefreshEnabled ? 'Отключить автообновление' : 'Включить автообновление'"
+              :class="{ 'rotating': isLoading || isBackgroundLoading }"
+            />
+            <v-btn
+              icon="mdi-filter-remove"
+              variant="outlined"
+              size="small"
               @click="resetFilters"
-              block
-            >
-              <i class="mdi mdi-filter-remove"></i>
-              Сбросить
-            </v-btn>
+              title="Сбросить фильтры"
+            />
           </v-col>
         </v-row>
       </v-card-text>
@@ -163,21 +149,6 @@
 
     <!-- Таблица учетных записей -->
     <v-card class="accounts-table-card">
-      <v-card-title class="table-header">
-        <span>Список учетных записей</span>
-        <v-spacer />
-        <!-- Кнопка для загрузки всех записей с сортировкой -->
-        <v-btn
-          color="info"
-          variant="outlined"
-          size="small"
-          @click="loadAllWithSort"
-          class="mr-2"
-        >
-          <i class="mdi mdi-sort"></i>
-          Сортировать все
-        </v-btn>
-      </v-card-title>
 
       <v-data-table
         :headers="headers"
@@ -220,6 +191,15 @@
                 <span class="legend-color users-status"></span>
                 <span class="legend-text">Макс. пользователей: {{ item.maxUsers }}</span>
               </div>
+              <div v-if="item.adminFullname" class="legend-item">
+                <span :class="['legend-color', item.adminIsActive ? 'admin-status-active' : 'admin-status-inactive']"></span>
+                <span class="legend-text">
+                  Администратор: {{ item.adminFullname }} 
+                  <span :class="item.adminIsActive ? 'text-success' : 'text-error'">
+                    ({{ item.adminIsActive ? 'Активен' : 'Неактивен' }})
+                  </span>
+                </span>
+              </div>
               <div class="legend-description">
                 📊 ID: {{ item.id }} | Создан: {{ formatDateShort(item.creationDatetime) }}
               </div>
@@ -257,87 +237,8 @@
           </v-tooltip>
         </template>
 
-        <!-- Колонка "Администратор" -->
-        <template #item.adminFullname="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span 
-                class="admin-minimal" 
-                :class="{ 'admin-active': item.adminIsActive, 'admin-inactive': !item.adminIsActive }"
-                v-bind="props"
-              >
-                {{ item.adminFullname }}
-              </span>
-            </template>
-            <div class="admin-legend">
-              <div class="legend-title">👤 Статус администратора</div>
-              <div class="legend-item">
-                <span :class="['legend-color', item.adminIsActive ? 'admin-status-active' : 'admin-status-inactive']"></span>
-                <span class="legend-text">
-                  {{ item.adminIsActive ? 'Активен' : 'Неактивен' }} - {{ item.adminFullname }}
-                </span>
-              </div>
-              <div class="legend-description">
-                {{ item.adminIsActive 
-                  ? '✅ Администратор имеет доступ к системе и может управлять аккаунтом' 
-                  : '❌ Администратор заблокирован или отключен от системы' 
-                }}
-              </div>
-            </div>
-          </v-tooltip>
-        </template>
 
-        <!-- Колонка "Страна" -->
-        <template #item.country="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span class="country-minimal" v-bind="props">
-                {{ item.country || 'Не указана' }}
-              </span>
-            </template>
-            <div class="country-legend">
-              <div class="legend-title">🌍 Страна</div>
-              <div class="legend-item">
-                <span class="legend-color country-status"></span>
-                <span class="legend-text">{{ item.country || 'Не указана' }}</span>
-              </div>
-              <div v-if="item.city" class="legend-item">
-                <span class="legend-color city-status"></span>
-                <span class="legend-text">Город: {{ item.city }}</span>
-              </div>
-              <div v-if="item.address" class="legend-item">
-                <span class="legend-color address-status"></span>
-                <span class="legend-text">Адрес: {{ item.address }}</span>
-              </div>
-            </div>
-          </v-tooltip>
-        </template>
 
-        <!-- Колонка "Язык" -->
-        <template #item.language="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span class="language-minimal" v-bind="props">
-                {{ item.language?.toUpperCase() || 'RU' }}
-              </span>
-            </template>
-            <div class="language-legend">
-              <div class="legend-title">🌐 Локализация</div>
-              <div class="legend-item">
-                <span class="legend-color language-status"></span>
-                <span class="legend-text">Язык: {{ item.language?.toUpperCase() || 'RU' }}</span>
-              </div>
-              <div v-if="item.timezone" class="legend-item">
-                <span class="legend-color timezone-status"></span>
-                <span class="legend-text">Часовой пояс: {{ item.timezone }}</span>
-              </div>
-              <div v-if="item.currency" class="legend-item">
-                <span class="legend-color currency-status"></span>
-                <span class="legend-text">Валюта: {{ item.currency }}</span>
-              </div>
-            </div>
-          </v-tooltip>
-        </template>
 
         <!-- Колонка "Объекты" -->
         <template #item.objectsTotal="{ item }">
@@ -636,6 +537,10 @@
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { debounce } from 'lodash-es';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
+import { useAuth } from '@/context/auth';
+
+// Получаем контекст авторизации
+const auth = useAuth();
 
 // Реактивные данные
 const accounts = ref<Account[]>([]);
@@ -643,7 +548,7 @@ const isLoading = ref(false);
 const isBackgroundLoading = ref(false); // Для фонового обновления
 const searchQuery = ref('');
 const currentPage = ref(1);
-const itemsPerPage = ref(50);
+const itemsPerPage = ref(10);
 const totalItems = ref(332); // Принудительно устанавливаем известное значение
 const lastUpdateTime = ref<Date | null>(null);
 
@@ -671,17 +576,29 @@ const filters = ref<AccountsFilters>({
   is_active: undefined,
 });
 
-// Фильтр по родительскому аккаунту
-const selectedParent = ref<string>('GLOMOS'); // По умолчанию текущий партнер
-const parentAccountOptions = ref([
-  { title: 'Все родители', value: '' },
-  { title: 'GLOMOS', value: 'GLOMOS' },
-  { title: 'Южаков Константин Николаевич ИП', value: 'Южаков Константин Николаевич ИП' },
-  { title: 'ТРАНСНАВИ ООО', value: 'ТРАНСНАВИ ООО' },
-  { title: 'Италон ООО', value: 'Италон ООО' },
-  { title: 'Телетранс Запад ООО', value: 'Телетранс Запад ООО' },
-  { title: 'Емельянов Роман Юрьевич ИП', value: 'Емельянов Роман Юрьевич ИП' },
-]);
+// Фильтр по родительскому аккаунту - автоматически подставляем аккаунт текущего пользователя
+const selectedParent = ref<string>(auth.user.value?.accountName || '');
+// Создаем список родительских аккаунтов с учетом текущего пользователя
+const createParentAccountOptions = () => {
+  const currentUserAccount = auth.user.value?.accountName;
+  const baseOptions = [
+    { title: 'Все родители', value: '' },
+    { title: 'Южаков Константин Николаевич ИП', value: 'Южаков Константин Николаевич ИП' },
+    { title: 'ТРАНСНАВИ ООО', value: 'ТРАНСНАВИ ООО' },
+    { title: 'Италон ООО', value: 'Италон ООО' },
+    { title: 'Телетранс Запад ООО', value: 'Телетранс Запад ООО' },
+    { title: 'Емельянов Роман Юрьевич ИП', value: 'Емельянов Роман Юрьевич ИП' },
+  ];
+
+  // Если аккаунт текущего пользователя не в списке, добавляем его
+  if (currentUserAccount && !baseOptions.some(option => option.value === currentUserAccount)) {
+    baseOptions.splice(1, 0, { title: currentUserAccount, value: currentUserAccount });
+  }
+
+  return baseOptions;
+};
+
+const parentAccountOptions = ref(createParentAccountOptions());
 
 // Диалоги
 const viewDialog = ref(false);
@@ -712,15 +629,12 @@ const itemsPerPageOptions = [
 
 // Заголовки таблицы
 const headers = [
-  { title: 'Компания', key: 'name', sortable: true, width: '20%' },
-  { title: 'Тип', key: 'type', sortable: true, width: '8%' },
-  { title: 'Администратор', key: 'adminFullname', sortable: true, width: '15%' },
-  { title: 'Страна', key: 'country', sortable: true, width: '10%' },
-  { title: 'Язык', key: 'language', sortable: true, width: '8%' },
-  { title: 'Объекты', key: 'objectsTotal', sortable: true, width: '8%' },
-  { title: 'Статус', key: 'isActive', sortable: true, width: '8%' },
-  { title: 'Создан', key: 'creationDatetime', sortable: true, width: '10%' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '13%' },
+  { title: 'Компания', key: 'name', sortable: true, width: '35%' },
+  { title: 'Тип', key: 'type', sortable: true, width: '12%' },
+  { title: 'Объекты', key: 'objectsTotal', sortable: true, width: '12%' },
+  { title: 'Статус', key: 'isActive', sortable: true, width: '12%' },
+  { title: 'Создан', key: 'creationDatetime', sortable: true, width: '15%' },
+  { title: 'Действия', key: 'actions', sortable: false, width: '14%' },
 ];
 
 // Вычисляемые свойства для кастомной пагинации
@@ -956,7 +870,7 @@ const resetFilters = () => {
     type: undefined,
     is_active: undefined,
   };
-  selectedParent.value = 'GLOMOS'; // Сброс на GLOMOS
+  selectedParent.value = auth.user.value?.accountName || ''; // Сброс на аккаунт текущего пользователя
   currentPage.value = 1;
   loadAccounts();
 };
@@ -1093,24 +1007,6 @@ const toggleAccountStatus = async (account: Account) => {
   }
 };
 
-const loadAllWithSort = async () => {
-  console.log('🔄 Загрузка всех записей с server-side сортировкой...');
-  
-  // Устанавливаем параметры для загрузки всех записей
-  itemsPerPage.value = 332;
-  currentPage.value = 1;
-  
-  console.log('📊 Параметры сортировки:', {
-    sortBy: sortBy.value,
-    sortOrder: sortOrder.value,
-    ordering: sortOrder.value === 'desc' ? `-${sortBy.value}` : sortBy.value
-  });
-  
-  // Загружаем все записи с сортировкой
-  await loadAccounts();
-  
-  console.log('✅ Все записи загружены и отсортированы на сервере');
-};
 
 // Функции для быстрого перехода
 const goToFirstPage = () => {
@@ -1283,6 +1179,10 @@ onUnmounted(() => {
   margin-bottom: 24px;
 }
 
+.compact-header {
+  margin-bottom: 16px;
+}
+
 .header-content {
   display: flex;
   justify-content: space-between;
@@ -1294,8 +1194,8 @@ onUnmounted(() => {
 .page-title {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 2rem;
+  gap: 8px;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #1976d2;
   margin: 0;
@@ -1308,7 +1208,7 @@ onUnmounted(() => {
 }
 
 .stats-section {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
@@ -1364,8 +1264,28 @@ onUnmounted(() => {
 }
 
 .filters-card {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
+
+.filters-card .v-card-text {
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+
+/* Стили для группы фильтра с кнопкой сброса */
+.d-flex.align-center.gap-2 {
+  gap: 8px;
+}
+
+.flex-grow-1 {
+  flex-grow: 1;
+}
+
+.flex-shrink-0 {
+  flex-shrink: 0;
+}
+
 
 .accounts-table-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -1476,10 +1396,6 @@ onUnmounted(() => {
   color: #ff9800;
 }
 
-.table-header {
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
-}
 
 /* Компактное отображение названия компании */
 .company-name-compact {
@@ -1580,64 +1496,8 @@ onUnmounted(() => {
   background-color: rgba(25, 118, 210, 0.1);
 }
 
-/* Минималистичное отображение администратора */
-.admin-minimal {
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
-  padding: 2px 4px;
-  border-radius: 4px;
-}
 
-.admin-minimal.admin-active {
-  color: #2e7d32;
-}
 
-.admin-minimal.admin-active:hover {
-  background-color: rgba(46, 125, 50, 0.1);
-}
-
-.admin-minimal.admin-inactive {
-  color: #d32f2f;
-}
-
-.admin-minimal.admin-inactive:hover {
-  background-color: rgba(211, 47, 47, 0.1);
-}
-
-/* Минималистичное отображение страны */
-.country-minimal {
-  font-weight: 500;
-  font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: #5e35b1;
-}
-
-.country-minimal:hover {
-  background-color: rgba(94, 53, 177, 0.1);
-}
-
-/* Минималистичное отображение языка */
-.language-minimal {
-  font-weight: 600;
-  font-size: 0.75rem;
-  cursor: help;
-  transition: all 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 12px;
-  background-color: rgba(121, 85, 72, 0.1);
-  color: #795548;
-  border: 1px solid rgba(121, 85, 72, 0.2);
-}
-
-.language-minimal:hover {
-  background-color: rgba(121, 85, 72, 0.2);
-  transform: scale(1.05);
-}
 
 /* Отображение объектов */
 .no-objects {
@@ -1778,21 +1638,6 @@ onUnmounted(() => {
   opacity: 1;
 }
 
-/* Компактное отображение администратора с цветовой индикацией */
-.admin-name-compact {
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Компактное отображение статуса аккаунта */
 .status-compact {
@@ -1836,29 +1681,6 @@ onUnmounted(() => {
   box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
 }
 
-.admin-name-compact.admin-active {
-  color: #1b5e20;
-  background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
-  border-color: #4caf50;
-}
-
-.admin-name-compact.admin-active:hover {
-  background: linear-gradient(135deg, #c8e6c9, #a5d6a7);
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-}
-
-.admin-name-compact.admin-inactive {
-  color: #c62828;
-  background: linear-gradient(135deg, #ffebee, #ffcdd2);
-  border-color: #f44336;
-}
-
-.admin-name-compact.admin-inactive:hover {
-  background: linear-gradient(135deg, #ffcdd2, #ef9a9a);
-  transform: scale(1.02);
-  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
-}
 
 /* Базовые стили для всех легенд */
 .legend-base {
@@ -1874,11 +1696,6 @@ onUnmounted(() => {
   @extend .legend-base;
 }
 
-/* Стили для легенды администратора */
-.admin-legend {
-  @extend .legend-base;
-  min-width: 320px;
-}
 
 /* Стили для легенды статуса */
 .status-legend {
@@ -1886,30 +1703,6 @@ onUnmounted(() => {
   min-width: 350px;
 }
 
-.admin-legend .legend-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: #1976d2;
-  text-align: center;
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 8px;
-}
-
-.admin-legend .legend-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  padding: 4px 0;
-}
-
-.admin-legend .legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-right: 8px;
-  flex-shrink: 0;
-}
 
 .legend-color.admin-status-active {
   background: #4caf50;
@@ -1943,11 +1736,6 @@ onUnmounted(() => {
   box-shadow: 0 0 0 2px rgba(244, 67, 54, 0.2);
 }
 
-.admin-legend .legend-text {
-  font-size: 0.875rem;
-  color: #333;
-  font-weight: 500;
-}
 
 .legend-description {
   margin-top: 8px;
