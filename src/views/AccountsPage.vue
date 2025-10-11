@@ -78,7 +78,15 @@
     </div>
 
     <!-- Фильтры и поиск -->
-    <v-card class="filters-card">
+    <v-card class="filters-card" :class="{ 'filters-card-active': hasAnyActiveFilters }">
+      <v-card-title v-if="hasAnyActiveFilters" class="filters-title-active">
+        <v-icon color="primary" class="mr-2">mdi-filter</v-icon>
+        Активные фильтры ({{ getActiveFiltersCount() }})
+        <v-spacer />
+        <v-chip size="small" color="primary" variant="flat">
+          {{ getActiveFiltersCount() }} из 4
+        </v-chip>
+      </v-card-title>
       <v-card-text class="pb-2">
         <v-row align="center">
           <v-col cols="12" md="4">
@@ -88,6 +96,8 @@
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
+              :color="isSearchActive ? 'primary' : undefined"
+              :class="{ 'filter-active': isSearchActive }"
               @input="debouncedSearch"
             />
           </v-col>
@@ -98,6 +108,8 @@
               :items="accountTypes"
               variant="outlined"
               density="compact"
+              :color="isTypeFilterActive ? 'primary' : undefined"
+              :class="{ 'filter-active': isTypeFilterActive }"
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра типа
                 allAccountsCache.value = [];
@@ -113,6 +125,8 @@
               :items="statusOptions"
               variant="outlined"
               density="compact"
+              :color="isStatusFilterActive ? 'primary' : undefined"
+              :class="{ 'filter-active': isStatusFilterActive }"
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра статуса
                 allAccountsCache.value = [];
@@ -128,6 +142,8 @@
               :items="parentAccountOptions"
               variant="outlined"
               density="compact"
+              :color="isParentFilterActive ? 'primary' : undefined"
+              :class="{ 'filter-active': isParentFilterActive }"
               @update:model-value="onParentChange"
             />
           </v-col>
@@ -142,12 +158,22 @@
               :class="{ 'rotating': isLoading || isBackgroundLoading }"
             />
             <v-btn
-              icon="mdi-filter-remove"
-              variant="outlined"
+              :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
+              :color="hasAnyActiveFilters ? 'primary' : 'default'"
               size="small"
               @click="resetFilters"
-              title="Сбросить фильтры"
-            />
+              :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
+              :class="{ 'filter-clear-active': hasAnyActiveFilters }"
+            >
+              <v-icon>mdi-filter-remove</v-icon>
+              <v-badge
+                v-if="hasAnyActiveFilters"
+                :content="getActiveFiltersCount()"
+                color="error"
+                offset-x="8"
+                offset-y="8"
+              />
+            </v-btn>
           </v-col>
         </v-row>
       </v-card-text>
@@ -642,6 +668,28 @@ const headers = [
   { title: 'Действия', key: 'actions', sortable: false, width: '14%' },
 ];
 
+// Вычисляемые свойства для определения активности фильтров
+const isSearchActive = computed(() => {
+  return searchQuery.value && searchQuery.value.trim() !== '';
+});
+
+const isTypeFilterActive = computed(() => {
+  return filters.value.type !== undefined;
+});
+
+const isStatusFilterActive = computed(() => {
+  return filters.value.is_active !== undefined;
+});
+
+const isParentFilterActive = computed(() => {
+  return selectedParent.value && selectedParent.value.trim() !== '';
+});
+
+const hasAnyActiveFilters = computed(() => {
+  return isSearchActive.value || isTypeFilterActive.value || 
+         isStatusFilterActive.value || isParentFilterActive.value;
+});
+
 // Вычисляемые свойства для кастомной пагинации
 const totalPages = computed(() => {
   if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
@@ -660,6 +708,16 @@ const getDisplayRange = () => {
   const start = (currentPage.value - 1) * itemsPerPage.value + 1;
   const end = Math.min(currentPage.value * itemsPerPage.value, totalItems.value);
   return `${start}-${end}`;
+};
+
+// Функция для подсчета активных фильтров
+const getActiveFiltersCount = () => {
+  let count = 0;
+  if (isSearchActive.value) count++;
+  if (isTypeFilterActive.value) count++;
+  if (isStatusFilterActive.value) count++;
+  if (isParentFilterActive.value) count++;
+  return count;
 };
 
 // Методы
@@ -1368,6 +1426,21 @@ onUnmounted(() => {
 
 .filters-card {
   margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.filters-card-active {
+  border: 2px solid #1976d2 !important;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15) !important;
+  background: linear-gradient(135deg, #fafafa, #f5f5f5);
+}
+
+.filters-title-active {
+  background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+  color: #1976d2;
+  font-weight: 600;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
 }
 
 .filters-card .v-card-text {
@@ -2132,6 +2205,64 @@ onUnmounted(() => {
 
 .rotating {
   animation: rotate 1s linear infinite;
+}
+
+/* Стили для подсветки активных фильтров */
+.filter-active {
+  position: relative;
+}
+
+.filter-active:before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #1976d2, #42a5f5);
+  border-radius: 6px;
+  z-index: -1;
+  opacity: 0.1;
+  transition: opacity 0.3s ease;
+}
+
+.filter-active:hover:before {
+  opacity: 0.15;
+}
+
+/* Стили для активной кнопки очистки фильтров */
+.filter-clear-active {
+  position: relative;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+  animation: pulse-filter 2s infinite;
+}
+
+@keyframes pulse-filter {
+  0% {
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.5);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+  }
+}
+
+/* Дополнительная подсветка для активных полей */
+.filter-active :deep(.v-field) {
+  border-color: #1976d2 !important;
+  border-width: 2px !important;
+}
+
+.filter-active :deep(.v-field--focused) {
+  border-color: #1976d2 !important;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.2) !important;
+}
+
+.filter-active :deep(.v-label) {
+  color: #1976d2 !important;
+  font-weight: 600 !important;
 }
 
 @media (max-width: 768px) {
