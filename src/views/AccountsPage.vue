@@ -88,7 +88,6 @@
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
-              clearable
               @input="debouncedSearch"
             />
           </v-col>
@@ -99,7 +98,6 @@
               :items="accountTypes"
               variant="outlined"
               density="compact"
-              clearable
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра типа
                 allAccountsCache.value = [];
@@ -115,7 +113,6 @@
               :items="statusOptions"
               variant="outlined"
               density="compact"
-              clearable
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра статуса
                 allAccountsCache.value = [];
@@ -131,12 +128,7 @@
               :items="parentAccountOptions"
               variant="outlined"
               density="compact"
-              clearable
               @update:model-value="onParentChange"
-              @click:clear="() => {
-                selectedParent.value = '';
-                onParentChange('');
-              }"
             />
           </v-col>
           <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
@@ -548,7 +540,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { debounce } from 'lodash-es';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import { useAuth } from '@/context/auth';
@@ -982,12 +974,6 @@ const resetFilters = () => {
 };
 
 const onParentChange = (parent: string) => {
-  // Если значение пустое или null, устанавливаем пустую строку (что означает "Все родители")
-  if (!parent) {
-    selectedParent.value = '';
-    parent = '';
-  }
-  
   console.log('🔄 Изменение родительского аккаунта:', parent || 'Все родители');
   currentPage.value = 1;
   // Очищаем кэш при изменении родительского аккаунта
@@ -1267,13 +1253,7 @@ const getYearsWord = (years: number) => {
   return 'лет';
 };
 
-// Watcher для selectedParent - автоматически устанавливает "Все родители" при очистке
-watch(selectedParent, (newValue) => {
-  // Если значение стало null или undefined, устанавливаем пустую строку
-  if (newValue === null || newValue === undefined) {
-    selectedParent.value = '';
-  }
-});
+// Watcher больше не нужен, так как индивидуальная очистка фильтров отключена
 
 // Lifecycle hooks
 onMounted(() => {
