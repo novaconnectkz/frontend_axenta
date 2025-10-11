@@ -2574,7 +2574,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
 }
-}
 
 /* Статистика */
 .stats-section {

@@ -162,14 +162,34 @@
       </v-row>
     </v-card-text>
   </v-card>
+
+  <!-- Snackbar для уведомлений -->
+  <v-snackbar
+    v-model="snackbar.show"
+    :color="snackbar.color"
+    :timeout="snackbar.timeout"
+    location="top right"
+  >
+    {{ snackbar.text }}
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
-import { useSnackbar } from '@/composables/useSnackbar';
+// import { useSnackbar } from '@/composables/useSnackbar'; // Removed - using local snackbar
 
-const { showSnackbar } = useSnackbar();
+// Локальный snackbar
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 3000
+});
+
+const showSnackbar = (text: string, color = 'success', timeout = 3000) => {
+  snackbar.value = { show: true, text, color, timeout };
+};
 const autoRefresh = useAxentaAutoRefresh();
 
 // Локальные состояния
