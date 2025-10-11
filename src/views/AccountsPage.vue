@@ -100,7 +100,12 @@
               variant="outlined"
               density="compact"
               clearable
-              @update:model-value="() => loadAccounts()"
+              @update:model-value="() => {
+                // Очищаем кэш при изменении фильтра типа
+                allAccountsCache.value = [];
+                cacheTimestamp.value = null;
+                loadAccounts();
+              }"
             />
           </v-col>
           <v-col cols="12" md="2">
@@ -111,7 +116,12 @@
               variant="outlined"
               density="compact"
               clearable
-              @update:model-value="() => loadAccounts()"
+              @update:model-value="() => {
+                // Очищаем кэш при изменении фильтра статуса
+                allAccountsCache.value = [];
+                cacheTimestamp.value = null;
+                loadAccounts();
+              }"
             />
           </v-col>
           <v-col cols="12" md="2">
@@ -123,6 +133,10 @@
               density="compact"
               clearable
               @update:model-value="onParentChange"
+              @click:clear="() => {
+                selectedParent.value = '';
+                onParentChange('');
+              }"
             />
           </v-col>
           <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
@@ -534,7 +548,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { debounce } from 'lodash-es';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import { useAuth } from '@/context/auth';
@@ -551,6 +565,11 @@ const currentPage = ref(1);
 const itemsPerPage = ref(10);
 const totalItems = ref(332); // Принудительно устанавливаем известное значение
 const lastUpdateTime = ref<Date | null>(null);
+
+// Кэш для всех записей (для клиентской фильтрации)
+const allAccountsCache = ref<Account[]>([]);
+const cacheTimestamp = ref<Date | null>(null);
+const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
 
 // Параметры сортировки
 const sortBy = ref<string>('name');
@@ -576,11 +595,10 @@ const filters = ref<AccountsFilters>({
   is_active: undefined,
 });
 
-// Фильтр по родительскому аккаунту - автоматически подставляем аккаунт текущего пользователя
-const selectedParent = ref<string>(auth.user.value?.accountName || '');
-// Создаем список родительских аккаунтов с учетом текущего пользователя
+// Фильтр по родительскому аккаунту - по умолчанию "Все родители"
+const selectedParent = ref<string>('');
+// Создаем список родительских аккаунтов
 const createParentAccountOptions = () => {
-  const currentUserAccount = auth.user.value?.accountName;
   const baseOptions = [
     { title: 'Все родители', value: '' },
     { title: 'Южаков Константин Николаевич ИП', value: 'Южаков Константин Николаевич ИП' },
@@ -589,11 +607,6 @@ const createParentAccountOptions = () => {
     { title: 'Телетранс Запад ООО', value: 'Телетранс Запад ООО' },
     { title: 'Емельянов Роман Юрьевич ИП', value: 'Емельянов Роман Юрьевич ИП' },
   ];
-
-  // Если аккаунт текущего пользователя не в списке, добавляем его
-  if (currentUserAccount && !baseOptions.some(option => option.value === currentUserAccount)) {
-    baseOptions.splice(1, 0, { title: currentUserAccount, value: currentUserAccount });
-  }
 
   return baseOptions;
 };
@@ -669,7 +682,7 @@ const loadAccounts = async (isBackground = false) => {
     
     // Формируем поисковый запрос с учетом родителя
     let searchParam = searchQuery.value || '';
-    if (selectedParent.value && selectedParent.value !== '') {
+    if (selectedParent.value && selectedParent.value.trim() !== '') {
       // Добавляем фильтр по родительскому аккаунту в поиск
       const parentFilter = selectedParent.value;
       searchParam = searchParam ? `${searchParam} ${parentFilter}` : parentFilter;
@@ -686,6 +699,91 @@ const loadAccounts = async (isBackground = false) => {
     console.log('🔍 Загрузка учетных записей с параметрами:', requestParams);
     const response = await accountsService.getAccounts(requestParams);
     console.log('✅ Получен ответ:', { count: response.count, results: response.results.length });
+
+    // Проверяем, нужна ли клиентская фильтрация (для любых фильтров)
+    const hasActiveFilters = filters.value.is_active !== undefined || 
+                             filters.value.type || 
+                             (selectedParent.value && selectedParent.value.trim() !== '') ||
+                             (searchQuery.value && searchQuery.value.trim() !== '');
+    
+    if (hasActiveFilters) {
+      console.log('🔧 Обнаружены активные фильтры, загружаем все записи для глобальной фильтрации');
+      
+      // Загружаем все записи без фильтрации для клиентской обработки
+      const allRecordsParams = {
+        page: 1,
+        per_page: 1000, // Загружаем большое количество записей
+        ordering: requestParams.ordering
+        // Убираем все фильтры, чтобы получить все записи
+      };
+      
+      // Проверяем кэш
+      const now = new Date();
+      const isCacheValid = cacheTimestamp.value && 
+        allAccountsCache.value.length > 0 && 
+        (now.getTime() - cacheTimestamp.value.getTime()) < CACHE_DURATION;
+      
+      let allRecordsResponse;
+      if (isCacheValid) {
+        console.log(`🔧 Используем кэшированные данные (${allAccountsCache.value.length} записей)`);
+        allRecordsResponse = { results: allAccountsCache.value };
+      } else {
+        console.log('🔧 Загружаем все записи для фильтрации...');
+        allRecordsResponse = await accountsService.getAccounts(allRecordsParams);
+        
+        // Сохраняем в кэш
+        allAccountsCache.value = allRecordsResponse.results;
+        cacheTimestamp.value = now;
+        console.log(`🔧 Загружено и кэшировано ${allRecordsResponse.results.length} записей`);
+      }
+      
+      // Применяем клиентскую фильтрацию ко всем записям
+      let allFilteredResults = allRecordsResponse.results;
+      
+      // Фильтр по статусу
+      if (filters.value.is_active !== undefined) {
+        allFilteredResults = allFilteredResults.filter(account => 
+          account.isActive === filters.value.is_active
+        );
+      }
+      
+      // Фильтр по типу аккаунта
+      if (filters.value.type) {
+        allFilteredResults = allFilteredResults.filter(account => 
+          account.type === filters.value.type
+        );
+      }
+      
+      // Фильтр по поиску (если есть) - дополнительная фильтрация поверх серверного поиска
+      if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        allFilteredResults = allFilteredResults.filter(account =>
+          account.name.toLowerCase().includes(query) ||
+          account.adminFullname?.toLowerCase().includes(query) ||
+          account.parentAccountName?.toLowerCase().includes(query)
+        );
+      }
+      
+      // Фильтр по родительскому аккаунту (пустое значение = "Все родители", не фильтруем)
+      if (selectedParent.value && selectedParent.value.trim() !== '') {
+        allFilteredResults = allFilteredResults.filter(account =>
+          account.parentAccountName?.includes(selectedParent.value)
+        );
+      }
+      
+      console.log(`🔧 После фильтрации: ${allFilteredResults.length} записей`);
+      
+      // Применяем пагинацию к отфильтрованным результатам
+      const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+      const endIndex = startIndex + itemsPerPage.value;
+      const paginatedResults = allFilteredResults.slice(startIndex, endIndex);
+      
+      // Обновляем ответ
+      response.results = paginatedResults;
+      response.count = allFilteredResults.length;
+      
+      console.log(`🔧 Показано ${paginatedResults.length} записей из ${allFilteredResults.length} отфильтрованных`);
+    }
 
 
     // Обновляем totalItems только если получили валидное значение
@@ -861,6 +959,9 @@ const updateStatsSmooth = async (newStats: typeof stats.value): Promise<void> =>
 
 const debouncedSearch = debounce(() => {
   currentPage.value = 1;
+  // Очищаем кэш при изменении поиска
+  allAccountsCache.value = [];
+  cacheTimestamp.value = null;
   loadAccounts();
 }, 500);
 
@@ -870,14 +971,28 @@ const resetFilters = () => {
     type: undefined,
     is_active: undefined,
   };
-  selectedParent.value = auth.user.value?.accountName || ''; // Сброс на аккаунт текущего пользователя
+  selectedParent.value = ''; // Сброс на "Все родители"
   currentPage.value = 1;
+  
+  // Очищаем кэш при сбросе фильтров
+  allAccountsCache.value = [];
+  cacheTimestamp.value = null;
+  
   loadAccounts();
 };
 
 const onParentChange = (parent: string) => {
-  console.log('🔄 Изменение родительского аккаунта:', parent);
+  // Если значение пустое или null, устанавливаем пустую строку (что означает "Все родители")
+  if (!parent) {
+    selectedParent.value = '';
+    parent = '';
+  }
+  
+  console.log('🔄 Изменение родительского аккаунта:', parent || 'Все родители');
   currentPage.value = 1;
+  // Очищаем кэш при изменении родительского аккаунта
+  allAccountsCache.value = [];
+  cacheTimestamp.value = null;
   loadAccounts();
 };
 
@@ -1151,6 +1266,14 @@ const getYearsWord = (years: number) => {
   if (lastDigit >= 2 && lastDigit <= 4) return 'года';
   return 'лет';
 };
+
+// Watcher для selectedParent - автоматически устанавливает "Все родители" при очистке
+watch(selectedParent, (newValue) => {
+  // Если значение стало null или undefined, устанавливаем пустую строку
+  if (newValue === null || newValue === undefined) {
+    selectedParent.value = '';
+  }
+});
 
 // Lifecycle hooks
 onMounted(() => {

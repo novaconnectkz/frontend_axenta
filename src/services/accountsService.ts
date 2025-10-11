@@ -191,6 +191,22 @@ class AccountsService {
         ...filters,
       };
 
+      // Удаляем undefined значения, чтобы они не передавались как строки
+      Object.keys(params).forEach(key => {
+        if (params[key] === undefined) {
+          delete params[key];
+        }
+      });
+
+      // Возможно, API Axenta Cloud использует другое название параметра
+      // Попробуем разные варианты для фильтрации по статусу
+      if (params.is_active !== undefined) {
+        // Дублируем параметр под разными именами для совместимости
+        params.active = params.is_active;
+        params.status = params.is_active ? 'active' : 'inactive';
+        console.log("📡 Фильтрация по статусу:", params.is_active ? 'Активные' : 'Заблокированные');
+      }
+
       console.log("📡 Запрос учетных записей:", params);
 
       const response = await this.apiClient.get<any>(
@@ -204,6 +220,16 @@ class AccountsService {
         next: response.data.next,
         previous: response.data.previous,
       });
+
+      // Логируем статусы первых нескольких записей для проверки фильтрации
+      if (response.data.results && response.data.results.length > 0) {
+        const statusSample = response.data.results.slice(0, 5).map(account => ({
+          name: account.name,
+          isActive: account.isActive || account.is_active,
+          status: account.status
+        }));
+        console.log("📊 Статусы первых записей:", statusSample);
+      }
 
       // Работаем напрямую с данными от Axenta Cloud API
       const accounts = response.data.results || [];
