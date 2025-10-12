@@ -11,49 +11,17 @@
       </div>
 
       <div class="page-actions">
-        <AppleButton v-if="!usersService.isMockDataEnabled()" variant="secondary" prepend-icon="mdi-play-circle"
-          @click="enableDemoMode" color="success">
-          Демо режим
-        </AppleButton>
-        <AppleButton v-else variant="secondary" prepend-icon="mdi-stop-circle" @click="disableDemoMode" color="warning">
-          Выйти из демо
-        </AppleButton>
-        <AppleButton variant="secondary" prepend-icon="mdi-shield-account"
-          @click="showRolesManagement = !showRolesManagement">
-          {{ showRolesManagement ? 'Скрыть роли' : 'Управление ролями' }}
-        </AppleButton>
-        <AppleButton variant="secondary" prepend-icon="mdi-account-clock" @click="openInactiveUsersDialog">
-          Деактивация
-        </AppleButton>
-        <AppleButton variant="secondary" prepend-icon="mdi-export" @click="exportUsers" :loading="exporting"
-          data-testid="export-button">
-          Экспорт
-        </AppleButton>
         <AppleButton prepend-icon="mdi-plus" @click="openCreateDialog" data-testid="create-button">
           Создать пользователя
         </AppleButton>
       </div>
     </div>
 
-    <!-- Уведомление о демо режиме -->
-    <v-alert v-if="usersService.isMockDataEnabled()" type="info" variant="tonal" prominent border="start"
-      class="demo-alert">
-      <template #prepend>
-        <v-icon icon="mdi-play-circle" size="24" />
-      </template>
-      <div class="alert-content">
-        <div class="alert-title">Демонстрационный режим</div>
-        <div class="alert-text">
-          Отображаются демо данные. Это позволяет увидеть, как будет выглядеть интерфейс управления пользователями.
-          Все изменения в демо режиме не сохраняются.
-        </div>
-      </div>
-    </v-alert>
 
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
-        <AppleCard v-for="stat in stats" :key="stat.key" :title="stat.value.toString()" :subtitle="stat.label"
+        <AppleCard v-for="stat in stats" :key="stat.key" :title="(stat.value || 0).toString()" :subtitle="stat.label"
           :icon="stat.icon" :icon-color="stat.color" variant="outlined" class="stat-card" />
       </div>
     </div>
@@ -67,21 +35,9 @@
 
     <!-- Фильтры -->
     <AppleCard class="filters-card" variant="outlined">
-      <template #header>
-        <div class="filters-header">
-          <v-icon icon="mdi-filter" class="mr-2" />
-          Фильтры
-          <v-spacer />
-          <AppleButton variant="text" size="small" @click="clearFilters" :disabled="!hasActiveFilters"
-            data-testid="clear-filters">
-            Очистить
-          </AppleButton>
-        </div>
-      </template>
-
       <div class="filters-content">
-        <v-row>
-          <v-col cols="12" md="4">
+        <div class="filters-row">
+          <div class="filter-item filter-search">
             <AppleInput 
               v-model="filters.search" 
               placeholder="Поиск по имени, email, логину..."
@@ -111,41 +67,82 @@
                 </v-tooltip>
               </template>
             </AppleInput>
-            
-            <!-- Чипы с найденными пользователями -->
-            <div v-if="isMultipleUserSearch && userSearchTermsArray.length > 0" class="search-chips mt-2">
-              <v-chip
-                v-for="(term, index) in userSearchTermsArray"
-                :key="index"
-                size="small"
-                color="primary"
-                variant="outlined"
-                class="mr-1 mb-1"
-                closable
-                @click:close="removeUserSearchTerm(index)"
-              >
-                {{ term }}
-              </v-chip>
-            </div>
-          </v-col>
+          </div>
 
-          <v-col cols="12" md="3">
-            <v-select v-model="filters.role" :items="roleOptions" label="Роль" clearable variant="outlined"
-              density="comfortable" :loading="loadingRoles" />
-          </v-col>
+          <div class="filter-item">
+            <v-select 
+              v-model="filters.role" 
+              :items="roleOptions" 
+              label="Роль" 
+              clearable 
+              variant="outlined"
+              density="comfortable" 
+              :loading="loadingRoles" 
+            />
+          </div>
 
-          <v-col cols="12" md="3">
-            <v-select v-model="filters.user_type" :items="userTypeOptions" label="Тип пользователя" clearable
-              variant="outlined" density="comfortable" />
-          </v-col>
+          <div class="filter-item">
+            <v-select 
+              v-model="filters.user_type" 
+              :items="userTypeOptions" 
+              label="Тип пользователя" 
+              clearable
+              variant="outlined" 
+              density="comfortable" 
+            />
+          </div>
 
-          <v-col cols="12" md="2">
-            <v-select v-model="filters.active" :items="[
-              { title: 'Активные', value: true },
-              { title: 'Неактивные', value: false }
-            ]" label="Статус" clearable variant="outlined" density="comfortable" />
-          </v-col>
-        </v-row>
+          <div class="filter-item">
+            <v-select 
+              v-model="filters.active" 
+              :items="[
+                { title: 'Активные', value: true },
+                { title: 'Неактивные', value: false }
+              ]" 
+              label="Статус" 
+              clearable 
+              variant="outlined" 
+              density="comfortable" 
+            />
+          </div>
+
+          <div class="filter-item filter-clear">
+            <v-btn
+              icon="mdi-filter-remove"
+              :variant="hasActiveFilters ? 'flat' : 'outlined'"
+              :color="hasActiveFilters ? 'primary' : 'default'"
+              size="small"
+              @click="clearFilters"
+              :title="hasActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
+              :class="{ 'filter-clear-active': hasActiveFilters }"
+              data-testid="clear-filters"
+            >
+              <v-badge
+                v-if="hasActiveFilters"
+                :content="activeFiltersCount"
+                color="white"
+                text-color="primary"
+                inline
+              />
+            </v-btn>
+          </div>
+        </div>
+
+        <!-- Чипы с найденными пользователями -->
+        <div v-if="isMultipleUserSearch && userSearchTermsArray.length > 0" class="search-chips mt-2">
+          <v-chip
+            v-for="(term, index) in userSearchTermsArray"
+            :key="index"
+            size="small"
+            color="primary"
+            variant="outlined"
+            class="mr-1 mb-1"
+            closable
+            @click:close="removeUserSearchTerm(index)"
+          >
+            {{ term }}
+          </v-chip>
+        </div>
       </div>
     </AppleCard>
 
@@ -305,6 +302,22 @@
                 </template>
               </v-tooltip>
 
+              <v-tooltip text="Отправить ссылку для сброса пароля на email">
+                <template #activator="{ props }">
+                  <v-btn 
+                    v-bind="props" 
+                    size="small" 
+                    variant="text" 
+                    color="orange"
+                    @click="sendPasswordResetEmailToUser(item)"
+                    :loading="item.sendingPasswordReset"
+                    style="min-width: 32px;"
+                  >
+                    <v-icon>mdi-email</v-icon>
+                  </v-btn>
+                </template>
+              </v-tooltip>
+
               <v-menu>
                 <template #activator="{ props }">
                   <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text" />
@@ -388,7 +401,6 @@ import type {
   UserForm,
   UserWithRelations
 } from '@/types/users';
-import { disableDemoMode as disableDemo, enableDemoMode as enableDemo } from '@/utils/demoMode';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 
@@ -510,6 +522,12 @@ const hasActiveFilters = computed(() => {
   );
 });
 
+const activeFiltersCount = computed(() => {
+  return Object.values(filters.value).filter(value =>
+    value !== undefined && value !== null && value !== ''
+  ).length;
+});
+
 // Computed properties для групповых действий
 const activeUsersCount = computed(() => {
   return selectedUsers.value.filter(user => user.is_active).length;
@@ -570,7 +588,7 @@ const tableHeaders = computed(() => [
   { title: 'Email', value: 'email', sortable: true },
   { title: 'Роль', value: 'role', sortable: false },
   { title: 'Тип', value: 'user_type', sortable: true },
-  { title: 'Действия', value: 'actions', sortable: false, width: 120 },
+  { title: 'Действия', value: 'actions', sortable: false, width: 160 },
 ]);
 
 // Доступные значения для количества элементов на странице
@@ -585,6 +603,7 @@ const perPageOptions = [
 const loadUsers = async () => {
   try {
     loading.value = true;
+    console.log('🔄 Loading users...', { page: pagination.value.page, limit: pagination.value.limit, filters: filters.value });
 
     const response = await usersService.getUsers(
       pagination.value.page,
@@ -592,14 +611,18 @@ const loadUsers = async () => {
       filters.value
     );
 
+    console.log('📡 Users API response:', response);
+
     if (response.status === 'success') {
       users.value = response.data.items;
       usersData.value = response.data;
+      console.log('✅ Users loaded successfully:', users.value.length, 'users');
     } else {
+      console.error('❌ Users API error:', response.error);
       showSnackbar(response.error || 'Ошибка загрузки пользователей', 'error');
     }
   } catch (error: any) {
-    console.error('Ошибка загрузки пользователей:', error);
+    console.error('❌ Exception loading users:', error);
     showSnackbar('Ошибка загрузки пользователей', 'error');
   } finally {
     loading.value = false;
@@ -609,12 +632,18 @@ const loadUsers = async () => {
 const loadStats = async () => {
   try {
     const statsData = await usersService.getUsersStats();
-    stats.value[0].value = statsData.total;
-    stats.value[1].value = statsData.active;
-    stats.value[2].value = statsData.inactive;
-    stats.value[3].value = statsData.recent_logins;
+    if (statsData && typeof statsData === 'object') {
+      stats.value[0].value = statsData.total || 0;
+      stats.value[1].value = statsData.active_users || statsData.active || 0;
+      stats.value[2].value = statsData.inactive_users || statsData.inactive || 0;
+      stats.value[3].value = statsData.recent_users || statsData.recent_logins || 0;
+    }
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error);
+    // Устанавливаем значения по умолчанию при ошибке
+    stats.value.forEach(stat => {
+      stat.value = 0;
+    });
   }
 };
 
@@ -736,6 +765,49 @@ const resetUserPassword = (user: UserWithRelations) => {
   };
 };
 
+// Отправка ссылки сброса пароля на email
+const sendPasswordResetEmailToUser = async (user: UserWithRelations) => {
+  if (!user.email) {
+    showSnackbar('У пользователя не указан email адрес', 'error');
+    return;
+  }
+
+  // Подтверждение действия
+  if (!confirm(`Отправить ссылку для сброса пароля на email ${user.email}?`)) {
+    return;
+  }
+
+  try {
+    // Устанавливаем состояние загрузки для конкретного пользователя
+    const userIndex = users.value.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      users.value[userIndex].sendingPasswordReset = true;
+    }
+
+    const response = await usersService.sendPasswordResetEmail(user.email, user.username);
+    
+    if (response.status === 'success') {
+      showSuccessNotification(
+        'Ссылка отправлена',
+        `Ссылка для сброса пароля отправлена на ${user.email}`,
+        response.message || 'Пользователь получит email с инструкциями по сбросу пароля',
+        'mdi-email-check'
+      );
+    } else {
+      showSnackbar(response.error || 'Ошибка отправки ссылки сброса пароля', 'error');
+    }
+  } catch (error: any) {
+    console.error('Ошибка отправки ссылки сброса пароля:', error);
+    showSnackbar('Ошибка отправки ссылки сброса пароля', 'error');
+  } finally {
+    // Убираем состояние загрузки
+    const userIndex = users.value.findIndex(u => u.id === user.id);
+    if (userIndex !== -1) {
+      users.value[userIndex].sendingPasswordReset = false;
+    }
+  }
+};
+
 const openInactiveUsersDialog = () => {
   inactiveUsersDialog.value.show = true;
 };
@@ -851,30 +923,6 @@ const showSuccessNotification = (title: string, message: string, details?: strin
   successNotification.show = true;
 };
 
-// Методы для управления демо режимом
-const enableDemoMode = async () => {
-  enableDemo();
-  showSnackbar('Демо режим включен. Теперь отображаются демо данные.', 'success');
-  // Перезагружаем данные
-  await Promise.all([
-    loadUsers(),
-    loadStats(),
-    loadRoles(),
-    loadTemplates(),
-  ]);
-};
-
-const disableDemoMode = async () => {
-  disableDemo();
-  showSnackbar('Демо режим отключен. Попытка загрузки реальных данных с сервера.', 'info');
-  // Перезагружаем данные
-  await Promise.all([
-    loadUsers(),
-    loadStats(),
-    loadRoles(),
-    loadTemplates(),
-  ]);
-};
 
 // Функции для работы с активностью пользователей
 const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) => {
@@ -1139,12 +1187,39 @@ watch(users, () => {
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    loadUsers(),
-    loadStats(),
-    loadRoles(),
-    loadTemplates(),
-  ]);
+  console.log('🔧 Users component mounted - loading data...');
+  
+  // Проверяем авторизацию
+  const token = localStorage.getItem('axenta_token');
+  const user = localStorage.getItem('axenta_user');
+  const company = localStorage.getItem('axenta_company');
+  
+  console.log('🔐 Auth check:', {
+    token: token ? `EXISTS (${token.length} chars)` : 'MISSING',
+    user: user ? 'EXISTS' : 'MISSING',
+    company: company ? 'EXISTS' : 'MISSING'
+  });
+  
+  if (!token) {
+    console.error('❌ No auth token found! Users will not load.');
+    showSnackbar('Не найден токен авторизации. Пожалуйста, авторизуйтесь.', 'error');
+    return;
+  }
+  
+  try {
+    await Promise.all([
+      loadUsers(),
+      loadStats(),
+      loadRoles(),
+      loadTemplates(),
+    ]);
+    console.log('✅ Users data loaded, users count:', users.value.length);
+    console.log('📊 Users data:', users.value);
+    console.log('📈 Stats data:', usersData.value);
+  } catch (error) {
+    console.error('❌ Error loading users data:', error);
+    showSnackbar('Ошибка загрузки данных пользователей', 'error');
+  }
 });
 </script>
 
@@ -1262,6 +1337,69 @@ onMounted(async () => {
   padding: 0;
 }
 
+.filters-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.filter-search {
+  flex: 2;
+  min-width: 250px;
+}
+
+.filter-clear {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 8px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  .filters-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .filter-item,
+  .filter-search {
+    flex: none;
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .filter-clear {
+    align-self: flex-end;
+    padding-top: 0;
+  }
+}
+
+/* Стили для активной кнопки очистки фильтров */
+.filter-clear-active {
+  position: relative;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+  animation: pulse-filter 2s infinite;
+}
+
+@keyframes pulse-filter {
+  0% {
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.5);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+  }
+}
+
 /* Таблица */
 .users-table-card {
   margin: 0;
@@ -1327,6 +1465,15 @@ onMounted(async () => {
 .actions-cell {
   display: flex;
   gap: 4px;
+  align-items: center;
+}
+
+.actions-cell .v-btn {
+  transition: all 0.2s ease;
+}
+
+.actions-cell .v-btn:hover {
+  transform: scale(1.1);
 }
 
 /* Пользовательская ячейка */

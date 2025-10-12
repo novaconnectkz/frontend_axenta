@@ -26,6 +26,7 @@ export interface UserBase {
 export interface UserWithRelations extends UserBase {
   role?: Role;
   template?: UserTemplate;
+  sendingPasswordReset?: boolean; // Состояние отправки ссылки сброса пароля
 }
 
 export interface Role {
@@ -109,9 +110,15 @@ export interface UserStats {
   total: number;
   active: number;
   inactive: number;
-  by_role: Record<string, number>;
-  by_type: Record<string, number>;
+  active_users: number;
+  inactive_users: number;
+  total_users: number;
+  recent_users: number;
   recent_logins: number;
+  by_role?: Record<string, number>;
+  by_type?: Record<string, number>;
+  role_stats?: Array<{role_name: string; count: number}>;
+  last_updated?: string;
 }
 
 export type UserType = "user" | "client" | "installer" | "manager" | "admin";

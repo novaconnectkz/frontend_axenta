@@ -110,14 +110,6 @@ export class UsersService {
     limit = 20,
     filters: UserFilters = {}
   ): Promise<UsersResponse> {
-    // Если включен режим демо данных, возвращаем mock данные
-    if (this.useMockData) {
-      const mockData = getMockUsersData(page, limit, filters);
-      return {
-        status: "success",
-        data: mockData,
-      };
-    }
 
     try {
       const params = new URLSearchParams({
@@ -137,19 +129,22 @@ export class UsersService {
         params.append("template_id", filters.template_id.toString());
       if (filters.ordering) params.append("ordering", filters.ordering);
 
-      const response = await this.apiClient.get(`/users?${params.toString()}`);
+      const response = await this.apiClient.get(`/auth/users?${params.toString()}`);
       return response.data;
-    } catch (error) {
-      console.warn(
-        "Ошибка загрузки пользователей с сервера, переключаемся на демо данные:",
-        error
-      );
-      // Включаем режим демо данных при ошибке
-      this.useMockData = true;
-      const mockData = getMockUsersData(page, limit, filters);
+    } catch (error: any) {
+      console.error("❌ Ошибка загрузки пользователей с Axenta API:", error);
+      
+      // Возвращаем ошибку вместо переключения на mock данные
       return {
-        status: "success",
-        data: mockData,
+        status: "error",
+        data: {
+          items: [],
+          total: 0,
+          page,
+          limit,
+          pages: 0,
+        },
+        error: error.response?.data?.error || error.message || "Ошибка загрузки пользователей",
       };
     }
   }
@@ -158,7 +153,7 @@ export class UsersService {
   async getUser(
     id: number
   ): Promise<{ status: string; data: UserWithRelations; error?: string }> {
-    const response = await this.apiClient.get(`/users/${id}`);
+    const response = await this.apiClient.get(`/auth/users/${id}`);
     return response.data;
   }
 
@@ -166,7 +161,7 @@ export class UsersService {
   async createUser(
     user: UserForm
   ): Promise<{ status: string; data: UserWithRelations; error?: string }> {
-    const response = await this.apiClient.post("/users", user);
+    const response = await this.apiClient.post("/auth/users", user);
     return response.data;
   }
 
@@ -175,7 +170,7 @@ export class UsersService {
     id: number,
     user: Partial<UserForm>
   ): Promise<{ status: string; data: UserWithRelations; error?: string }> {
-    const response = await this.apiClient.put(`/users/${id}`, user);
+    const response = await this.apiClient.put(`/auth/users/${id}`, user);
     return response.data;
   }
 
@@ -183,7 +178,7 @@ export class UsersService {
   async deleteUser(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.apiClient.delete(`/users/${id}`);
+    const response = await this.apiClient.delete(`/auth/users/${id}`);
     return response.data;
   }
 
@@ -208,7 +203,7 @@ export class UsersService {
     updated: number;
     error?: string;
   }> {
-    const response = await this.apiClient.post("/users/bulk-deactivate", {
+    const response = await this.apiClient.post("/auth/users/bulk-deactivate", {
       user_ids: userIds,
     });
     return response.data;
@@ -232,21 +227,16 @@ export class UsersService {
     }
 
     try {
-      const response = await this.apiClient.post("/users/bulk-delete", {
+      const response = await this.apiClient.post("/auth/users/bulk-delete", {
         user_ids: userIds,
       });
       return response.data;
-    } catch (error) {
-      console.warn(
-        "Ошибка массового удаления пользователей с сервера, переключаемся на демо режим:",
-        error
-      );
-      // Включаем режим демо данных при ошибке
-      this.useMockData = true;
+    } catch (error: any) {
+      console.error("❌ Ошибка массового удаления пользователей:", error);
       return {
-        status: "success",
-        message: "Users deleted successfully (demo mode)",
-        deleted: userIds.length,
+        status: "error",
+        message: error.response?.data?.error || error.message || "Ошибка удаления пользователей",
+        deleted: 0,
       };
     }
   }
@@ -256,10 +246,41 @@ export class UsersService {
     id: number,
     newPassword: string
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.apiClient.post(`/users/${id}/reset-password`, {
+    const response = await this.apiClient.post(`/auth/users/${id}/reset-password`, {
       password: newPassword,
     });
     return response.data;
+  }
+
+  // Отправка ссылки сброса пароля на email
+  async sendPasswordResetEmail(
+    email: string,
+    username: string
+  ): Promise<{ status: string; message?: string; passwordToken?: string; error?: string }> {
+    // Если включен режим демо данных, возвращаем mock ответ
+    if (this.useMockData) {
+      console.log('Mock password reset email for:', { email, username });
+      return {
+        status: "success",
+        message: "Ссылка для сброса пароля отправлена на email (демо режим)",
+        passwordToken: "demo_token_" + Date.now(),
+      };
+    }
+
+    try {
+      const response = await this.apiClient.post("/cms/password_reset/", {
+        email,
+        username,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Ошибка отправки ссылки сброса пароля:", error);
+      return {
+        status: "error",
+        message: error.response?.data?.error || error.message || "Ошибка отправки ссылки сброса пароля",
+        passwordToken: null,
+      };
+    }
   }
 
   // === РОЛИ ===
@@ -320,40 +341,20 @@ export class UsersService {
         params.append("active_only", filters.active_only.toString());
       }
 
-      const response = await this.apiClient.get(`/roles?${params.toString()}`);
+      const response = await this.apiClient.get(`/auth/roles?${params.toString()}`);
       return response.data;
-    } catch (error) {
-      console.warn(
-        "Ошибка загрузки ролей с сервера, переключаемся на демо данные:",
-        error
-      );
-      // Включаем режим демо данных при ошибке
-      this.useMockData = true;
-
-      let filteredRoles = [...mockRoles];
-
-      if (filters.active_only) {
-        filteredRoles = filteredRoles.filter((role) => role.is_active);
-      }
-
-      if (filters.search) {
-        const search = filters.search.toLowerCase();
-        filteredRoles = filteredRoles.filter(
-          (role) =>
-            role.name.toLowerCase().includes(search) ||
-            role.display_name.toLowerCase().includes(search)
-        );
-      }
-
+    } catch (error: any) {
+      console.error("❌ Ошибка загрузки ролей с Axenta API:", error);
       return {
-        status: "success",
+        status: "error",
         data: {
-          items: filteredRoles,
-          total: filteredRoles.length,
+          items: [],
+          total: 0,
           page,
           limit,
-          pages: Math.ceil(filteredRoles.length / limit),
+          pages: 0,
         },
+        error: error.response?.data?.error || error.message || "Ошибка загрузки ролей",
       };
     }
   }
@@ -362,7 +363,7 @@ export class UsersService {
   async getRole(
     id: number
   ): Promise<{ status: string; data: Role; error?: string }> {
-    const response = await this.apiClient.get(`/roles/${id}`);
+    const response = await this.apiClient.get(`/auth/roles/${id}`);
     return response.data;
   }
 
@@ -370,7 +371,7 @@ export class UsersService {
   async createRole(
     role: Omit<Role, "id" | "created_at" | "updated_at" | "permissions">
   ): Promise<{ status: string; data: Role; error?: string }> {
-    const response = await this.apiClient.post("/roles", role);
+    const response = await this.apiClient.post("/auth/roles", role);
     return response.data;
   }
 
@@ -379,7 +380,7 @@ export class UsersService {
     id: number,
     role: Partial<Role>
   ): Promise<{ status: string; data: Role; error?: string }> {
-    const response = await this.apiClient.put(`/roles/${id}`, role);
+    const response = await this.apiClient.put(`/auth/roles/${id}`, role);
     return response.data;
   }
 
@@ -387,7 +388,7 @@ export class UsersService {
   async deleteRole(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.apiClient.delete(`/roles/${id}`);
+    const response = await this.apiClient.delete(`/auth/roles/${id}`);
     return response.data;
   }
 
@@ -395,7 +396,7 @@ export class UsersService {
   async getRolePermissions(
     id: number
   ): Promise<{ status: string; data: Permission[]; error?: string }> {
-    const response = await this.apiClient.get(`/roles/${id}/permissions`);
+    const response = await this.apiClient.get(`/auth/roles/${id}/permissions`);
     return response.data;
   }
 
@@ -404,7 +405,7 @@ export class UsersService {
     id: number,
     permissionIds: number[]
   ): Promise<{ status: string; data: Permission[]; error?: string }> {
-    const response = await this.apiClient.put(`/roles/${id}/permissions`, {
+    const response = await this.apiClient.put(`/auth/roles/${id}/permissions`, {
       permission_ids: permissionIds,
     });
     return response.data;
@@ -438,7 +439,7 @@ export class UsersService {
     if (filters.search) params.append("search", filters.search);
 
     const response = await this.apiClient.get(
-      `/api/permissions?${params.toString()}`
+      `/auth/permissions?${params.toString()}`
     );
     return response.data;
   }
@@ -505,44 +506,21 @@ export class UsersService {
       }
 
       const response = await this.apiClient.get(
-        `/user-templates?${params.toString()}`
+        `/auth/user-templates?${params.toString()}`
       );
       return response.data;
-    } catch (error) {
-      console.warn(
-        "Ошибка загрузки шаблонов пользователей с сервера, переключаемся на демо данные:",
-        error
-      );
-      // Включаем режим демо данных при ошибке
-      this.useMockData = true;
-
-      let filteredTemplates = [...mockTemplates];
-
-      if (filters.active_only) {
-        filteredTemplates = filteredTemplates.filter(
-          (template) => template.is_active
-        );
-      }
-
-      if (filters.search) {
-        const search = filters.search.toLowerCase();
-        filteredTemplates = filteredTemplates.filter(
-          (template) =>
-            template.name.toLowerCase().includes(search) ||
-            (template.description &&
-              template.description.toLowerCase().includes(search))
-        );
-      }
-
+    } catch (error: any) {
+      console.error("❌ Ошибка загрузки шаблонов пользователей с Axenta API:", error);
       return {
-        status: "success",
+        status: "error",
         data: {
-          items: filteredTemplates,
-          total: filteredTemplates.length,
+          items: [],
+          total: 0,
           page,
           limit,
-          pages: Math.ceil(filteredTemplates.length / limit),
+          pages: 0,
         },
+        error: error.response?.data?.error || error.message || "Ошибка загрузки шаблонов",
       };
     }
   }
@@ -551,7 +529,7 @@ export class UsersService {
   async getUserTemplate(
     id: number
   ): Promise<{ status: string; data: UserTemplate; error?: string }> {
-    const response = await this.apiClient.get(`/user-templates/${id}`);
+    const response = await this.apiClient.get(`/auth/user-templates/${id}`);
     return response.data;
   }
 
@@ -562,7 +540,7 @@ export class UsersService {
       "id" | "created_at" | "updated_at" | "usage_count" | "role"
     >
   ): Promise<{ status: string; data: UserTemplate; error?: string }> {
-    const response = await this.apiClient.post("/user-templates", template);
+    const response = await this.apiClient.post("/auth/user-templates", template);
     return response.data;
   }
 
@@ -572,7 +550,7 @@ export class UsersService {
     template: Partial<UserTemplate>
   ): Promise<{ status: string; data: UserTemplate; error?: string }> {
     const response = await this.apiClient.put(
-      `/user-templates/${id}`,
+      `/auth/user-templates/${id}`,
       template
     );
     return response.data;
@@ -582,7 +560,7 @@ export class UsersService {
   async deleteUserTemplate(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.apiClient.delete(`/user-templates/${id}`);
+    const response = await this.apiClient.delete(`/auth/user-templates/${id}`);
     return response.data;
   }
 
@@ -590,22 +568,26 @@ export class UsersService {
 
   // Получение статистики пользователей
   async getUsersStats(): Promise<UserStats> {
-    // Если включен режим демо данных, возвращаем mock статистику
-    if (this.useMockData) {
-      return mockStats;
-    }
-
     try {
-      const response = await this.apiClient.get("/users/stats");
+      const response = await this.apiClient.get("/auth/users/stats");
       return response.data.data;
-    } catch (error) {
-      console.warn(
-        "Ошибка загрузки статистики пользователей с сервера, переключаемся на демо данные:",
-        error
-      );
-      // Включаем режим демо данных при ошибке
-      this.useMockData = true;
-      return mockStats;
+    } catch (error: any) {
+      console.error("❌ Ошибка загрузки статистики пользователей с Axenta API:", error);
+      
+      // Возвращаем пустую статистику при ошибке
+      return {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        active_users: 0,
+        inactive_users: 0,
+        total_users: 0,
+        recent_users: 0,
+        recent_logins: 0,
+        by_role: {},
+        by_type: {},
+        role_stats: []
+      };
     }
   }
 
@@ -626,7 +608,7 @@ export class UsersService {
     });
 
     const response = await this.apiClient.get(
-      `/users/export?${params.toString()}`,
+      `/auth/users/export?${params.toString()}`,
       {
         responseType: "blob",
       }
