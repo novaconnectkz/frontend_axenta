@@ -39,14 +39,18 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Обработка ошибок авторизации
-    if (error.response?.status === 401) {
-      // Токен истек или невалиден
-      localStorage.removeItem("axenta_token");
-      localStorage.removeItem("tenant_id");
-      // Можно добавить редирект на страницу входа
-      window.location.href = "/login";
-    }
+    // Используем улучшенный обработчик ошибок
+    import("@/utils/errorHandler").then(({ globalErrorHandler }) => {
+      globalErrorHandler.handleError(error);
+    }).catch((err) => {
+      console.warn("Cannot access error handler:", err);
+      // Fallback для обработки ошибок авторизации
+      if (error.response?.status === 401) {
+        localStorage.removeItem("axenta_token");
+        localStorage.removeItem("tenant_id");
+        window.location.href = "/login";
+      }
+    });
 
     return Promise.reject(error);
   }

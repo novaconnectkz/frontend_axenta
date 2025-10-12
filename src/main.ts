@@ -21,6 +21,7 @@ import App from "./App.vue";
 import router from "./router";
 import { initDemoMode } from "./utils/demoMode";
 import { disableAllLoading } from "./utils/disableLoading";
+import { setupGlobalErrorHandler } from "./utils/errorHandler";
 import "./utils/themeDebug"; // Утилиты отладки темы
 import "./utils/authDebug"; // Утилиты отладки авторизации
 
@@ -62,21 +63,8 @@ const vuetify = createVuetify({
   },
 });
 
-// Простой обработчик ошибок
-app.config.errorHandler = (err, instance, info) => {
-  console.error("Vue error:", err, info);
-};
-
-// Обработчик необработанных промисов
-window.addEventListener("unhandledrejection", (event) => {
-  console.error("Unhandled promise rejection:", event.reason);
-  event.preventDefault();
-});
-
-// Обработчик общих ошибок JavaScript
-window.addEventListener("error", (event) => {
-  console.error("Global error:", event.error);
-});
+// Настройка улучшенного обработчика ошибок
+setupGlobalErrorHandler(app);
 
 // Инициализация Pinia
 const pinia = createPinia();

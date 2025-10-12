@@ -47,6 +47,11 @@ const routes = [
     title: "Локальный вход в систему",
   }),
 
+  // === ТЕСТИРОВАНИЕ ===
+  createPublicRoute("/error-test", () => import("@/views/ErrorTestPage.vue"), {
+    title: "Тестирование ошибок",
+  }),
+
   // === ГИБРИДНАЯ АВТОРИЗАЦИЯ ===
   createGuestRoute("/hybrid-login", () => import("@/views/HybridLogin.vue"), {
     title: "Гибридный вход в систему",

@@ -6,6 +6,7 @@ export interface ErrorInfo {
   code?: string | number;
   details?: any;
   timestamp: Date;
+  userMessage?: string; // Сообщение для показа пользователю
 }
 
 export class AuthError extends Error {
@@ -62,13 +63,13 @@ export class ErrorHandler {
   /**
    * Обрабатывает ошибку и определяет её тип
    */
-  handleError(error: any): ErrorInfo {
+  handleError(error: any, showToUser = true): ErrorInfo {
     const errorInfo = this.classifyError(error);
     this.logError(errorInfo);
     this.addToQueue(errorInfo);
 
     // Выполняем специфичные действия в зависимости от типа ошибки
-    this.executeErrorActions(errorInfo);
+    this.executeErrorActions(errorInfo, showToUser);
 
     return errorInfo;
   }
@@ -129,16 +130,36 @@ export class ErrorHandler {
       const status = error.response.status;
       let type: ErrorInfo["type"] = "network";
       let message = error.response.data?.error || error.message;
+      let userMessage = '';
 
       if (status === 401) {
         type = "auth";
-        message = "Сессия истекла. Необходимо войти в систему заново.";
+        message = "Unauthorized: " + (error.response.data?.error || "Token required or invalid");
+        userMessage = "Необходимо войти в систему";
       } else if (status === 403) {
         type = "permission";
-        message = "Недостаточно прав для выполнения операции.";
+        message = "Forbidden: " + (error.response.data?.error || "Access denied");
+        userMessage = "Недостаточно прав для выполнения операции";
       } else if (status === 422) {
         type = "validation";
-        message = "Ошибка валидации данных.";
+        message = "Validation error: " + (error.response.data?.error || "Invalid data");
+        userMessage = "Ошибка валидации данных";
+      } else if (status === 404) {
+        type = "network";
+        message = "Not found: " + (error.response.data?.error || "Resource not found");
+        userMessage = "Запрашиваемый ресурс не найден";
+      } else if (status === 500) {
+        type = "network";
+        message = "Server error: " + (error.response.data?.error || "Internal server error");
+        userMessage = "Ошибка сервера. Попробуйте позже";
+      } else if (status >= 400 && status < 500) {
+        type = "validation";
+        message = `Client error ${status}: ` + (error.response.data?.error || error.message);
+        userMessage = "Ошибка в запросе. Проверьте данные";
+      } else if (status >= 500) {
+        type = "network";
+        message = `Server error ${status}: ` + (error.response.data?.error || error.message);
+        userMessage = "Ошибка сервера. Попробуйте позже";
       }
 
       return {
@@ -147,6 +168,7 @@ export class ErrorHandler {
         code: status,
         details: error.response.data,
         timestamp,
+        userMessage,
       };
     }
 
@@ -172,7 +194,12 @@ export class ErrorHandler {
   /**
    * Выполняет действия в зависимости от типа ошибки
    */
-  private executeErrorActions(errorInfo: ErrorInfo) {
+  private executeErrorActions(errorInfo: ErrorInfo, showToUser = true) {
+    // Показываем уведомление пользователю
+    if (showToUser) {
+      this.showUserNotification(errorInfo);
+    }
+
     switch (errorInfo.type) {
       case "auth":
         this.handleAuthError(errorInfo);
@@ -183,6 +210,47 @@ export class ErrorHandler {
       case "permission":
         this.handlePermissionError(errorInfo);
         break;
+    }
+  }
+
+  /**
+   * Показывает уведомление пользователю
+   */
+  private showUserNotification(errorInfo: ErrorInfo) {
+    try {
+      // Динамический импорт для избежания циклических зависимостей
+      import("@/composables/useNotifications")
+        .then(({ useNotifications }) => {
+          const notifications = useNotifications();
+          
+          const userMessage = errorInfo.userMessage || this.getUserMessage(errorInfo);
+          
+          switch (errorInfo.type) {
+            case "auth":
+              notifications.showAuthError(userMessage);
+              break;
+            case "network":
+              notifications.showNetworkError(userMessage);
+              break;
+            case "validation":
+              notifications.showValidationError(userMessage, errorInfo.details?.fields);
+              break;
+            case "permission":
+              notifications.showPermissionError(userMessage);
+              break;
+            default:
+              notifications.showError("Ошибка", userMessage);
+          }
+        })
+        .catch((err) => {
+          console.warn("Cannot access notifications in error handler:", err);
+          // Fallback - показываем alert
+          alert(errorInfo.userMessage || this.getUserMessage(errorInfo));
+        });
+    } catch (err) {
+      console.warn("Cannot show user notification:", err);
+      // Fallback - показываем alert
+      alert(errorInfo.userMessage || this.getUserMessage(errorInfo));
     }
   }
 
@@ -342,12 +410,12 @@ export const globalErrorHandler = ErrorHandler.getInstance();
 export function useErrorHandler() {
   const errorHandler = ErrorHandler.getInstance();
 
-  const handleError = (error: any, fallbackMessage?: string) => {
-    const errorInfo = errorHandler.handleError(error);
+  const handleError = (error: any, fallbackMessage?: string, showToUser = true) => {
+    const errorInfo = errorHandler.handleError(error, showToUser);
 
-    // Здесь можно добавить логику для показа уведомлений пользователю
-    // Например, через Vuetify snackbar или toast
-    console.error(fallbackMessage || errorInfo.message, errorInfo);
+    if (fallbackMessage) {
+      console.error(fallbackMessage, errorInfo);
+    }
 
     return errorInfo;
   };

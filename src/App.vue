@@ -3,6 +3,7 @@ import { useAuthProvider, provideAuth } from "@/context/auth";
 import { onMounted, provide } from "vue";
 import { useRoute } from "vue-router";
 import { restoreAuthState, debugAuthStorage } from "@/utils/authInit";
+import GlobalNotifications from "@/components/Common/GlobalNotifications.vue";
 
 const route = useRoute();
 
@@ -40,6 +41,8 @@ onMounted(() => {
 <template>
   <v-app>
     <router-view />
+    <!-- Глобальные уведомления -->
+    <GlobalNotifications />
   </v-app>
 </template>
 
