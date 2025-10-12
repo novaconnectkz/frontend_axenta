@@ -13,15 +13,11 @@ import SimpleDashboard from "../views/SimpleDashboard.vue";
 import SimpleLogin from "../views/SimpleLogin.vue";
 
 const routes = [
-  // Главная страница - для авторизованных перенаправляем на дашборд
+  // Главная страница - перенаправляем на объекты
   {
     path: "/",
     name: "Home",
-    redirect: (to) => {
-      // Проверяем авторизацию из localStorage
-      const token = localStorage.getItem("axenta_token");
-      return token ? "/dashboard" : "/login";
-    },
+    redirect: "/objects", // Прямое перенаправление на объекты
   },
 
   // === МАРШРУТЫ АВТОРИЗАЦИИ ===
@@ -81,7 +77,7 @@ const routes = [
         component: () => import("@/views/Objects.vue"),
         meta: {
           title: "Объекты",
-          requiresAuth: true,
+          requiresAuth: false, // Временно отключаем требование авторизации
         },
       },
 

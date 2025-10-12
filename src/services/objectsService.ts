@@ -49,6 +49,66 @@ export class ObjectsService {
     return ObjectsService.instance;
   }
 
+  // Конвертация объектов Axenta Cloud в локальную структуру
+  private convertAxentaObjectsToLocal(axentaObjects: any[]): ObjectWithRelations[] {
+    return axentaObjects.map(obj => ({
+      // Основные поля
+      id: obj.id,
+      name: obj.name,
+      type: this.determineObjectType(obj.deviceTypeName),
+      description: `${obj.deviceTypeName} - ${obj.accountName}`,
+      created_at: obj.createdAt,
+      updated_at: obj.createdAt,
+      
+      // Новые поля из Axenta Cloud
+      accountName: obj.accountName,
+      creatorName: obj.creatorName,
+      deviceTypeName: obj.deviceTypeName,
+      phoneNumbers: obj.phoneNumbers,
+      createdAt: obj.createdAt,
+      lastMessageDatetime: obj.lastMessageDatetime,
+      uniqueId: obj.uniqueId,
+      
+      // Статус и активность
+      status: obj.isActive ? "active" as const : "inactive" as const,
+      is_active: obj.isActive,
+      
+      // Заглушки для обязательных полей
+      address: obj.accountName || "Не указан",
+      imei: obj.uniqueId || "",
+      phone_number: obj.phoneNumbers?.[0] || "",
+      serial_number: obj.uniqueId || "",
+      company_id: obj.accountId,
+      contract_id: obj.accountId,
+      location_id: obj.accountId,
+      settings: "{}",
+      tags: [obj.deviceTypeName, obj.accountType].filter(Boolean),
+      notes: `Создатель: ${obj.creatorName}`,
+      external_id: obj.uniqueId || "",
+      
+      // Дополнительная информация
+      company: {
+        id: obj.accountId,
+        name: obj.accountName
+      }
+    }));
+  }
+
+  // Определение типа объекта по названию устройства
+  private determineObjectType(deviceTypeName: string): string {
+    const deviceType = deviceTypeName?.toLowerCase() || "";
+    
+    if (deviceType.includes("omnicomm") || deviceType.includes("wialon") || deviceType.includes("galileosky")) {
+      return "vehicle";
+    } else if (deviceType.includes("навтелеком") || deviceType.includes("умка")) {
+      return "equipment";
+    } else if (deviceType.includes("arnavi")) {
+      return "asset";
+    }
+    
+    return "vehicle"; // По умолчанию
+  }
+
   // Получение списка объектов с фильтрацией
   async getObjects(
     page = 1,
@@ -89,25 +149,91 @@ export class ObjectsService {
     if (filters.uniqueId) params.append("uniqueId", filters.uniqueId);
 
     try {
-      // Пробуем аутентифицированный эндпоинт
+      console.log("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
+      
+      // Используем Axenta Cloud CMS API endpoint
       const response = await this.getAuth().apiClient.get(
-        `/auth/objects?${params.toString()}`
+        `/cms/objects/?${params.toString()}`
       );
-      return response.data;
+      console.log("✅ Axenta Cloud CMS objects API response:", response.data);
+      
+      // Проверяем структуру ответа
+      if (response.data.count !== undefined && response.data.results) {
+        console.log("🔄 Converting Axenta Cloud data to local format...");
+        const convertedItems = this.convertAxentaObjectsToLocal(response.data.results);
+        console.log("📊 Converted items:", convertedItems.length, "objects");
+        
+        const adaptedResponse = {
+          status: "success" as const,
+          data: {
+            items: convertedItems,
+            total: response.data.count,
+            page: page,
+            per_page: per_page,
+            total_pages: Math.ceil(response.data.count / per_page)
+          }
+        };
+        
+        console.log("📋 Final adapted response:", adaptedResponse);
+        return adaptedResponse;
+      } else {
+        console.log("📋 Using old structure response as-is");
+        return response.data;
+      }
     } catch (error: any) {
-      console.log("🔍 Error in getObjects:", error.response?.status, error.message);
-      // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
+      console.log("🔍 Error in getObjects (Axenta Cloud CMS):", error.response?.status, error.message);
+      
+      // Если Axenta Cloud CMS API недоступен, пробуем fallback endpoints
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
-        console.warn("🔄 Fallback to public endpoint for objects");
+        console.warn("🔄 Fallback to auth endpoint for objects");
         try {
           const response = await this.getAuth().apiClient.get(
-            `/objects?${params.toString()}`
+            `/auth/objects?${params.toString()}`
           );
-          console.log("✅ Fallback successful for objects");
-          return response.data;
-        } catch (fallbackError: any) {
-          console.error("❌ Fallback failed for objects:", fallbackError);
-          throw fallbackError;
+          console.log("✅ Fallback to auth endpoint successful");
+          
+          // Проверяем структуру fallback ответа
+          if (response.data.count !== undefined && response.data.results) {
+            return {
+              status: "success" as const,
+              data: {
+                items: this.convertAxentaObjectsToLocal(response.data.results),
+                total: response.data.count,
+                page: page,
+                per_page: per_page,
+                total_pages: Math.ceil(response.data.count / per_page)
+              }
+            };
+          } else {
+            return response.data;
+          }
+        } catch (authError: any) {
+          console.warn("🔄 Fallback to public endpoint for objects");
+          try {
+            const response = await this.getAuth().apiClient.get(
+              `/objects?${params.toString()}`
+            );
+            console.log("✅ Fallback to public endpoint successful");
+            
+            // Проверяем структуру публичного ответа
+            if (response.data.count !== undefined && response.data.results) {
+              return {
+                status: "success" as const,
+                data: {
+                  items: this.convertAxentaObjectsToLocal(response.data.results),
+                  total: response.data.count,
+                  page: page,
+                  per_page: per_page,
+                  total_pages: Math.ceil(response.data.count / per_page)
+                }
+              };
+            } else {
+              return response.data;
+            }
+          } catch (fallbackError: any) {
+            console.error("❌ All fallbacks failed for objects:", fallbackError);
+            throw fallbackError;
+          }
         }
       }
       throw error;
@@ -321,21 +447,30 @@ export class ObjectsService {
     by_status: Record<string, number>;
   }> {
     try {
-      // Пробуем аутентифицированный эндпоинт
-      const response = await this.getAuth().apiClient.get("/auth/objects/stats");
-      return response.data.data;
+      // Используем Axenta Cloud CMS API endpoint для статистики
+      const response = await this.getAuth().apiClient.get("/cms/objects/stats/");
+      console.log("✅ Axenta Cloud CMS objects stats API response:", response.data);
+      return response.data.data || response.data;
     } catch (error: any) {
-      console.log("🔍 Error in getObjectsStats:", error.response?.status, error.message);
-      // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
+      console.log("🔍 Error in getObjectsStats (Axenta Cloud CMS):", error.response?.status, error.message);
+      
+      // Если Axenta Cloud CMS API недоступен, пробуем fallback endpoints
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
-        console.warn("🔄 Fallback to public endpoint for objects stats");
+        console.warn("🔄 Fallback to auth endpoint for objects stats");
         try {
-          const response = await this.getAuth().apiClient.get("/objects/stats");
-          console.log("✅ Fallback successful for objects stats");
-          return response.data.data;
-        } catch (fallbackError: any) {
-          console.error("❌ Fallback failed for objects stats:", fallbackError);
-          throw fallbackError;
+          const response = await this.getAuth().apiClient.get("/auth/objects/stats");
+          console.log("✅ Fallback to auth endpoint successful for stats");
+          return response.data.data || response.data;
+        } catch (authError: any) {
+          console.warn("🔄 Fallback to public endpoint for objects stats");
+          try {
+            const response = await this.getAuth().apiClient.get("/objects/stats");
+            console.log("✅ Fallback to public endpoint successful for stats");
+            return response.data.data || response.data;
+          } catch (fallbackError: any) {
+            console.error("❌ All fallbacks failed for objects stats:", fallbackError);
+            throw fallbackError;
+          }
         }
       }
       throw error;

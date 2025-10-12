@@ -11,8 +11,8 @@ function getEnvVar(key: string, defaultValue: string): string {
  * Конфигурация приложения
  */
 export const config = {
-  // URL бэкенда - используем локальный сервер для разработки
-  backendUrl: getEnvVar("VITE_BACKEND_URL", "http://localhost:8080"),
+  // URL бэкенда - используем Axenta Cloud для реальных данных
+  backendUrl: getEnvVar("VITE_BACKEND_URL", "https://axenta.cloud"),
 
   // WebSocket URL для реального времени
   wsBaseUrl: getEnvVar("VITE_WS_BASE_URL", "ws://localhost:8080"),

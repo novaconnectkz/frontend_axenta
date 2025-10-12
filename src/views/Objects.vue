@@ -12,59 +12,8 @@
       </div>
       
       <div class="page-actions">
-        <!-- Автообновление -->
-        <div class="auto-refresh-controls">
-          <AppleButton
-            v-if="!autoRefresh.isEnabled.value"
-            variant="secondary"
-            prepend-icon="mdi-refresh"
-            @click="autoRefresh.start()"
-            color="primary"
-            size="small"
-          >
-            Автообновление
-          </AppleButton>
-          <AppleButton
-            v-else
-            variant="secondary"
-            prepend-icon="mdi-refresh-off"
-            @click="autoRefresh.stop()"
-            color="warning"
-            size="small"
-          >
-            Остановить
-          </AppleButton>
-          
-          <div v-if="autoRefresh.isEnabled.value" class="refresh-status">
-            <v-chip 
-              size="small" 
-              color="success" 
-              variant="tonal"
-              prepend-icon="mdi-clock-outline"
-            >
-              {{ autoRefresh.nextRefreshIn.value }}с
-            </v-chip>
-          </div>
-        </div>
 
-        <AppleButton 
-          v-if="!objectsService.isMockDataEnabled()" 
-          variant="secondary" 
-          prepend-icon="mdi-play-circle"
-          @click="enableDemoMode" 
-          color="success"
-        >
-          Демо режим
-        </AppleButton>
-        <AppleButton 
-          v-else 
-          variant="secondary" 
-          prepend-icon="mdi-stop-circle" 
-          @click="disableDemoMode" 
-          color="warning"
-        >
-          Выйти из демо
-        </AppleButton>
+        
         <AppleButton
           variant="secondary"
           prepend-icon="mdi-export"
@@ -1479,6 +1428,11 @@ const perPageOptions = [
 // Methods
 const loadObjects = async () => {
   try {
+    console.log('🔄 Starting loadObjects...');
+    console.log('📊 Current pagination:', pagination.value);
+    console.log('🔍 Current filters:', filters.value);
+    console.log('🗑️ Show deleted objects:', showDeletedObjects.value);
+    
     // Убираем loading.value = true; чтобы не было размытия экрана
     
     const response = showDeletedObjects.value
@@ -1493,16 +1447,33 @@ const loadObjects = async () => {
           filters.value
         );
     
+    console.log('📋 ObjectsService response:', response);
+    
     if (response.status === 'success') {
       objects.value = response.data.items || [];
       objectsData.value = response.data;
+      console.log('✅ Objects loaded successfully:', {
+        count: objects.value.length,
+        total: response.data.total,
+        page: response.data.page,
+        per_page: response.data.per_page
+      });
+      
+      // Обновляем статистику после загрузки объектов
+      await loadStats();
     } else {
+      console.error('❌ ObjectsService returned error:', response.error);
       showSnackbar(response.error || 'Ошибка загрузки объектов', 'error');
       objects.value = []; // Устанавливаем пустой массив в случае ошибки
     }
   } catch (error: any) {
-    console.error('Ошибка загрузки объектов:', error);
-    showSnackbar('Ошибка загрузки объектов', 'error');
+    console.error('💥 Exception in loadObjects:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.response?.status,
+      data: error.response?.data
+    });
+    showSnackbar('Ошибка загрузки объектов: ' + (error.message || 'Неизвестная ошибка'), 'error');
     objects.value = []; // Устанавливаем пустой массив в случае исключения
   }
   // Убираем finally блок с loading.value = false;
@@ -1516,7 +1487,26 @@ const loadStats = async () => {
     stats.value[2].value = statsData.inactive;
     stats.value[3].value = statsData.scheduled_for_delete;
   } catch (error) {
-    console.error('Ошибка загрузки статистики:', error);
+    console.warn('⚠️ API статистики недоступен, вычисляем из загруженных данных:', error);
+    
+    // Вычисляем статистику из objectsData если API недоступен
+    if (objectsData.value) {
+      stats.value[0].value = objectsData.value.total || 0;
+      
+      // Вычисляем активные/неактивные из загруженных объектов
+      const activeCount = objects.value.filter(obj => obj.is_active).length;
+      const inactiveCount = objects.value.filter(obj => !obj.is_active).length;
+      
+      stats.value[1].value = activeCount;
+      stats.value[2].value = inactiveCount;
+      stats.value[3].value = 0; // Запланированные к удалению - пока 0
+      
+      console.log('📊 Статистика вычислена из данных:', {
+        total: stats.value[0].value,
+        active: stats.value[1].value,
+        inactive: stats.value[2].value
+      });
+    }
   }
 };
 
@@ -2175,23 +2165,6 @@ const exportObjects = async () => {
   }
 };
 
-// Demo mode functions
-const enableDemoMode = () => {
-  objectsService.enableMockData();
-  showSuccessNotification(
-    'Демо режим включен',
-    'Теперь отображаются демонстрационные данные',
-    'Все изменения в демо режиме не сохраняются',
-    false
-  );
-  loadObjects(); // Перезагружаем данные
-};
-
-const disableDemoMode = () => {
-  objectsService.disableMockData();
-  showSnackbar('Демо режим отключен', 'info');
-  loadObjects(); // Перезагружаем данные
-};
 
 // Pagination handlers
 const handlePageChange = (page: number) => {
@@ -2451,6 +2424,7 @@ let unsubscribeFromAutoRefresh: (() => void) | null = null;
 onMounted(async () => {
   console.log('🚀 Objects component mounted');
   
+  
   // Принудительно закрываем все диалоги при инициализации
   objectDialog.value.show = false;
   scheduleDeleteDialog.value.show = false;
@@ -2461,27 +2435,37 @@ onMounted(async () => {
   loadSearchHistory();
   
   try {
-    await Promise.all([
-      loadObjects(),
+    // Загружаем основные данные (объекты) в первую очередь
+    await loadObjects();
+    
+    // Остальные данные загружаем опционально (не критично если не загрузятся)
+    Promise.allSettled([
       loadStats(),
       loadCompanies(),
       loadContracts(),
       loadLocations(),
       loadTemplates(),
-    ]);
+    ]).then(results => {
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const names = ['статистика', 'компании', 'договоры', 'локации', 'шаблоны'];
+          console.warn(`⚠️ Не удалось загрузить ${names[index]}:`, result.reason);
+        }
+      });
+    });
   } catch (error: any) {
     console.error('Ошибка инициализации страницы объектов:', error);
-    showSnackbar('Ошибка загрузки данных. Проверьте подключение к серверу.', 'error', 8000);
+    showSnackbar('Ошибка загрузки объектов. Проверьте подключение к серверу.', 'error', 8000);
   }
   
-  // Настраиваем автообновление на 30 секунд
-  autoRefresh.setInterval(30);
+  // Настраиваем автообновление на 10 секунд в фоновом режиме
+  autoRefresh.setInterval(10);
+  autoRefresh.start(); // Запускаем автоматически
   
   // Подписываемся на изменения автообновления
   unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
-    // Перезагружаем данные при автообновлении
+    // Перезагружаем только объекты при автообновлении (статистика вычисляется автоматически)
     loadObjects();
-    loadStats();
   });
   
   // Проверяем, нужно ли открыть диалог создания объекта
