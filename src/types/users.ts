@@ -12,7 +12,7 @@ export interface UserBase {
   is_active: boolean;
   user_type: string; // user, client, installer, etc.
   external_id?: string;
-  external_source?: string; // bitrix24, 1c, etc.
+  external_source?: string; // bitrix24, 1c, axenta, etc.
   company_id?: number;
   role_id: number;
   template_id?: number;
@@ -21,6 +21,11 @@ export interface UserBase {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  
+  // Поля для Axenta интеграции
+  axenta_user_type?: string; // partner, client, local
+  axenta_user_id?: string;   // ID пользователя в Axenta
+  is_axenta_user?: boolean;  // Пользователь из Axenta или локальный
 }
 
 export interface UserWithRelations extends UserBase {
@@ -77,6 +82,8 @@ export interface UserFilters {
   external_source?: string;
   template_id?: number;
   ordering?: string;
+  axenta_user_type?: string; // Фильтр по типу пользователя Axenta
+  is_axenta_user?: boolean;  // Фильтр по источнику (Axenta или локальный)
 }
 
 export interface UserForm {
@@ -123,6 +130,7 @@ export interface UserStats {
 
 export type UserType = "user" | "client" | "installer" | "manager" | "admin";
 export type UserStatus = "active" | "inactive" | "suspended";
+export type AxentaUserType = "partner" | "client" | "local";
 
 // Константы для типов пользователей
 export const USER_TYPES = {
@@ -131,6 +139,13 @@ export const USER_TYPES = {
   INSTALLER: "installer",
   MANAGER: "manager",
   ADMIN: "admin",
+} as const;
+
+// Константы для типов пользователей Axenta
+export const AXENTA_USER_TYPES = {
+  PARTNER: "partner",
+  CLIENT: "client", 
+  LOCAL: "local",
 } as const;
 
 // Константы для ролей
@@ -182,3 +197,61 @@ export const PERMISSIONS = {
   INSTALLATIONS_CREATE: "installations.create",
   INSTALLATIONS_UPDATE: "installations.update",
 } as const;
+
+// === НОВЫЕ ТИПЫ ДЛЯ AXENTA РОЛЕЙ ===
+
+// Интерфейс для статистики пользователей по типам Axenta
+export interface AxentaUsersStats {
+  partners: {
+    count: number;
+    users: UserWithRelations[];
+  };
+  clients: {
+    count: number;
+    users: UserWithRelations[];
+  };
+  local: {
+    count: number;
+    users: UserWithRelations[];
+  };
+  total: number;
+}
+
+// Интерфейс для создания локального пользователя
+export interface LocalUserForm {
+  username: string;
+  email: string;
+  password: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  role_id: number;
+}
+
+// Интерфейс для обновления роли Axenta пользователя
+export interface UpdateAxentaRoleForm {
+  axenta_user_type: AxentaUserType;
+  axenta_user_id?: string;
+  is_axenta_user: boolean;
+}
+
+// Интерфейс для синхронизации с Axenta
+export interface SyncAxentaUserForm {
+  token: string;
+  username: string;
+}
+
+// Ответы API для Axenta пользователей
+export interface AxentaUsersResponse {
+  status: "success" | "error";
+  data: UserWithRelations[];
+  count: number;
+  type: string;
+  error?: string;
+}
+
+export interface AxentaUsersStatsResponse {
+  status: "success" | "error";
+  data: AxentaUsersStats;
+  error?: string;
+}

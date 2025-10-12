@@ -26,12 +26,6 @@
       </div>
     </div>
 
-    <!-- Управление ролями -->
-    <div v-if="showRolesManagement" class="roles-section">
-      <AppleCard variant="outlined">
-        <RolesManagement @success="showSnackbar($event, 'success')" @error="showSnackbar($event, 'error')" />
-      </AppleCard>
-    </div>
 
     <!-- Фильтры -->
     <AppleCard class="filters-card" variant="outlined">
@@ -391,7 +385,6 @@ import BulkDeleteConfirmDialog from '@/components/Common/BulkDeleteConfirmDialog
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
-import RolesManagement from '@/components/Users/RolesManagement.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import usersService from '@/services/usersService';
@@ -410,7 +403,6 @@ const resetting = ref(false);
 const exporting = ref(false);
 const users = ref<UserWithRelations[]>([]);
 const usersData = ref<any>(null);
-const showRolesManagement = ref(false);
 
 // Bulk selection
 const selectedUsers = ref<UserWithRelations[]>([]);
@@ -1316,10 +1308,6 @@ onMounted(async () => {
   text-align: center;
 }
 
-/* Управление ролями */
-.roles-section {
-  margin: 0;
-}
 
 /* Фильтры */
 .filters-card {
