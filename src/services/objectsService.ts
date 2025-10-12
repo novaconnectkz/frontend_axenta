@@ -488,6 +488,7 @@ export class ObjectsService {
     active: number;
     inactive: number;
     scheduled_for_delete: number;
+    deleted: number;
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
@@ -533,6 +534,7 @@ export class ObjectsService {
             active: total, // Предполагаем, что большинство активны
             inactive: 0,
             scheduled_for_delete: 0,
+            deleted: 0, // Пока не можем получить количество удаленных объектов
             by_type: {
               vehicle: total
             },
@@ -554,6 +556,7 @@ export class ObjectsService {
               active: 0,
               inactive: 0,
               scheduled_for_delete: 0,
+              deleted: 0,
               by_type: {},
               by_status: {}
             };

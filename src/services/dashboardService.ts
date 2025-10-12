@@ -8,6 +8,7 @@ import type {
   NotificationItem,
 } from "@/types/dashboard";
 import axios from "axios";
+import { ObjectsService } from "./objectsService";
 import {
   getMockWidgetData,
   mockChartData,
@@ -23,6 +24,9 @@ class DashboardService {
 
   // Флаг для использования mock-данных (временно включен)
   private useMockData = true;
+  
+  // Флаг для использования реальных данных объектов
+  private useRealObjectsData = true;
 
   // Простой API клиент без auth зависимостей
   private get apiClient() {
@@ -39,17 +43,49 @@ class DashboardService {
 
   // Получение общей статистики для Dashboard
   async getStats(): Promise<DashboardStats> {
-    if (this.useMockData) {
+    // Если полностью используем mock-данные, возвращаем их
+    if (this.useMockData && !this.useRealObjectsData) {
       await simulateDelay(100); // Небольшая задержка для реалистичности
       return mockDashboardStats;
     }
 
     try {
-      const response = await this.apiClient.get("/dashboard/stats");
-      return response.data.data;
+      let objectsStats;
+      
+      // Получаем данные об объектах
+      if (this.useRealObjectsData) {
+        console.log("📊 Loading real objects data...");
+        const objectsService = ObjectsService.getInstance();
+        const realObjectsStats = await objectsService.getObjectsStats();
+        console.log("📊 Real objects stats:", realObjectsStats);
+        
+        objectsStats = {
+          total: realObjectsStats.total,
+          active: realObjectsStats.active,
+          inactive: realObjectsStats.inactive,
+          scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
+          deleted: realObjectsStats.deleted
+        };
+      } else {
+        objectsStats = mockDashboardStats.objects;
+      }
+      
+      // Собираем итоговую статистику
+      const dashboardStats: DashboardStats = {
+        objects: objectsStats,
+        // Для остальных разделов пока используем mock данные
+        users: mockDashboardStats.users,
+        billing: mockDashboardStats.billing,
+        installations: mockDashboardStats.installations,
+        warehouse: mockDashboardStats.warehouse
+      };
+      
+      return dashboardStats;
     } catch (error) {
       console.error("Ошибка получения статистики:", error);
-      throw error;
+      // В случае ошибки возвращаем mock данные как fallback
+      console.warn("🔄 Fallback to mock data for dashboard stats");
+      return mockDashboardStats;
     }
   }
 
@@ -264,6 +300,16 @@ class DashboardService {
   // Получение текущего состояния mock-режима
   isMockMode(): boolean {
     return this.useMockData;
+  }
+
+  // Публичный метод для переключения режима реальных данных объектов
+  setRealObjectsDataMode(enabled: boolean): void {
+    this.useRealObjectsData = enabled;
+  }
+
+  // Получение текущего состояния режима реальных данных объектов
+  isRealObjectsDataMode(): boolean {
+    return this.useRealObjectsData;
   }
 }
 

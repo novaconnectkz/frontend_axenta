@@ -149,11 +149,14 @@ export default defineComponent({
       try {
         // loading.value = true; // Убираем loading, чтобы не было размытия экрана
         error.value = null;
+        console.log('🔄 ObjectsOverviewWidget: Loading dashboard stats...');
         const stats = await dashboardService.getStats();
+        console.log('📊 ObjectsOverviewWidget: Dashboard stats received:', stats);
+        console.log('📊 ObjectsOverviewWidget: Objects stats:', stats.objects);
         data.value = stats.objects;
       } catch (err: any) {
         error.value = err.message || 'Ошибка загрузки данных объектов';
-        console.error('Ошибка загрузки данных объектов:', err);
+        console.error('❌ ObjectsOverviewWidget: Error loading objects data:', err);
       } finally {
         // loading.value = false; // Убираем loading состояние
       }
