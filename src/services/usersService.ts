@@ -611,16 +611,79 @@ export class UsersService {
   // Получение статистики пользователей
   async getUsersStats(): Promise<UserStats> {
     try {
+      console.log("📊 Загрузка статистики пользователей из API...");
       const response = await this.apiClient.get("/auth/users/stats");
-      return response.data.data;
+      
+      if (response.data.status === "success") {
+        const stats = response.data.data;
+        console.log("📊 Получена статистика пользователей:", stats);
+        
+        // Преобразуем данные в нужный формат
+        const userStats: UserStats = {
+          total: stats.total || stats.total_users || 0,
+          active: stats.active || stats.active_users || 0,
+          inactive: stats.inactive || stats.inactive_users || 0,
+          admins: stats.admins || 0,
+          regular_users: stats.regular_users || 0,
+          active_users: stats.active_users || stats.active || 0,
+          inactive_users: stats.inactive_users || stats.inactive || 0,
+          total_users: stats.total_users || stats.total || 0,
+          recent_users: stats.recent_users || 0,
+          recent_logins: stats.recent_logins || 0,
+          by_role: stats.by_role || {},
+          by_type: stats.by_type || {},
+          role_stats: stats.role_stats || [],
+          last_updated: stats.last_updated
+        };
+        
+        return userStats;
+      } else {
+        throw new Error(response.data.error || "Неизвестная ошибка API");
+      }
     } catch (error: any) {
-      console.error("❌ Ошибка загрузки статистики пользователей с Axenta API:", error);
+      console.error("❌ Ошибка загрузки статистики пользователей:", error);
+      
+      // Если включен режим демо данных, возвращаем mock статистику
+      if (this.useMockData) {
+        console.log("🔄 Используем демо данные для статистики пользователей");
+        return {
+          total: 28,
+          active: 25,
+          inactive: 3,
+          admins: 4,
+          regular_users: 24,
+          active_users: 25,
+          inactive_users: 3,
+          total_users: 28,
+          recent_users: 5,
+          recent_logins: 12,
+          by_role: {
+            "Администратор": 4,
+            "Пользователь": 20,
+            "Клиент": 4
+          },
+          by_type: {
+            "active": 25,
+            "inactive": 3,
+            "admin": 4,
+            "regular": 24
+          },
+          role_stats: [
+            { role_name: "Администратор", count: 4 },
+            { role_name: "Пользователь", count: 20 },
+            { role_name: "Клиент", count: 4 }
+          ],
+          last_updated: new Date().toISOString()
+        };
+      }
       
       // Возвращаем пустую статистику при ошибке
       return {
         total: 0,
         active: 0,
         inactive: 0,
+        admins: 0,
+        regular_users: 0,
         active_users: 0,
         inactive_users: 0,
         total_users: 0,

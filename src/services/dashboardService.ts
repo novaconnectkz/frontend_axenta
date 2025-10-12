@@ -9,6 +9,7 @@ import type {
 } from "@/types/dashboard";
 import axios from "axios";
 import { ObjectsService } from "./objectsService";
+import { usersService } from "./usersService";
 import {
   getMockWidgetData,
   mockChartData,
@@ -27,6 +28,9 @@ class DashboardService {
   
   // Флаг для использования реальных данных объектов
   private useRealObjectsData = true;
+  
+  // Флаг для использования реальных данных пользователей
+  private useRealUsersData = true;
 
   // Простой API клиент без auth зависимостей
   private get apiClient() {
@@ -44,13 +48,14 @@ class DashboardService {
   // Получение общей статистики для Dashboard
   async getStats(): Promise<DashboardStats> {
     // Если полностью используем mock-данные, возвращаем их
-    if (this.useMockData && !this.useRealObjectsData) {
+    if (this.useMockData && !this.useRealObjectsData && !this.useRealUsersData) {
       await simulateDelay(100); // Небольшая задержка для реалистичности
       return mockDashboardStats;
     }
 
     try {
       let objectsStats;
+      let usersStats;
       
       // Получаем данные об объектах
       if (this.useRealObjectsData) {
@@ -70,11 +75,28 @@ class DashboardService {
         objectsStats = mockDashboardStats.objects;
       }
       
+      // Получаем данные о пользователях
+      if (this.useRealUsersData) {
+        console.log("📊 Loading real users data...");
+        const realUsersStats = await usersService.getUsersStats();
+        console.log("📊 Real users stats:", realUsersStats);
+        
+        usersStats = {
+          total: realUsersStats.total,
+          active: realUsersStats.active,
+          inactive: realUsersStats.inactive,
+          admins: realUsersStats.admins,
+          regular_users: realUsersStats.regular_users
+        };
+      } else {
+        usersStats = mockDashboardStats.users;
+      }
+      
       // Собираем итоговую статистику
       const dashboardStats: DashboardStats = {
         objects: objectsStats,
+        users: usersStats,
         // Для остальных разделов пока используем mock данные
-        users: mockDashboardStats.users,
         billing: mockDashboardStats.billing,
         installations: mockDashboardStats.installations,
         warehouse: mockDashboardStats.warehouse
@@ -310,6 +332,16 @@ class DashboardService {
   // Получение текущего состояния режима реальных данных объектов
   isRealObjectsDataMode(): boolean {
     return this.useRealObjectsData;
+  }
+
+  // Публичный метод для переключения режима реальных данных пользователей
+  setRealUsersDataMode(enabled: boolean): void {
+    this.useRealUsersData = enabled;
+  }
+
+  // Получение текущего состояния режима реальных данных пользователей
+  isRealUsersDataMode(): boolean {
+    return this.useRealUsersData;
   }
 }
 

@@ -21,6 +21,15 @@ export interface UserStats {
   inactive: number;
   admins: number;
   regular_users: number;
+  active_users?: number;
+  inactive_users?: number;
+  total_users?: number;
+  recent_users?: number;
+  recent_logins?: number;
+  by_role?: Record<string, number>;
+  by_type?: Record<string, number>;
+  role_stats?: Array<{role_name: string; count: number}>;
+  last_updated?: string;
 }
 
 export interface BillingStats {

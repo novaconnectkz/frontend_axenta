@@ -41,49 +41,32 @@
       </v-row>
 
       <v-row class="mt-4">
-        <v-col cols="12" md="6">
-          <div class="chart-container">
-            <canvas ref="usersChart"></canvas>
-          </div>
+        <v-col cols="12">
+          <v-progress-linear
+            :model-value="activePercentage"
+            color="success"
+            height="20"
+            rounded
+          >
+            <template v-slot:default="{ value }">
+              <strong>{{ Math.ceil(value) }}% активных</strong>
+            </template>
+          </v-progress-linear>
         </v-col>
-        <v-col cols="12" md="6">
-          <v-list density="compact">
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon icon="mdi-account-check" color="success" />
-              </template>
-              <v-list-item-title>Активные пользователи</v-list-item-title>
-              <template v-slot:append>
-                <v-chip color="success" size="small">
-                  {{ data.active }}
-                </v-chip>
-              </template>
-            </v-list-item>
-            
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon icon="mdi-account-off" color="warning" />
-              </template>
-              <v-list-item-title>Неактивные пользователи</v-list-item-title>
-              <template v-slot:append>
-                <v-chip color="warning" size="small">
-                  {{ data.inactive }}
-                </v-chip>
-              </template>
-            </v-list-item>
+      </v-row>
 
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon icon="mdi-shield-account" color="primary" />
-              </template>
-              <v-list-item-title>Администраторы</v-list-item-title>
-              <template v-slot:append>
-                <v-chip color="primary" size="small">
-                  {{ adminPercentage }}%
-                </v-chip>
-              </template>
-            </v-list-item>
-          </v-list>
+      <v-row v-if="data.admins > 0" class="mt-2">
+        <v-col cols="12">
+          <v-alert
+            type="info"
+            variant="tonal"
+            density="compact"
+          >
+            <template v-slot:prepend>
+              <v-icon icon="mdi-shield-account" />
+            </template>
+            {{ data.admins }} администратор(ов) из {{ data.total }} пользователей ({{ adminPercentage }}%)
+          </v-alert>
         </v-col>
       </v-row>
     </div>
@@ -146,13 +129,16 @@ export default defineComponent({
     const data = ref<UserStats | null>(null);
     const loading = ref(false);
     const error = ref<string | null>(null);
-    const usersChart = ref<HTMLCanvasElement | null>(null);
     let refreshTimer: NodeJS.Timeout | null = null;
-    let chartInstance: any = null;
 
     const adminPercentage = computed(() => {
       if (!data.value || data.value.total === 0) return 0;
       return Math.round((data.value.admins / data.value.total) * 100);
+    });
+
+    const activePercentage = computed(() => {
+      if (!data.value || data.value.total === 0) return 0;
+      return Math.round((data.value.active / data.value.total) * 100);
     });
 
     const loadData = async () => {
@@ -161,9 +147,6 @@ export default defineComponent({
         error.value = null;
         const stats = await dashboardService.getStats();
         data.value = stats.users;
-        
-        await nextTick();
-        updateChart();
       } catch (err: any) {
         error.value = err.message || 'Ошибка загрузки данных пользователей';
         console.error('Ошибка загрузки данных пользователей:', err);
@@ -172,47 +155,6 @@ export default defineComponent({
       }
     };
 
-    const updateChart = async () => {
-      if (!usersChart.value || !data.value) return;
-
-      // Простая реализация без Chart.js для демонстрации
-      // В реальном проекте лучше использовать Chart.js или другую библиотеку
-      const ctx = usersChart.value.getContext('2d');
-      if (!ctx) return;
-
-      const { active, inactive } = data.value;
-      const total = active + inactive;
-      
-      if (total === 0) return;
-
-      const activeAngle = (active / total) * 2 * Math.PI;
-      const centerX = usersChart.value.width / 2;
-      const centerY = usersChart.value.height / 2;
-      const radius = Math.min(centerX, centerY) - 10;
-
-      ctx.clearRect(0, 0, usersChart.value.width, usersChart.value.height);
-
-      // Активные пользователи
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, activeAngle);
-      ctx.lineTo(centerX, centerY);
-      ctx.fillStyle = '#4CAF50';
-      ctx.fill();
-
-      // Неактивные пользователи
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, activeAngle, 2 * Math.PI);
-      ctx.lineTo(centerX, centerY);
-      ctx.fillStyle = '#FF9800';
-      ctx.fill();
-    };
-
-    const initChart = () => {
-      if (usersChart.value) {
-        usersChart.value.width = 150;
-        usersChart.value.height = 150;
-      }
-    };
 
     const startAutoRefresh = () => {
       if (props.refreshInterval > 0) {
@@ -230,25 +172,20 @@ export default defineComponent({
     };
 
     onMounted(async () => {
-      await nextTick();
-      initChart();
       await loadData();
       startAutoRefresh();
     });
 
     onUnmounted(() => {
       stopAutoRefresh();
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
     });
 
     return {
       data,
       loading,
       error,
-      usersChart,
       adminPercentage,
+      activePercentage,
       loadData
     };
   }
@@ -306,24 +243,4 @@ export default defineComponent({
   text-align: center;
 }
 
-.chart-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 150px;
-}
-
-/* Исправление для списков */
-.users-overview :deep(.v-list-item-title) {
-  white-space: normal !important;
-  word-break: keep-all !important;
-  overflow: visible !important;
-  text-overflow: unset !important;
-  line-height: 1.3 !important;
-}
-
-.users-overview :deep(.v-list-item) {
-  min-height: 48px !important;
-  padding: 8px 16px !important;
-}
 </style>

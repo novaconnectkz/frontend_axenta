@@ -117,6 +117,8 @@ export interface UserStats {
   total: number;
   active: number;
   inactive: number;
+  admins: number;
+  regular_users: number;
   active_users: number;
   inactive_users: number;
   total_users: number;
