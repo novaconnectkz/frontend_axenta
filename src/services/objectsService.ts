@@ -176,9 +176,9 @@ export class ObjectsService {
     try {
       console.log("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
       
-      // Используем Axenta Cloud CMS API endpoint (прямое обращение)
+      // Используем аутентифицированный CMS API endpoint
       const response = await this.apiClient.get(
-        `/cms/objects/?${params.toString()}`
+        `/auth/cms/objects/?${params.toString()}`
       );
       console.log("✅ Backend objects API response:", response.data);
       
@@ -212,7 +212,13 @@ export class ObjectsService {
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
         console.warn("🔄 Fallback to direct Axenta Cloud API");
         try {
-          // Прямое обращение к Axenta Cloud API
+          // Получаем токен текущего пользователя
+          const userToken = localStorage.getItem("axenta_token");
+          if (!userToken) {
+            throw new Error("Токен пользователя не найден");
+          }
+          
+          // Прямое обращение к Axenta Cloud API с токеном пользователя
           const axentaClient = axios.create({
             baseURL: "https://axenta.cloud/api",
             timeout: 30000,
@@ -222,7 +228,7 @@ export class ObjectsService {
             `/cms/objects/?${params.toString()}`,
             {
               headers: {
-                'Authorization': 'Token 5e515a8f2874fc78f31c74af45260333f2c84c35',
+                'Authorization': `Token ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }
@@ -487,7 +493,7 @@ export class ObjectsService {
   }> {
     try {
       // Пробуем аутентифицированный эндпоинт для статистики
-      const response = await this.apiClient.get("/auth/objects/stats");
+      const response = await this.apiClient.get("/auth/cms/objects/stats");
       console.log("✅ Backend objects stats API response:", response.data);
       return response.data.data || response.data;
     } catch (error: any) {
@@ -497,7 +503,13 @@ export class ObjectsService {
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
         console.warn("🔄 Fallback to direct Axenta Cloud API for stats");
         try {
-          // Прямое обращение к Axenta Cloud API для статистики
+          // Получаем токен текущего пользователя
+          const userToken = localStorage.getItem("axenta_token");
+          if (!userToken) {
+            throw new Error("Токен пользователя не найден для статистики");
+          }
+          
+          // Прямое обращение к Axenta Cloud API для статистики с токеном пользователя
           const axentaClient = axios.create({
             baseURL: "https://axenta.cloud/api",
             timeout: 30000,
@@ -507,7 +519,7 @@ export class ObjectsService {
             `/cms/objects/?page=1&per_page=1`,
             {
               headers: {
-                'Authorization': 'Token 5e515a8f2874fc78f31c74af45260333f2c84c35',
+                'Authorization': `Token ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }
