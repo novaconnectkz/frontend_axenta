@@ -20,11 +20,11 @@ export default defineConfig(({ mode }) => {
           return html
             .replace(
               "%VITE_BACKEND_URL%",
-              env.VITE_BACKEND_URL || "https://api.axenta.cloud"
+              env.VITE_BACKEND_URL || "https://api.axenta.glonass-saratov.ru"
             )
             .replace(
               "%VITE_WS_BASE_URL%",
-              env.VITE_WS_BASE_URL || "wss://api.axenta.cloud"
+              env.VITE_WS_BASE_URL || "wss://api.axenta.glonass-saratov.ru"
             )
             .replace("%VITE_APP_NAME%", env.VITE_APP_NAME || "Axenta CRM")
             .replace("%VITE_API_VERSION%", env.VITE_API_VERSION || "v1")
@@ -121,10 +121,10 @@ export default defineConfig(({ mode }) => {
       global: "globalThis",
       // Определяем переменные окружения с дефолтными значениями
       "process.env.VITE_BACKEND_URL": JSON.stringify(
-        env.VITE_BACKEND_URL || "https://api.axenta.cloud"
+        env.VITE_BACKEND_URL || "https://api.axenta.glonass-saratov.ru"
       ),
       "process.env.VITE_WS_BASE_URL": JSON.stringify(
-        env.VITE_WS_BASE_URL || "wss://api.axenta.cloud"
+        env.VITE_WS_BASE_URL || "wss://api.axenta.glonass-saratov.ru"
       ),
       "process.env.VITE_API_VERSION": JSON.stringify(
         env.VITE_API_VERSION || "v1"

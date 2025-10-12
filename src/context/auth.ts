@@ -115,30 +115,7 @@ const getTokenExpiry = (token: string): Date | null => {
 export const AuthKey: InjectionKey<AuthContext> = Symbol("auth");
 
 export function useAuthProvider() {
-  // Создаем демо пользователя для тестирования
-  const demoUser: User = {
-    accountBlockingDatetime: null,
-    accountName: "Axenta Demo",
-    accountType: "demo",
-    creatorName: "System",
-    id: "demo-user-1",
-    lastLogin: new Date().toISOString(),
-    name: "Демо Пользователь",
-    username: "demo",
-    email: "demo@axenta.ru",
-    accountId: 2061, // Используем реальный accountId из логов
-    isAdmin: true,
-    isActive: true,
-    language: "ru",
-    timezone: 3,
-  };
-
-  const demoCompany: Company = {
-    id: "4e12b3c9-529c-4fe7-98e1-025eed8cb258",
-    name: "Axenta Demo Company",
-    schema: "demo",
-    isActive: true,
-  };
+  // Убираем демо пользователя - только реальная авторизация
 
   const user = ref<User | null>(null);
   const token = ref<string | null>(null);
@@ -183,20 +160,10 @@ export function useAuthProvider() {
     (response) => response,
     async (error) => {
       if (error.response?.status === 401 && token.value) {
-        // Токен истек, пробуем обновить
-        try {
-          await refreshToken();
-          // Повторяем оригинальный запрос с новым токеном
-          const originalRequest = error.config;
-          originalRequest.headers["authorization"] = `Token ${token.value}`;
-          // Убираем X-Tenant-ID из повторного запроса
-          delete originalRequest.headers["X-Tenant-ID"];
-          return apiClient.request(originalRequest);
-        } catch (refreshError) {
-          // Не удалось обновить токен, выходим из системы
-          logout();
-          return Promise.reject(refreshError);
-        }
+        // Токен истек - выходим из системы (пользователь авторизуется заново)
+        console.log('🔄 Получен 401 Unauthorized, токен истек');
+        logout();
+        return Promise.reject(new Error('Сессия истекла, требуется повторная авторизация'));
       }
       return Promise.reject(error);
     }
@@ -329,9 +296,10 @@ export function useAuthProvider() {
     error.value = null;
     
     try {
-      // Используем прямой Axenta Cloud API для авторизации
-      const axentaLoginUrl = `https://axenta.cloud/api/auth/login/`;
-      console.log('🔐 Attempting direct Axenta login to:', axentaLoginUrl);
+      // Используем наш backend API для авторизации через Axenta
+      const backendLoginUrl = `${config.apiBaseUrl}/auth/login`;
+      console.log('🔐 Attempting backend login to:', backendLoginUrl);
+      console.log('🔧 Config apiBaseUrl:', config.apiBaseUrl);
       
       // Retry механизм для обработки ошибок
       const maxRetries = 3;
@@ -342,7 +310,7 @@ export function useAuthProvider() {
           console.log(`🔄 Попытка авторизации через backend ${attempt}/${maxRetries}`);
           
           const response = await axios.post(
-            axentaLoginUrl,
+            backendLoginUrl,
             credentials,
             {
               timeout: 15000,
@@ -352,29 +320,11 @@ export function useAuthProvider() {
             }
           );
 
-          console.log('✅ Axenta Cloud login response:', response.data);
+          console.log('✅ Backend login response:', response.data);
 
-          // Axenta Cloud возвращает { token: "..." }
-          if (response.data.token) {
-            const responseData = {
-              token: response.data.token,
-              user: {
-                username: credentials.username,
-                name: credentials.username,
-                accountType: 'partner', // Предполагаем партнера для доступа к CRM
-                id: 'axenta-user',
-                accountName: 'Axenta Cloud User',
-                creatorName: 'Axenta Cloud',
-                lastLogin: new Date().toISOString(),
-                accountBlockingDatetime: null,
-                email: credentials.username,
-                accountId: 1,
-                isAdmin: true,
-                isActive: true,
-                language: 'ru',
-                timezone: 3
-              }
-            };
+          // Backend возвращает { status: "success", data: { token, user } }
+          if (response.data.status === 'success' && response.data.data) {
+            const responseData = response.data.data;
             
             // Проверяем тип аккаунта на стороне frontend
             if (responseData.user.accountType !== 'partner') {
@@ -442,11 +392,84 @@ export function useAuthProvider() {
         }
       }
       
-      // Если Axenta Cloud API не работает, показываем ошибку
+      // Если backend не работает, пробуем локальную авторизацию
       if (lastError) {
-        console.log('❌ Axenta Cloud API недоступен');
+        console.log('🔄 Backend недоступен, пробуем локальную авторизацию...');
         
-        // Не используем локальную авторизацию для Axenta Cloud
+        try {
+          const localLoginUrl = `${config.apiBaseUrl}/local/login`;
+          console.log('🔐 Attempting local login to:', localLoginUrl);
+          
+          const localResponse = await axios.post(
+            localLoginUrl,
+            credentials,
+            {
+              timeout: 15000,
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          console.log('✅ Local login response:', localResponse.data);
+
+          // Локальная авторизация возвращает { status: "success", data: { access_token, user, ... } }
+          if (localResponse.data.status === "success" && localResponse.data.data) {
+            const responseData = localResponse.data.data;
+            
+            // Используем данные пользователя из ответа
+            const userData = responseData.user;
+            
+            // Определяем тип аккаунта из company_id
+            let accountType = "local";
+            if (userData.company_id && userData.company_id.includes("partner")) {
+              accountType = "partner";
+            } else if (userData.company_id && userData.company_id.includes("client")) {
+              accountType = "client";
+            }
+            
+            // Если это не партнер, блокируем доступ
+            if (accountType !== "partner") {
+              const errorMsg = `Доступ к CRM разрешен только партнерам Axenta. Обнаружен тип: ${accountType}`;
+              console.error('🚫 Local auth access denied:', errorMsg);
+              error.value = errorMsg;
+              clearStorage();
+              throw new Error(errorMsg);
+            }
+            
+            const localUser: User = {
+              accountBlockingDatetime: null,
+              accountName: userData.name || "Local User",
+              accountType: accountType,
+              creatorName: "Local Auth",
+              id: userData.id.toString(),
+              lastLogin: userData.last_login || new Date().toISOString(),
+              name: userData.name || credentials.username,
+              username: userData.username,
+              email: userData.email || credentials.username,
+              isAdmin: userData.role === "admin",
+              isActive: userData.is_active,
+              language: "ru",
+              timezone: 3,
+            };
+
+            user.value = localUser;
+            token.value = responseData.access_token; // Используем access_token
+
+            // Создаем компанию на основе company_id
+            company.value = {
+              id: userData.company_id,
+              name: "Local Company",
+              isActive: true,
+            };
+
+            saveToStorage();
+            console.log('✅ Local login successful, user saved:', user.value);
+            return; // Успешная локальная авторизация
+          }
+        } catch (localError: any) {
+          console.log('❌ Local login also failed:', localError);
+        }
         
         // Если и локальная авторизация не сработала, показываем ошибку
         let errorMessage = "Ошибка входа в систему";
@@ -558,18 +581,17 @@ export function useAuthProvider() {
     return user.value.isAdmin || false;
   };
 
-  // Автоматически проверяем токен каждые 5 минут
+  // Автоматически проверяем токен каждые 30 минут (увеличено с 5 минут)
   let tokenCheckInterval: NodeJS.Timeout;
 
   const startTokenCheck = () => {
     tokenCheckInterval = setInterval(() => {
       if (token.value && isTokenExpired(token.value)) {
-        refreshToken().catch(() => {
-          // Если не удалось обновить токен, выходим
-          logout();
-        });
+        console.log('🔄 Токен истек, требуется повторная авторизация');
+        // Вместо refresh просто выходим - пользователь авторизуется заново
+        logout();
       }
-    }, 5 * 60 * 1000); // 5 минут
+    }, 30 * 60 * 1000); // 30 минут (увеличено с 5 минут)
   };
 
   const stopTokenCheck = () => {
@@ -587,91 +609,53 @@ export function useAuthProvider() {
     }
   });
 
-  // Принудительно очищаем старые данные с некорректным company ID
-  const forceCleanOldData = () => {
-    const storedCompany = localStorage.getItem(COMPANY_KEY);
-    if (storedCompany) {
+  // Очищаем старые демо данные при инициализации
+  const cleanDemoData = () => {
+    const storedUser = localStorage.getItem(USER_KEY);
+    if (storedUser) {
       try {
-        const parsedCompany = JSON.parse(storedCompany);
-        // Очищаем только если ID действительно некорректный (строка "1" или число 1)
-        if (parsedCompany.id === "1" || parsedCompany.id === 1) {
-          console.log("🔄 Обнаружены старые данные с некорректным company ID, обновляем");
-          // Не очищаем все данные, а только обновляем company
-          company.value = demoCompany;
-          localStorage.setItem(COMPANY_KEY, JSON.stringify(demoCompany));
+        const parsedUser = JSON.parse(storedUser);
+        // Если это демо пользователь - удаляем
+        if (parsedUser.username === 'demo' || parsedUser.accountType === 'demo' || parsedUser.name === 'Демо Пользователь') {
+          console.log('🧹 Очищаем старые демо данные...');
+          clearStorage();
+          user.value = null;
+          token.value = null;
+          company.value = null;
         }
       } catch (err) {
-        console.log("🔄 Ошибка при проверке company данных:", err);
-        // Не очищаем все данные, только company
-        company.value = demoCompany;
-        localStorage.setItem(COMPANY_KEY, JSON.stringify(demoCompany));
+        console.log('⚠️ Ошибка при проверке пользователя:', err);
       }
     }
   };
 
-  // Сначала загружаем данные при инициализации
+  // Сначала очищаем демо данные, затем загружаем реальные
+  cleanDemoData();
   loadFromStorage();
 
-  // Принудительная очистка старых данных (только если есть проблемы)
-  forceCleanOldData();
+  // Убираем автоматическую установку токена - теперь только через нормальную авторизацию
+  console.log('🔍 Проверяем существующий токен в localStorage...');
+  const existingToken = localStorage.getItem(TOKEN_KEY);
+  if (existingToken) {
+    console.log('✅ Найден существующий токен:', existingToken.substring(0, 20) + '...');
+  } else {
+    console.log('ℹ️ Токен не найден - требуется авторизация');
+  }
 
-  // Если токена нет и сервер авторизации недоступен, устанавливаем рабочий токен
-  const checkAndSetWorkingToken = () => {
-    const existingToken = localStorage.getItem(TOKEN_KEY);
-    if (!existingToken) {
-      console.log('🔧 Устанавливаем рабочий токен для доступа к Axenta Cloud...');
-      
-      const workingToken = '5e515a8f2874fc78f31c74af45260333f2c84c35';
-      const workingUser: User = {
-        username: 'glomos',
-        name: 'glomos',
-        accountType: 'partner',
-        id: 'axenta-user',
-        accountName: 'Axenta Cloud User',
-        creatorName: 'Axenta Cloud',
-        lastLogin: new Date().toISOString(),
-        accountBlockingDatetime: null,
-        email: 'glomos@axenta.cloud',
-        accountId: 1,
-        isAdmin: true,
-        isActive: true,
-        language: 'ru',
-        timezone: 3
-      };
-      
-      const workingCompany: Company = {
-        id: '1',
-        name: 'Axenta Cloud',
-        schema: 'axenta',
-        isActive: true
-      };
-      
-      token.value = workingToken;
-      user.value = workingUser;
-      company.value = workingCompany;
-      
-      saveToStorage();
-      console.log('✅ Рабочий токен установлен для пользователя:', workingUser.username);
-    }
-  };
+  // Убираем автоматическую установку демо данных
+  console.log("ℹ️ Демо режим отключен - только нормальная авторизация");
   
-  checkAndSetWorkingToken();
-
-  // Если после загрузки нет пользователя И нет никаких токенов в localStorage, устанавливаем демо данные
+  // Проверяем, есть ли сохраненные данные для восстановления
   const hasAnyStoredToken = localStorage.getItem("axenta_token") || 
                            localStorage.getItem("local_access_token") ||
                            localStorage.getItem("token");
                            
-  if (!user.value && !token.value && !hasAnyStoredToken) {
-    console.log("🔄 No user or tokens found anywhere, setting demo data for development");
-    user.value = demoUser;
-    token.value = "demo-token-" + Date.now();
-    company.value = demoCompany;
-    saveToStorage();
-  } else if (hasAnyStoredToken && !user.value) {
+  if (hasAnyStoredToken && !user.value) {
     console.log("🔄 Found stored token but no user, attempting to restore...");
     // Если есть токен в localStorage, но пользователь не загрузился, попробуем еще раз
     loadFromStorage();
+  } else if (!hasAnyStoredToken) {
+    console.log("ℹ️ No tokens found - user needs to login");
   }
 
   const authContext: AuthContext = {
