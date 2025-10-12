@@ -1,6 +1,6 @@
 // Сервис для работы с объектами мониторинга
 
-import { useAuth } from "@/context/auth";
+import { config } from "@/config/env";
 import type {
   CompanyInfo,
   ObjectFilters,
@@ -10,36 +10,61 @@ import type {
   ObjectsResponse,
   ScheduleDeleteForm,
 } from "@/types/objects";
+import axios from "axios";
 
 export class ObjectsService {
   private static instance: ObjectsService;
-  private auth: ReturnType<typeof useAuth> | null = null;
+  private apiClient = axios.create({
+    baseURL: config.apiBaseUrl,
+    timeout: 30000,
+  });
 
   constructor() {
     console.log("🔧 ObjectsService constructor called");
-    try {
-      this.auth = useAuth();
-      console.log("🔧 Auth context successfully initialized");
-    } catch (error) {
-      console.warn(
-        "🚨 Auth context not available in ObjectsService constructor:",
-        error
-      );
-      this.auth = null;
-    }
-  }
+    
+    // Настраиваем interceptors для токена
+    this.apiClient.interceptors.request.use((config) => {
+      const token = localStorage.getItem("axenta_token");
+      const company = localStorage.getItem("axenta_company");
 
-  private getAuth(): ReturnType<typeof useAuth> {
-    if (!this.auth) {
-      try {
-        this.auth = useAuth();
-      } catch (error) {
-        throw new Error(
-          "Auth context not available. Make sure you are using ObjectsService within a component that has access to auth context."
-        );
+      console.log("📡 ObjectsService request:", {
+        url: config.url,
+        method: config.method,
+        hasToken: !!token,
+        company: company ? "EXISTS" : "MISSING",
+      });
+
+      if (token) {
+        config.headers["authorization"] = `Token ${token}`;
+        config.headers["Authorization"] = `Token ${token}`;
       }
-    }
-    return this.auth;
+
+      if (company) {
+        try {
+          const companyData = JSON.parse(company);
+          config.headers["X-Tenant-ID"] = companyData.id;
+        } catch (e) {
+          console.warn("Invalid company data in localStorage");
+        }
+      }
+
+      return config;
+    });
+
+    // Добавляем обработчик ошибок
+    this.apiClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        console.log("ObjectsService API error:", {
+          status: error.response?.status,
+          url: error.config?.url,
+          message: error.message,
+        });
+
+        // Не перенаправляем на логин при 401 - пусть fallback сработает
+        return Promise.reject(error);
+      }
+    );
   }
 
   static getInstance(): ObjectsService {
@@ -151,11 +176,11 @@ export class ObjectsService {
     try {
       console.log("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
       
-      // Используем Axenta Cloud CMS API endpoint
-      const response = await this.getAuth().apiClient.get(
+      // Используем Axenta Cloud CMS API endpoint (прямое обращение)
+      const response = await this.apiClient.get(
         `/cms/objects/?${params.toString()}`
       );
-      console.log("✅ Axenta Cloud CMS objects API response:", response.data);
+      console.log("✅ Backend objects API response:", response.data);
       
       // Проверяем структуру ответа
       if (response.data.count !== undefined && response.data.results) {
@@ -177,17 +202,17 @@ export class ObjectsService {
         console.log("📋 Final adapted response:", adaptedResponse);
         return adaptedResponse;
       } else {
-        console.log("📋 Using old structure response as-is");
+        console.log("📋 Using backend response as-is");
         return response.data;
       }
     } catch (error: any) {
-      console.log("🔍 Error in getObjects (Axenta Cloud CMS):", error.response?.status, error.message);
+      console.log("🔍 Error in getObjects (backend auth):", error.response?.status, error.message);
       
-      // Если Axenta Cloud CMS API недоступен, пробуем fallback endpoints
+      // Если аутентифицированный endpoint недоступен, пробуем fallback endpoints
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
         console.warn("🔄 Fallback to auth endpoint for objects");
         try {
-          const response = await this.getAuth().apiClient.get(
+          const response = await this.apiClient.get(
             `/auth/objects?${params.toString()}`
           );
           console.log("✅ Fallback to auth endpoint successful");
@@ -210,7 +235,7 @@ export class ObjectsService {
         } catch (authError: any) {
           console.warn("🔄 Fallback to public endpoint for objects");
           try {
-            const response = await this.getAuth().apiClient.get(
+            const response = await this.apiClient.get(
               `/objects?${params.toString()}`
             );
             console.log("✅ Fallback to public endpoint successful");
@@ -246,13 +271,13 @@ export class ObjectsService {
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
     try {
       // Пробуем аутентифицированный эндпоинт
-      const response = await this.getAuth().apiClient.get(`/auth/objects/${id}`);
+      const response = await this.apiClient.get(`/auth/objects/${id}`);
       return response.data;
     } catch (error: any) {
       // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
         console.warn("🔄 Fallback to public endpoint for object");
-        const response = await this.getAuth().apiClient.get(`/objects/${id}`);
+        const response = await this.apiClient.get(`/objects/${id}`);
         return response.data;
       }
       throw error;
@@ -263,7 +288,7 @@ export class ObjectsService {
   async createObject(
     object: ObjectForm
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.getAuth().apiClient.post(
+    const response = await this.apiClient.post(
       "/auth/objects",
       object
     );
@@ -275,7 +300,7 @@ export class ObjectsService {
     id: number,
     object: Partial<ObjectForm>
   ): Promise<{ status: string; data: ObjectWithRelations; error?: string }> {
-    const response = await this.getAuth().apiClient.put(
+    const response = await this.apiClient.put(
       `/auth/objects/${id}`,
       object
     );
@@ -286,7 +311,7 @@ export class ObjectsService {
   async deleteObject(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.getAuth().apiClient.delete(
+    const response = await this.apiClient.delete(
       `/auth/objects/${id}`
     );
     return response.data;
@@ -297,7 +322,7 @@ export class ObjectsService {
     id: number,
     data: ScheduleDeleteForm
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.getAuth().apiClient.put(
+    const response = await this.apiClient.put(
       `/auth/objects/${id}/schedule-delete`,
       data
     );
@@ -308,7 +333,7 @@ export class ObjectsService {
   async cancelScheduledDelete(
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.getAuth().apiClient.put(
+    const response = await this.apiClient.put(
       `/auth/objects/${id}/cancel-delete`
     );
     return response.data;
@@ -328,7 +353,7 @@ export class ObjectsService {
 
     if (search) params.append("search", search);
 
-    const response = await this.getAuth().apiClient.get(
+    const response = await this.apiClient.get(
       `/auth/objects-trash?${params.toString()}`
     );
     return response.data;
@@ -338,7 +363,7 @@ export class ObjectsService {
   async restoreObject(
     id: number
   ): Promise<{ status: string; message: string; data: any; error?: string }> {
-    const response = await this.getAuth().apiClient.put(
+    const response = await this.apiClient.put(
       `/auth/objects/${id}/restore`
     );
     return response.data;
@@ -348,7 +373,7 @@ export class ObjectsService {
   async permanentDeleteObject(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.getAuth().apiClient.delete(
+    const response = await this.apiClient.delete(
       `/auth/objects/${id}/permanent`
     );
     return response.data;
@@ -383,7 +408,7 @@ export class ObjectsService {
     if (filters.active_only !== undefined)
       params.append("active_only", filters.active_only.toString());
 
-    const response = await this.getAuth().apiClient.get(
+    const response = await this.apiClient.get(
       `/object-templates?${params.toString()}`
     );
     return response.data;
@@ -393,7 +418,7 @@ export class ObjectsService {
   async getObjectTemplate(
     id: number
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.getAuth().apiClient.get(
+    const response = await this.apiClient.get(
       `/object-templates/${id}`
     );
     return response.data;
@@ -406,7 +431,7 @@ export class ObjectsService {
       "id" | "created_at" | "updated_at" | "usage_count"
     >
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.getAuth().apiClient.post(
+    const response = await this.apiClient.post(
       "/object-templates",
       template
     );
@@ -418,7 +443,7 @@ export class ObjectsService {
     id: number,
     template: Partial<ObjectTemplate>
   ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.getAuth().apiClient.put(
+    const response = await this.apiClient.put(
       `/object-templates/${id}`,
       template
     );
@@ -429,7 +454,7 @@ export class ObjectsService {
   async deleteObjectTemplate(
     id: number
   ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.getAuth().apiClient.delete(
+    const response = await this.apiClient.delete(
       `/object-templates/${id}`
     );
     return response.data;
@@ -447,9 +472,9 @@ export class ObjectsService {
     by_status: Record<string, number>;
   }> {
     try {
-      // Используем Axenta Cloud CMS API endpoint для статистики
-      const response = await this.getAuth().apiClient.get("/cms/objects/stats/");
-      console.log("✅ Axenta Cloud CMS objects stats API response:", response.data);
+      // Пробуем аутентифицированный эндпоинт для статистики
+      const response = await this.apiClient.get("/auth/objects/stats");
+      console.log("✅ Backend objects stats API response:", response.data);
       return response.data.data || response.data;
     } catch (error: any) {
       console.log("🔍 Error in getObjectsStats (Axenta Cloud CMS):", error.response?.status, error.message);
@@ -458,13 +483,13 @@ export class ObjectsService {
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
         console.warn("🔄 Fallback to auth endpoint for objects stats");
         try {
-          const response = await this.getAuth().apiClient.get("/auth/objects/stats");
+          const response = await this.apiClient.get("/auth/objects/stats");
           console.log("✅ Fallback to auth endpoint successful for stats");
           return response.data.data || response.data;
         } catch (authError: any) {
           console.warn("🔄 Fallback to public endpoint for objects stats");
           try {
-            const response = await this.getAuth().apiClient.get("/objects/stats");
+            const response = await this.apiClient.get("/objects/stats");
             console.log("✅ Fallback to public endpoint successful for stats");
             return response.data.data || response.data;
           } catch (fallbackError: any) {
@@ -491,7 +516,7 @@ export class ObjectsService {
       }
     });
 
-    const response = await this.getAuth().apiClient.get(
+    const response = await this.apiClient.get(
       `/auth/objects/export?${params.toString()}`,
       {
         responseType: "blob",
@@ -536,7 +561,7 @@ export class ObjectsService {
   // Получение списка компаний для селектора
   async getCompanies(): Promise<{ status: string; data: CompanyInfo[]; error?: string }> {
     try {
-      const response = await this.getAuth().apiClient.get("/admin/accounts/list");
+      const response = await this.apiClient.get("/admin/accounts/list");
       return {
         status: response.data.status,
         data: response.data.data || [], // Обеспечиваем, что data всегда массив
