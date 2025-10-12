@@ -314,12 +314,11 @@
 
     <!-- Красивые уведомления об успехе -->
     <SuccessNotification
-      :show="successNotification.show"
+      v-model="successNotification.show"
       :title="successNotification.title"
       :message="successNotification.message"
       :details="successNotification.details"
       :icon="successNotification.icon"
-      @close="successNotification.show = false"
     />
   </div>
 </template>
