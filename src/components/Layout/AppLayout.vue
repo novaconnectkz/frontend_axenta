@@ -93,25 +93,59 @@
       <!-- Кнопка меню для мобильных -->
       <v-app-bar-nav-icon v-if="mobile" @click="drawer = !drawer" />
 
-      <!-- Приветствие и дата -->
-      <v-app-bar-title>
-        <div class="welcome-section" :class="{ 'mobile-welcome': mobile }">
-          <h1 class="welcome-title">
-            <span v-if="!mobile">Добро пожаловать, {{ auth.user.value?.name || 'Пользователь' }}!</span>
-            <span v-else>{{ auth.user.value?.name || 'CRM' }}</span>
-          </h1>
-          <div v-if="!mobile" class="welcome-datetime">
-            <p class="welcome-date">
-              {{ formatDate(currentTime) }}
-            </p>
-            <p class="welcome-time">
-              {{ formatTime(currentTime) }}
-            </p>
+      <!-- Левая часть: Хлебные крошки и заголовок страницы (для всех страниц) -->
+      <v-app-bar-title class="header-title-section">
+        <div class="page-navigation-section">
+          <!-- Хлебные крошки -->
+          <div v-if="breadcrumbs.length > 1 && !mobile" class="header-breadcrumbs">
+            <template v-for="(crumb, index) in breadcrumbs" :key="index">
+              <router-link
+                v-if="!crumb.disabled"
+                :to="crumb.to"
+                class="breadcrumb-link"
+              >
+                {{ crumb.title }}
+              </router-link>
+              <span v-else class="breadcrumb-current">
+                {{ crumb.title }}
+              </span>
+              <v-icon 
+                v-if="index < breadcrumbs.length - 1" 
+                class="breadcrumb-divider"
+                size="16"
+              >
+                mdi-chevron-right
+              </v-icon>
+            </template>
+          </div>
+
+          <!-- Заголовок текущей страницы -->
+          <div class="page-title-header">
+            <v-icon 
+              v-if="currentPageIcon" 
+              :icon="currentPageIcon" 
+              class="page-icon"
+              size="20"
+            />
+            <h1 class="page-title-text">
+              {{ currentPageTitle }}
+            </h1>
           </div>
         </div>
       </v-app-bar-title>
 
       <v-spacer />
+
+      <!-- Информация о пользователе и времени (справа) -->
+      <div v-if="!mobile" class="header-user-info">
+        <div class="user-welcome-compact">
+          <span class="user-name">{{ auth.user.value?.name || 'Пользователь' }}</span>
+        </div>
+        <div class="datetime-compact">
+          <span class="current-date">{{ formatDateCompact(currentTime) }}</span>
+          <span class="current-time">{{ formatTime(currentTime) }}</span>
+        </div>
+      </div>
 
       <!-- Переключатель темы -->
       <v-tooltip location="bottom">
@@ -229,6 +263,11 @@
             <div v-if="auth.user.value" class="user-info-section mb-3">
               <div class="text-caption text-medium-emphasis mb-2">Информация об аккаунте:</div>
               <div class="user-info-grid">
+                <!-- Текущее время (для мобильных) -->
+                <div v-if="mobile" class="info-item">
+                  <v-icon icon="mdi-clock" size="14" class="me-1" />
+                  <span class="text-caption">{{ formatDateCompact(currentTime) }} {{ formatTime(currentTime) }}</span>
+                </div>
                 <div class="info-item">
                   <v-icon icon="mdi-domain" size="14" class="me-1" />
                   <span class="text-caption">{{ auth.user.value.accountName || 'Не указано' }}</span>
@@ -285,13 +324,6 @@
     <!-- Основной контент -->
     <v-main class="app-main">
       <v-container fluid class="main-content">
-        <!-- Breadcrumbs -->
-        <v-breadcrumbs v-if="breadcrumbs.length > 1" :items="breadcrumbs" class="px-0 py-2">
-          <template #divider>
-            <v-icon>mdi-chevron-right</v-icon>
-          </template>
-        </v-breadcrumbs>
-
         <!-- Слот для контента страницы -->
         <router-view v-slot="{ Component, route }">
           <transition name="page" mode="out-in" appear>
@@ -351,7 +383,7 @@ const navigationItems = computed(() => [
   {
     path: '/dashboard',
     icon: 'mdi-view-dashboard',
-    title: 'Дашборд',
+    title: 'Главная',
     subtitle: 'Обзор системы'
   },
   {
@@ -576,6 +608,15 @@ const formatDate = (date: Date) => {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
+    year: 'numeric'
+  };
+  return date.toLocaleDateString('ru-RU', options);
+};
+
+const formatDateCompact = (date: Date) => {
+  const options: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
     year: 'numeric'
   };
   return date.toLocaleDateString('ru-RU', options);
@@ -1327,11 +1368,190 @@ onUnmounted(() => {
   background: rgba(var(--v-theme-surface), 0.9) !important;
 }
 
+/* Секция заголовка в header */
+.header-title-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0; /* Позволяет сжиматься */
+  flex: 1;
+}
+
 /* Секция приветствия в header */
 .welcome-section {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Секция навигации страницы */
+.page-navigation-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Хлебные крошки в header */
+.header-breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.breadcrumb-link {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--apple-text-secondary);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.breadcrumb-link:hover {
+  color: var(--apple-blue);
+  background-color: rgba(0, 122, 255, 0.08);
+  transform: scale(1.02);
+}
+
+.breadcrumb-current {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--apple-blue);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(0, 122, 255, 0.1);
+  white-space: nowrap;
+}
+
+.breadcrumb-divider {
+  color: var(--apple-text-tertiary);
+  opacity: 0.6;
+  margin: 0 2px;
+}
+
+/* Заголовок страницы в header */
+.page-title-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.page-icon {
+  color: var(--apple-blue);
+  flex-shrink: 0;
+}
+
+.page-title-text {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+  line-height: 1.2;
+  color: var(--apple-text-primary);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Темная тема для навигации */
+[data-theme="dark"] .breadcrumb-link {
+  color: var(--apple-text-secondary-dark);
+}
+
+[data-theme="dark"] .breadcrumb-link:hover {
+  color: var(--apple-blue-light);
+  background-color: rgba(77, 166, 255, 0.12);
+}
+
+[data-theme="dark"] .breadcrumb-current {
+  color: var(--apple-blue-light);
+  background-color: rgba(77, 166, 255, 0.15);
+}
+
+[data-theme="dark"] .breadcrumb-divider {
+  color: var(--apple-text-tertiary-dark);
+}
+
+[data-theme="dark"] .page-icon {
+  color: var(--apple-blue-light);
+}
+
+[data-theme="dark"] .page-title-text {
+  color: var(--apple-text-primary-dark);
+}
+
+/* Компактная информация о пользователе в header */
+.header-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-right: 16px;
+  min-width: 0;
+}
+
+.user-welcome-compact {
+  display: flex;
+  align-items: center;
+}
+
+.user-name {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--apple-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.datetime-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.current-date {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--apple-text-secondary);
+  white-space: nowrap;
+}
+
+.current-time {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--apple-blue);
+  background-color: rgba(0, 122, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Темная тема для компактной информации */
+[data-theme="dark"] .user-name {
+  color: var(--apple-text-primary-dark);
+}
+
+[data-theme="dark"] .current-date {
+  color: var(--apple-text-secondary-dark);
+}
+
+[data-theme="dark"] .current-time {
+  color: var(--apple-blue-light);
+  background-color: rgba(77, 166, 255, 0.12);
 }
 
 .welcome-title {
@@ -1673,6 +1893,38 @@ onUnmounted(() => {
     width: 28px !important;
     height: 28px !important;
   }
+
+  /* Адаптивные стили для навигации в header */
+  .page-title-text {
+    font-size: 1rem !important;
+  }
+
+  .header-breadcrumbs {
+    display: none; /* Скрываем хлебные крошки на планшетах */
+  }
+
+  .page-navigation-section {
+    gap: 2px;
+  }
+
+  /* Адаптивные стили для информации о пользователе */
+  .header-user-info {
+    margin-right: 8px;
+  }
+
+  .user-name {
+    font-size: 0.8rem;
+    max-width: 120px;
+  }
+
+  .current-date,
+  .current-time {
+    font-size: 0.7rem;
+  }
+
+  .datetime-compact {
+    gap: 6px;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1693,6 +1945,24 @@ onUnmounted(() => {
   .welcome-time {
     font-size: 0.7rem;
     padding: 2px 5px;
+  }
+
+  /* Мобильные стили для навигации */
+  .page-title-text {
+    font-size: 0.9rem !important;
+  }
+
+  .page-icon {
+    display: none; /* Скрываем иконку на очень маленьких экранах */
+  }
+
+  .header-title-section {
+    gap: 1px;
+  }
+
+  /* Мобильная версия информации о пользователе */
+  .header-user-info {
+    display: none; /* Скрываем на мобильных, так как есть аватар */
   }
 }
 

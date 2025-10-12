@@ -1,14 +1,6 @@
 <template>
   <div class="accounts-page">
-    <!-- Заголовок страницы -->
-    <div class="page-header compact-header">
-      <div class="header-content">
-        <h1 class="page-title">
-          <i class="mdi mdi-account-group"></i>
-          Учетные записи
-        </h1>
-      </div>
-    </div>
+    <!-- Заголовок страницы убран, так как теперь отображается в header -->
 
 
     <!-- Статистика -->
@@ -1426,37 +1418,7 @@ onUnmounted(() => {
   min-height: 100vh;
 }
 
-.page-header {
-  margin-bottom: 24px;
-}
-
-.compact-header {
-  margin-bottom: 16px;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1976d2;
-  margin: 0;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+/* Стили заголовка убраны, так как заголовок теперь в header */
 
 .stats-section {
   margin-bottom: 16px;
