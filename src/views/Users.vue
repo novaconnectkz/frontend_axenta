@@ -287,7 +287,7 @@
           <!-- Тип пользователя -->
           <template #item.user_type="{ item }">
             <div class="d-flex align-center">
-              <v-icon :icon="getUserTypeIcon(item.user_type)" size="20" class="mr-2" />
+              <v-icon :icon="getUserTypeIcon(item.user_type)" size="22" class="mr-2" />
               {{ getUserTypeText(item.user_type) }}
             </div>
           </template>
@@ -297,35 +297,25 @@
             <div class="actions-cell">
               <v-tooltip text="Просмотр">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewUser(item)" />
+                  <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewUser(item)">
+                    <v-icon size="22">mdi-eye</v-icon>
+                  </v-btn>
                 </template>
               </v-tooltip>
 
               <v-tooltip text="Редактировать">
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editUser(item)" />
-                </template>
-              </v-tooltip>
-
-              <v-tooltip text="Отправить ссылку для сброса пароля на email">
-                <template #activator="{ props }">
-                  <v-btn 
-                    v-bind="props" 
-                    size="small" 
-                    variant="text" 
-                    color="orange"
-                    @click="sendPasswordResetEmailToUser(item)"
-                    :loading="item.sendingPasswordReset"
-                    style="min-width: 32px;"
-                  >
-                    <v-icon>mdi-email</v-icon>
+                  <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editUser(item)">
+                    <v-icon size="22">mdi-pencil</v-icon>
                   </v-btn>
                 </template>
               </v-tooltip>
 
               <v-menu>
                 <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text" />
+                  <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text">
+                    <v-icon size="22">mdi-dots-vertical</v-icon>
+                  </v-btn>
                 </template>
 
                 <v-list density="compact">
@@ -755,49 +745,6 @@ const resetUserPassword = (user: UserWithRelations) => {
     show: true,
     user,
   };
-};
-
-// Отправка ссылки сброса пароля на email
-const sendPasswordResetEmailToUser = async (user: UserWithRelations) => {
-  if (!user.email) {
-    showSnackbar('У пользователя не указан email адрес', 'error');
-    return;
-  }
-
-  // Подтверждение действия
-  if (!confirm(`Отправить ссылку для сброса пароля на email ${user.email}?`)) {
-    return;
-  }
-
-  try {
-    // Устанавливаем состояние загрузки для конкретного пользователя
-    const userIndex = users.value.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      users.value[userIndex].sendingPasswordReset = true;
-    }
-
-    const response = await usersService.sendPasswordResetEmail(user.email, user.username);
-    
-    if (response.status === 'success') {
-      showSuccessNotification(
-        'Ссылка отправлена',
-        `Ссылка для сброса пароля отправлена на ${user.email}`,
-        response.message || 'Пользователь получит email с инструкциями по сбросу пароля',
-        'mdi-email-check'
-      );
-    } else {
-      showSnackbar(response.error || 'Ошибка отправки ссылки сброса пароля', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка отправки ссылки сброса пароля:', error);
-    showSnackbar('Ошибка отправки ссылки сброса пароля', 'error');
-  } finally {
-    // Убираем состояние загрузки
-    const userIndex = users.value.findIndex(u => u.id === user.id);
-    if (userIndex !== -1) {
-      users.value[userIndex].sendingPasswordReset = false;
-    }
-  }
 };
 
 // removed unused: openInactiveUsersDialog
