@@ -36,7 +36,8 @@ const initials = computed(() => {
   if (props.name) {
     const nameParts = props.name.trim().split(' ')
     if (nameParts.length >= 2) {
-      return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
+      // Берем первую букву фамилии (первое слово) и первую букву имени (второе слово)
+      return (nameParts[0][0] + nameParts[1][0]).toUpperCase()
     }
     return nameParts[0][0].toUpperCase()
   }
