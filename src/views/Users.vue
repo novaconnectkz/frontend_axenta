@@ -102,7 +102,7 @@
 
           <div class="filter-item filter-clear">
             <v-btn
-              icon="mdi-filter-remove"
+              :icon="hasActiveFilters ? 'mdi-filter-remove-outline' : 'mdi-filter-remove'"
               :variant="hasActiveFilters ? 'flat' : 'outlined'"
               :color="hasActiveFilters ? 'primary' : 'default'"
               size="small"
@@ -248,7 +248,7 @@
 
           <!-- Активность -->
           <template #item.is_active="{ item }">
-            <v-checkbox :model-value="item.is_active" @update:model-value="toggleUserActivity(item, $event)"
+            <v-checkbox :model-value="item.is_active" @update:model-value="(val) => toggleUserActivity(item, !!val)"
               hide-details density="compact" />
           </template>
 
@@ -360,7 +360,7 @@
     <!-- Диалог подтверждения массового удаления -->
     <BulkDeleteConfirmDialog
       v-model="showBulkDeleteDialog"
-      :items="selectedUsers"
+      :items="selectedUsersForDelete"
       item-type="пользователей"
       :loading="bulkActionsLoading"
       @confirm="executeBulkDelete"
@@ -401,7 +401,6 @@ import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import usersService from '@/services/usersService';
 import type {
   UserFilters,
-  UserForm,
   UserWithRelations
 } from '@/types/users';
 import { debounce } from 'lodash-es';
@@ -409,9 +408,8 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 
 // Reactive data
 const loading = ref(false);
-const saving = ref(false);
-const resetting = ref(false);
-const exporting = ref(false);
+// removed unused refs: saving, resetting
+// removed unused: exporting
 const users = ref<UserWithRelations[]>([]);
 const usersData = ref<any>(null);
 
@@ -456,23 +454,7 @@ const userDialog = ref({
   user: null as UserWithRelations | null,
 });
 
-const userForm = ref<UserForm>({
-  username: '',
-  email: '',
-  password: '',
-  first_name: '',
-  last_name: '',
-  name: '',
-  phone: '',
-  telegram_id: '',
-  is_active: true,
-  user_type: 'user',
-  role_id: 0,
-  template_id: undefined,
-});
-
-const formErrors = ref<Record<string, string>>({});
-const userFormRef = ref();
+// removed unused form state: userForm, formErrors, userFormRef
 
 // Password reset dialog
 const passwordDialog = ref({
@@ -480,11 +462,7 @@ const passwordDialog = ref({
   user: null as UserWithRelations | null,
 });
 
-const passwordForm = ref({
-  password: '',
-});
-
-const passwordErrors = ref<Record<string, string>>({});
+// removed unused password form state: passwordForm, passwordErrors
 
 // View dialog
 const viewDialog = ref({
@@ -545,6 +523,11 @@ const hasActiveUsers = computed(() => {
 
 const hasInactiveUsers = computed(() => {
   return inactiveUsersCount.value > 0;
+});
+
+// Приведение выбранных пользователей к типу, ожидаемому диалогом удаления
+const selectedUsersForDelete = computed(() => {
+  return selectedUsers.value.map(u => ({ id: u.id, name: u.username }));
 });
 
 // Computed properties для множественного поиска пользователей
@@ -735,7 +718,7 @@ const viewUser = (user: UserWithRelations) => {
   };
 };
 
-const onUserSaved = async (user: UserWithRelations) => {
+const onUserSaved = async () => {
   showSnackbar(
     userDialog.value.isEdit ? 'Пользователь успешно обновлен' : 'Пользователь успешно создан',
     'success'
@@ -817,9 +800,7 @@ const sendPasswordResetEmailToUser = async (user: UserWithRelations) => {
   }
 };
 
-const openInactiveUsersDialog = () => {
-  inactiveUsersDialog.value.show = true;
-};
+// removed unused: openInactiveUsersDialog
 
 const onInactiveUsersSuccess = async (message: string) => {
   showSnackbar(message, 'success');
@@ -827,29 +808,7 @@ const onInactiveUsersSuccess = async (message: string) => {
   await loadStats();
 };
 
-const exportUsers = async () => {
-  try {
-    exporting.value = true;
-    const blob = await usersService.exportUsers('excel', filters.value);
-
-    // Создаем ссылку для скачивания
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `users_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    showSnackbar('Экспорт завершен', 'success');
-  } catch (error: any) {
-    console.error('Ошибка экспорта:', error);
-    showSnackbar('Ошибка экспорта пользователей', 'error');
-  } finally {
-    exporting.value = false;
-  }
-};
+// removed unused: exportUsers
 
 // Pagination handlers
 const handlePageChange = (page: number) => {
@@ -909,16 +868,7 @@ const getUserTypeIcon = (type: string): string => {
   return iconMap[type as keyof typeof iconMap] || 'mdi-account';
 };
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+// removed unused: formatDate
 
 const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
@@ -1000,7 +950,8 @@ const clearSelection = () => {
 
 // Удаление отдельного поискового термина для пользователей
 const removeUserSearchTerm = (index: number) => {
-  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
+  const currentSearch = filters.value.search ?? '';
+  const searchTerms = currentSearch.split(',').map(term => term.trim()).filter(term => term.length > 0);
   searchTerms.splice(index, 1);
   filters.value.search = searchTerms.join(', ');
   debouncedSearch();
@@ -1054,7 +1005,6 @@ const executeBulkDelete = async () => {
     const response = await usersService.deleteUsers(userIds);
     
     if (response.status === 'success') {
-      const deletedCount = selectedUsers.value.length;
       showBulkDeleteDialog.value = false;
       clearSelection();
       await loadUsers();
@@ -1092,7 +1042,7 @@ const bulkActivateUsers = async () => {
 
   try {
     bulkActionsLoading.value = true;
-    const userIds = inactiveUsers.map(u => u.id);
+    // userIds not used in demo implementation
     
     // В реальном API здесь будет вызов usersService.activateUsers(userIds)
     // Для демо имитируем успешный ответ
@@ -1150,7 +1100,7 @@ const bulkDeactivateUsers = async () => {
 
   try {
     bulkActionsLoading.value = true;
-    const userIds = activeUsers.map(u => u.id);
+    // userIds not used in demo implementation
     
     // В реальном API здесь будет вызов usersService.deactivateUsers(userIds)
     // Для демо имитируем успешный ответ
@@ -1344,26 +1294,133 @@ onMounted(async () => {
 
 .filters-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px; /* небольшой отступ между элементами */
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+/* Единая высота и вертикальное выравнивание всех полей фильтров */
+.filters-row :deep(.v-input) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.filters-row :deep(.v-field--variant-outlined) {
+  height: 44px;
+}
+
+.filters-row :deep(.v-field__input) {
+  min-height: 44px;
+  padding-top: 0;
+  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Единый радиус скругления и стиль для всех элементов фильтра */
+.filters-row :deep(.v-field--variant-outlined),
+.filters-row :deep(.apple-input-wrapper-base),
+.filter-clear :deep(.v-btn),
+.filters-row :deep(.v-field),
+.filters-row :deep(.v-field__outline) {
+  border-radius: 20px !important;
+}
+
+/* Дополнительные правила для обеспечения одинакового скругления */
+.filters-row :deep(.v-select .v-field),
+.filters-row :deep(.v-select .v-field__outline),
+.filters-row :deep(.v-select .v-field__input),
+.filters-row :deep(.v-input .v-field),
+.filters-row :deep(.v-input .v-field__outline) {
+  border-radius: 20px !important;
+}
+
+/* Единый цвет границы/outline и поведение при hover/focus */
+.filters-row :deep(.v-field--variant-outlined .v-field__outline) {
+  /* совпадает по ощущению с Vuetify, но делаем чуть выразительнее */
+  border-color: rgba(var(--v-theme-on-surface), 0.24);
+}
+
+.filters-row :deep(.v-field--variant-outlined:hover .v-field__outline) {
+  border-color: rgba(var(--v-theme-primary), 0.40);
+}
+
+.filters-row :deep(.v-field--focused .v-field__outline) {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.12);
+}
+
+.filters-row :deep(.v-field__outline) {
+  height: 44px;
 }
 
 .filter-item {
-  flex: 1;
+  flex: 1 1 0; /* динамическая ширина, равномерное распределение */
   min-width: 0;
+  display: flex;            /* выравниваем содержимое по вертикали как у v-select */
+  align-items: center;      /* чтобы верхний край совпадал между инпутом и селектами */
 }
 
 .filter-search {
-  flex: 2;
-  min-width: 250px;
+  flex: 3 1 0; /* заметно шире остальных */
+  min-width: 420px;
+  margin-top: -20px; /* поднимаем поле поиска еще выше */
 }
 
 .filter-clear {
   flex: 0 0 auto;
   display: flex;
-  align-items: flex-start;
-  padding-top: 8px;
+  align-items: center;
+  margin-left: auto; /* иконка сброса в конце строки */
+  margin-top: -36px; /* поднимаем кнопку сброса фильтров еще выше */
+}
+
+/* Выравнивание AppleInput под высоту 44px */
+.filters-row :deep(.apple-input-group) {
+  display: flex;
+  align-items: center;
+  margin: 0; /* убрать возможные внешние отступы */
+  padding: 0;
+  gap: 0; /* не добавлять вертикальный зазор внутри группы */
+  width: 100%;
+}
+
+.filters-row :deep(.apple-input-container) {
+  height: 44px;
+  width: 100%;
+}
+
+.filters-row :deep(.apple-input-wrapper-base) {
+  height: 44px;
+  min-height: 44px;
+  width: 100%;
+  border-radius: 20px; /* выравниваем с v-select */
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
+  background: rgb(var(--v-theme-surface));
+}
+
+/* Убираем смещение AppleInput при фокусе для ровной линии */
+.filters-row :deep(.apple-input-focused) {
+  transform: none;
+}
+
+/* Единое состояние при hover/focus для AppleInput */
+.filters-row :deep(.apple-input-container:hover .apple-input-wrapper-base) {
+  border-color: rgba(var(--v-theme-primary), 0.40);
+}
+
+.filters-row :deep(.apple-input-focused .apple-input-wrapper-base) {
+  border-color: rgb(var(--v-theme-primary));
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.12);
+}
+
+/* Приводим кнопку очистки к высоте инпутов/селектов и центрируем */
+.filter-clear :deep(.v-btn) {
+  height: 44px; /* соответствует density="comfortable" */
+  width: 44px;
+  padding: 0;
+  border-radius: 20px;
 }
 
 /* Адаптивность для мобильных устройств */
