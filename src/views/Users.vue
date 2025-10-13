@@ -209,11 +209,22 @@
 
       <!-- Таблица пользователей -->
       <div class="table-container">
-        <v-data-table :headers="tableHeaders" :items="users" :loading="loading" :items-per-page="pagination.limit"
-          :page="pagination.page" :server-items-length="usersData?.total || 0" :items-per-page-options="perPageOptions"
-          @update:page="handlePageChange" @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange" item-value="id" class="users-table" no-data-text="Пользователи не найдены"
-          loading-text="Загрузка пользователей...">
+        <v-data-table-server 
+          :headers="tableHeaders" 
+          :items="users" 
+          :loading="loading" 
+          :items-per-page="pagination.limit"
+          :page="pagination.page" 
+          :items-length="usersData?.total || 0"
+          :items-per-page-options="perPageOptions"
+          @update:page="handlePageChange" 
+          @update:items-per-page="handlePerPageChange"
+          @update:sort-by="handleSortChange" 
+          item-value="id" 
+          class="users-table" 
+          no-data-text="Пользователи не найдены"
+          loading-text="Загрузка пользователей..."
+        >
           <!-- Чекбокс выделения -->
           <template #item.select="{ item }">
             <v-checkbox 
@@ -329,7 +340,7 @@
               </v-menu>
             </div>
           </template>
-        </v-data-table>
+        </v-data-table-server>
       </div>
     </AppleCard>
 
@@ -608,6 +619,13 @@ const loadUsers = async () => {
       users.value = response.data.items;
       usersData.value = response.data;
       console.log('✅ Users loaded successfully:', users.value.length, 'users');
+      console.log('📊 Pagination data:', {
+        total: response.data.total,
+        page: response.data.page,
+        limit: response.data.limit,
+        pages: response.data.pages,
+        items_count: response.data.items.length
+      });
     } else {
       console.error('❌ Users API error:', response.error);
       showSnackbar(response.error || 'Ошибка загрузки пользователей', 'error');
