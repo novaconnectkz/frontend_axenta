@@ -1324,7 +1324,7 @@ onMounted(async () => {
 .filter-clear :deep(.v-btn),
 .filters-row :deep(.v-field),
 .filters-row :deep(.v-field__outline) {
-  border-radius: 20px !important;
+  border-radius: 10px !important;
 }
 
 /* Дополнительные правила для обеспечения одинакового скругления */
@@ -1333,7 +1333,7 @@ onMounted(async () => {
 .filters-row :deep(.v-select .v-field__input),
 .filters-row :deep(.v-input .v-field),
 .filters-row :deep(.v-input .v-field__outline) {
-  border-radius: 20px !important;
+  border-radius: 10px !important;
 }
 
 /* Единый цвет границы/outline и поведение при hover/focus */
@@ -1373,7 +1373,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   margin-left: auto; /* иконка сброса в конце строки */
-  margin-top: -36px; /* поднимаем кнопку сброса фильтров еще выше */
+  margin-top: -26px; /* поднимаем кнопку сброса фильтров на 2px */
 }
 
 /* Выравнивание AppleInput под высоту 44px */
@@ -1395,7 +1395,7 @@ onMounted(async () => {
   height: 44px;
   min-height: 44px;
   width: 100%;
-  border-radius: 20px; /* выравниваем с v-select */
+  border-radius: 10px; /* выравниваем с v-select */
   border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
   background: rgb(var(--v-theme-surface));
 }
@@ -1420,7 +1420,7 @@ onMounted(async () => {
   height: 44px; /* соответствует density="comfortable" */
   width: 44px;
   padding: 0;
-  border-radius: 20px;
+  border-radius: 10px;
 }
 
 /* Адаптивность для мобильных устройств */

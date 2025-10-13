@@ -341,7 +341,7 @@ export class UsersService {
         params.append("active_only", filters.active_only.toString());
       }
 
-      const response = await this.apiClient.get(`/auth/roles?${params.toString()}`);
+      const response = await this.apiClient.get(`/public/roles?${params.toString()}`);
       return response.data;
     } catch (error: any) {
       console.error("❌ Ошибка загрузки ролей с Axenta API:", error);
@@ -548,7 +548,7 @@ export class UsersService {
       }
 
       const response = await this.apiClient.get(
-        `/auth/user-templates?${params.toString()}`
+        `/public/user-templates?${params.toString()}`
       );
       return response.data;
     } catch (error: any) {
