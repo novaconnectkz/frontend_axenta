@@ -90,7 +90,7 @@
         
         <AppleInput
           v-model="searchQuery"
-          placeholder="Поиск пользователей..."
+          placeholder="Поиск пользователей (без создателя)..."
           clearable
           @input="debouncedSearch"
         >

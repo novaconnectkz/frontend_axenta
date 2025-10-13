@@ -129,7 +129,12 @@ export class UsersService {
         params.append("template_id", filters.template_id.toString());
       if (filters.ordering) params.append("ordering", filters.ordering);
 
-      const response = await this.apiClient.get(`/auth/users?${params.toString()}`);
+      const url = `/auth/users?${params.toString()}`;
+      console.log('📡 Users API URL:', url);
+      console.log('📊 Users API параметры:', Object.fromEntries(params.entries()));
+      
+      const response = await this.apiClient.get(url);
+      console.log('📡 Users API response status:', response.status);
       return response.data;
     } catch (error: any) {
       console.error("❌ Ошибка загрузки пользователей с Axenta API:", error);

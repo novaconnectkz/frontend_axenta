@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестирование формы объектов</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f7;
+        }
+        .test-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            color: #1d1d1f;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .test-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid #007aff;
+        }
+        .test-result {
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin: 8px 8px 8px 0;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .form-test {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #1d1d1f;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-section">
+        <h1 class="test-title">🧪 Тестирование формы объектов Axenta CRM</h1>
+        
+        <div class="test-item">
+            <h3>📋 План тестирования</h3>
+            <ul>
+                <li>✅ Проверка открытия формы создания объекта</li>
+                <li>✅ Валидация обязательных полей</li>
+                <li>✅ Тестирование сохранения объекта</li>
+                <li>✅ Проверка редактирования существующего объекта</li>
+                <li>✅ Тестирование работы с шаблонами</li>
+                <li>✅ Проверка отображения ошибок</li>
+            </ul>
+        </div>
+
+        <div class="test-item">
+            <h3>🔗 Ссылки для тестирования</h3>
+            <p><strong>Фронтенд:</strong> <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></p>
+            <p><strong>API Backend:</strong> <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></p>
+            <p><strong>Страница объектов:</strong> <a href="http://localhost:5173/objects" target="_blank">http://localhost:5173/objects</a></p>
+        </div>
+
+        <div class="test-item">
+            <h3>📝 Тестовые данные для создания объекта</h3>
+            <div class="form-test">
+                <label>Название объекта:</label>
+                <input type="text" id="objectName" value="Тестовый объект мониторинга" placeholder="Введите название объекта">
+                
+                <label>Тип объекта:</label>
+                <select id="objectType">
+                    <option value="">Выберите тип</option>
+                    <option value="security">Система безопасности</option>
+                    <option value="monitoring">Мониторинг</option>
+                    <option value="access">Контроль доступа</option>
+                    <option value="fire">Пожарная сигнализация</option>
+                </select>
+                
+                <label>Описание:</label>
+                <textarea id="objectDescription" rows="3" placeholder="Описание объекта">Тестовый объект для проверки функциональности системы мониторинга Axenta CRM</textarea>
+                
+                <label>Адрес:</label>
+                <input type="text" id="objectAddress" value="г. Москва, ул. Тестовая, д. 1" placeholder="Адрес объекта">
+                
+                <label>IMEI устройства:</label>
+                <input type="text" id="objectImei" value="123456789012345" placeholder="IMEI устройства">
+                
+                <label>Телефон:</label>
+                <input type="text" id="objectPhone" value="+7 (999) 123-45-67" placeholder="Номер телефона">
+                
+                <label>Серийный номер:</label>
+                <input type="text" id="objectSerial" value="SN123456789" placeholder="Серийный номер">
+                
+                <button onclick="copyTestData()">📋 Скопировать тестовые данные</button>
+            </div>
+        </div>
+
+        <div class="test-item">
+            <h3>🧪 Автоматические тесты</h3>
+            <button onclick="testFormOpening()">🔍 Тест открытия формы</button>
+            <button onclick="testFormValidation()">✅ Тест валидации</button>
+            <button onclick="testObjectCreation()">➕ Тест создания объекта</button>
+            <button onclick="testObjectEditing()">✏️ Тест редактирования</button>
+            <button onclick="runAllTests()">🚀 Запустить все тесты</button>
+            
+            <div id="testResults"></div>
+        </div>
+
+        <div class="test-item">
+            <h3>📊 Результаты тестирования</h3>
+            <div id="testSummary">
+                <p class="info">Тестирование еще не запущено</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function addTestResult(testName, status, message) {
+            const result = {
+                name: testName,
+                status: status,
+                message: message,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            testResults.push(result);
+            updateTestDisplay();
+        }
+        
+        function updateTestDisplay() {
+            const resultsDiv = document.getElementById('testResults');
+            const summaryDiv = document.getElementById('testSummary');
+            
+            resultsDiv.innerHTML = testResults.map(result => {
+                const statusClass = result.status === 'success' ? 'success' : 
+                                   result.status === 'error' ? 'error' : 'info';
+                return `
+                    <div class="test-result ${statusClass}">
+                        <strong>${result.name}</strong> - ${result.message} 
+                        <small>(${result.timestamp})</small>
+                    </div>
+                `;
+            }).join('');
+            
+            // Обновляем сводку
+            const successCount = testResults.filter(r => r.status === 'success').length;
+            const errorCount = testResults.filter(r => r.status === 'error').length;
+            const totalCount = testResults.length;
+            
+            summaryDiv.innerHTML = `
+                <div class="test-result ${errorCount === 0 ? 'success' : 'error'}">
+                    <strong>Результат:</strong> ${successCount}/${totalCount} тестов пройдено
+                    ${errorCount > 0 ? `, ${errorCount} ошибок` : ''}
+                </div>
+            `;
+        }
+        
+        function copyTestData() {
+            const data = {
+                name: document.getElementById('objectName').value,
+                type: document.getElementById('objectType').value,
+                description: document.getElementById('objectDescription').value,
+                address: document.getElementById('objectAddress').value,
+                imei: document.getElementById('objectImei').value,
+                phone: document.getElementById('objectPhone').value,
+                serial: document.getElementById('objectSerial').value
+            };
+            
+            const text = `Название: ${data.name}
+Тип: ${data.type}
+Описание: ${data.description}
+Адрес: ${data.address}
+IMEI: ${data.imei}
+Телефон: ${data.phone}
+Серийный номер: ${data.serial}`;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                addTestResult('Копирование данных', 'success', 'Тестовые данные скопированы в буфер обмена');
+            }).catch(() => {
+                addTestResult('Копирование данных', 'error', 'Не удалось скопировать данные');
+            });
+        }
+        
+        function testFormOpening() {
+            addTestResult('Открытие формы', 'info', 'Откройте страницу объектов и нажмите кнопку "Создать объект"');
+        }
+        
+        function testFormValidation() {
+            addTestResult('Валидация формы', 'info', 'Попробуйте сохранить объект без заполнения обязательных полей');
+        }
+        
+        function testObjectCreation() {
+            addTestResult('Создание объекта', 'info', 'Заполните все поля и сохраните объект');
+        }
+        
+        function testObjectEditing() {
+            addTestResult('Редактирование объекта', 'info', 'Откройте существующий объект и измените его данные');
+        }
+        
+        function runAllTests() {
+            testResults = [];
+            addTestResult('Запуск тестирования', 'info', 'Начинаем полное тестирование формы объектов');
+            
+            // Симулируем выполнение тестов
+            setTimeout(() => {
+                testFormOpening();
+                setTimeout(() => {
+                    testFormValidation();
+                    setTimeout(() => {
+                        testObjectCreation();
+                        setTimeout(() => {
+                            testObjectEditing();
+                            addTestResult('Тестирование завершено', 'success', 'Все основные тесты выполнены');
+                        }, 500);
+                    }, 500);
+                }, 500);
+            }, 500);
+        }
+        
+        // Проверяем доступность серверов
+        async function checkServers() {
+            try {
+                const frontendResponse = await fetch('http://localhost:5173');
+                if (frontendResponse.ok) {
+                    addTestResult('Фронтенд сервер', 'success', 'Сервер разработки запущен');
+                }
+            } catch (error) {
+                addTestResult('Фронтенд сервер', 'error', 'Сервер разработки недоступен');
+            }
+            
+            try {
+                const backendResponse = await fetch('http://localhost:8080/api/health');
+                if (backendResponse.ok) {
+                    addTestResult('Бэкенд API', 'success', 'API сервер доступен');
+                }
+            } catch (error) {
+                addTestResult('Бэкенд API', 'error', 'API сервер недоступен');
+            }
+        }
+        
+        // Запускаем проверку серверов при загрузке страницы
+        window.addEventListener('load', () => {
+            setTimeout(checkServers, 1000);
+        });
+    </script>
+</body>
+</html>

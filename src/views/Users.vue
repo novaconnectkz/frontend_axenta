@@ -34,7 +34,7 @@
           <div class="filter-item filter-search">
             <AppleInput 
               v-model="filters.search" 
-              placeholder="Поиск по имени, email, логину..."
+              placeholder="Поиск по имени, email, логину (без создателя)..."
               clearable 
               @input="debouncedSearch"
               :color="isMultipleUserSearch ? 'primary' : undefined"
@@ -210,17 +210,15 @@
 
       <!-- Таблица пользователей -->
       <div class="table-container">
-        <v-data-table-server 
+        <v-data-table 
           :headers="tableHeaders" 
           :items="users" 
           :loading="loading" 
           :items-per-page="pagination.limit"
           :page="pagination.page" 
-          :items-length="usersData?.total || 0"
           :items-per-page-options="perPageOptions"
           @update:page="handlePageChange" 
           @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange" 
           item-value="id" 
           class="users-table" 
           :row-props="getRowProps"
@@ -260,7 +258,7 @@
           </template>
 
           <!-- Пользователь -->
-          <template #item.user="{ item }">
+          <template #item.username="{ item }">
             <div class="user-cell">
               <div class="user-avatar">
                 <v-avatar size="32" :color="getUserAvatarColor(item)">
@@ -353,7 +351,7 @@
               </v-menu>
             </div>
           </template>
-        </v-data-table-server>
+        </v-data-table>
       </div>
     </AppleCard>
 
@@ -437,7 +435,7 @@ const pagination = ref({
   limit: 20,
 });
 
-// Filters
+// Filters (убираем ordering, поскольку используем клиентскую сортировку)
 const filters = ref<UserFilters>({
   search: '',
   role: undefined,
@@ -557,7 +555,7 @@ const userSearchTermsArray = computed(() => {
 
 const userSearchHint = computed(() => {
   if (!filters.value.search) {
-    return 'Введите имя, email или логин. Для поиска нескольких пользователей разделите запятой';
+    return 'Введите имя, email или логин (поиск по создателю исключен). Для поиска нескольких пользователей разделите запятой';
   }
   
   const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
@@ -577,16 +575,73 @@ const userTypeOptions = [
   { title: 'Администратор', value: 'admin' },
 ];
 
+// Функции для правильной сортировки
+const sortByNumber = (a: any, b: any, key: string) => {
+  const numA = parseInt(a[key]) || 0;
+  const numB = parseInt(b[key]) || 0;
+  return numA - numB;
+};
+
+const sortByString = (a: any, b: any, key: string) => {
+  const strA = (a[key] || '').toString().toLowerCase();
+  const strB = (b[key] || '').toString().toLowerCase();
+  return strA.localeCompare(strB, 'ru');
+};
+
+const sortByDate = (a: any, b: any) => {
+  const timeA = a._creation_datetime_sort || 0;
+  const timeB = b._creation_datetime_sort || 0;
+  return timeA - timeB;
+};
+
+const sortByRole = (a: any, b: any) => {
+  const roleA = a.role?.display_name || '';
+  const roleB = b.role?.display_name || '';
+  return roleA.localeCompare(roleB, 'ru');
+};
+
 // Table headers
 const tableHeaders = computed(() => [
   { title: '', value: 'select', sortable: false, width: 50 },
   // { title: 'Активность', value: 'is_active', sortable: false, width: 100 }, // Отключено, но функционал сохранен
-  { title: 'ID', value: 'id', sortable: true, width: 80 },
-  { title: 'Пользователь', value: 'user', sortable: false, width: 200 },
-  { title: 'Email', value: 'email', sortable: true },
-  { title: 'Полное имя', value: 'name', sortable: true },
-  { title: 'Создатель', value: 'creator_name', sortable: true },
-  { title: 'Дата создания', value: 'creation_datetime', sortable: true },
+  { 
+    title: 'ID', 
+    value: 'id', 
+    sortable: true, 
+    width: 80,
+    sort: (a: any, b: any) => sortByNumber(a, b, 'id')
+  },
+  { 
+    title: 'Пользователь', 
+    value: 'username', 
+    sortable: true, 
+    width: 200,
+    sort: (a: any, b: any) => sortByString(a, b, 'username')
+  },
+  { 
+    title: 'Email', 
+    value: 'email', 
+    sortable: true,
+    sort: (a: any, b: any) => sortByString(a, b, 'email')
+  },
+  { 
+    title: 'Полное имя', 
+    value: 'name', 
+    sortable: true,
+    sort: (a: any, b: any) => sortByString(a, b, 'name')
+  },
+  { 
+    title: 'Создатель', 
+    value: 'creator_name', 
+    sortable: true,
+    sort: (a: any, b: any) => sortByString(a, b, 'creator_name')
+  },
+  { 
+    title: 'Дата создания', 
+    value: 'creation_datetime', 
+    sortable: true, 
+    sort: sortByDate 
+  },
   { title: 'Роль', value: 'role', sortable: false },
   // { title: 'Тип', value: 'user_type', sortable: true }, // Отключено, но функционал сохранен
   { title: 'Действия', value: 'actions', sortable: false, width: 160 },
@@ -615,7 +670,16 @@ const loadUsers = async () => {
     console.log('📡 Users API response:', response);
 
     if (response.status === 'success') {
-      users.value = response.data.items;
+      // Обрабатываем данные пользователей для правильной сортировки дат
+      const processedUsers = response.data.items.map((user: any) => {
+        // Добавляем поле для правильной сортировки дат
+        if (user.creation_datetime) {
+          user._creation_datetime_sort = new Date(user.creation_datetime).getTime();
+        }
+        return user;
+      });
+      
+      users.value = processedUsers;
       usersData.value = response.data;
       console.log('✅ Users loaded successfully:', users.value.length, 'users');
       console.log('📊 Pagination data:', {
@@ -624,6 +688,18 @@ const loadUsers = async () => {
         limit: response.data.limit,
         pages: response.data.pages,
         items_count: response.data.items.length
+      });
+      
+      // Отладка дат для первых нескольких пользователей
+      console.log('📅 Отладка дат создания пользователей:');
+      users.value.slice(0, 5).forEach((user, index) => {
+        console.log(`📅 Пользователь ${index + 1}:`, {
+          username: user.username,
+          creation_datetime: user.creation_datetime,
+          _creation_datetime_sort: user._creation_datetime_sort,
+          type: typeof user.creation_datetime,
+          raw_value: user.creation_datetime
+        });
       });
       
       // Статистика активности пользователей (логирование отключено для продакшена)
@@ -798,18 +874,7 @@ const handlePerPageChange = (limit: number) => {
   loadUsers();
 };
 
-const handleSortChange = (sortBy: any[]) => {
-  if (sortBy.length > 0) {
-    const sort = sortBy[0];
-    const field = sort.key;
-    const order = sort.order === 'desc' ? '-' : '';
-    filters.value.ordering = `${order}${field}`;
-  } else {
-    filters.value.ordering = 'username';
-  }
-  pagination.value.page = 1;
-  loadUsers();
-};
+// Удалена функция handleSortChange, поскольку теперь используется клиентская сортировка
 
 // Utility methods
 const getUserFullName = (user: UserWithRelations): string => {
@@ -868,14 +933,20 @@ const getUserTypeIcon = (type: string): string => {
 
 // Функция форматирования даты
 const formatDate = (dateString: string): string => {
+  console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
   const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
+  console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
+  
+  const formatted = date.toLocaleString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
+  
+  console.log('📅 Отформатированная дата:', formatted);
+  return formatted;
 };
 
 // Функция для определения CSS класса строки
