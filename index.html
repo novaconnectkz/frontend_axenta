@@ -9,6 +9,10 @@
     <!-- Preload критически важных ресурсов -->
     <!-- Vite автоматически добавит правильные ссылки при сборке -->
     
+    <!-- Preconnect для внешних ресурсов (если понадобятся в будущем) -->
+    <!-- <link rel="preconnect" href="https://ui-avatars.com"> -->
+    <!-- <link rel="dns-prefetch" href="https://ui-avatars.com"> -->
+    
     <!-- Meta теги для SEO -->
     <meta name="description" content="Система управления CRM">
     <meta name="keywords" content="CRM, управление объектами, мониторинг">
@@ -253,6 +257,21 @@
     
     <!-- Основной скрипт приложения -->
     <script type="module" src="/src/main.ts"></script>
+    
+    <!-- Предотвращение parser-blocking скриптов -->
+    <script>
+      // Отключаем document.write для предотвращения parser-blocking
+      if (typeof document !== 'undefined' && document.write) {
+        const originalWrite = document.write;
+        document.write = function() {
+          console.warn('document.write blocked for performance reasons');
+          // В режиме разработки можем показать предупреждение
+          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.warn('Blocked document.write call:', arguments);
+          }
+        };
+      }
+    </script>
     
     <!-- Service Worker для PWA (отключен до создания sw.js) -->
     <script>

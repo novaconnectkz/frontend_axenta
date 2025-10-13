@@ -213,11 +213,12 @@
       <v-menu location="bottom">
         <template #activator="{ props }">
           <v-btn v-bind="props" icon variant="text" class="user-avatar-btn">
-            <v-avatar :image="userAvatar" size="32" class="user-avatar">
-              <span v-if="!userAvatar" class="user-initials">
-                {{ getUserInitials() }}
-              </span>
-            </v-avatar>
+            <UserAvatar 
+              :name="auth.user.value?.name" 
+              :username="auth.user.value?.username"
+              :size="32"
+              class="user-avatar"
+            />
           </v-btn>
         </template>
 
@@ -225,11 +226,13 @@
           <v-card-text class="pa-4">
             <!-- Заголовок профиля -->
             <div class="d-flex align-center mb-3">
-              <v-avatar :image="userAvatar" size="48" class="me-3">
-                <span v-if="!userAvatar" class="user-initials">
-                  {{ getUserInitials() }}
-                </span>
-              </v-avatar>
+              <UserAvatar 
+                :name="auth.user.value?.name" 
+                :username="auth.user.value?.username"
+                :size="48"
+                large
+                class="me-3"
+              />
               <div class="flex-grow-1">
                 <div class="text-h6 font-weight-medium">
                   {{ auth.user.value?.name || 'Пользователь' }}
@@ -352,6 +355,7 @@ import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 import { getVersionString } from '@/utils/buildInfo';
+import UserAvatar from '@/components/Common/UserAvatar.vue';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -473,14 +477,11 @@ const notificationsCount = computed(() => {
   return notifications.value.filter(n => !n.read).length;
 });
 
+// Аватар пользователя теперь генерируется локально в компоненте UserAvatar
 const userAvatar = computed(() => {
   const user = auth.user.value;
   if (user?.avatar) return user.avatar;
-
-  // Генерируем аватар по первым буквам имени
-  const name = user?.name || 'U';
-  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
-  return `https://ui-avatars.com/api/?name=${initials}&background=667eea&color=fff`;
+  return null; // Используем локальный компонент вместо внешнего сервиса
 });
 
 const wsStatus = computed(() => {
@@ -650,15 +651,7 @@ const formatTimeAgo = (date: Date) => {
   }
 };
 
-const getUserInitials = () => {
-  const user = auth.user.value;
-  if (!user?.name) return 'U';
-  const names = user.name.split(' ');
-  if (names.length >= 2) {
-    return `${names[0][0]}${names[1][0]}`.toUpperCase();
-  }
-  return names[0][0].toUpperCase();
-};
+// getUserInitials функция удалена - теперь используется компонент UserAvatar
 
 const getAccountTypeColor = (type: string) => {
   const colors: Record<string, string> = {

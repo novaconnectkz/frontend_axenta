@@ -75,7 +75,8 @@
             />
           </div>
 
-          <div class="filter-item">
+          <!-- Отключено, но функционал сохранен -->
+          <!-- <div class="filter-item">
             <v-select 
               v-model="filters.user_type" 
               :items="userTypeOptions" 
@@ -84,7 +85,7 @@
               variant="outlined" 
               density="comfortable" 
             />
-          </div>
+          </div> -->
 
           <div class="filter-item">
             <v-select 
@@ -222,6 +223,7 @@
           @update:sort-by="handleSortChange" 
           item-value="id" 
           class="users-table" 
+          :row-props="getRowProps"
           no-data-text="Пользователи не найдены"
           loading-text="Загрузка пользователей..."
         >
@@ -246,11 +248,11 @@
             />
           </template>
 
-          <!-- Активность -->
-          <template #item.is_active="{ item }">
+          <!-- Активность - отключено, но функционал сохранен -->
+          <!-- <template #item.is_active="{ item }">
             <v-checkbox :model-value="item.is_active" @update:model-value="(val) => toggleUserActivity(item, !!val)"
               hide-details density="compact" />
-          </template>
+          </template> -->
 
           <!-- ID -->
           <template #item.id="{ item }">
@@ -261,12 +263,11 @@
           <template #item.user="{ item }">
             <div class="user-cell">
               <div class="user-avatar">
-                <v-avatar size="32" color="primary">
+                <v-avatar size="32" :color="getUserAvatarColor(item)">
                   <span class="text-white">{{ getUserInitials(item) }}</span>
                 </v-avatar>
               </div>
               <div class="user-info">
-                <div class="user-name">{{ getUserFullName(item) }}</div>
                 <div class="user-username">@{{ item.username }}</div>
               </div>
             </div>
@@ -277,6 +278,28 @@
             <a :href="`mailto:${item.email}`" class="email-link">{{ item.email }}</a>
           </template>
 
+          <!-- Полное имя -->
+          <template #item.name="{ item }">
+            <span v-if="item.name" class="text-body-2">{{ item.name }}</span>
+            <span v-else class="text-medium-emphasis">—</span>
+          </template>
+
+        <!-- Создатель -->
+        <template #item.creator_name="{ item }">
+          <span v-if="item.creator_name || item.creatorName" class="text-body-2">
+            {{ item.creator_name || item.creatorName }}
+          </span>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
+
+        <!-- Дата создания -->
+        <template #item.creation_datetime="{ item }">
+          <span v-if="item.creation_datetime" class="text-body-2">
+            {{ formatDate(item.creation_datetime) }}
+          </span>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
+
           <!-- Роль -->
           <template #item.role="{ item }">
             <v-chip v-if="item.role" :text="item.role.display_name" :color="item.role.color || 'primary'" size="small"
@@ -284,13 +307,13 @@
             <span v-else class="text-medium-emphasis">Не назначена</span>
           </template>
 
-          <!-- Тип пользователя -->
-          <template #item.user_type="{ item }">
+          <!-- Тип пользователя - отключено, но функционал сохранен -->
+          <!-- <template #item.user_type="{ item }">
             <div class="d-flex align-center">
               <v-icon :icon="getUserTypeIcon(item.user_type)" size="22" class="mr-2" />
               {{ getUserTypeText(item.user_type) }}
             </div>
-          </template>
+          </template> -->
 
           <!-- Действия -->
           <template #item.actions="{ item }">
@@ -557,12 +580,15 @@ const userTypeOptions = [
 // Table headers
 const tableHeaders = computed(() => [
   { title: '', value: 'select', sortable: false, width: 50 },
-  { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
+  // { title: 'Активность', value: 'is_active', sortable: false, width: 100 }, // Отключено, но функционал сохранен
   { title: 'ID', value: 'id', sortable: true, width: 80 },
   { title: 'Пользователь', value: 'user', sortable: false, width: 200 },
   { title: 'Email', value: 'email', sortable: true },
+  { title: 'Полное имя', value: 'name', sortable: true },
+  { title: 'Создатель', value: 'creator_name', sortable: true },
+  { title: 'Дата создания', value: 'creation_datetime', sortable: true },
   { title: 'Роль', value: 'role', sortable: false },
-  { title: 'Тип', value: 'user_type', sortable: true },
+  // { title: 'Тип', value: 'user_type', sortable: true }, // Отключено, но функционал сохранен
   { title: 'Действия', value: 'actions', sortable: false, width: 160 },
 ]);
 
@@ -599,6 +625,9 @@ const loadUsers = async () => {
         pages: response.data.pages,
         items_count: response.data.items.length
       });
+      
+      // Статистика активности пользователей (логирование отключено для продакшена)
+      // console.log('👥 Статус активности пользователей:');
     } else {
       console.error('❌ Users API error:', response.error);
       showSnackbar(response.error || 'Ошибка загрузки пользователей', 'error');
@@ -793,6 +822,28 @@ const getUserInitials = (user: UserWithRelations): string => {
   return (firstName + lastName).toUpperCase() || user.username.charAt(0).toUpperCase();
 };
 
+// Функция для определения цвета аватара пользователя
+const getUserAvatarColor = (user: UserWithRelations): string => {
+  // Определяем активность пользователя
+  let isActive = true; // По умолчанию считаем активным
+  
+  if (user.is_active !== undefined && user.is_active !== null) {
+    if (typeof user.is_active === 'string') {
+      // Если строка, проверяем на "false", "0", "no", "off"
+      isActive = !['false', '0', 'no', 'off', ''].includes(user.is_active.toLowerCase());
+    } else if (typeof user.is_active === 'boolean') {
+      // Если boolean, используем как есть
+      isActive = user.is_active;
+    } else if (typeof user.is_active === 'number') {
+      // Если число, 0 = неактивен, остальное = активен
+      isActive = user.is_active !== 0;
+    }
+  }
+  
+  // Возвращаем цвет в зависимости от активности
+  return isActive ? 'primary' : 'error';
+};
+
 const getUserTypeText = (type: string): string => {
   const typeMap = {
     user: 'Пользователь',
@@ -815,7 +866,56 @@ const getUserTypeIcon = (type: string): string => {
   return iconMap[type as keyof typeof iconMap] || 'mdi-account';
 };
 
-// removed unused: formatDate
+// Функция форматирования даты
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// Функция для определения CSS класса строки
+const getRowClass = (item: UserWithRelations): string => {
+  console.log('🔍 Проверяем пользователя:', item.username, 'is_active:', item.is_active);
+  const className = item.is_active ? '' : 'inactive-user';
+  if (!item.is_active) {
+    console.log('🔴 Неактивный пользователь:', item.username, 'класс:', className);
+  }
+  return className;
+};
+
+// Функция для определения свойств строки
+const getRowProps = (item: UserWithRelations) => {
+  // Надежная проверка активности
+  let isActive = true; // По умолчанию считаем активным
+  
+  if (item.is_active !== undefined && item.is_active !== null) {
+    if (typeof item.is_active === 'string') {
+      // Если строка, проверяем на "false", "0", "no", "off"
+      isActive = !['false', '0', 'no', 'off', ''].includes(item.is_active.toLowerCase());
+    } else if (typeof item.is_active === 'boolean') {
+      // Если boolean, используем как есть
+      isActive = item.is_active;
+    } else if (typeof item.is_active === 'number') {
+      // Если число, 0 = неактивен, остальное = активен
+      isActive = item.is_active !== 0;
+    }
+  }
+  
+  const props = {
+    class: isActive ? '' : 'inactive-user',
+    style: isActive ? {} : {
+      backgroundColor: 'rgba(244, 67, 54, 0.08) !important',
+      borderLeft: '4px solid #f44336 !important'
+    }
+  };
+  
+  return props;
+};
 
 const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
@@ -1506,8 +1606,9 @@ onMounted(async () => {
 }
 
 .user-username {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .email-link {
@@ -1542,7 +1643,7 @@ onMounted(async () => {
 }
 
 [data-theme="dark"] .user-username {
-  color: var(--apple-text-secondary-dark);
+  color: var(--apple-text-primary-dark);
 }
 
 [data-theme="dark"] .email-link {
@@ -1630,4 +1731,114 @@ onMounted(async () => {
 [data-theme="dark"] .users-table :deep(.v-data-table__td) {
   border-bottom-color: rgba(84, 84, 136, 0.16);
 }
+
+/* Подсветка неактивных пользователей */
+.users-table :deep(.v-data-table__tr.inactive-user),
+.users-table :deep(.v-data-table__tr[class*="inactive-user"]) {
+  background-color: rgba(244, 67, 54, 0.08) !important;
+  border-left: 4px solid #f44336 !important;
+}
+
+.users-table :deep(.v-data-table__tr.inactive-user:hover),
+.users-table :deep(.v-data-table__tr[class*="inactive-user"]:hover) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+}
+
+.users-table :deep(.v-data-table__tr.inactive-user .v-data-table__td),
+.users-table :deep(.v-data-table__tr[class*="inactive-user"] .v-data-table__td) {
+  border-bottom-color: rgba(244, 67, 54, 0.16) !important;
+}
+
+/* Альтернативный подход через item-class */
+.users-table :deep(.inactive-user) {
+  background-color: rgba(244, 67, 54, 0.08) !important;
+  border-left: 4px solid #f44336 !important;
+}
+
+.users-table :deep(.inactive-user:hover) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+}
+
+.users-table :deep(.inactive-user td) {
+  border-bottom-color: rgba(244, 67, 54, 0.16) !important;
+}
+
+/* Темная тема для неактивных пользователей */
+[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user),
+[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"]) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+  border-left-color: #ff5252 !important;
+}
+
+[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user:hover),
+[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"]:hover) {
+  background-color: rgba(244, 67, 54, 0.16) !important;
+}
+
+[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user .v-data-table__td),
+[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"] .v-data-table__td) {
+  border-bottom-color: rgba(244, 67, 54, 0.24) !important;
+}
+
+[data-theme="dark"] .users-table :deep(.inactive-user) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+  border-left-color: #ff5252 !important;
+}
+
+[data-theme="dark"] .users-table :deep(.inactive-user:hover) {
+  background-color: rgba(244, 67, 54, 0.16) !important;
+}
+
+[data-theme="dark"] .users-table :deep(.inactive-user td) {
+  border-bottom-color: rgba(244, 67, 54, 0.24) !important;
+}
+
+/* Дополнительные селекторы для Vuetify 3 */
+.users-table :deep(.v-data-table__tr.inactive-user),
+.users-table :deep(tr.inactive-user),
+.users-table :deep(.inactive-user) {
+  background-color: rgba(244, 67, 54, 0.08) !important;
+  border-left: 4px solid #f44336 !important;
+}
+
+.users-table :deep(.v-data-table__tr.inactive-user:hover),
+.users-table :deep(tr.inactive-user:hover),
+.users-table :deep(.inactive-user:hover) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+}
+
+[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user),
+[data-theme="dark"] .users-table :deep(tr.inactive-user),
+[data-theme="dark"] .users-table :deep(.inactive-user) {
+  background-color: rgba(244, 67, 54, 0.12) !important;
+  border-left-color: #ff5252 !important;
+}
+
+[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user:hover),
+[data-theme="dark"] .users-table :deep(tr.inactive-user:hover),
+[data-theme="dark"] .users-table :deep(.inactive-user:hover) {
+  background-color: rgba(244, 67, 54, 0.16) !important;
+}
+
+/* Максимально специфичный селектор для принудительного применения стилей */
+.users-table :deep(.inactive-user),
+.users-table :deep(.inactive-user tr),
+.users-table :deep(.inactive-user td),
+.users-table :deep(.inactive-user th),
+.users-table :deep(.v-data-table__tr.inactive-user),
+.users-table :deep(.v-data-table__tr.inactive-user td),
+.users-table :deep(.v-data-table__tr.inactive-user th),
+.users-table :deep(tr.inactive-user),
+.users-table :deep(tr.inactive-user td),
+.users-table :deep(tr.inactive-user th) {
+  background-color: rgba(244, 67, 54, 0.08) !important;
+  border-left: 4px solid #f44336 !important;
+}
+
+/* Принудительные стили для неактивных пользователей - ВРЕМЕННО ОТКЛЮЧЕНО */
+/* .inactive-user,
+.inactive-user * {
+  background-color: rgba(244, 67, 54, 0.08) !important;
+  border-left: 4px solid #f44336 !important;
+} */
 </style>

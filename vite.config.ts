@@ -146,6 +146,20 @@ export default defineConfig(({ mode }) => {
       exclude: ["@vitejs/client"],
     },
 
+    // Настройки для предотвращения parser-blocking скриптов
+    esbuild: {
+      // Отключаем document.write в режиме разработки
+      banner: `
+        // Отключаем document.write для предотвращения parser-blocking
+        if (typeof document !== 'undefined') {
+          const originalWrite = document.write;
+          document.write = function() {
+            console.warn('document.write blocked for performance');
+          };
+        }
+      `,
+    },
+
     // Настройки для тестов
     test: {
       globals: true,

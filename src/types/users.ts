@@ -21,11 +21,22 @@ export interface UserBase {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
-  
+  creation_datetime?: string; // Дата создания пользователя
+
   // Поля для Axenta интеграции
   axenta_user_type?: string; // partner, client, local
   axenta_user_id?: string;   // ID пользователя в Axenta
   is_axenta_user?: boolean;  // Пользователь из Axenta или локальный
+
+  // Дополнительные поля из Axenta Cloud API
+  creator_name?: string;     // Имя создателя пользователя
+  creatorName?: string;      // Дублирующее поле для совместимости
+  account_name?: string;     // Название аккаунта
+  account_type?: string;     // Тип аккаунта
+  language?: string;         // Язык пользователя
+  timezone?: string;         // Часовой пояс
+  is_admin?: boolean;        // Является ли администратором
+  has_admin_access?: boolean; // Имеет ли права администратора
 }
 
 export interface UserWithRelations extends UserBase {
