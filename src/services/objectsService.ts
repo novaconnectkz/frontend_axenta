@@ -726,7 +726,24 @@ export class ObjectsService {
       // Пробуем аутентифицированный эндпоинт для статистики
       const response = await this.apiClient.get("/auth/cms/objects/stats");
       console.log("✅ Backend objects stats API response:", response.data);
-      return response.data.data || response.data;
+      
+      const stats = response.data.data || response.data;
+      console.log("📊 Полученная статистика объектов:", stats);
+      console.log("🗑️ Количество удаленных объектов из API:", stats.deleted);
+      
+      // Если API не возвращает правильное количество удаленных объектов, получаем его отдельно
+      if (stats.deleted === 0 || stats.deleted === undefined) {
+        console.log("🔄 API вернул 0 удаленных объектов, получаем реальную статистику корзины...");
+        try {
+          const trashStats = await this.getTrashStats();
+          stats.deleted = trashStats.count;
+          console.log("🗑️ Обновленное количество удаленных объектов:", stats.deleted);
+        } catch (trashError) {
+          console.warn("Не удалось получить статистику корзины для основного API:", trashError);
+        }
+      }
+      
+      return stats;
     } catch (error: any) {
       console.log("🔍 Error in getObjectsStats (backend):", error.response?.status, error.message);
       
@@ -759,12 +776,24 @@ export class ObjectsService {
           
           // Возвращаем статистику на основе общего количества объектов
           const total = response.data.count || 0;
+          
+          // Получаем количество объектов в корзине
+          let deletedCount = 0;
+          try {
+            console.log("🗑️ Получаем статистику корзины для fallback...");
+            const trashStats = await this.getTrashStats();
+            deletedCount = trashStats.count;
+            console.log("🗑️ Статистика корзины получена:", deletedCount);
+          } catch (trashError) {
+            console.warn("Не удалось получить статистику корзины:", trashError);
+          }
+          
           return {
             total: total,
             active: total, // Предполагаем, что большинство активны
             inactive: 0,
             scheduled_for_delete: 0,
-            deleted: 0, // Пока не можем получить количество удаленных объектов
+            deleted: deletedCount,
             by_type: {
               vehicle: total
             },
@@ -780,13 +809,25 @@ export class ObjectsService {
             return response.data.data || response.data;
           } catch (fallbackError: any) {
             console.error("❌ All fallbacks failed for objects stats:", fallbackError);
+            
+            // Получаем количество объектов в корзине даже при ошибке основной статистики
+            let deletedCount = 0;
+            try {
+              console.log("🗑️ Получаем статистику корзины для основного fallback...");
+              const trashStats = await this.getTrashStats();
+              deletedCount = trashStats.count;
+              console.log("🗑️ Статистика корзины получена в fallback:", deletedCount);
+            } catch (trashError) {
+              console.warn("Не удалось получить статистику корзины в fallback:", trashError);
+            }
+            
             // Возвращаем пустую статистику вместо ошибки
             return {
               total: 0,
               active: 0,
               inactive: 0,
               scheduled_for_delete: 0,
-              deleted: 0,
+              deleted: deletedCount,
               by_type: {},
               by_status: {}
             };

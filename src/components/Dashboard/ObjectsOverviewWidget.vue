@@ -33,7 +33,7 @@
           </div>
         </v-col>
         <v-col cols="6" sm="3">
-          <div class="stat-item">
+          <div class="stat-item clickable" @click="openTrashDialog">
             <div class="stat-value deleted">{{ data.deleted }}</div>
             <div class="stat-label">В корзине</div>
           </div>
@@ -92,6 +92,9 @@
       </v-btn>
     </template>
   </BaseWidget>
+
+  <!-- Диалог корзины объектов -->
+  <ObjectsTrashDialog v-model="showTrashDialog" />
 </template>
 
 <script lang="ts">
@@ -101,12 +104,14 @@ import type { ObjectStats, WidgetDimensions } from '@/types/dashboard';
 import type { PropType } from 'vue';
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import BaseWidget from './BaseWidget.vue';
+import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 
 export default defineComponent({
   name: 'ObjectsOverviewWidget',
   components: {
-    BaseWidget
+    BaseWidget,
+    ObjectsTrashDialog
   },
   props: {
     refreshInterval: {
@@ -130,7 +135,8 @@ export default defineComponent({
   setup(props) {
     const data = ref<ObjectStats | null>(null);
     const loading = ref(false);
-    const error = ref<string | null>(null);
+    const error = ref<string | undefined>(undefined);
+    const showTrashDialog = ref(false);
     
     // Real-time обновления
     const realTimeWidget = useObjectsWidget('objects-overview', props.refreshInterval);
@@ -145,14 +151,21 @@ export default defineComponent({
       return (data.value.active / data.value.total) * 100;
     });
 
+    const openTrashDialog = () => {
+      console.log('🗑️ Dashboard: Opening trash dialog...');
+      showTrashDialog.value = true;
+      console.log('🗑️ Dashboard: showTrashDialog set to:', showTrashDialog.value);
+    };
+
     const loadData = async () => {
       try {
         // loading.value = true; // Убираем loading, чтобы не было размытия экрана
-        error.value = null;
+        error.value = undefined;
         console.log('🔄 ObjectsOverviewWidget: Loading dashboard stats...');
         const stats = await dashboardService.getStats();
         console.log('📊 ObjectsOverviewWidget: Dashboard stats received:', stats);
         console.log('📊 ObjectsOverviewWidget: Objects stats:', stats.objects);
+        console.log('🗑️ ObjectsOverviewWidget: Количество удаленных объектов:', stats.objects.deleted);
         data.value = stats.objects;
       } catch (err: any) {
         error.value = err.message || 'Ошибка загрузки данных объектов';
@@ -163,7 +176,7 @@ export default defineComponent({
     };
 
     // Обработка real-time обновлений
-    const handleRealTimeUpdate = (updates: any[]) => {
+    const handleRealTimeUpdate = () => {
       // Debounced обновление данных при получении real-time событий
       loadData();
     };
@@ -213,7 +226,9 @@ export default defineComponent({
       error,
       activePercentage,
       loadData,
-      lastUpdate: realTimeWidget.lastUpdate
+      lastUpdate: realTimeWidget.lastUpdate,
+      showTrashDialog,
+      openTrashDialog
     };
   }
 });
@@ -268,6 +283,19 @@ export default defineComponent({
   overflow-wrap: normal;
   line-height: 1.3;
   text-align: center;
+}
+
+.stat-item.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.stat-item.clickable:hover {
+  background-color: rgb(var(--v-theme-surface-variant));
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Адаптивные размеры для длинных чисел */

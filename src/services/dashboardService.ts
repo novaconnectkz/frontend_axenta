@@ -63,6 +63,7 @@ class DashboardService {
         const objectsService = ObjectsService.getInstance();
         const realObjectsStats = await objectsService.getObjectsStats();
         console.log("📊 Real objects stats:", realObjectsStats);
+        console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
         
         objectsStats = {
           total: realObjectsStats.total,
@@ -71,6 +72,8 @@ class DashboardService {
           scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
           deleted: realObjectsStats.deleted
         };
+        
+        console.log("📊 Objects stats для дашборда:", objectsStats);
       } else {
         objectsStats = mockDashboardStats.objects;
       }

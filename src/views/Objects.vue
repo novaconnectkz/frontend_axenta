@@ -59,7 +59,9 @@
           :icon="stat.icon"
           :icon-color="stat.color"
           variant="outlined"
-          class="stat-card"
+          :clickable="stat.key === 'trash'"
+          :class="['stat-card', { 'clickable': stat.key === 'trash' }]"
+          @click="stat.key === 'trash' ? openTrashDialog() : null"
         />
       </div>
     </div>
@@ -1150,6 +1152,9 @@
       @timer-complete="onNotificationTimerComplete"
     />
 
+    <!-- Диалог корзины объектов -->
+    <ObjectsTrashDialog v-model="showTrashDialog" />
+
   </div>
 </template>
 
@@ -1157,6 +1162,7 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
+import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import getObjectsService from '@/services/objectsService';
 import type {
@@ -1191,6 +1197,7 @@ const objects = ref<ObjectWithRelations[]>([]);
 const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
 const showDeletedObjects = ref(false);
+const showTrashDialog = ref(false);
 
 // Поисковые состояния
 const showSearchHistory = ref(false);
@@ -2039,6 +2046,13 @@ const closeCreateTemplateDialog = () => {
   createTemplateErrors.value = {};
 };
 
+// Trash dialog methods
+const openTrashDialog = () => {
+  console.log('🗑️ Opening trash dialog...');
+  showTrashDialog.value = true;
+  console.log('🗑️ showTrashDialog set to:', showTrashDialog.value);
+};
+
 const confirmScheduleDelete = async () => {
   try {
     scheduleDeleteErrors.value = {};
@@ -2614,6 +2628,16 @@ onUnmounted(() => {
 
 .stat-card {
   text-align: center;
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stat-card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* Поиск */
