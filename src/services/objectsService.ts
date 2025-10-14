@@ -373,10 +373,240 @@ export class ObjectsService {
 
     if (search) params.append("search", search);
 
-    const response = await this.apiClient.get(
-      `/auth/objects-trash?${params.toString()}`
-    );
-    return response.data;
+    try {
+      console.log("🚀 ObjectsService.getDeletedObjects called with:", { page, per_page, search });
+      
+      // Используем API корзины из Axenta Cloud
+      const response = await this.apiClient.get(
+        `/auth/cms/trash/?${params.toString()}`
+      );
+      console.log("✅ Backend trash API response:", response.data);
+      
+      // API корзины с авторизацией возвращает структуру {"count": number, "results": [...]}
+      // Без авторизации возвращает {"detail": [...]}
+      if (response.data.count !== undefined && response.data.results) {
+        console.log("🔄 Converting Axenta Cloud trash data (auth) to local format...");
+        const convertedItems = this.convertAxentaObjectsToLocal(response.data.results);
+        console.log("📊 Converted trash items:", convertedItems.length, "objects");
+        
+        const adaptedResponse = {
+          status: "success" as const,
+          data: {
+            items: convertedItems,
+            total: response.data.count,
+            page: page,
+            per_page: per_page,
+            total_pages: Math.ceil(response.data.count / per_page)
+          }
+        };
+        
+        console.log("📋 Final adapted trash response:", adaptedResponse);
+        return adaptedResponse;
+      } else if (response.data.detail !== undefined) {
+        console.log("🔄 Converting Axenta Cloud trash data (no-auth) to local format...");
+        const convertedItems = this.convertAxentaObjectsToLocal(response.data.detail);
+        console.log("📊 Converted trash items:", convertedItems.length, "objects");
+        
+        const adaptedResponse = {
+          status: "success" as const,
+          data: {
+            items: convertedItems,
+            total: response.data.detail.length,
+            page: page,
+            per_page: per_page,
+            total_pages: Math.ceil(response.data.detail.length / per_page)
+          }
+        };
+        
+        console.log("📋 Final adapted trash response:", adaptedResponse);
+        return adaptedResponse;
+      } else {
+        console.log("📋 Using backend trash response as-is");
+        return response.data;
+      }
+    } catch (error: any) {
+      console.log("❌ ObjectsService.getDeletedObjects error:", error);
+      console.log("🔍 Error status:", error.response?.status);
+      console.log("🔍 Error message:", error.message);
+      
+      // Если локальный API не работает, пробуем Axenta Cloud API
+      if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500 || error.message?.includes('database')) {
+        console.warn("🔄 Fallback to direct Axenta Cloud API for trash");
+        try {
+          // Получаем токен текущего пользователя
+          const userToken = localStorage.getItem("axenta_token");
+          if (!userToken) {
+            throw new Error("Токен пользователя не найден");
+          }
+          
+          // Прямое обращение к Axenta Cloud API с токеном пользователя
+          const axentaClient = axios.create({
+            baseURL: "https://axenta.cloud/api",
+            timeout: 30000,
+          });
+          
+          const response = await axentaClient.get(
+            `/cms/trash/?${params.toString()}`,
+            {
+              headers: {
+                'Authorization': `Token ${userToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          console.log("✅ Direct Axenta Cloud trash API successful");
+          
+          // Проверяем структуру ответа от Axenta Cloud
+          if (response.data.count !== undefined && response.data.results) {
+            const convertedItems = this.convertAxentaObjectsToLocal(response.data.results);
+            return {
+              status: "success" as const,
+              data: {
+                items: convertedItems,
+                total: response.data.count,
+                page: page,
+                per_page: per_page,
+                total_pages: Math.ceil(response.data.count / per_page)
+              }
+            };
+          } else if (response.data.detail !== undefined) {
+            const convertedItems = this.convertAxentaObjectsToLocal(response.data.detail);
+            return {
+              status: "success" as const,
+              data: {
+                items: convertedItems,
+                total: response.data.detail.length,
+                page: page,
+                per_page: per_page,
+                total_pages: Math.ceil(response.data.detail.length / per_page)
+              }
+            };
+          } else {
+            return response.data;
+          }
+        } catch (axentaError: any) {
+          console.warn("❌ Axenta Cloud trash API also failed:", axentaError);
+          // Возвращаем пустую корзину вместо ошибки
+          return {
+            status: "success" as const,
+            data: {
+              items: [],
+              total: 0,
+              page: page,
+              per_page: per_page,
+              total_pages: 0
+            }
+          };
+        }
+      }
+      
+      // Fallback к старому API
+      try {
+        const response = await this.apiClient.get(
+          `/auth/objects-trash?${params.toString()}`
+        );
+        return response.data;
+      } catch (fallbackError: any) {
+        console.log("❌ Fallback trash API also failed:", fallbackError);
+        // Возвращаем пустую корзину вместо ошибки
+        return {
+          status: "success" as const,
+          data: {
+            items: [],
+            total: 0,
+            page: page,
+            per_page: per_page,
+            total_pages: 0
+          }
+        };
+      }
+    }
+  }
+
+  // Получение статистики корзины
+  async getTrashStats(): Promise<{ count: number }> {
+    try {
+      console.log("🚀 ObjectsService.getTrashStats called - UPDATED VERSION");
+      
+      // Используем API корзины из Axenta Cloud с большим количеством элементов
+      // чтобы получить максимально точное количество
+      const response = await this.apiClient.get(
+        `/auth/cms/trash/?page=1&per_page=1000`
+      );
+      console.log("✅ Backend trash stats API response:", response.data);
+      
+      // API возвращает {"data": {"total": number, "items": [...]}, "status": "success"}
+      let count = 0;
+      
+      if (response.data.data && response.data.data.total !== undefined) {
+        // Наш локальный API
+        count = response.data.data.total;
+        console.log("📊 Trash count from local API:", count);
+      } else if (response.data.count !== undefined) {
+        // Axenta Cloud API
+        count = response.data.count;
+        console.log("📊 Trash count from Axenta API:", count);
+      } else if (response.data.detail) {
+        // Неавторизованный API
+        count = response.data.detail.length;
+        console.log("📊 Trash count from no-auth API:", count);
+      }
+      
+      console.log("📊 Final trash count calculated:", count);
+      
+      return {
+        count: count
+      };
+    } catch (error: any) {
+      console.log("❌ ObjectsService.getTrashStats error:", error);
+      console.log("🔍 Error status:", error.response?.status);
+      console.log("🔍 Error message:", error.message);
+      
+      // Если локальный API не работает, пробуем Axenta Cloud API
+      if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500 || error.message?.includes('database')) {
+        console.warn("🔄 Fallback to direct Axenta Cloud API for trash stats");
+        try {
+          // Получаем токен текущего пользователя
+          const userToken = localStorage.getItem("axenta_token");
+          if (!userToken) {
+            throw new Error("Токен пользователя не найден");
+          }
+          
+          // Прямое обращение к Axenta Cloud API с токеном пользователя
+          const axentaClient = axios.create({
+            baseURL: "https://axenta.cloud/api",
+            timeout: 30000,
+          });
+          
+          const response = await axentaClient.get(
+            `/cms/trash/?page=1&per_page=1000`,
+            {
+              headers: {
+                'Authorization': `Token ${userToken}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          console.log("✅ Direct Axenta Cloud trash stats API successful");
+          
+          let count = 0;
+          if (response.data.count !== undefined) {
+            count = response.data.count;
+          } else if (response.data.detail) {
+            count = response.data.detail.length;
+          }
+          
+          return { count: count };
+        } catch (axentaError: any) {
+          console.warn("❌ Axenta Cloud trash stats API also failed:", axentaError);
+          // Возвращаем 0 если все API недоступны
+          return { count: 0 };
+        }
+      }
+      
+      // Fallback - возвращаем 0 если API недоступен
+      return { count: 0 };
+    }
   }
 
   // Восстановление объекта из корзины

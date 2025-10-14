@@ -1254,6 +1254,7 @@ const stats = ref([
   { key: 'total', label: 'Всего объектов', value: 0, icon: 'mdi-office-building', color: 'primary' },
   { key: 'active', label: 'Активные', value: 0, icon: 'mdi-check-circle', color: 'success' },
   { key: 'inactive', label: 'Неактивные', value: 0, icon: 'mdi-pause-circle', color: 'warning' },
+  { key: 'trash', label: 'В корзине', value: 0, icon: 'mdi-delete', color: 'error' },
   { key: 'scheduled', label: 'К удалению', value: 0, icon: 'mdi-clock-alert', color: 'error' },
 ]);
 
@@ -1481,11 +1482,31 @@ const loadObjects = async () => {
 
 const loadStats = async () => {
   try {
+    // Загружаем основную статистику
     const statsData = await objectsService.getObjectsStats();
     stats.value[0].value = statsData.total;
     stats.value[1].value = statsData.active;
     stats.value[2].value = statsData.inactive;
-    stats.value[3].value = statsData.scheduled_for_delete;
+    
+    // Загружаем статистику корзины
+    console.log('🔄 Загружаем статистику корзины (основной блок)...');
+    console.log('🔐 Проверяем авторизацию в localStorage (основной блок):', {
+      hasToken: !!localStorage.getItem('axenta_token'),
+      hasCompany: !!localStorage.getItem('axenta_company')
+    });
+    
+    const trashStats = await objectsService.getTrashStats();
+    stats.value[3].value = trashStats.count;
+    stats.value[4].value = statsData.scheduled_for_delete;
+    console.log('📊 Статистика корзины получена (основной блок):', trashStats.count);
+    
+    console.log('📊 Статистика загружена:', {
+      total: stats.value[0].value,
+      active: stats.value[1].value,
+      inactive: stats.value[2].value,
+      trash: stats.value[3].value,
+      scheduled: stats.value[4].value
+    });
   } catch (error) {
     console.warn('⚠️ API статистики недоступен, вычисляем из загруженных данных:', error);
     
@@ -1499,13 +1520,33 @@ const loadStats = async () => {
       
       stats.value[1].value = activeCount;
       stats.value[2].value = inactiveCount;
-      stats.value[3].value = 0; // Запланированные к удалению - пока 0
+      stats.value[3].value = 0; // Корзина - пока 0
+      stats.value[4].value = 0; // Запланированные к удалению - пока 0
       
       console.log('📊 Статистика вычислена из данных:', {
         total: stats.value[0].value,
         active: stats.value[1].value,
-        inactive: stats.value[2].value
+        inactive: stats.value[2].value,
+        trash: stats.value[3].value
       });
+    }
+    
+    // Пытаемся загрузить только статистику корзины
+    try {
+      console.log('🔄 Загружаем статистику корзины (fallback блок)...');
+      console.log('🔐 Проверяем авторизацию в localStorage:', {
+        hasToken: !!localStorage.getItem('axenta_token'),
+        hasCompany: !!localStorage.getItem('axenta_company')
+      });
+      
+      const trashStats = await objectsService.getTrashStats();
+      stats.value[3].value = trashStats.count;
+      console.log('📊 Статистика корзины загружена (fallback):', trashStats.count);
+      console.log('📊 Обновленное значение виджета корзины (fallback):', stats.value[3].value);
+    } catch (trashError) {
+      console.warn('⚠️ Не удалось загрузить статистику корзины (fallback):', trashError);
+      stats.value[3].value = 0;
+      console.log('📊 Установлено значение корзины по умолчанию (fallback): 0');
     }
   }
 };
@@ -2567,7 +2608,7 @@ onUnmounted(() => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -3056,7 +3097,7 @@ onUnmounted(() => {
   }
   
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
   
   .table-header {
@@ -3085,7 +3126,7 @@ onUnmounted(() => {
   }
   
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .page-actions {

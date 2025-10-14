@@ -75,20 +75,21 @@ export default defineConfig(({ mode }) => {
           { from: /^\/(?!api).*$/, to: "/index.html" },
         ],
       },
-      proxy: {
-        // Проксируем API запросы на backend
-        "/api": {
-          target: env.VITE_BACKEND_URL || "http://localhost:8080",
-          changeOrigin: true,
-          secure: false,
-        },
-        // Проксируем WebSocket соединения
-        "/ws": {
-          target: env.VITE_WS_BASE_URL || "ws://localhost:8080",
-          ws: true,
-          changeOrigin: true,
-        },
-      },
+      // Отключаем прокси для API - фронтенд будет обращаться напрямую к бэкенду
+      // proxy: {
+      //   // Проксируем API запросы на backend
+      //   "/api": {
+      //     target: env.VITE_BACKEND_URL || "http://localhost:8080",
+      //     changeOrigin: true,
+      //     secure: false,
+      //   },
+      //   // Проксируем WebSocket соединения
+      //   "/ws": {
+      //     target: env.VITE_WS_BASE_URL || "ws://localhost:8080",
+      //     ws: true,
+      //     changeOrigin: true,
+      //   },
+      // },
     },
 
     // Настройки preview для продакшена
