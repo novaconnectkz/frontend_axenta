@@ -132,6 +132,7 @@ export class UsersService {
       const url = `/auth/users?${params.toString()}`;
       console.log('📡 Users API URL:', url);
       console.log('📊 Users API параметры:', Object.fromEntries(params.entries()));
+      console.log('🎭 Фильтр роли:', filters.role, 'тип:', typeof filters.role);
       
       const response = await this.apiClient.get(url);
       console.log('📡 Users API response status:', response.status);

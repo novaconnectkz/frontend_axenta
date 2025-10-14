@@ -660,6 +660,12 @@ const loadUsers = async () => {
   try {
     loading.value = true;
     console.log('🔄 Loading users...', { page: pagination.value.page, limit: pagination.value.limit, filters: filters.value });
+    console.log('🔍 Фильтры для API:', {
+      search: filters.value.search,
+      role: filters.value.role,
+      active: filters.value.active,
+      roleType: typeof filters.value.role
+    });
 
     const response = await usersService.getUsers(
       pagination.value.page,
@@ -741,7 +747,7 @@ const loadRoles = async () => {
     if (response.status === 'success') {
       roleOptions.value = response.data.items.map(role => ({
         title: role.display_name,
-        value: role.name,
+        value: role.display_name,  // Используем display_name для фильтрации
       }));
       roleOptionsForForm.value = response.data.items.map(role => ({
         title: role.display_name,
