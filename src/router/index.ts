@@ -7,10 +7,6 @@ import {
 } from "./guards";
 
 // Импорт компонентов
-import DiagnosticLogin from "../views/DiagnosticLogin.vue";
-import LoginPageFixed from "../views/LoginPageFixed.vue";
-import SimpleDashboard from "../views/SimpleDashboard.vue";
-import SimpleLogin from "../views/SimpleLogin.vue";
 
 const routes = [
   // Главная страница - для авторизованных перенаправляем на дашборд
@@ -31,31 +27,12 @@ const routes = [
     title: "Вход в систему",
   }),
 
-  // Старые маршруты для совместимости (можно удалить позже)
-  createGuestRoute("/login-old", LoginPageFixed, {
-    title: "Вход в систему (старый)",
-  }),
-  createGuestRoute("/simple-login", SimpleLogin, {
-    title: "Простой вход",
-  }),
-  createPublicRoute("/diagnostic", DiagnosticLogin, {
-    title: "Диагностическая форма входа",
-  }),
 
   // === ЛОКАЛЬНАЯ АВТОРИЗАЦИЯ ===
   createGuestRoute("/local-login", () => import("@/views/LocalLogin.vue"), {
     title: "Локальный вход в систему",
   }),
 
-  // === ТЕСТИРОВАНИЕ ===
-  createPublicRoute("/error-test", () => import("@/views/ErrorTestPage.vue"), {
-    title: "Тестирование ошибок",
-  }),
-
-  // === ГИБРИДНАЯ АВТОРИЗАЦИЯ ===
-  createGuestRoute("/hybrid-login", () => import("@/views/HybridLogin.vue"), {
-    title: "Гибридный вход в систему",
-  }),
 
   // === ОЧИСТКА АВТОРИЗАЦИИ ===
   createPublicRoute("/clear-auth", () => import("@/views/ClearAuth.vue"), {
@@ -218,46 +195,6 @@ const routes = [
     ],
   },
 
-  // === СОВМЕСТИМОСТЬ СО СТАРЫМИ МАРШРУТАМИ ===
-
-  createProtectedRoute("/full-dashboard", SimpleDashboard, {
-    title: "Полная панель управления",
-  }),
-
-  // Тестовые страницы
-  createPublicRoute("/test", () => import("@/views/TestPage.vue"), {
-    title: "Тестовая страница",
-  }),
-
-  // Тест API Axenta
-  createPublicRoute("/axenta-api-test", () => import("@/views/AxentaApiTest.vue"), {
-    title: "Тест API Axenta",
-  }),
-
-  // Быстрый тест авторизации
-  createPublicRoute("/quick-auth-test", () => import("@/views/QuickAuthTest.vue"), {
-    title: "Быстрый тест авторизации",
-  }),
-
-  // Диагностика API Axenta
-  createPublicRoute("/axenta-diagnostics", () => import("@/views/AxentaDiagnostics.vue"), {
-    title: "Диагностика API Axenta",
-  }),
-
-  // Статус исправлений
-  createPublicRoute("/status", () => import("@/views/StatusCheck.vue"), {
-    title: "Статус системы",
-  }),
-
-  // Простой тест без проблемных заголовков
-  createPublicRoute("/simple-test", () => import("@/views/SimpleAxentaTest.vue"), {
-    title: "Простой тест API",
-  }),
-
-  // Тест через CORS прокси
-  createPublicRoute("/proxy-test", () => import("@/views/ProxyAxentaTest.vue"), {
-    title: "Тест через прокси",
-  }),
 
   // === СЛУЖЕБНЫЕ СТРАНИЦЫ ===
 
