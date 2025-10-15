@@ -141,6 +141,17 @@
                 placeholder="ООО Компания или ФИО"
               />
             </v-col>
+            
+            <!-- Поле "Последний вход" - только для редактирования -->
+            <v-col cols="12" v-if="isEdit && user?.lastLogin">
+              <AppleInput
+                :model-value="formatLastLogin(user.lastLogin)"
+                label="Последний вход"
+                readonly
+                variant="outlined"
+                prepend-inner-icon="mdi-clock-outline"
+              />
+            </v-col>
           </v-row>
         </div>
       </v-form>
@@ -338,6 +349,27 @@ const saveUser = async () => {
 const closeDialog = () => {
   show.value = false;
   resetForm();
+};
+
+// Функция для форматирования даты последнего входа
+const formatLastLogin = (lastLogin: string | null | undefined): string => {
+  if (!lastLogin) {
+    return 'Никогда не входил';
+  }
+  
+  try {
+    const date = new Date(lastLogin);
+    return date.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  } catch (error) {
+    return 'Неизвестно';
+  }
 };
 
 // Watchers

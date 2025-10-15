@@ -17,6 +17,7 @@ export interface UserBase {
   role_id: number;
   template_id?: number;
   last_login?: string;
+  lastLogin?: string; // Дублирующее поле для совместимости с API
   login_count: number;
   created_at: string;
   updated_at: string;

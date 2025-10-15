@@ -12,23 +12,31 @@
             </v-avatar>
             <div>
               <h3>{{ getUserFullName(user) }}</h3>
-              <p class="text-caption">{{ user.role?.display_name || 'Без роли' }}</p>
             </div>
           </div>
-          <div class="user-status-section">
-            <v-chip
-              :text="user.is_active ? 'Активен' : 'Неактивен'"
-              :color="user.is_active ? 'success' : 'error'"
-              variant="tonal"
+          <v-spacer />
+          <div class="header-actions">
+            <v-btn
+              icon="mdi-pencil"
+              variant="text"
+              size="small"
+              color="primary"
+              @click="editUser"
+            />
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              size="small"
+              color="error"
+              @click="deleteUser"
+            />
+            <v-btn
+              icon="mdi-close"
+              variant="text"
+              size="small"
+              @click="closeDialog"
             />
           </div>
-          <v-spacer />
-          <v-btn
-            icon="mdi-close"
-            variant="text"
-            size="small"
-            @click="closeDialog"
-          />
         </div>
       </template>
       
@@ -177,25 +185,6 @@
           </v-col>
         </v-row>
       </div>
-      
-      <template #footer>
-        <div class="dialog-actions">
-          <AppleButton
-            variant="secondary"
-            prepend-icon="mdi-pencil"
-            @click="editUser"
-          >
-            Редактировать
-          </AppleButton>
-          <AppleButton
-            variant="danger"
-            prepend-icon="mdi-delete"
-            @click="deleteUser"
-          >
-            Удалить
-          </AppleButton>
-        </div>
-      </template>
     </AppleCard>
   </v-dialog>
 </template>
@@ -371,10 +360,17 @@ const deleteUser = () => {
   gap: 8px;
 }
 
+.header-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .dialog-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: flex-end;
+  align-items: center;
 }
 
 /* Темная тема */
