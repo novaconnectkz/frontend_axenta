@@ -258,6 +258,30 @@ export class UsersService {
     return response.data;
   }
 
+  // Смена пароля пользователя администратором
+  async updateUserPassword(
+    userId: number,
+    adminPassword: string,
+    newPassword: string,
+    confirmNewPassword: string
+  ): Promise<{ status: string; message: string; error?: string }> {
+    try {
+      const response = await this.apiClient.post("/auth/cms/update_user_password/", {
+        adminPassword,
+        userId,
+        newPassword,
+        confirmNewPassword,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Ошибка смены пароля пользователя:", error);
+      return {
+        status: "error",
+        message: error.response?.data?.error || error.message || "Ошибка смены пароля",
+      };
+    }
+  }
+
   // Отправка ссылки сброса пароля на email
   async sendPasswordResetEmail(
     email: string,

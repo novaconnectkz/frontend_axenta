@@ -6,13 +6,22 @@
     <AppleCard>
       <template #header>
         <v-icon icon="mdi-key" class="mr-2" color="warning" />
-        Сброс пароля пользователя
+        Смена пароля пользователя
       </template>
       
       <div class="dialog-content">
         <p class="mb-4">
-          Сброс пароля для пользователя <strong>{{ user?.username }}</strong>
+          Смена пароля для пользователя <strong>{{ user?.username }}</strong>
         </p>
+        
+        <AppleInput
+          v-model="form.adminPassword"
+          label="Ваш пароль администратора"
+          type="password"
+          placeholder="Введите ваш пароль для подтверждения"
+          required
+          :error-message="errors.adminPassword"
+        />
         
         <AppleInput
           v-model="form.password"
@@ -21,11 +30,12 @@
           placeholder="Введите новый пароль"
           required
           :error-message="errors.password"
+          class="mt-4"
         />
         
         <AppleInput
           v-model="form.confirmPassword"
-          label="Подтвердите пароль"
+          label="Подтвердите новый пароль"
           type="password"
           placeholder="Повторите новый пароль"
           required
@@ -47,7 +57,7 @@
             @click="resetPassword"
             :loading="resetting"
           >
-            Сбросить пароль
+            Изменить пароль
           </AppleButton>
         </div>
       </template>
@@ -87,6 +97,7 @@ const emit = defineEmits<Emits>();
 const resetting = ref(false);
 
 const form = ref({
+  adminPassword: '',
   password: '',
   confirmPassword: '',
 });
@@ -102,6 +113,7 @@ const show = computed({
 // Methods
 const resetForm = () => {
   form.value = {
+    adminPassword: '',
     password: '',
     confirmPassword: '',
   };
@@ -111,8 +123,13 @@ const resetForm = () => {
 const validateForm = (): boolean => {
   errors.value = {};
   
+  if (!form.value.adminPassword.trim()) {
+    errors.value.adminPassword = 'Пароль администратора обязателен';
+    return false;
+  }
+  
   if (!form.value.password.trim()) {
-    errors.value.password = 'Пароль обязателен';
+    errors.value.password = 'Новый пароль обязателен';
     return false;
   }
   
@@ -142,20 +159,22 @@ const resetPassword = async () => {
   try {
     resetting.value = true;
     
-    const response = await usersService.resetUserPassword(
+    const response = await usersService.updateUserPassword(
       props.user.id,
-      form.value.password
+      form.value.adminPassword,
+      form.value.password,
+      form.value.confirmPassword
     );
     
     if (response.status === 'success') {
-      emit('success', 'Пароль успешно сброшен');
+      emit('success', 'Пароль успешно изменен');
       closeDialog();
     } else {
-      emit('error', response.error || 'Ошибка сброса пароля');
+      emit('error', response.message || 'Ошибка смены пароля');
     }
   } catch (error: any) {
-    console.error('Ошибка сброса пароля:', error);
-    emit('error', 'Ошибка сброса пароля');
+    console.error('Ошибка смены пароля:', error);
+    emit('error', 'Ошибка смены пароля');
   } finally {
     resetting.value = false;
   }
