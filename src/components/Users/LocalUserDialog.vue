@@ -14,9 +14,13 @@
             <AppleInput
               v-model="form.username"
               label="Имя пользователя"
-              :rules="[rules.required, rules.username]"
+              :rules="[rules.required, rules.username, rules.usernameAvailability]"
+              :error-message="usernameError"
+              :error="!!usernameError"
+              :loading="checkingUsername"
               required
               clearable
+              @blur="checkUsernameAvailability"
             />
             
             <AppleInput
@@ -160,6 +164,8 @@ const loadingRoles = ref(false);
 const formValid = ref(false);
 const formRef = ref();
 const roles = ref<Role[]>([]);
+const usernameError = ref('');
+const checkingUsername = ref(false);
 
 const form = ref<LocalUserForm>({
   username: '',
@@ -198,6 +204,10 @@ const rules = {
     if (!/^[a-zA-Z0-9_-]+$/.test(value)) return 'Только латинские буквы, цифры, _ и -';
     return true;
   },
+  usernameAvailability: () => {
+    if (usernameError.value) return usernameError.value;
+    return true;
+  },
   password: (value: string) => {
     if (value.length < 6) return 'Минимум 6 символов';
     if (value.length > 128) return 'Максимум 128 символов';
@@ -206,6 +216,44 @@ const rules = {
 };
 
 // Methods
+const checkUsernameAvailability = async () => {
+  const username = form.value.username.trim();
+  
+  // Сбрасываем ошибку при пустом поле
+  if (!username) {
+    usernameError.value = '';
+    return;
+  }
+  
+  // Проверяем базовые правила валидации
+  if (username.length < 3 || username.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return; // Базовые правила уже обработаны в rules.username
+  }
+  
+  checkingUsername.value = true;
+  usernameError.value = '';
+  
+  try {
+    const response = await axentaUsersService.checkUsername(username);
+    
+    if (response.status === 'success' && response.data) {
+      if (!response.data.available) {
+        usernameError.value = response.data.message;
+      } else {
+        usernameError.value = '';
+      }
+    } else {
+      console.error('Ошибка проверки имени пользователя:', response.error);
+      // Не показываем ошибку пользователю, если сервер недоступен
+    }
+  } catch (error: any) {
+    console.error('Ошибка проверки имени пользователя:', error);
+    // Не показываем ошибку пользователю, если сервер недоступен
+  } finally {
+    checkingUsername.value = false;
+  }
+};
+
 const loadRoles = async () => {
   loadingRoles.value = true;
   try {
@@ -245,6 +293,9 @@ const resetForm = () => {
     phone: '',
     role_id: 0,
   };
+  
+  // Сбрасываем ошибку имени пользователя
+  usernameError.value = '';
   
   // Выбираем роль "user" по умолчанию
   const userRole = roles.value.find(role => role.name === 'user');

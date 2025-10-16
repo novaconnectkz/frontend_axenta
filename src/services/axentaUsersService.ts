@@ -144,6 +144,44 @@ export class AxentaUsersService {
 
   // === СОЗДАНИЕ И УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ===
 
+  // Проверка доступности имени пользователя
+  async checkUsername(username: string): Promise<{
+    status: string;
+    data?: {
+      available: boolean;
+      message: string;
+      source?: string;
+    };
+    error?: string;
+  }> {
+    if (this.useMockData) {
+      // Мок-данные для тестирования
+      return {
+        status: "success",
+        data: {
+          available: username !== "admin" && username !== "test",
+          message: username !== "admin" && username !== "test" 
+            ? "Имя пользователя доступно" 
+            : "Пользователь с таким именем уже существует",
+          source: username === "admin" ? "crm" : undefined,
+        },
+      };
+    }
+
+    try {
+      const response = await this.apiClient.post("/auth/local/users/check-username", {
+        username,
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Ошибка проверки имени пользователя:", error);
+      return {
+        status: "error",
+        error: error.response?.data?.error || error.message || "Ошибка проверки имени пользователя",
+      };
+    }
+  }
+
   // Создание локального пользователя
   async createLocalUser(user: LocalUserForm): Promise<{
     status: string;

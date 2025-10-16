@@ -1,24 +1,8 @@
 <template>
   <v-row class="mb-4">
     <v-col cols="12">
-      <v-card>
-        <v-card-title class="d-flex align-center justify-space-between">
-          <div class="d-flex align-center">
-            <v-icon start icon="mdi-lightning-bolt" />
-            Быстрые действия
-          </div>
-          <v-btn
-            v-if="isDragMode"
-            :color="isQuickActionsDragMode ? 'success' : 'info'"
-            :variant="isQuickActionsDragMode ? 'flat' : 'outlined'"
-            size="small"
-            @click="$emit('toggleQuickActionsDrag')"
-          >
-            <v-icon start :icon="isQuickActionsDragMode ? 'mdi-check' : 'mdi-drag'" />
-            {{ isQuickActionsDragMode ? 'Готово' : 'Изменить порядок' }}
-          </v-btn>
-        </v-card-title>
-        <v-card-text>
+      <v-card class="quick-actions-minimal">
+        <v-card-text class="pa-2">
           <!-- Draggable Quick Actions -->
           <VueDraggable
             v-if="isQuickActionsDragMode"
@@ -109,63 +93,70 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Адаптивная сетка для быстрых действий */
+/* Минималистичная сетка для быстрых действий */
+.quick-actions-minimal {
+  box-shadow: none !important;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
 .quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
   align-items: stretch;
 }
 
 /* Для больших экранов - все кнопки в одну строку */
 @media (min-width: 1280px) {
   .quick-actions-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
   }
 }
 
 /* Для экстра больших экранов */
 @media (min-width: 1920px) {
   .quick-actions-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
   }
 }
 
-/* Режим свернутого меню - больше места для кнопок */
+/* Режим свернутого меню */
 .quick-actions-grid.rail-mode {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .quick-action-btn {
-  height: 64px;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.875rem;
-  min-width: 140px;
-  transition: all 0.2s ease;
+  height: 48px;
+  flex-direction: row;
+  gap: 6px;
+  font-size: 0.8rem;
+  min-width: 100px;
+  transition: all 0.15s ease;
+  padding: 0 12px;
 }
 
 .quick-action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .rail-quick-btn {
-  min-width: 180px;
-  height: 72px;
+  min-width: 140px;
+  height: 52px;
 }
 
 .quick-action-btn .v-icon {
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  font-size: 18px;
 }
 
 .action-text {
   text-align: center;
   line-height: 1.2;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;

@@ -46,13 +46,8 @@
     </div>
 
     <!-- Быстрые действия для мобильных -->
-    <v-card class="quick-actions-mobile mb-3" elevation="2">
-      <v-card-title class="pa-3">
-        <v-icon icon="mdi-lightning-bolt" class="me-2" size="20" />
-        Быстрые действия
-      </v-card-title>
-      
-      <v-card-text class="pa-3">
+    <v-card class="quick-actions-mobile mb-3" elevation="1">
+      <v-card-text class="pa-2">
         <!-- Адаптивная сетка для мобильных быстрых действий -->
         <div class="mobile-quick-actions-grid">
           <v-btn
@@ -63,10 +58,8 @@
             :to="action.route"
             class="mobile-action-btn"
           >
-            <div class="d-flex flex-column align-center">
-              <v-icon :icon="action.icon" size="18" class="mb-1" />
-              <span class="action-text">{{ action.shortTitle || action.title }}</span>
-            </div>
+            <v-icon :icon="action.icon" size="16" class="me-1" />
+            <span class="action-text">{{ action.shortTitle || action.title }}</span>
           </v-btn>
         </div>
       </v-card-text>
@@ -244,46 +237,49 @@ const navigateToSection = (route: string) => {
   background: rgb(var(--v-theme-surface));
 }
 
-/* Адаптивная сетка для мобильных быстрых действий */
+/* Компактная сетка для мобильных быстрых действий */
 .mobile-quick-actions-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
   align-items: stretch;
 }
 
-/* Для очень маленьких экранов - 2 кнопки в ряд */
+/* Для очень маленьких экранов - 3 кнопки в ряд */
 @media (max-width: 360px) {
   .mobile-quick-actions-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
   }
 }
 
 /* Для больших мобильных экранов - больше кнопок в ряд */
 @media (min-width: 480px) {
   .mobile-quick-actions-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
   }
 }
 
 .mobile-action-btn {
-  height: 56px !important;
-  border-radius: 8px;
-  font-size: 0.7rem;
+  height: 44px !important;
+  border-radius: 6px;
+  font-size: 0.65rem;
   min-width: unset;
   width: 100%;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
+  flex-direction: row;
+  gap: 4px;
+  padding: 0 8px;
 }
 
 .mobile-action-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .action-text {
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   line-height: 1.1;
   text-align: center;
   font-weight: 500;
@@ -343,15 +339,15 @@ const navigateToSection = (route: string) => {
   
   .mobile-quick-actions-grid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
+    gap: 4px;
   }
   
   .mobile-action-btn {
-    height: 48px !important;
+    height: 40px !important;
   }
   
   .action-text {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     line-height: 1;
   }
 }
