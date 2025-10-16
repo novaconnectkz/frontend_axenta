@@ -1,6 +1,6 @@
 <template>
   <BaseWidget
-    title="Обзор объектов"
+    title="Статистика объектов"
     icon="mdi-monitor"
     :widget-id="widgetId"
     :is-resize-mode="isResizeMode"
@@ -12,48 +12,33 @@
     @remove="$emit('remove')"
     @resize="$emit('resize', $event)"
   >
+    <template #header-actions>
+      <v-btn
+        icon="mdi-view-list"
+        size="small"
+        variant="text"
+        to="/objects"
+        title="Все объекты"
+      />
+      <v-btn
+        icon="mdi-plus"
+        size="small"
+        variant="text"
+        to="/objects/create"
+        title="Создать объект"
+        color="success"
+      />
+    </template>
     <div v-if="data" class="objects-overview">
-      <v-row>
-        <v-col cols="6" sm="3">
-          <div class="stat-item">
-            <div class="stat-value total">{{ data.total }}</div>
-            <div class="stat-label">Всего объектов</div>
-          </div>
-        </v-col>
-        <v-col cols="6" sm="3">
-          <div class="stat-item">
-            <div class="stat-value active">{{ data.active }}</div>
-            <div class="stat-label">Активные</div>
-          </div>
-        </v-col>
-        <v-col cols="6" sm="3">
-          <div class="stat-item">
-            <div class="stat-value inactive">{{ data.inactive }}</div>
-            <div class="stat-label">Неактивные</div>
-          </div>
-        </v-col>
-        <v-col cols="6" sm="3">
-          <div class="stat-item clickable" @click="openTrashDialog">
-            <div class="stat-value deleted">{{ data.deleted }}</div>
-            <div class="stat-label">В корзине</div>
-          </div>
-        </v-col>
-      </v-row>
-
-      <v-row class="mt-4">
-        <v-col cols="12">
-          <v-progress-linear
-            :model-value="activePercentage"
-            color="success"
-            height="20"
-            rounded
-          >
-            <template v-slot:default="{ value }">
-              <strong>{{ Math.ceil(value) }}% активных</strong>
-            </template>
-          </v-progress-linear>
-        </v-col>
-      </v-row>
+      <ActivityIndicator
+        title="Статистика объектов"
+        :data="activityData"
+        :active-percentage="activePercentage"
+        active-label="активных"
+        summary-label="Общая активность объектов"
+        size="medium"
+        @item-click="onActivityItemClick"
+      />
 
       <v-row v-if="data.scheduled_for_deletion > 0" class="mt-2">
         <v-col cols="12">
@@ -72,24 +57,7 @@
     </div>
 
     <template #actions>
-      <v-btn
-        color="primary"
-        variant="outlined"
-        size="small"
-        to="/objects"
-      >
-        Все объекты
-      </v-btn>
-      <v-spacer />
-      <v-btn
-        color="success"
-        variant="outlined"
-        size="small"
-        to="/objects/create"
-      >
-        <v-icon start icon="mdi-plus" />
-        Создать
-      </v-btn>
+      <!-- Кнопки перенесены в header как иконки -->
     </template>
   </BaseWidget>
 
@@ -105,13 +73,15 @@ import type { PropType } from 'vue';
 import { computed, defineComponent, onMounted, onUnmounted, ref } from 'vue';
 import BaseWidget from './BaseWidget.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
+import ActivityIndicator, { type ActivityIndicatorItem } from './ActivityIndicator.vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 
 export default defineComponent({
   name: 'ObjectsOverviewWidget',
   components: {
     BaseWidget,
-    ObjectsTrashDialog
+    ObjectsTrashDialog,
+    ActivityIndicator
   },
   props: {
     refreshInterval: {
@@ -151,10 +121,48 @@ export default defineComponent({
       return (data.value.active / data.value.total) * 100;
     });
 
+    const activityData = computed((): ActivityIndicatorItem[] => {
+      if (!data.value) return [];
+      
+      return [
+        {
+          label: 'Всего',
+          value: data.value.total,
+          colorClass: 'primary',
+          percentage: 100
+        },
+        {
+          label: 'Активные',
+          value: data.value.active,
+          colorClass: 'success',
+          percentage: (data.value.active / data.value.total) * 100
+        },
+        {
+          label: 'Неактивные',
+          value: data.value.inactive,
+          colorClass: 'warning',
+          percentage: (data.value.inactive / data.value.total) * 100
+        },
+        {
+          label: 'Корзина',
+          value: data.value.deleted,
+          colorClass: 'error',
+          percentage: (data.value.deleted / data.value.total) * 100,
+          clickable: true
+        }
+      ];
+    });
+
     const openTrashDialog = () => {
       console.log('🗑️ Dashboard: Opening trash dialog...');
       showTrashDialog.value = true;
       console.log('🗑️ Dashboard: showTrashDialog set to:', showTrashDialog.value);
+    };
+
+    const onActivityItemClick = (item: ActivityIndicatorItem) => {
+      if (item.label === 'Корзина') {
+        openTrashDialog();
+      }
     };
 
     const loadData = async () => {
@@ -225,10 +233,12 @@ export default defineComponent({
       loading,
       error,
       activePercentage,
+      activityData,
       loadData,
       lastUpdate: realTimeWidget.lastUpdate,
       showTrashDialog,
-      openTrashDialog
+      openTrashDialog,
+      onActivityItemClick
     };
   }
 });
@@ -239,85 +249,8 @@ export default defineComponent({
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow-y: auto; /* Прокрутка если содержимое не помещается */
+  overflow: visible; /* Убираем прокрутку */
 }
 
-.stat-item {
-  text-align: center;
-  padding: 12px;
-  min-width: 120px;
-  flex: 1;
-}
 
-.stat-value {
-  font-size: 2rem;
-  font-weight: bold;
-  line-height: 1;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  word-break: keep-all;
-}
-
-.stat-value.total {
-  color: rgb(var(--v-theme-primary));
-}
-
-.stat-value.active {
-  color: rgb(var(--v-theme-success));
-}
-
-.stat-value.inactive {
-  color: rgb(var(--v-theme-warning));
-}
-
-.stat-value.deleted {
-  color: rgb(var(--v-theme-error));
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  word-break: keep-all;
-  overflow-wrap: normal;
-  line-height: 1.3;
-  text-align: center;
-}
-
-.stat-item.clickable {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.stat-item.clickable:hover {
-  background-color: rgb(var(--v-theme-surface-variant));
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* Адаптивные размеры для длинных чисел */
-@media (max-width: 1200px) {
-  .stat-value {
-    font-size: 1.75rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .stat-value {
-    font-size: 1.5rem;
-  }
-  
-  .stat-item {
-    padding: 8px;
-  }
-}
-
-@media (max-width: 480px) {
-  .stat-value {
-    font-size: 1.25rem;
-  }
-}
 </style>

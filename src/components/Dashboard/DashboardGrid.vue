@@ -67,6 +67,7 @@
             md="6" 
             lg="6" 
             xl="6" 
+            xxl="6"
             class="widget-column">
             <component 
               :is="getWidgetComponent(widget.type)" 
@@ -705,19 +706,92 @@ export default defineComponent({
 }
 
 
-/* Mobile optimizations */
-@media (max-width: 768px) {
+/* Адаптивность для разных разрешений экрана */
+
+/* Очень большие экраны (1400px+) */
+@media (min-width: 1400px) {
+  .dashboard-grid {
+    padding: 20px;
+  }
+  
+  .widget-column {
+    height: 380px; /* Оптимизировано для содержимого */
+  }
+}
+
+/* Большие экраны (1200px-1399px) */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .dashboard-grid {
+    padding: 18px;
+  }
+  
+  .widget-column {
+    height: 360px; /* Оптимизировано для содержимого */
+  }
+}
+
+/* Средне-большие экраны (992px-1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
+  .dashboard-grid {
+    padding: 16px;
+  }
+  
+  .widget-column {
+    height: 340px; /* Оптимизировано для содержимого */
+  }
+}
+
+/* Планшеты (768px-991px) */
+@media (max-width: 991px) and (min-width: 768px) {
+  .dashboard-grid {
+    padding: 12px;
+  }
+  
+  .widget-column {
+    height: 320px; /* Оптимизировано для содержимого */
+    margin-bottom: 8px;
+  }
+  
+  .v-row {
+    margin: -6px;
+  }
+  
+  .v-col {
+    padding: 6px;
+  }
+}
+
+/* Малые планшеты и большие телефоны (576px-767px) */
+@media (max-width: 767px) and (min-width: 576px) {
+  .dashboard-grid {
+    padding: 10px;
+  }
+  
+  .widget-column {
+    height: 300px; /* Оптимизировано для содержимого */
+    margin-bottom: 8px;
+  }
+  
+  .v-row {
+    margin: -5px;
+  }
+  
+  .v-col {
+    padding: 5px;
+  }
+}
+
+/* Мобильные устройства (480px-575px) */
+@media (max-width: 575px) and (min-width: 480px) {
   .dashboard-grid {
     padding: 8px;
   }
   
   .widget-column {
-    height: 350px; /* Фиксированная высота для мобильных */
-    margin-bottom: 8px;
+    height: 280px; /* Оптимизировано для содержимого */
+    margin-bottom: 6px;
   }
   
-  
-  /* Ensure proper spacing on mobile */
   .v-row {
     margin: -4px;
   }
@@ -727,16 +801,36 @@ export default defineComponent({
   }
 }
 
-@media (max-width: 480px) {
+/* Маленькие мобильные устройства (360px-479px) */
+@media (max-width: 479px) and (min-width: 360px) {
+  .dashboard-grid {
+    padding: 6px;
+  }
+  
+  .widget-column {
+    height: 260px; /* Оптимизировано для содержимого */
+    margin-bottom: 4px;
+  }
+  
+  .v-row {
+    margin: -3px;
+  }
+  
+  .v-col {
+    padding: 3px;
+  }
+}
+
+/* Очень маленькие экраны (до 359px) */
+@media (max-width: 359px) {
   .dashboard-grid {
     padding: 4px;
   }
   
   .widget-column {
-    height: 320px; /* Фиксированная высота для маленьких мобильных */
-    margin-bottom: 4px;
+    height: 240px; /* Оптимизировано для содержимого */
+    margin-bottom: 2px;
   }
-  
   
   .v-row {
     margin: -2px;
@@ -747,16 +841,16 @@ export default defineComponent({
   }
 }
 
-/* iPhone 14 Pro Max specific optimizations */
-@media (max-width: 430px) and (max-height: 932px) {
+/* Горизонтальная ориентация на мобильных */
+@media (max-height: 600px) and (orientation: landscape) {
   .dashboard-grid {
-    padding: 6px;
+    padding: 8px;
   }
   
   .widget-column {
-    height: 300px; /* Фиксированная высота для iPhone 14 Pro Max */
+    height: 200px; /* Уменьшено с 280px */
+    margin-bottom: 4px;
   }
-  
 }
 
 /* Drag and Drop Styles */
@@ -841,11 +935,65 @@ export default defineComponent({
   background: rgba(var(--v-theme-primary), 0.05);
 }
 
-/* Mobile optimizations for drag mode */
-@media (max-width: 768px) {
+/* Адаптивность для режима перетаскивания */
+
+/* Очень большие экраны (1400px+) */
+@media (min-width: 1400px) {
   .draggable-container {
-    grid-template-columns: 1fr;
-    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 24px;
+  }
+  
+  .drag-handle {
+    padding: 12px 24px;
+  }
+}
+
+/* Большие экраны (1200px-1399px) */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 20px;
+  }
+  
+  .drag-handle {
+    padding: 10px 20px;
+  }
+}
+
+/* Средне-большие экраны (992px-1199px) */
+@media (max-width: 1199px) and (min-width: 992px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 18px;
+  }
+  
+  .drag-handle {
+    padding: 10px 18px;
+  }
+}
+
+/* Планшеты (768px-991px) */
+@media (max-width: 991px) and (min-width: 768px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 16px;
+  }
+  
+  .drag-handle {
+    padding: 10px 16px;
+  }
+  
+  .widget-title {
+    font-size: 0.95rem;
+  }
+}
+
+/* Малые планшеты и большие телефоны (576px-767px) */
+@media (max-width: 767px) and (min-width: 576px) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 14px;
   }
   
   .drag-controls {
@@ -862,13 +1010,15 @@ export default defineComponent({
   }
 }
 
-@media (max-width: 480px) {
+/* Мобильные устройства (480px-575px) */
+@media (max-width: 575px) and (min-width: 480px) {
   .draggable-container {
-    gap: 8px;
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   
   .drag-handle {
-    padding: 8px 12px;
+    padding: 10px 14px;
   }
   
   .widget-title {
@@ -876,22 +1026,47 @@ export default defineComponent({
   }
 }
 
-/* Tablet optimizations */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* Маленькие мобильные устройства (360px-479px) */
+@media (max-width: 479px) and (min-width: 360px) {
   .draggable-container {
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  }
-}
-
-/* Large screen optimizations */
-@media (min-width: 1280px) {
-  .draggable-container {
-    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
-    gap: 20px;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
   
   .drag-handle {
-    padding: 10px 20px;
+    padding: 8px 12px;
+  }
+  
+  .widget-title {
+    font-size: 0.8rem;
+  }
+}
+
+/* Очень маленькие экраны (до 359px) */
+@media (max-width: 359px) {
+  .draggable-container {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .drag-handle {
+    padding: 6px 10px;
+  }
+  
+  .widget-title {
+    font-size: 0.75rem;
+  }
+}
+
+/* Горизонтальная ориентация на мобильных */
+@media (max-height: 600px) and (orientation: landscape) {
+  .draggable-container {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 8px;
+  }
+  
+  .drag-handle {
+    padding: 6px 12px;
   }
 }
 

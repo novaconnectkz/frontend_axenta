@@ -14,6 +14,9 @@
         <span>{{ displayTitle }}</span>
       </div>
       <div class="d-flex align-center">
+        <!-- Дополнительные кнопки в header -->
+        <slot name="header-actions" />
+        
         <v-btn
           v-if="refreshable"
           icon="mdi-refresh"
