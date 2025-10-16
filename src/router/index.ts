@@ -99,6 +99,15 @@ const routes = [
           // permissions: ["admin.accounts.read"], // Временно отключено до реализации системы разрешений
         },
       },
+      {
+        path: "accounts/create",
+        name: "CreateAccount",
+        component: () => import("@/views/CreateAccountPage.vue"),
+        meta: {
+          title: "Создание учетной записи",
+          requiresAuth: true,
+        },
+      },
 
       // Система монтажей
       {

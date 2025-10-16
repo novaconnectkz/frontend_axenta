@@ -357,6 +357,188 @@ class AccountsService {
   }
 
   /**
+   * Создать новую учетную запись
+   */
+  async createAccount(accountData: {
+    name: string;
+    type: 'client' | 'partner';
+    comment?: string | null;
+    blockingDatetime?: string | null;
+    adminId?: number | null;
+    admin: {
+      name: string;
+      username: string;
+      email: string;
+      password: string;
+      confirmPassword: string;
+      visibleTabsNames: string[];
+    };
+  }): Promise<{ status: string; data: Account; error?: string }> {
+    try {
+      console.log("📡 Создание учетной записи:", accountData);
+
+      // Подготавливаем данные для API, исключая adminId если он не указан
+      const apiData: any = {
+        name: accountData.name,
+        type: accountData.type,
+        comment: accountData.comment,
+        blockingDatetime: accountData.blockingDatetime,
+        admin: accountData.admin,
+      };
+
+      // Добавляем adminId только если он указан
+      if (accountData.adminId) {
+        apiData.adminId = accountData.adminId;
+      }
+
+      const response = await this.apiClient.post<any>(
+        "/api/cms/accounts/",
+        apiData
+      );
+
+      console.log("✅ Учетная запись создана:", response.data);
+
+      // Преобразуем данные аккаунта
+      const account = response.data;
+      const createdAccount: Account = {
+        id: account.id,
+        name: account.name,
+        type: account.type === "partner" ? "partner" : "client",
+        adminFullname: account.adminFullname || "Не указано",
+        adminId: account.adminId || 0,
+        adminIsActive: account.adminIsActive !== false,
+        parentAccountName: account.parentAccountName || "",
+        objectsActive: account.objectsActive || 0,
+        objectsTotal: account.objectsTotal || 0,
+        objectsDeleted: account.objectsDeleted || 0,
+        comment: account.comment || null,
+        isActive: account.isActive !== false,
+        blockingDatetime: account.blockingDatetime || null,
+        hierarchy: account.hierarchy || "",
+        daysBeforeBlocking: account.daysBeforeBlocking || null,
+        creationDatetime: account.creationDatetime || new Date().toISOString(),
+        // Дополнительные поля из API
+        country: account.country,
+        city: account.city,
+        address: account.address,
+        contactEmail: account.contactEmail,
+        contactPhone: account.contactPhone,
+        language: account.language,
+        timezone: account.timezone,
+        currency: account.currency,
+        maxUsers: account.maxUsers,
+        storageQuota: account.storageQuota,
+      };
+
+      return {
+        status: 'success',
+        data: createdAccount,
+      };
+    } catch (error: any) {
+      console.error("❌ Ошибка создания учетной записи:", error);
+      
+      let errorMessage = 'Ошибка создания учетной записи';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      return {
+        status: 'error',
+        data: {} as Account,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Обновить учетную запись
+   */
+  async updateAccount(id: number, accountData: Partial<{
+    name: string;
+    type: 'client' | 'partner';
+    comment?: string | null;
+    blockingDatetime?: string | null;
+    adminId?: number | null;
+    admin?: {
+      name: string;
+      username: string;
+      email: string;
+      password: string;
+      confirmPassword: string;
+      visibleTabsNames: string[];
+    };
+  }>): Promise<{ status: string; data: Account; error?: string }> {
+    try {
+      console.log("📡 Обновление учетной записи:", id, accountData);
+
+      const response = await this.apiClient.put<any>(
+        `/api/cms/accounts/${id}/`,
+        accountData
+      );
+
+      console.log("✅ Учетная запись обновлена:", response.data);
+
+      // Преобразуем данные аккаунта
+      const account = response.data;
+      const updatedAccount: Account = {
+        id: account.id,
+        name: account.name,
+        type: account.type === "partner" ? "partner" : "client",
+        adminFullname: account.adminFullname || "Не указано",
+        adminId: account.adminId || 0,
+        adminIsActive: account.adminIsActive !== false,
+        parentAccountName: account.parentAccountName || "",
+        objectsActive: account.objectsActive || 0,
+        objectsTotal: account.objectsTotal || 0,
+        objectsDeleted: account.objectsDeleted || 0,
+        comment: account.comment || null,
+        isActive: account.isActive !== false,
+        blockingDatetime: account.blockingDatetime || null,
+        hierarchy: account.hierarchy || "",
+        daysBeforeBlocking: account.daysBeforeBlocking || null,
+        creationDatetime: account.creationDatetime || new Date().toISOString(),
+        // Дополнительные поля из API
+        country: account.country,
+        city: account.city,
+        address: account.address,
+        contactEmail: account.contactEmail,
+        contactPhone: account.contactPhone,
+        language: account.language,
+        timezone: account.timezone,
+        currency: account.currency,
+        maxUsers: account.maxUsers,
+        storageQuota: account.storageQuota,
+      };
+
+      return {
+        status: 'success',
+        data: updatedAccount,
+      };
+    } catch (error: any) {
+      console.error("❌ Ошибка обновления учетной записи:", error);
+      
+      let errorMessage = 'Ошибка обновления учетной записи';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+
+      return {
+        status: 'error',
+        data: {} as Account,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
    * Получить статистику учетных записей
    */
   async getAccountsStats(): Promise<{

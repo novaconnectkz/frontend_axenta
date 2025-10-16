@@ -171,6 +171,15 @@
             />
           </v-col>
           <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
+            <AppleButton
+              variant="primary"
+              size="small"
+              prepend-icon="mdi-plus"
+              @click="goToCreateAccount"
+              title="Создать новую учетную запись"
+            >
+              Создать
+            </AppleButton>
             <v-btn
               variant="outlined"
               size="small"
@@ -589,17 +598,33 @@
         </v-card-text>
       </v-card>
     </v-dialog>
+
+
+    <!-- Snackbar для уведомлений -->
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
+      {{ snackbar.text }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">
+          Закрыть
+        </v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import { debounce } from 'lodash-es';
+import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import { useAuth } from '@/context/auth';
+import AppleButton from '@/components/Apple/AppleButton.vue';
 
 // Получаем контекст авторизации
 const auth = useAuth();
+
+// Router
+const router = useRouter();
 
 // Реактивные данные
 const accounts = ref<Account[]>([]);
@@ -661,6 +686,15 @@ const parentAccountOptions = ref(createParentAccountOptions());
 // Диалоги
 const viewDialog = ref(false);
 const selectedAccount = ref<Account | null>(null);
+
+
+// Snackbar для уведомлений
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'info',
+  timeout: 5000
+});
 
 // Опции для фильтров
 const accountTypes = [
@@ -1222,8 +1256,19 @@ const viewAccount = (account: Account) => {
 };
 
 const editAccount = (account: Account) => {
-  // TODO: Реализовать редактирование
-  console.log('Редактирование аккаунта:', account);
+  // TODO: Реализовать редактирование учетной записи
+  showSnackbar('Редактирование учетных записей пока не реализовано', 'info');
+};
+
+// Переход на страницу создания учетной записи
+const goToCreateAccount = () => {
+  router.push('/accounts/create');
+};
+
+const showSnackbar = (text: string, color: string = 'info') => {
+  snackbar.value.text = text;
+  snackbar.value.color = color;
+  snackbar.value.show = true;
 };
 
 const toggleAccountStatus = async (account: Account) => {
