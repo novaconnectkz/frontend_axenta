@@ -21,8 +21,10 @@ export interface BuildInfo {
 }
 
 export function getBuildInfo(): BuildInfo {
-  // В development показываем актуальную версию с пометкой dev
-  const isDev = import.meta.env.DEV;
+  // Определяем режим более надежным способом
+  // В production сборке import.meta.env.DEV должен быть false
+  const isDev = import.meta.env.DEV === true;
+  const isProduction = import.meta.env.PROD === true;
   
   // Если версия 0.0.0, используем timestamp как версию
   let version = packageJson.version;
@@ -31,8 +33,12 @@ export function getBuildInfo(): BuildInfo {
     version = `1.0.${timestamp}`;
   }
   
+  // В development показываем версию с пометкой dev
+  // В production показываем чистую версию
+  const finalVersion = isDev ? `${version}-dev` : version;
+  
   return {
-    version: isDev ? `${version}-dev` : version,
+    version: finalVersion,
     buildTime: BUILD_TIME,
     commitHash: COMMIT_HASH,
     environment: import.meta.env.MODE

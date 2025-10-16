@@ -8,16 +8,29 @@ export default defineConfig(({ mode }) => {
   
   // Генерируем информацию о сборке
   const buildTime = new Date().toISOString();
-  const commitHash = process.env.GITHUB_SHA?.substring(0, 7) || 
-                     process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) ||
-                     (() => {
-                       try {
-                         const { execSync } = require('child_process');
-                         return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
-                       } catch {
-                         return 'local';
-                       }
-                     })();
+  
+  // Получаем хеш коммита с приоритетом по источникам
+  let commitHash = 'unknown';
+  
+  if (process.env.GITHUB_SHA) {
+    commitHash = process.env.GITHUB_SHA.substring(0, 7);
+  } else if (process.env.VERCEL_GIT_COMMIT_SHA) {
+    commitHash = process.env.VERCEL_GIT_COMMIT_SHA.substring(0, 7);
+  } else if (process.env.GIT_COMMIT_SHA) {
+    commitHash = process.env.GIT_COMMIT_SHA.substring(0, 7);
+  } else {
+    // Пытаемся получить из git
+    try {
+      const { execSync } = require('child_process');
+      const gitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+      if (gitHash && gitHash !== 'HEAD') {
+        commitHash = gitHash;
+      }
+    } catch (error) {
+      // Если не удалось получить git хеш, используем timestamp
+      commitHash = Math.floor(Date.now() / 1000).toString(36);
+    }
+  }
 
   return {
     plugins: [
