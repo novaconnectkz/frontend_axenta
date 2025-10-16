@@ -1,138 +1,93 @@
 <template>
   <div class="accounts-page">
-    <!-- Заголовок страницы убран, так как теперь отображается в header -->
-
+    <!-- Заголовок страницы -->
+    <div class="page-header">
+      <div class="page-title-section">
+        <v-icon icon="mdi-bank" size="32" class="page-icon" />
+        <div>
+          <h1 class="page-title">Учетные записи</h1>
+          <p class="page-subtitle">Управление учетными записями и организациями</p>
+        </div>
+      </div>
+    </div>
 
     <!-- Статистика -->
     <div class="stats-section">
-      <v-row>
-        <v-col cols="12" sm="6" md="3">
-          <v-card class="stat-card">
-            <v-card-text>
-              <div class="stat-content">
-                <div class="stat-icon total">
-                  <i class="mdi mdi-account-group"></i>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ stats.total }}</div>
-                  <div class="stat-label">Доступных записей</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" md="3">
-          <v-card class="stat-card">
-            <v-card-text>
-              <div class="stat-content">
-                <div class="stat-icon active">
-                  <i class="mdi mdi-account-check"></i>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ stats.active }}</div>
-                  <div class="stat-label">Активных</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" md="3">
-          <v-card class="stat-card">
-            <v-card-text>
-              <div class="stat-content">
-                <div class="stat-icon clients">
-                  <i class="mdi mdi-account"></i>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ stats.clients }}</div>
-                  <div class="stat-label">Клиентов</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        <v-col cols="12" sm="6" md="3">
-          <v-card class="stat-card">
-            <v-card-text>
-              <div class="stat-content">
-                <div class="stat-icon partners">
-                  <i class="mdi mdi-handshake"></i>
-                </div>
-                <div class="stat-info">
-                  <div class="stat-value">{{ stats.partners }}</div>
-                  <div class="stat-label">Партнеров</div>
-                </div>
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
+      <div class="stats-grid">
+        <AppleCard 
+          :title="stats.total.toString()" 
+          subtitle="Доступных записей"
+          icon="mdi-account-group" 
+          icon-color="primary" 
+          variant="outlined" 
+          class="stat-card" 
+        />
+        <AppleCard 
+          :title="stats.active.toString()" 
+          subtitle="Активных"
+          icon="mdi-account-check" 
+          icon-color="success" 
+          variant="outlined" 
+          class="stat-card" 
+        />
+        <AppleCard 
+          :title="stats.clients.toString()" 
+          subtitle="Клиентов"
+          icon="mdi-account" 
+          icon-color="warning" 
+          variant="outlined" 
+          class="stat-card" 
+        />
+        <AppleCard 
+          :title="stats.partners.toString()" 
+          subtitle="Партнеров"
+          icon="mdi-handshake" 
+          icon-color="purple" 
+          variant="outlined" 
+          class="stat-card" 
+        />
+      </div>
     </div>
 
 
-    <!-- Фильтры и поиск -->
-    <v-card class="filters-card" :class="{ 'filters-card-active': hasAnyActiveFilters }">
-      <v-card-text class="pb-2">
-        <v-row align="center">
-          <v-col cols="12" md="4">
+    <!-- Фильтры -->
+    <AppleCard class="filters-card" variant="outlined">
+      <div class="filters-content">
+        <div class="filters-row">
+          <div class="filter-item filter-search">
             <v-text-field
               v-model="searchQuery"
-              label="Поиск по названию"
-              placeholder="Поиск по названию компании (через запятую для нескольких)"
+              placeholder="Поиск по названию компании (через запятую для нескольких)..."
+              prepend-inner-icon="mdi-magnify"
               variant="outlined"
-              density="compact"
-              :color="isMultipleCompanySearch ? 'primary' : (isSearchActive ? 'primary' : undefined)"
-              :class="{ 'filter-active': isSearchActive }"
+              density="comfortable"
+              clearable
               @input="debouncedSearch"
+              class="search-field"
+            />
+          </div>
+          <!-- Чипы с найденными компаниями - выносим отдельно -->
+          <div v-if="isMultipleCompanySearch && companySearchTermsArray.length > 0" class="search-chips-container">
+            <v-chip
+              v-for="(term, index) in companySearchTermsArray"
+              :key="index"
+              size="small"
+              color="primary"
+              variant="outlined"
+              class="mr-1 mb-1"
+              closable
+              @click:close="removeCompanySearchTerm(index)"
             >
-              <template #prepend-inner>
-                <v-tooltip :text="companySearchHint" location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon 
-                      v-bind="props" 
-                      :icon="isMultipleCompanySearch ? 'mdi-office-building-marker' : 'mdi-magnify'" 
-                      :color="isMultipleCompanySearch ? 'primary' : undefined"
-                    />
-                  </template>
-                </v-tooltip>
-              </template>
-              
-              <template #append-inner v-if="isMultipleCompanySearch">
-                <v-tooltip text="Активен точный поиск по нескольким компаниям">
-                  <template #activator="{ props }">
-                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
-                      {{ companySearchTermsArray.length }}
-                    </v-chip>
-                  </template>
-                </v-tooltip>
-              </template>
-            </v-text-field>
-            
-            <!-- Чипы с найденными компаниями -->
-            <div v-if="isMultipleCompanySearch && companySearchTermsArray.length > 0" class="search-chips mt-2">
-              <v-chip
-                v-for="(term, index) in companySearchTermsArray"
-                :key="index"
-                size="small"
-                color="primary"
-                variant="outlined"
-                class="mr-1 mb-1"
-                closable
-                @click:close="removeCompanySearchTerm(index)"
-              >
-                {{ term }}
-              </v-chip>
-            </div>
-          </v-col>
-          <v-col cols="12" md="3">
+              {{ term }}
+            </v-chip>
+          </div>
+          <div class="filter-item">
             <v-select
               v-model="filters.type"
               label="Тип аккаунта"
               :items="accountTypes"
               variant="outlined"
-              density="compact"
-              :color="isTypeFilterActive ? 'primary' : undefined"
-              :class="{ 'filter-active': isTypeFilterActive }"
+              density="comfortable"
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра типа
                 allAccountsCache.value = [];
@@ -140,16 +95,14 @@
                 loadAccounts();
               }"
             />
-          </v-col>
-          <v-col cols="12" md="2">
+          </div>
+          <div class="filter-item">
             <v-select
               v-model="filters.is_active"
               label="Статус"
               :items="statusOptions"
               variant="outlined"
-              density="compact"
-              :color="isStatusFilterActive ? 'primary' : undefined"
-              :class="{ 'filter-active': isStatusFilterActive }"
+              density="comfortable"
               @update:model-value="() => {
                 // Очищаем кэш при изменении фильтра статуса
                 allAccountsCache.value = [];
@@ -157,63 +110,48 @@
                 loadAccounts();
               }"
             />
-          </v-col>
-          <v-col cols="12" md="2">
+          </div>
+          <div class="filter-item">
             <v-select
               v-model="selectedParent"
               label="Родительский аккаунт"
               :items="parentAccountOptions"
               variant="outlined"
-              density="compact"
-              :color="isParentFilterActive ? 'primary' : undefined"
-              :class="{ 'filter-active': isParentFilterActive }"
+              density="comfortable"
               @update:model-value="onParentChange"
             />
-          </v-col>
-          <v-col cols="12" md="1" class="d-flex justify-end align-start gap-3" style="margin-top: -20px;">
-            <AppleButton
-              variant="primary"
-              size="small"
-              prepend-icon="mdi-plus"
+          </div>
+          <div class="filter-create">
+            <v-btn
+              icon="mdi-plus"
+              color="primary"
+              variant="flat"
               @click="goToCreateAccount"
-              title="Создать новую учетную запись"
-            >
-              Создать
-            </AppleButton>
+              class="create-button"
+            />
+          </div>
+          <div class="filter-clear">
             <v-btn
-              variant="outlined"
-              size="small"
-              @click="toggleAutoRefresh"
-              :title="isAutoRefreshEnabled ? 'Отключить автообновление' : 'Включить автообновление'"
-              :class="{ 'rotating': isLoading || isBackgroundLoading }"
-              :color="isAutoRefreshEnabled ? 'success' : 'default'"
-            >
-              <v-icon 
-                :icon="isAutoRefreshEnabled ? 'mdi-refresh' : 'mdi-refresh-off'"
-                size="24"
-              />
-            </v-btn>
-            <v-btn
+              v-show="hasAnyActiveFilters"
               icon="mdi-filter-remove"
-              :variant="hasAnyActiveFilters ? 'flat' : 'outlined'"
-              :color="hasAnyActiveFilters ? 'primary' : 'default'"
-              size="small"
+              variant="flat"
+              color="warning"
+              density="comfortable"
               @click="resetFilters"
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }"
             >
               <v-badge
-                v-if="hasAnyActiveFilters"
-                :content="getActiveFiltersCount()"
-                color="error"
-                offset-x="8"
-                offset-y="8"
+                :content="activeFiltersCount"
+                color="white"
+                text-color="warning"
+                inline
               />
             </v-btn>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+          </div>
+        </div>
+      </div>
+    </AppleCard>
 
     <!-- Таблица учетных записей -->
     <v-card class="accounts-table-card">
@@ -619,6 +557,8 @@ import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import { useAuth } from '@/context/auth';
 import AppleButton from '@/components/Apple/AppleButton.vue';
+import AppleCard from '@/components/Apple/AppleCard.vue';
+import AppleInput from '@/components/Apple/AppleInput.vue';
 
 // Получаем контекст авторизации
 const auth = useAuth();
@@ -646,9 +586,8 @@ const sortBy = ref<string>('name');
 const sortOrder = ref<'asc' | 'desc'>('asc');
 
 // Автообновление
-const isAutoRefreshEnabled = ref(true);
 const autoRefreshInterval = ref<NodeJS.Timeout | null>(null);
-const AUTO_REFRESH_DELAY = 10000; // 10 секунд
+const AUTO_REFRESH_DELAY = 60000; // 1 минута
 
 // Статистика
 const stats = ref({
@@ -751,6 +690,15 @@ const hasAnyActiveFilters = computed(() => {
          isStatusFilterActive.value || isParentFilterActive.value;
 });
 
+const activeFiltersCount = computed(() => {
+  let count = 0;
+  if (isSearchActive.value) count++;
+  if (isTypeFilterActive.value) count++;
+  if (isStatusFilterActive.value) count++;
+  if (isParentFilterActive.value) count++;
+  return count;
+});
+
 // Computed properties для множественного поиска компаний
 const isMultipleCompanySearch = computed(() => {
   if (!searchQuery.value) return false;
@@ -790,15 +738,6 @@ const getDisplayRange = () => {
   return `${start}-${end}`;
 };
 
-// Функция для подсчета активных фильтров
-const getActiveFiltersCount = () => {
-  let count = 0;
-  if (isSearchActive.value) count++;
-  if (isTypeFilterActive.value) count++;
-  if (isStatusFilterActive.value) count++;
-  if (isParentFilterActive.value) count++;
-  return count;
-};
 
 // Методы
 const loadAccounts = async (isBackground = false) => {
@@ -1219,15 +1158,6 @@ const onSortChange = (sortOptions: any) => {
   }
 };
 
-const toggleAutoRefresh = () => {
-  isAutoRefreshEnabled.value = !isAutoRefreshEnabled.value;
-  
-  if (isAutoRefreshEnabled.value) {
-    startAutoRefresh();
-  } else {
-    stopAutoRefresh();
-  }
-};
 
 const startAutoRefresh = () => {
   if (autoRefreshInterval.value) {
@@ -1237,6 +1167,7 @@ const startAutoRefresh = () => {
   autoRefreshInterval.value = setInterval(() => {
     // Используем фоновое обновление только если не идет основная загрузка
     if (!isLoading.value) {
+      console.log('🔄 Автоматическое обновление данных...');
       loadAccounts(true); // true = фоновое обновление
       loadStats(true); // true = фоновое обновление статистики
     }
@@ -1447,9 +1378,8 @@ onMounted(() => {
   loadStats();
   loadParentAccounts(); // Загружаем список родительских аккаунтов
   
-  if (isAutoRefreshEnabled.value) {
-    startAutoRefresh();
-  }
+  // Запускаем автоматическое обновление каждую минуту
+  startAutoRefresh();
 });
 
 onUnmounted(() => {
@@ -1466,79 +1396,220 @@ onUnmounted(() => {
   min-height: 100vh;
 }
 
+/* Заголовок страницы в стиле /users */
+.page-header {
+  margin-bottom: 24px;
+}
 
-/* Стили заголовка убраны, так как заголовок теперь в header */
+.page-title-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
 
+.page-icon {
+  color: var(--apple-blue);
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--apple-text-primary);
+}
+
+.page-subtitle {
+  font-size: 1rem;
+  color: var(--apple-text-secondary);
+  margin: 4px 0 0 0;
+}
+
+
+/* Статистика в стиле /users */
 .stats-section {
-  margin-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
 }
 
 .stat-card {
   height: 100%;
 }
 
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+/* Фильтры в стиле /users */
+.filters-card {
+  margin-bottom: 24px;
 }
 
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.filters-content {
+  padding: 20px 0 0 0;
+}
+
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-top: -20px;
+  width: 100%;
+  padding: 0 0 0px 0;
+}
+
+.filter-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.filter-search {
+  flex: 3;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.filter-create,
+.filter-clear {
+  flex-shrink: 0;
+  flex-grow: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  color: white;
+  height: 44px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
 }
 
-.stat-icon.total {
-  background: linear-gradient(135deg, #1976d2, #1565c0);
+.filter-create,
+.filter-clear {
+  margin-top: -20px;
 }
 
-.stat-icon.active {
-  background: linear-gradient(135deg, #388e3c, #2e7d32);
+.search-chips-container {
+  width: 100%;
+  margin-top: 8px;
 }
 
-.stat-icon.clients {
-  background: linear-gradient(135deg, #f57c00, #ef6c00);
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.stat-icon.partners {
-  background: linear-gradient(135deg, #7b1fa2, #6a1b9a);
-}
-
-.stat-info {
+/* Стили для выравнивания высоты элементов фильтров */
+.filters-row .v-select {
+  width: 100%;
   flex: 1;
 }
 
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1976d2;
+.search-field {
+  width: 100%;
+  flex: 1;
 }
 
-.stat-label {
-  font-size: 0.875rem;
-  color: #666;
+.search-field :deep(.v-field) {
+  height: 44px;
+  min-height: 44px;
+  border-radius: 10px !important;
+  border: 1px solid rgba(0, 0, 0, 0.23) !important;
+  background-color: white !important;
 }
 
-.filters-card {
-  margin-bottom: 16px;
+.search-field :deep(.v-field--focused) {
+  border-color: rgba(0, 0, 0, 0.87) !important;
+  box-shadow: none !important;
+}
+
+.filters-row :deep(.v-field) {
+  height: 44px;
+  min-height: 44px;
+  border-radius: 10px !important;
+}
+
+
+
+/* Стили для кнопок */
+.filter-clear :deep(.v-btn) {
+  height: 44px !important;
+  min-height: 44px !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+}
+
+/* Специальные стили для кнопки Создать */
+.create-button {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.create-button:hover {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+.create-button :deep(.v-icon) {
+  color: white !important;
+  font-size: 20px !important;
+}
+
+.filter-create :deep(.v-btn .v-icon),
+.filter-clear :deep(.v-btn .v-icon) {
+  font-size: 20px !important;
+}
+
+.filter-clear :deep(.v-btn) {
+  width: 44px !important;
+  min-width: 44px !important;
+}
+
+.filter-create :deep(.v-btn .v-btn__content),
+.filter-clear :deep(.v-btn .v-btn__content) {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Анимация для активной кнопки очистки фильтров */
+.filter-clear-active {
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
+  animation: pulse-filter 2s infinite;
+}
+
+@keyframes pulse-filter {
+  0% {
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+}
+
+/* Стили для кнопки сброса фильтров */
+.filter-clear :deep(.v-btn) {
   transition: all 0.3s ease;
 }
 
-.filters-card-active {
-  border: 2px solid #1976d2 !important;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.15) !important;
-  background: linear-gradient(135deg, #fafafa, #f5f5f5);
-}
-
-.filters-card .v-card-text {
-  padding-top: 12px;
-  padding-bottom: 8px;
+.filter-clear :deep(.v-btn:hover) {
+  transform: scale(1.05);
 }
 
 
@@ -1556,8 +1627,29 @@ onUnmounted(() => {
 }
 
 
+/* Таблица в стиле /users */
 .accounts-table-card {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.accounts-table {
+  background: transparent;
+}
+
+.accounts-table :deep(.v-data-table__wrapper) {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.accounts-table :deep(.v-data-table-header__content) {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.accounts-table :deep(.v-data-table__td) {
+  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
 }
 
 .custom-pagination-bottom {
@@ -1643,6 +1735,60 @@ onUnmounted(() => {
 
 .accounts-table.updating {
   opacity: 0.8;
+}
+
+/* Адаптивность в стиле /users */
+@media (max-width: 768px) {
+  .filters-row {
+    flex-direction: column;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 0;
+  }
+  
+  .filter-item,
+  .filter-search {
+    flex: none;
+    width: 100%;
+    min-width: auto;
+  }
+  
+  .filter-create,
+  .filter-clear {
+    align-self: flex-end;
+    padding-top: 0;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Темная тема */
+[data-theme="dark"] .page-icon {
+  color: var(--apple-blue-light);
+}
+
+[data-theme="dark"] .page-title {
+  color: var(--apple-text-primary-dark);
+}
+
+[data-theme="dark"] .page-subtitle {
+  color: var(--apple-text-secondary-dark);
+}
+
+[data-theme="dark"] .accounts-table :deep(.v-data-table__td) {
+  border-bottom-color: rgba(84, 84, 136, 0.16);
 }
 
 /* Плавные переходы для строк таблицы */
