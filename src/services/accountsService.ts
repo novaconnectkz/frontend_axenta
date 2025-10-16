@@ -94,7 +94,7 @@ export interface AccountsFilters {
 class AccountsService {
   private static instance: AccountsService;
   private apiClient = axios.create({
-    baseURL: "https://axenta.cloud", // Прямое обращение к Axenta Cloud API
+    baseURL: "http://localhost:8080", // Используем локальный API
     timeout: 30000,
   });
 
@@ -210,7 +210,7 @@ class AccountsService {
       console.log("📡 Запрос учетных записей:", params);
 
       const response = await this.apiClient.get<any>(
-        "/api/cms/accounts/", // Используем правильный эндпоинт Axenta Cloud API
+        "/api/auth/accounts", // Используем локальный эндпоинт
         { params }
       );
 
@@ -306,7 +306,7 @@ class AccountsService {
   async getAccount(id: number): Promise<Account> {
     try {
       const response = await this.apiClient.get<any>(
-        `/api/cms/accounts/${id}/` // Используем правильный эндпоинт Axenta Cloud API
+        `/api/auth/accounts/${id}` // Используем локальный эндпоинт
       );
       
       // Преобразуем данные аккаунта
@@ -392,7 +392,7 @@ class AccountsService {
       }
 
       const response = await this.apiClient.post<any>(
-        "/api/cms/accounts/",
+        "/api/auth/accounts",
         apiData
       );
 
@@ -476,7 +476,7 @@ class AccountsService {
       console.log("📡 Обновление учетной записи:", id, accountData);
 
       const response = await this.apiClient.put<any>(
-        `/api/cms/accounts/${id}/`,
+        `/api/auth/accounts/${id}`,
         accountData
       );
 

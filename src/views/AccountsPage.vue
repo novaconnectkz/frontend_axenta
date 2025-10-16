@@ -206,6 +206,12 @@
                   </span>
                 </span>
               </div>
+              <div v-if="item.hierarchy && item.hierarchy.trim()" class="legend-item">
+                <span class="legend-color hierarchy-status"></span>
+                <span class="legend-text">
+                  Иерархия: {{ formatHierarchy(item.hierarchy) }}
+                </span>
+              </div>
               <div class="legend-description">
                 📊 ID: {{ item.id }} | Создан: {{ formatDateShort(item.creationDatetime) }}
               </div>
@@ -1270,6 +1276,49 @@ const formatDateShort = (dateString: string) => {
     month: '2-digit',
     year: 'numeric',
   });
+};
+
+const formatHierarchy = (hierarchy: string) => {
+  if (!hierarchy || !hierarchy.trim()) {
+    return 'Не указана';
+  }
+  
+  // Логируем исходную иерархию для отладки
+  console.log('🔧 formatHierarchy input:', hierarchy);
+  console.log('🔧 formatHierarchy input length:', hierarchy.length);
+  console.log('🔧 formatHierarchy input chars:', hierarchy.split('').map(c => c.charCodeAt(0)));
+  
+  // Декодируем HTML-сущности если они есть
+  let decodedHierarchy = hierarchy
+    .replace(/&gt;/g, '>')
+    .replace(/&lt;/g, '<')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  
+  if (decodedHierarchy !== hierarchy) {
+    console.log('🔧 formatHierarchy decoded:', decodedHierarchy);
+  }
+  
+  // Иерархия обычно приходит в формате "Axenta > GLOMOS > Компания"
+  // Преобразуем в более читаемый формат
+  // Используем более надежный способ разбиения строки
+  const hierarchyParts = decodedHierarchy
+    .split(/[>]/) // Разбиваем по символу >
+    .map(part => part.trim()) // Убираем пробелы
+    .filter(part => part.length > 0); // Убираем пустые части
+  
+  console.log('🔧 formatHierarchy parts:', hierarchyParts);
+  console.log('🔧 formatHierarchy parts count:', hierarchyParts.length);
+  
+  if (hierarchyParts.length === 0) {
+    return 'Не указана';
+  }
+  
+  // Показываем полную иерархию для лучшего понимания
+  const result = hierarchyParts.join(' → ');
+  console.log('🔧 formatHierarchy result:', result);
+  return result;
 };
 
 const formatTime = (date: Date) => {
