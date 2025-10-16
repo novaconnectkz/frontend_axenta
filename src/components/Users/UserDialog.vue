@@ -28,7 +28,11 @@
                 label="Логин"
                 placeholder="Введите логин"
                 required
-                :error-message="errors.username"
+                :error-message="errors.username || usernameError"
+                :error="!!(errors.username || usernameError)"
+                :loading="checkingUsername"
+                @blur="checkUsernameAvailability"
+                clearable
               />
             </v-col>
             
@@ -167,6 +171,7 @@
           <AppleButton
             @click="saveUser"
             :loading="saving"
+            :disabled="!isFormValid"
           >
             {{ isEdit ? 'Сохранить' : 'Создать' }}
           </AppleButton>
@@ -181,6 +186,7 @@ import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import usersService from '@/services/usersService';
+import axentaUsersService from '@/services/axentaUsersService';
 import type {
     UserForm,
     UserWithRelations
@@ -218,6 +224,8 @@ const emit = defineEmits<Emits>();
 // Reactive data
 const saving = ref(false);
 const formRef = ref();
+const checkingUsername = ref(false);
+const usernameError = ref('');
 
 const form = ref<UserForm>({
   username: '',
@@ -243,6 +251,26 @@ const show = computed({
 });
 
 const isEdit = computed(() => !!props.user);
+
+// Проверяем, можно ли отправить форму
+const isFormValid = computed(() => {
+  // Проверяем обязательные поля
+  const hasRequiredFields = form.value.username.trim() && 
+                           form.value.email.trim() && 
+                           form.value.first_name.trim() && 
+                           form.value.last_name.trim() && 
+                           form.value.role_id &&
+                           (isEdit.value || form.value.password);
+  
+  // Проверяем отсутствие ошибок
+  const hasNoErrors = !usernameError.value && 
+                     !Object.values(errors.value).some(error => error);
+  
+  // Проверяем, что не идет проверка имени пользователя
+  const notCheckingUsername = !checkingUsername.value;
+  
+  return hasRequiredFields && hasNoErrors && notCheckingUsername;
+});
 
 // Options
 const userTypeOptions = [
@@ -270,6 +298,8 @@ const resetForm = () => {
     template_id: undefined,
   };
   errors.value = {};
+  usernameError.value = '';
+  checkingUsername.value = false;
 };
 
 const fillForm = (user: UserWithRelations) => {
@@ -289,6 +319,51 @@ const fillForm = (user: UserWithRelations) => {
   };
 };
 
+// Проверка уникальности имени пользователя
+const checkUsernameAvailability = async () => {
+  const username = form.value.username.trim();
+  
+  // Сбрасываем ошибку при пустом поле
+  if (!username) {
+    usernameError.value = '';
+    return;
+  }
+  
+  // Не проверяем при редактировании, если имя не изменилось
+  if (isEdit.value && props.user?.username === username) {
+    usernameError.value = '';
+    return;
+  }
+  
+  // Проверяем базовые правила валидации
+  if (username.length < 3 || username.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
+    return; // Базовые правила уже обработаны в validateForm
+  }
+  
+  checkingUsername.value = true;
+  usernameError.value = '';
+  
+  try {
+    const response = await axentaUsersService.checkUsername(username);
+    
+    if (response.status === 'success' && response.data) {
+      if (!response.data.available) {
+        usernameError.value = response.data.message;
+      } else {
+        usernameError.value = '';
+      }
+    } else {
+      console.error('Ошибка проверки имени пользователя:', response.error);
+      // Не показываем ошибку пользователю, если сервер недоступен
+    }
+  } catch (error: any) {
+    console.error('Ошибка проверки имени пользователя:', error);
+    // Не показываем ошибку пользователю, если сервер недоступен
+  } finally {
+    checkingUsername.value = false;
+  }
+};
+
 const validateForm = (): boolean => {
   errors.value = {};
   
@@ -296,6 +371,26 @@ const validateForm = (): boolean => {
     errors.value.username = 'Логин обязателен';
     return false;
   }
+  
+  // Проверяем базовые правила для имени пользователя
+  if (form.value.username.length < 3) {
+    errors.value.username = 'Минимум 3 символа';
+    return false;
+  }
+  if (form.value.username.length > 50) {
+    errors.value.username = 'Максимум 50 символов';
+    return false;
+  }
+  if (!/^[a-zA-Z0-9_-]+$/.test(form.value.username)) {
+    errors.value.username = 'Только латинские буквы, цифры, _ и -';
+    return false;
+  }
+  
+  // Проверяем уникальность имени пользователя
+  if (usernameError.value) {
+    return false;
+  }
+  
   if (!form.value.email.trim()) {
     errors.value.email = 'Email обязателен';
     return false;
@@ -384,6 +479,13 @@ watch(() => props.user, (newUser) => {
 watch(show, (newShow) => {
   if (!newShow) {
     resetForm();
+  }
+});
+
+// Сбрасываем ошибку имени пользователя при изменении поля
+watch(() => form.value.username, () => {
+  if (usernameError.value) {
+    usernameError.value = '';
   }
 });
 </script>

@@ -87,6 +87,8 @@
               <v-select
                 v-model="form.visibleTabsNames"
                 :items="availableTabs"
+                item-title="title"
+                item-value="value"
                 label="Видимые вкладки"
                 multiple
                 chips
@@ -160,14 +162,18 @@ const form = reactive({
 
 // Available options
 const availableTabs = [
-  'monitoring',
-  'reports',
-  'objects',
-  'users',
-  'installations',
-  'warehouse',
-  'billing',
-  'settings'
+  { title: 'Мониторинг', value: 'monitoring' },
+  { title: 'Треки', value: 'tracks' },
+  { title: 'Отчеты', value: 'reports' },
+  { title: 'Сообщения', value: 'messages' },
+  { title: 'Уведомления', value: 'notifications' },
+  { title: 'Геозоны', value: 'geofences' },
+  { title: 'Водители', value: 'drivers' },
+  { title: 'Прицепы', value: 'trailers' },
+  { title: 'Объекты', value: 'objects' },
+  { title: 'Пользователи', value: 'users' },
+  { title: 'Здания', value: 'buildings' },
+  { title: 'Устройства', value: 'devices' }
 ];
 
 
