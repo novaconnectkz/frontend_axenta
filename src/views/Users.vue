@@ -9,12 +9,6 @@
           <p class="page-subtitle">Пользователи, роли и права доступа</p>
         </div>
       </div>
-
-      <div class="page-actions">
-        <AppleButton prepend-icon="mdi-plus" @click="openCreateDialog" data-testid="create-button">
-          Создать пользователя
-        </AppleButton>
-      </div>
     </div>
 
 
@@ -101,22 +95,34 @@
             />
           </div>
 
+          <div class="filter-item filter-create">
+            <v-btn
+              icon="mdi-plus"
+              variant="flat"
+              color="primary"
+              size="small"
+              @click="openCreateDialog"
+              title="Создать пользователя"
+              data-testid="create-button"
+            />
+          </div>
+
           <div class="filter-item filter-clear">
             <v-btn
-              :icon="hasActiveFilters ? 'mdi-filter-remove-outline' : 'mdi-filter-remove'"
-              :variant="hasActiveFilters ? 'flat' : 'outlined'"
-              :color="hasActiveFilters ? 'primary' : 'default'"
+              v-show="hasActiveFilters"
+              icon="mdi-filter-remove"
+              variant="flat"
+              color="warning"
               size="small"
               @click="clearFilters"
-              :title="hasActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
+              title="Сбросить активные фильтры"
               :class="{ 'filter-clear-active': hasActiveFilters }"
               data-testid="clear-filters"
             >
               <v-badge
-                v-if="hasActiveFilters"
                 :content="activeFiltersCount"
                 color="white"
-                text-color="primary"
+                text-color="warning"
                 inline
               />
             </v-btn>
@@ -1348,10 +1354,6 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-.page-actions {
-  display: flex;
-  gap: 12px;
-}
 
 /* Демо режим */
 .demo-alert {
@@ -1491,6 +1493,13 @@ onMounted(async () => {
   margin-top: -20px; /* поднимаем поле поиска еще выше */
 }
 
+.filter-create {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  margin-top: -26px; /* поднимаем кнопку создания на 2px */
+}
+
 .filter-clear {
   flex: 0 0 auto;
   display: flex;
@@ -1538,12 +1547,30 @@ onMounted(async () => {
   box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.12);
 }
 
-/* Приводим кнопку очистки к высоте инпутов/селектов и центрируем */
+/* Приводим кнопки к высоте инпутов/селектов и центрируем */
+.filter-create :deep(.v-btn),
 .filter-clear :deep(.v-btn) {
-  height: 44px; /* соответствует density="comfortable" */
-  width: 44px;
-  padding: 0;
-  border-radius: 10px;
+  height: 44px !important; /* соответствует density="comfortable" */
+  width: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+}
+
+/* Дополнительные стили для обеспечения одинакового размера */
+.filter-create :deep(.v-btn .v-icon),
+.filter-clear :deep(.v-btn .v-icon) {
+  font-size: 20px !important;
+}
+
+.filter-create :deep(.v-btn .v-btn__content),
+.filter-clear :deep(.v-btn .v-btn__content) {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Адаптивность для мобильных устройств */
@@ -1560,6 +1587,7 @@ onMounted(async () => {
     min-width: auto;
   }
   
+  .filter-create,
   .filter-clear {
     align-self: flex-end;
     padding-top: 0;
@@ -1569,19 +1597,19 @@ onMounted(async () => {
 /* Стили для активной кнопки очистки фильтров */
 .filter-clear-active {
   position: relative;
-  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
   animation: pulse-filter 2s infinite;
 }
 
 @keyframes pulse-filter {
   0% {
-    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }
   50% {
-    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.5);
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
   }
   100% {
-    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }
 }
 
@@ -1734,10 +1762,6 @@ onMounted(async () => {
     gap: 16px;
   }
 
-  .page-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
 
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1775,10 +1799,6 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .page-actions {
-    flex-direction: column;
-    gap: 8px;
-  }
 
   .filters-content .v-row {
     margin: 0;
