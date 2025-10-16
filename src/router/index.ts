@@ -78,6 +78,15 @@ const routes = [
           // permissions: ["users.read"], // Отключено - будет включено после настройки системы прав
         },
       },
+      {
+        path: "users/create",
+        name: "CreateUser",
+        component: () => import("@/views/CreateUser.vue"),
+        meta: {
+          title: "Создание пользователя",
+          requiresAuth: true,
+        },
+      },
 
       // Управление учетными записями (компаниями)
       {

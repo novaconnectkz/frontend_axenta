@@ -69,6 +69,7 @@
       </v-row>
     </div>
 
+
     <!-- Фильтры и поиск -->
     <v-card class="filters-card" :class="{ 'filters-card-active': hasAnyActiveFilters }">
       <v-card-text class="pb-2">
@@ -1409,6 +1410,8 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoRefresh();
 });
+
+// Методы
 </script>
 
 <style scoped>
@@ -1417,6 +1420,7 @@ onUnmounted(() => {
   background-color: #f5f5f5;
   min-height: 100vh;
 }
+
 
 /* Стили заголовка убраны, так как заголовок теперь в header */
 

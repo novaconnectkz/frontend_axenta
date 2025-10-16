@@ -416,8 +416,10 @@ import type {
 } from '@/types/users';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 // Reactive data
+const router = useRouter();
 const loading = ref(false);
 // removed unused refs: saving, resetting
 // removed unused: exporting
@@ -797,11 +799,8 @@ const clearFilters = () => {
 
 // Dialog methods
 const openCreateDialog = () => {
-  userDialog.value = {
-    show: true,
-    isEdit: false,
-    user: null,
-  };
+  // Переходим на страницу создания пользователя
+  router.push('/users/create');
 };
 
 const editUser = (user: UserWithRelations) => {
