@@ -12,7 +12,7 @@
 
       <div class="page-actions">
         <AppleButton
-          variant="outlined"
+          variant="secondary"
           prepend-icon="mdi-arrow-left"
           @click="goBack"
         >
@@ -174,7 +174,7 @@
         <v-card-actions class="form-actions">
           <v-spacer />
           <AppleButton
-            variant="outlined"
+            variant="secondary"
             @click="goBack"
             :disabled="submitting"
           >
@@ -192,20 +192,7 @@
       </v-form>
     </AppleCard>
 
-    <!-- Snackbar для уведомлений -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="snackbar.timeout"
-      location="bottom right"
-    >
-      {{ snackbar.text }}
-      <template #actions>
-        <v-btn variant="text" @click="snackbar.show = false">
-          Закрыть
-        </v-btn>
-      </template>
-    </v-snackbar>
+    <!-- Уведомления теперь обрабатываются глобальной системой -->
   </div>
 </template>
 
@@ -213,12 +200,17 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { config } from '@/config/env';
+import { useNotifications } from '@/composables/useNotifications';
+import { errorHandler } from '@/utils/errorHandler';
 
 // Router
 const router = useRouter();
+
+// Notifications
+const notifications = useNotifications();
 
 // Refs
 const formRef = ref();
@@ -242,13 +234,7 @@ const form = reactive({
   }
 });
 
-// Snackbar
-const snackbar = reactive({
-  show: false,
-  text: '',
-  color: 'success',
-  timeout: 5000
-});
+// Snackbar удален, используется глобальная система уведомлений
 
 // Available options
 const availableTabs = [
@@ -314,15 +300,11 @@ const goBack = () => {
   router.push('/users');
 };
 
-const showSnackbar = (text: string, color: string = 'success') => {
-  snackbar.text = text;
-  snackbar.color = color;
-  snackbar.show = true;
-};
+// Удаляем старую функцию showSnackbar, используем новую систему уведомлений
 
 const handleSubmit = async () => {
   if (!formValid.value) {
-    showSnackbar('Пожалуйста, исправьте ошибки в форме', 'error');
+    notifications.showValidationError('Пожалуйста, исправьте ошибки в форме');
     return;
   }
 
@@ -360,9 +342,9 @@ const handleSubmit = async () => {
 
     if (response.ok) {
       // Успешное создание
-      showSnackbar(
-        `Пользователь успешно создан! ID: ${data.id}`,
-        'success'
+      notifications.showSuccess(
+        'Пользователь создан',
+        `Пользователь успешно создан! ID: ${data.id}`
       );
       
       // Перенаправляем на страницу пользователей через 2 секунды
@@ -370,16 +352,18 @@ const handleSubmit = async () => {
         router.push('/users');
       }, 2000);
     } else {
-      // Ошибка от сервера
-      const errorMessage = data.error || data.detail || 'Произошла ошибка при создании пользователя';
-      showSnackbar(errorMessage, 'error');
+      // Ошибка от сервера - используем обработчик ошибок
+      const apiError = {
+        response: {
+          status: response.status,
+          data: data
+        }
+      };
+      errorHandler.handleApiError(apiError, 'создание пользователя');
     }
   } catch (error: any) {
-    console.error('Ошибка при создании пользователя:', error);
-    showSnackbar(
-      error.message || 'Произошла ошибка при создании пользователя',
-      'error'
-    );
+    // Обрабатываем ошибку через универсальный обработчик
+    errorHandler.handleApiError(error, 'создание пользователя');
   } finally {
     submitting.value = false;
   }

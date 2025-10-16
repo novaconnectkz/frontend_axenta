@@ -1,441 +1,120 @@
-import type { App } from "vue";
-
-export interface ErrorInfo {
-  type: "auth" | "network" | "validation" | "permission" | "unknown";
-  message: string;
-  code?: string | number;
-  details?: any;
-  timestamp: Date;
-  userMessage?: string; // Сообщение для показа пользователю
-}
-
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    public code?: string | number,
-    public details?: any
-  ) {
-    super(message);
-    this.name = "AuthError";
-  }
-}
-
-export class NetworkError extends Error {
-  constructor(message: string, public status?: number, public response?: any) {
-    super(message);
-    this.name = "NetworkError";
-  }
-}
-
-export class ValidationError extends Error {
-  constructor(message: string, public fields?: Record<string, string[]>) {
-    super(message);
-    this.name = "ValidationError";
-  }
-}
-
-export class PermissionError extends Error {
-  constructor(
-    message: string,
-    public requiredPermission?: string,
-    public userPermissions?: string[]
-  ) {
-    super(message);
-    this.name = "PermissionError";
-  }
-}
+import { useNotifications } from '@/composables/useNotifications'
 
 /**
- * Глобальный обработчик ошибок
+ * Универсальный обработчик ошибок для API
  */
 export class ErrorHandler {
-  private static instance: ErrorHandler;
-  private errorQueue: ErrorInfo[] = [];
-  private maxQueueSize = 10;
-
-  static getInstance(): ErrorHandler {
-    if (!ErrorHandler.instance) {
-      ErrorHandler.instance = new ErrorHandler();
-    }
-    return ErrorHandler.instance;
-  }
+  private notifications = useNotifications()
 
   /**
-   * Обрабатывает ошибку и определяет её тип
+   * Обрабатывает ошибку от API и показывает соответствующее уведомление
    */
-  handleError(error: any, showToUser = true): ErrorInfo {
-    const errorInfo = this.classifyError(error);
-    this.logError(errorInfo);
-    this.addToQueue(errorInfo);
+  handleApiError(error: any, context?: string): void {
+    console.error(`API Error${context ? ` in ${context}` : ''}:`, error)
 
-    // Выполняем специфичные действия в зависимости от типа ошибки
-    this.executeErrorActions(errorInfo, showToUser);
-
-    return errorInfo;
-  }
-
-  /**
-   * Классифицирует ошибку по типу
-   */
-  private classifyError(error: any): ErrorInfo {
-    const timestamp = new Date();
-
-    // Ошибки аутентификации
-    if (error instanceof AuthError) {
-      return {
-        type: "auth",
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        timestamp,
-      };
+    // Если это ошибка сети
+    if (!error.response) {
+      this.notifications.showNetworkError()
+      return
     }
 
-    // Сетевые ошибки
-    if (error instanceof NetworkError) {
-      return {
-        type: "network",
-        message: error.message,
-        code: error.status,
-        details: error.response,
-        timestamp,
-      };
-    }
+    const status = error.response.status
+    const data = error.response.data
+    const errorMessage = data?.error || data?.detail || data?.message || 'Произошла неизвестная ошибка'
 
-    // Ошибки валидации
-    if (error instanceof ValidationError) {
-      return {
-        type: "validation",
-        message: error.message,
-        details: error.fields,
-        timestamp,
-      };
-    }
+    switch (status) {
+      case 400:
+        // Ошибка валидации
+        this.notifications.showValidationError(errorMessage, data?.fields)
+        break
 
-    // Ошибки прав доступа
-    if (error instanceof PermissionError) {
-      return {
-        type: "permission",
-        message: error.message,
-        details: {
-          required: error.requiredPermission,
-          user: error.userPermissions,
-        },
-        timestamp,
-      };
-    }
+      case 401:
+        // Ошибка авторизации
+        this.notifications.showAuthError(errorMessage)
+        break
 
-    // Axios ошибки
-    if (error.response) {
-      const status = error.response.status;
-      let type: ErrorInfo["type"] = "network";
-      let message = error.response.data?.error || error.message;
-      let userMessage = '';
+      case 403:
+        // Недостаточно прав
+        this.notifications.showPermissionError(errorMessage)
+        break
 
-      if (status === 401) {
-        type = "auth";
-        message = "Unauthorized: " + (error.response.data?.error || "Token required or invalid");
-        userMessage = "Необходимо войти в систему";
-      } else if (status === 403) {
-        type = "permission";
-        message = "Forbidden: " + (error.response.data?.error || "Access denied");
-        userMessage = "Недостаточно прав для выполнения операции";
-      } else if (status === 422) {
-        type = "validation";
-        message = "Validation error: " + (error.response.data?.error || "Invalid data");
-        userMessage = "Ошибка валидации данных";
-      } else if (status === 404) {
-        type = "network";
-        message = "Not found: " + (error.response.data?.error || "Resource not found");
-        userMessage = "Запрашиваемый ресурс не найден";
-      } else if (status === 500) {
-        type = "network";
-        message = "Server error: " + (error.response.data?.error || "Internal server error");
-        userMessage = "Ошибка сервера. Попробуйте позже";
-      } else if (status >= 400 && status < 500) {
-        type = "validation";
-        message = `Client error ${status}: ` + (error.response.data?.error || error.message);
-        userMessage = "Ошибка в запросе. Проверьте данные";
-      } else if (status >= 500) {
-        type = "network";
-        message = `Server error ${status}: ` + (error.response.data?.error || error.message);
-        userMessage = "Ошибка сервера. Попробуйте позже";
-      }
+      case 409:
+        // Конфликт - дублирование данных
+        this.notifications.showDuplicateError(errorMessage)
+        break
 
-      return {
-        type,
-        message,
-        code: status,
-        details: error.response.data,
-        timestamp,
-        userMessage,
-      };
-    }
+      case 422:
+        // Ошибка валидации (Unprocessable Entity)
+        this.notifications.showValidationError(errorMessage, data?.fields)
+        break
 
-    // Ошибки сети
-    if (error.request) {
-      return {
-        type: "network",
-        message: "Ошибка подключения к серверу. Проверьте интернет-соединение.",
-        details: error.request,
-        timestamp,
-      };
-    }
+      case 500:
+        // Внутренняя ошибка сервера
+        this.notifications.showError('Ошибка сервера', errorMessage)
+        break
 
-    // Общие ошибки
-    return {
-      type: "unknown",
-      message: error.message || "Произошла неизвестная ошибка",
-      details: error,
-      timestamp,
-    };
-  }
-
-  /**
-   * Выполняет действия в зависимости от типа ошибки
-   */
-  private executeErrorActions(errorInfo: ErrorInfo, showToUser = true) {
-    // Показываем уведомление пользователю
-    if (showToUser) {
-      this.showUserNotification(errorInfo);
-    }
-
-    switch (errorInfo.type) {
-      case "auth":
-        this.handleAuthError(errorInfo);
-        break;
-      case "network":
-        this.handleNetworkError(errorInfo);
-        break;
-      case "permission":
-        this.handlePermissionError(errorInfo);
-        break;
-    }
-  }
-
-  /**
-   * Показывает уведомление пользователю
-   */
-  private showUserNotification(errorInfo: ErrorInfo) {
-    try {
-      // Динамический импорт для избежания циклических зависимостей
-      import("@/composables/useNotifications")
-        .then(({ useNotifications }) => {
-          const notifications = useNotifications();
-          
-          const userMessage = errorInfo.userMessage || this.getUserMessage(errorInfo);
-          
-          switch (errorInfo.type) {
-            case "auth":
-              notifications.showAuthError(userMessage);
-              break;
-            case "network":
-              notifications.showNetworkError(userMessage);
-              break;
-            case "validation":
-              notifications.showValidationError(userMessage, errorInfo.details?.fields);
-              break;
-            case "permission":
-              notifications.showPermissionError(userMessage);
-              break;
-            default:
-              notifications.showError("Ошибка", userMessage);
-          }
-        })
-        .catch((err) => {
-          console.warn("Cannot access notifications in error handler:", err);
-          // Fallback - показываем alert
-          alert(errorInfo.userMessage || this.getUserMessage(errorInfo));
-        });
-    } catch (err) {
-      console.warn("Cannot show user notification:", err);
-      // Fallback - показываем alert
-      alert(errorInfo.userMessage || this.getUserMessage(errorInfo));
-    }
-  }
-
-  /**
-   * Обрабатывает ошибки аутентификации
-   */
-  private handleAuthError(errorInfo: ErrorInfo) {
-    try {
-      // Динамический импорт для избежания циклических зависимостей
-      import("@/context/auth")
-        .then(({ useAuth }) => {
-          const auth = useAuth();
-
-          // Если токен истек или недействителен
-          if (errorInfo.code === 401 || errorInfo.code === "TOKEN_EXPIRED") {
-            auth.logout();
-            // Перенаправление на страницу входа произойдет автоматически через роутер
-          }
-        })
-        .catch((err) => {
-          console.warn("Cannot access auth context in error handler:", err);
-        });
-    } catch (err) {
-      console.warn("Cannot access auth context in error handler:", err);
-    }
-  }
-
-  /**
-   * Обрабатывает сетевые ошибки
-   */
-  private handleNetworkError(errorInfo: ErrorInfo) {
-    // Можно добавить логику для повторных попыток
-    console.warn("Network error detected:", errorInfo);
-  }
-
-  /**
-   * Обрабатывает ошибки прав доступа
-   */
-  private handlePermissionError(errorInfo: ErrorInfo) {
-    console.warn("Permission error detected:", errorInfo);
-    // Можно добавить логику для уведомления администратора
-  }
-
-  /**
-   * Логирует ошибку
-   */
-  private logError(errorInfo: ErrorInfo) {
-    const logLevel = this.getLogLevel(errorInfo.type);
-    const logMessage = `[${errorInfo.type.toUpperCase()}] ${errorInfo.message}`;
-
-    switch (logLevel) {
-      case "error":
-        console.error(logMessage, errorInfo);
-        break;
-      case "warn":
-        console.warn(logMessage, errorInfo);
-        break;
       default:
-        console.log(logMessage, errorInfo);
+        // Другие ошибки
+        this.notifications.showError(`Ошибка ${status}`, errorMessage)
     }
   }
 
   /**
-   * Определяет уровень логирования для типа ошибки
+   * Обрабатывает ошибку дублирования пользователя
    */
-  private getLogLevel(type: ErrorInfo["type"]): "error" | "warn" | "info" {
-    switch (type) {
-      case "auth":
-      case "permission":
-      case "unknown":
-        return "error";
-      case "network":
-      case "validation":
-        return "warn";
-      default:
-        return "info";
-    }
+  handleDuplicateUserError(error: any): void {
+    const errorMessage = error?.response?.data?.error || error?.message || 'Пользователь с такими данными уже существует'
+    this.notifications.showDuplicateError(errorMessage)
   }
 
   /**
-   * Добавляет ошибку в очередь
+   * Обрабатывает ошибку дублирования роли
    */
-  private addToQueue(errorInfo: ErrorInfo) {
-    this.errorQueue.unshift(errorInfo);
-
-    // Ограничиваем размер очереди
-    if (this.errorQueue.length > this.maxQueueSize) {
-      this.errorQueue = this.errorQueue.slice(0, this.maxQueueSize);
-    }
+  handleDuplicateRoleError(error: any): void {
+    const errorMessage = error?.response?.data?.error || error?.message || 'Роль с таким именем уже существует'
+    this.notifications.showDuplicateError(errorMessage)
   }
 
   /**
-   * Возвращает последние ошибки
+   * Обрабатывает успешную операцию
    */
-  getRecentErrors(limit = 5): ErrorInfo[] {
-    return this.errorQueue.slice(0, limit);
-  }
-
-  /**
-   * Очищает очередь ошибок
-   */
-  clearErrors() {
-    this.errorQueue = [];
-  }
-
-  /**
-   * Создает пользовательское сообщение об ошибке
-   */
-  getUserMessage(errorInfo: ErrorInfo): string {
-    switch (errorInfo.type) {
-      case "auth":
-        return "Ошибка аутентификации. Пожалуйста, войдите в систему заново.";
-      case "network":
-        return "Проблемы с подключением к серверу. Проверьте интернет-соединение.";
-      case "validation":
-        return "Введены некорректные данные. Проверьте правильность заполнения полей.";
-      case "permission":
-        return "У вас недостаточно прав для выполнения этого действия.";
-      default:
-        return "Произошла ошибка. Попробуйте еще раз или обратитесь к администратору.";
-    }
+  showSuccess(title: string, message: string): void {
+    this.notifications.showSuccess(title, message)
   }
 }
 
-/**
- * Глобальный обработчик ошибок для Vue приложения
- */
-export function setupGlobalErrorHandler(app: App) {
-  const errorHandler = ErrorHandler.getInstance();
+// Экспортируем экземпляр для использования по умолчанию
+export const errorHandler = new ErrorHandler()
 
-  // Обработчик ошибок Vue
-  app.config.errorHandler = (err, instance, info) => {
-    console.error("Vue error:", err, info);
-    errorHandler.handleError(err);
-  };
-
-  // Обработчик необработанных промисов
-  window.addEventListener("unhandledrejection", (event) => {
-    console.error("Unhandled promise rejection:", event.reason);
-    errorHandler.handleError(event.reason);
-    event.preventDefault();
-  });
-
-  // Обработчик общих ошибок JavaScript
-  window.addEventListener("error", (event) => {
-    console.error("Global error:", event.error);
-    errorHandler.handleError(event.error);
-  });
-}
-
-// Экспортируем singleton
-export const globalErrorHandler = ErrorHandler.getInstance();
+// Экспортируем функцию для создания нового экземпляра
+export const createErrorHandler = () => new ErrorHandler()
 
 /**
- * Composable для работы с обработкой ошибок
+ * Composable для использования обработчика ошибок в Vue компонентах
  */
 export function useErrorHandler() {
-  const errorHandler = ErrorHandler.getInstance();
+  return errorHandler
+}
 
-  const handleError = (error: any, fallbackMessage?: string, showToUser = true) => {
-    const errorInfo = errorHandler.handleError(error, showToUser);
+/**
+ * Настройка глобального обработчика ошибок для Vue приложения
+ */
+export function setupGlobalErrorHandler(app: any): void {
+  // Настройка глобального обработчика ошибок Vue
+  app.config.errorHandler = (err: any, vm: any, info: string) => {
+    console.error('Vue Error:', err, info)
+    errorHandler.handleError(err, 'Vue Component')
+  }
 
-    if (fallbackMessage) {
-      console.error(fallbackMessage, errorInfo);
-    }
+  // Настройка обработчика необработанных промисов
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Promise Rejection:', event.reason)
+    errorHandler.handleError(event.reason, 'Promise Rejection')
+  })
 
-    return errorInfo;
-  };
-
-  const getUserMessage = (errorInfo: ErrorInfo): string => {
-    return errorHandler.getUserMessage(errorInfo);
-  };
-
-  const getRecentErrors = (limit = 5): ErrorInfo[] => {
-    return errorHandler.getRecentErrors(limit);
-  };
-
-  const clearErrors = () => {
-    errorHandler.clearErrors();
-  };
-
-  return {
-    handleError,
-    getUserMessage,
-    getRecentErrors,
-    clearErrors,
-  };
+  // Настройка обработчика глобальных ошибок JavaScript
+  window.addEventListener('error', (event) => {
+    console.error('Global JavaScript Error:', event.error)
+    errorHandler.handleError(event.error, 'JavaScript Error')
+  })
 }

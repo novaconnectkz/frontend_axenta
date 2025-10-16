@@ -260,15 +260,17 @@
     
     <!-- Предотвращение parser-blocking скриптов -->
     <script>
-      // Отключаем document.write для предотвращения parser-blocking
+      // Мягкая блокировка document.write только для внешних скриптов
       if (typeof document !== 'undefined' && document.write) {
         const originalWrite = document.write;
-        document.write = function() {
-          console.warn('document.write blocked for performance reasons');
-          // В режиме разработки можем показать предупреждение
-          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.warn('Blocked document.write call:', arguments);
+        document.write = function(content) {
+          // Разрешаем document.write для локальных скриптов
+          if (typeof content === 'string' && !content.includes('yastatic.net') && !content.includes('googleapis.com')) {
+            return originalWrite.apply(document, arguments);
           }
+          
+          // Блокируем только внешние скрипты
+          console.warn('Blocked external document.write for performance:', content?.substring(0, 100));
         };
       }
     </script>

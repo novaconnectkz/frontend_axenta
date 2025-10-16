@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест подключения к API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .loading { color: #ff9800; }
+        button {
+            background: #007AFF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056CC; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #f9f9f9;
+            border-left: 4px solid #ddd;
+        }
+        .result.success { border-left-color: #4CAF50; background: #e8f5e8; }
+        .result.error { border-left-color: #f44336; background: #ffeaea; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Тест подключения к Axenta API</h1>
+    
+    <div class="test-section">
+        <h2>1. Проверка доступности серверов</h2>
+        <button onclick="testFrontend()">Тест Frontend (3001)</button>
+        <button onclick="testBackend()">Тест Backend (8080)</button>
+        <div id="server-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Проверка API endpoints</h2>
+        <button onclick="testApiPing()">Test /ping</button>
+        <button onclick="testApiTest()">Test /api/test</button>
+        <button onclick="testApiTest2()">Test /api/test2</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Проверка CORS</h2>
+        <button onclick="testCors()">Тест CORS запроса</button>
+        <div id="cors-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Проверка конфигурации</h2>
+        <div id="config-results"></div>
+    </div>
+
+    <script>
+        function addResult(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.className = `result ${type}`;
+            div.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            container.appendChild(div);
+        }
+
+        async function testFrontend() {
+            addResult('server-results', 'Тестируем Frontend сервер...', 'loading');
+            try {
+                const response = await fetch('http://localhost:3001/');
+                if (response.ok) {
+                    addResult('server-results', '✅ Frontend сервер (3001) доступен', 'success');
+                } else {
+                    addResult('server-results', `❌ Frontend сервер (3001) недоступен: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult('server-results', `❌ Ошибка подключения к Frontend: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBackend() {
+            addResult('server-results', 'Тестируем Backend сервер...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/ping');
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('server-results', `✅ Backend сервер (8080) доступен: ${data.message}`, 'success');
+                } else {
+                    addResult('server-results', `❌ Backend сервер (8080) недоступен: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult('server-results', `❌ Ошибка подключения к Backend: ${error.message}`, 'error');
+            }
+        }
+
+        async function testApiPing() {
+            addResult('api-results', 'Тестируем /ping...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/ping');
+                const data = await response.json();
+                addResult('api-results', `✅ /ping работает: ${data.message}`, 'success');
+            } catch (error) {
+                addResult('api-results', `❌ Ошибка /ping: ${error.message}`, 'error');
+            }
+        }
+
+        async function testApiTest() {
+            addResult('api-results', 'Тестируем /api/test...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/api/test');
+                const data = await response.json();
+                addResult('api-results', `✅ /api/test работает: ${data.message}`, 'success');
+            } catch (error) {
+                addResult('api-results', `❌ Ошибка /api/test: ${error.message}`, 'error');
+            }
+        }
+
+        async function testApiTest2() {
+            addResult('api-results', 'Тестируем /api/test2...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/api/test2');
+                const data = await response.json();
+                addResult('api-results', `✅ /api/test2 работает: ${data.message}`, 'success');
+            } catch (error) {
+                addResult('api-results', `❌ Ошибка /api/test2: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCors() {
+            addResult('cors-results', 'Тестируем CORS...', 'loading');
+            try {
+                const response = await fetch('http://localhost:8080/ping', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult('cors-results', `✅ CORS работает: ${data.message}`, 'success');
+                } else {
+                    addResult('cors-results', `❌ CORS ошибка: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                addResult('cors-results', `❌ Ошибка CORS: ${error.message}`, 'error');
+            }
+        }
+
+        function checkConfig() {
+            const config = {
+                'Frontend URL': window.location.origin,
+                'Backend URL': 'http://localhost:8080',
+                'User Agent': navigator.userAgent,
+                'Current Time': new Date().toLocaleString(),
+            };
+
+            let configHtml = '<h3>Конфигурация:</h3><ul>';
+            for (const [key, value] of Object.entries(config)) {
+                configHtml += `<li><strong>${key}:</strong> ${value}</li>`;
+            }
+            configHtml += '</ul>';
+
+            document.getElementById('config-results').innerHTML = configHtml;
+        }
+
+        // Запускаем проверку конфигурации при загрузке
+        window.onload = function() {
+            checkConfig();
+            addResult('server-results', '🚀 Тест подключения запущен', 'info');
+        };
+    </script>
+</body>
+</html>

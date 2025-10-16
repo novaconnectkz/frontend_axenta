@@ -149,13 +149,17 @@ export default defineConfig(({ mode }) => {
 
     // Настройки для предотвращения parser-blocking скриптов
     esbuild: {
-      // Отключаем document.write в режиме разработки
+      // Мягкая блокировка document.write только для внешних скриптов
       banner: `
-        // Отключаем document.write для предотвращения parser-blocking
-        if (typeof document !== 'undefined') {
+        // Мягкая блокировка document.write только для внешних скриптов
+        if (typeof document !== 'undefined' && document.write) {
           const originalWrite = document.write;
-          document.write = function() {
-            console.warn('document.write blocked for performance');
+          document.write = function(content) {
+            // Разрешаем document.write для локальных скриптов
+            if (typeof content === 'string' && !content.includes('yastatic.net') && !content.includes('googleapis.com')) {
+              return originalWrite.apply(document, arguments);
+            }
+            console.warn('Blocked external document.write for performance');
           };
         }
       `,

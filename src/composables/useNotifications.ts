@@ -147,6 +147,14 @@ export function useNotifications() {
     )
   }
 
+  const showDuplicateError = (message?: string) => {
+    return showError(
+      'Дублирование данных',
+      message || 'Запись с такими данными уже существует',
+      8000
+    )
+  }
+
   return {
     // Состояние
     notifications: notifications.value,
@@ -169,6 +177,7 @@ export function useNotifications() {
     showAuthError,
     showNetworkError,
     showValidationError,
-    showPermissionError
+    showPermissionError,
+    showDuplicateError
   }
 }
