@@ -588,8 +588,8 @@ const cacheTimestamp = ref<Date | null>(null);
 const CACHE_DURATION = 5 * 60 * 1000; // 5 минут
 
 // Параметры сортировки
-const sortBy = ref<string>('name');
-const sortOrder = ref<'asc' | 'desc'>('asc');
+const sortBy = ref<string>('creationDatetime');
+const sortOrder = ref<'asc' | 'desc'>('desc');
 
 // Автообновление
 const autoRefreshInterval = ref<NodeJS.Timeout | null>(null);
