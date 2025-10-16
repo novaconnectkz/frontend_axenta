@@ -8,7 +8,16 @@ export default defineConfig(({ mode }) => {
   
   // Генерируем информацию о сборке
   const buildTime = new Date().toISOString();
-  const commitHash = process.env.GITHUB_SHA?.substring(0, 7) || 'dev';
+  const commitHash = process.env.GITHUB_SHA?.substring(0, 7) || 
+                     process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) ||
+                     (() => {
+                       try {
+                         const { execSync } = require('child_process');
+                         return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+                       } catch {
+                         return 'local';
+                       }
+                     })();
 
   return {
     plugins: [

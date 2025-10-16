@@ -24,8 +24,15 @@ export function getBuildInfo(): BuildInfo {
   // В development показываем актуальную версию с пометкой dev
   const isDev = import.meta.env.DEV;
   
+  // Если версия 0.0.0, используем timestamp как версию
+  let version = packageJson.version;
+  if (version === '0.0.0') {
+    const timestamp = Math.floor(Date.now() / 1000);
+    version = `1.0.${timestamp}`;
+  }
+  
   return {
-    version: isDev ? `${packageJson.version}-dev` : packageJson.version,
+    version: isDev ? `${version}-dev` : version,
     buildTime: BUILD_TIME,
     commitHash: COMMIT_HASH,
     environment: import.meta.env.MODE
