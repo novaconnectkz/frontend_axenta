@@ -36,7 +36,7 @@
           <div class="form-section">
             <h4 class="form-section-title">Основная информация</h4>
             
-            <div class="form-row">
+            <div class="form-row full-width">
               <AppleInput
                 v-model="form.name"
                 label="Название учетной записи"
@@ -45,16 +45,31 @@
                 :error-message="errors.name"
                 :error="!!errors.name"
                 clearable
+                density="compact"
               />
-              
+            </div>
+            
+            <div class="form-row">
               <v-select
                 v-model="form.type"
                 :items="typeOptions"
                 label="Тип учетной записи"
                 variant="outlined"
-                density="comfortable"
+                density="compact"
                 required
                 :error-messages="errors.type"
+              />
+              
+              <v-select
+                v-model="form.admin.visibleTabsNames"
+                :items="visibleTabsOptions"
+                label="Видимые вкладки"
+                variant="outlined"
+                density="compact"
+                multiple
+                chips
+                clearable
+                :error-messages="errors['admin.visibleTabsNames']"
               />
             </div>
             
@@ -64,6 +79,7 @@
                 label="Комментарий"
                 placeholder="Введите комментарий"
                 clearable
+                density="compact"
               />
               
               <AppleInput
@@ -72,6 +88,7 @@
                 type="datetime-local"
                 placeholder="Выберите дату блокировки"
                 clearable
+                density="compact"
               />
             </div>
           </div>
@@ -89,6 +106,7 @@
                 :error-message="errors['admin.name']"
                 :error="!!errors['admin.name']"
                 clearable
+                density="compact"
               />
               
               <AppleInput
@@ -99,6 +117,7 @@
                 :error-message="errors['admin.username']"
                 :error="!!errors['admin.username']"
                 clearable
+                density="compact"
               />
             </div>
             
@@ -112,6 +131,7 @@
                 :error-message="errors['admin.email']"
                 :error="!!errors['admin.email']"
                 clearable
+                density="compact"
               />
               
               <AppleInput
@@ -120,6 +140,7 @@
                 type="number"
                 placeholder="Введите ID администратора"
                 clearable
+                density="compact"
               />
             </div>
             
@@ -133,6 +154,7 @@
                 :error-message="errors['admin.password']"
                 :error="!!errors['admin.password']"
                 clearable
+                density="compact"
               />
               
               <AppleInput
@@ -144,22 +166,10 @@
                 :error-message="errors['admin.confirmPassword']"
                 :error="!!errors['admin.confirmPassword']"
                 clearable
+                density="compact"
               />
             </div>
             
-            <div class="form-row">
-              <v-select
-                v-model="form.admin.visibleTabsNames"
-                :items="visibleTabsOptions"
-                label="Видимые вкладки"
-                variant="outlined"
-                density="comfortable"
-                multiple
-                chips
-                clearable
-                :error-messages="errors['admin.visibleTabsNames']"
-              />
-            </div>
           </div>
         </div>
       </v-form>
@@ -465,8 +475,8 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 
 <style scoped>
 .create-account-page {
-  padding: 24px;
-  max-width: 1200px;
+  padding: 8px 24px 24px 24px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -474,14 +484,14 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 32px;
+  margin-bottom: 12px;
   gap: 24px;
 }
 
 .page-title-section {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 12px;
   flex: 1;
 }
 
@@ -492,20 +502,20 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 
 .page-title {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
   line-height: 1.2;
 }
 
 .page-subtitle {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .page-actions {
@@ -515,7 +525,7 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 }
 
 .create-form-card {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -535,7 +545,7 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 }
 
 .form-section {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
 }
 
 .form-section:last-child {
@@ -544,19 +554,19 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 
 .form-section-title {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0 0 16px 0;
-  padding-bottom: 8px;
+  margin: 0 0 8px 0;
+  padding-bottom: 4px;
   border-bottom: 1px solid rgba(60, 60, 67, 0.08);
 }
 
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
 .form-row:last-child {
@@ -564,8 +574,24 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 }
 
 /* Для полей, которые должны занимать всю ширину */
-.form-row:has(.v-select) {
+.form-row.full-width {
   grid-template-columns: 1fr;
+}
+
+/* Компактные поля ввода */
+:deep(.v-field) {
+  --v-field-padding-top: 8px;
+  --v-field-padding-bottom: 8px;
+}
+
+:deep(.v-label) {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+:deep(.v-input__details) {
+  min-height: 16px;
+  padding-top: 4px;
 }
 
 .form-actions {
@@ -577,35 +603,36 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 /* Адаптивность */
 @media (max-width: 768px) {
   .create-account-page {
-    padding: 16px;
+    padding: 6px 16px 16px 16px;
   }
   
   .page-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 16px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
   
   .page-title {
-    font-size: 24px;
+    font-size: 20px;
   }
   
   .page-subtitle {
-    font-size: 14px;
+    font-size: 13px;
   }
   
   .form-row {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 8px;
   }
   
   .form-section {
-    margin-bottom: 24px;
+    margin-bottom: 12px;
   }
   
   .form-section-title {
-    font-size: 15px;
-    margin-bottom: 12px;
+    font-size: 14px;
+    margin-bottom: 6px;
   }
   
   .form-actions {
