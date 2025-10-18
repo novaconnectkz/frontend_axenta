@@ -634,6 +634,109 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Диалог перемещения учетной записи -->
+    <v-dialog v-model="moveDialog" max-width="600" persistent>
+      <v-card>
+        <v-card-title class="text-h5 text-center pa-4">
+          <v-icon icon="mdi-swap-horizontal" color="primary" size="32" class="mr-2" />
+          Переместить учетную запись
+        </v-card-title>
+        
+        <v-card-text class="pa-4">
+          <div class="mb-4">
+            <p class="text-body-1 mb-2">
+              Выберите партнера, к которому будет перемещена учетная запись:
+            </p>
+            <div class="account-info pa-3" style="background-color: #f5f5f5; border-radius: 8px;">
+              <div class="text-subtitle-1 font-weight-bold">{{ accountToMove?.name }}</div>
+              <div class="text-caption text-grey-darken-1">ID: {{ accountToMove?.id }}</div>
+              <div class="text-caption text-grey-darken-1">
+                Тип: {{ accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент' }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-body-2 mb-2">
+              <strong>Выберите целевого партнера:</strong>
+            </p>
+            <v-select
+              v-model="selectedTargetPartner"
+              :items="partnerOptions"
+              item-title="name"
+              item-value="id"
+              label="Партнер"
+              placeholder="Выберите партнера"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isMoving"
+              :loading="loadingPartners"
+              clearable
+            >
+              <template #item="{ props, item }">
+                <v-list-item v-bind="props">
+                  <template #title>
+                    <div class="d-flex align-center">
+                      <span class="font-weight-bold">{{ item.raw.name }}</span>
+                      <v-chip size="x-small" color="primary" class="ml-2">
+                        ID: {{ item.raw.id }}
+                      </v-chip>
+                    </div>
+                  </template>
+                  <template #subtitle>
+                    <span class="text-caption">{{ item.raw.type === 'partner' ? 'Партнер' : 'Клиент' }}</span>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-body-2 text-grey-darken-1 mb-2">
+              <strong>Внимание!</strong> При перемещении учетной записи все её данные (объекты, пользователи, настройки) будут переданы выбранному партнеру. Это действие нельзя отменить.
+            </p>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-body-2 mb-2">
+              Для подтверждения введите ID учетной записи:
+            </p>
+            <v-text-field
+              v-model="moveConfirmationId"
+              label="ID учетной записи"
+              placeholder="Введите ID для подтверждения"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isMoving"
+              @keyup.enter="confirmMove"
+            />
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="cancelMove"
+            :disabled="isMoving"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="primary"
+            variant="flat"
+            @click="confirmMove"
+            :loading="isMoving"
+            :disabled="!selectedTargetPartner || moveConfirmationId !== accountToMove?.id?.toString()"
+          >
+            <v-icon icon="mdi-swap-horizontal" class="mr-1" />
+            Переместить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -718,6 +821,15 @@ const deleteDialog = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const deleteConfirmationId = ref('');
 const isDeleting = ref(false);
+
+// Диалог перемещения учетной записи
+const moveDialog = ref(false);
+const accountToMove = ref<Account | null>(null);
+const selectedTargetPartner = ref<number | null>(null);
+const moveConfirmationId = ref('');
+const isMoving = ref(false);
+const loadingPartners = ref(false);
+const partnerOptions = ref<Account[]>([]);
 
 
 // Snackbar для уведомлений
@@ -1338,9 +1450,16 @@ const viewJournal = (account: Account) => {
   showSnackbar(`Журнал для "${account.name}" - функция в разработке`, 'info');
 };
 
-const moveAccount = (account: Account) => {
+const moveAccount = async (account: Account) => {
   console.log('🔄 Перемещение аккаунта:', account.name);
-  showSnackbar(`Перемещение "${account.name}" - функция в разработке`, 'info');
+  
+  accountToMove.value = account;
+  selectedTargetPartner.value = null;
+  moveConfirmationId.value = '';
+  moveDialog.value = true;
+  
+  // Загружаем список партнеров
+  await loadPartners();
 };
 
 const deleteAccount = (account: Account) => {
@@ -1404,6 +1523,77 @@ const cancelDelete = () => {
   deleteDialog.value = false;
   accountToDelete.value = null;
   deleteConfirmationId.value = '';
+};
+
+// Загрузка списка партнеров для перемещения
+const loadPartners = async () => {
+  try {
+    loadingPartners.value = true;
+    console.log('📋 Загрузка списка партнеров...');
+    
+    const response = await accountsService.getAccounts({
+      type: 'partner',
+      per_page: 100,
+      is_active: true
+    });
+    
+    // Исключаем текущий аккаунт из списка
+    partnerOptions.value = response.results.filter(account => 
+      account.id !== accountToMove.value?.id
+    );
+    
+    console.log(`✅ Загружено ${partnerOptions.value.length} партнеров`);
+  } catch (error) {
+    console.error('❌ Ошибка загрузки партнеров:', error);
+    showSnackbar('Ошибка загрузки списка партнеров', 'error');
+  } finally {
+    loadingPartners.value = false;
+  }
+};
+
+// Подтверждение перемещения
+const confirmMove = async () => {
+  if (!accountToMove.value || !selectedTargetPartner.value) return;
+  
+  try {
+    isMoving.value = true;
+    console.log(`🔄 Перемещение аккаунта ${accountToMove.value.id} к партнеру ${selectedTargetPartner.value}`);
+    
+    await accountsService.moveAccount(
+      accountToMove.value.id,
+      selectedTargetPartner.value
+    );
+    
+    showSnackbar(
+      `Аккаунт "${accountToMove.value.name}" успешно перемещен`,
+      'success'
+    );
+    
+    // Закрываем диалог
+    moveDialog.value = false;
+    accountToMove.value = null;
+    selectedTargetPartner.value = null;
+    moveConfirmationId.value = '';
+    partnerOptions.value = [];
+    
+    // Обновляем данные
+    await loadAccounts();
+    
+  } catch (error) {
+    console.error('❌ Ошибка перемещения аккаунта:', error);
+    showSnackbar('Ошибка перемещения учетной записи', 'error');
+  } finally {
+    isMoving.value = false;
+  }
+};
+
+// Отмена перемещения
+const cancelMove = () => {
+  moveDialog.value = false;
+  accountToMove.value = null;
+  selectedTargetPartner.value = null;
+  moveConfirmationId.value = '';
+  partnerOptions.value = [];
 };
 
 

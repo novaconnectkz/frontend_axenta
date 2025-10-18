@@ -5,45 +5,7 @@
 import { config } from "@/config/env";
 import axios from "axios";
 
-// Интерфейс для ответа от бэкенда
-interface BackendCompany {
-  id: number;
-  name: string;
-  database_schema: string;
-  domain: string;
-  contact_email: string;
-  contact_phone: string;
-  contact_person: string;
-  address: string;
-  city: string;
-  country: string;
-  is_active: boolean;
-  max_users: number;
-  max_objects: number;
-  storage_quota: number;
-  language: string;
-  timezone: string;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-  deleted_at: string | null;
-  subscription_id: number | null;
-}
 
-interface BackendPagination {
-  current_page: number;
-  per_page: number;
-  total_items: number;
-  total_pages: number;
-}
-
-interface BackendAccountsResponse {
-  data: {
-    companies: BackendCompany[];
-    pagination: BackendPagination;
-  };
-  status: string;
-}
 
 export interface Account {
   id: number;
@@ -213,8 +175,8 @@ class AccountsService {
 
       // Удаляем undefined значения, чтобы они не передавались как строки
       Object.keys(params).forEach(key => {
-        if (params[key] === undefined) {
-          delete params[key];
+        if ((params as any)[key] === undefined) {
+          delete (params as any)[key];
         }
       });
 
@@ -222,8 +184,8 @@ class AccountsService {
       // Попробуем разные варианты для фильтрации по статусу
       if (params.is_active !== undefined) {
         // Дублируем параметр под разными именами для совместимости
-        params.active = params.is_active;
-        params.status = params.is_active ? 'active' : 'inactive';
+        (params as any).active = params.is_active;
+        (params as any).status = params.is_active ? 'active' : 'inactive';
         console.log("📡 Фильтрация по статусу:", params.is_active ? 'Активные' : 'Заблокированные');
       }
 
@@ -243,7 +205,7 @@ class AccountsService {
 
       // Логируем статусы первых нескольких записей для проверки фильтрации
       if (response.data.results && response.data.results.length > 0) {
-        const statusSample = response.data.results.slice(0, 5).map(account => ({
+        const statusSample = response.data.results.slice(0, 5).map((account: any) => ({
           name: account.name,
           isActive: account.isActive || account.is_active,
           status: account.status
@@ -716,6 +678,28 @@ class AccountsService {
       };
     } catch (error) {
       console.error("❌ Ошибка получения статистики учетных записей:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Переместить учетную запись к другому партнеру
+   */
+  async moveAccount(accountId: number, targetAccountId: number): Promise<void> {
+    try {
+      console.log(`🔄 Перемещение учетной записи ${accountId} к партнеру ${targetAccountId}`);
+      
+      const response = await this.axentaCloudClient.post<any>(
+        `/api/cms/accounts/change_account/`,
+        {
+          accountId: accountId,
+          targetAccountId: targetAccountId
+        }
+      );
+
+      console.log("✅ Учетная запись успешно перемещена:", response);
+    } catch (error) {
+      console.error(`❌ Ошибка перемещения учетной записи ${accountId}:`, error);
       throw error;
     }
   }
