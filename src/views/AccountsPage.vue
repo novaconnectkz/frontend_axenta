@@ -88,10 +88,14 @@
               :items="accountTypes"
               variant="outlined"
               density="comfortable"
-              @update:model-value="() => {
+              @update:model-value="(value) => {
                 // Очищаем кэш при изменении фильтра типа
                 allAccountsCache.value = [];
                 cacheTimestamp.value = null;
+                // Устанавливаем значение фильтра
+                filters.value.type = value;
+                // Сбрасываем страницу на первую при изменении фильтра
+                currentPage.value = 1;
                 loadAccounts();
               }"
             />
@@ -103,10 +107,14 @@
               :items="statusOptions"
               variant="outlined"
               density="comfortable"
-              @update:model-value="() => {
+              @update:model-value="(value) => {
                 // Очищаем кэш при изменении фильтра статуса
                 allAccountsCache.value = [];
                 cacheTimestamp.value = null;
+                // Устанавливаем значение фильтра
+                filters.value.is_active = value;
+                // Сбрасываем страницу на первую при изменении фильтра
+                currentPage.value = 1;
                 loadAccounts();
               }"
             />
@@ -661,11 +669,13 @@ const snackbar = ref({
 
 // Опции для фильтров
 const accountTypes = [
+  { title: 'Все типы', value: null },
   { title: 'Клиент', value: 'client' },
   { title: 'Партнер', value: 'partner' },
 ];
 
 const statusOptions = [
+  { title: 'Все статусы', value: null },
   { title: 'Активные', value: true },
   { title: 'Заблокированные', value: false },
 ];
@@ -794,14 +804,36 @@ const loadAccounts = async (isBackground = false) => {
     const response = await accountsService.getAccounts(requestParams);
     console.log('✅ Получен ответ:', { count: response.count, results: response.results.length });
 
-    // Проверяем, нужна ли клиентская фильтрация (для любых фильтров)
-    const hasActiveFilters = filters.value.is_active !== undefined || 
-                             filters.value.type || 
-                             (selectedParent.value && selectedParent.value.trim() !== '') ||
-                             (searchQuery.value && searchQuery.value.trim() !== '');
+    // Определяем, какие фильтры поддерживает внешний API
+    const hasServerSupportedFilters = filters.value.type || 
+                                     (selectedParent.value && selectedParent.value.trim() !== '') ||
+                                     (searchQuery.value && searchQuery.value.trim() !== '');
+    
+    const hasClientOnlyFilters = filters.value.is_active !== undefined;
+    
+    const hasActiveFilters = hasServerSupportedFilters || hasClientOnlyFilters;
     
     if (hasActiveFilters) {
-      console.log('🔧 Обнаружены активные фильтры, загружаем все записи для глобальной фильтрации');
+      console.log('🔧 Обнаружены активные фильтры:', {
+        serverSupported: hasServerSupportedFilters,
+        clientOnly: hasClientOnlyFilters,
+        type: filters.value.type,
+        search: searchQuery.value,
+        parent: selectedParent.value,
+        is_active: filters.value.is_active
+      });
+      
+      // Если есть только серверные фильтры - используем их напрямую
+      if (hasServerSupportedFilters && !hasClientOnlyFilters) {
+        console.log('🔧 Используем только серверные фильтры');
+        // Данные уже загружены с фильтрами в response, просто обновляем accounts
+        accounts.value = response.results;
+        totalItems.value = response.count;
+        return;
+      }
+      
+      // Если есть клиентские фильтры - загружаем данные для фильтрации
+      console.log('🔧 Загружаем данные для клиентской фильтрации');
       
       // Загружаем все записи без фильтрации для клиентской обработки
       const allRecordsParams = {
@@ -894,25 +926,33 @@ const loadAccounts = async (isBackground = false) => {
       response.count = allFilteredResults.length;
       
       console.log(`🔧 Показано ${paginatedResults.length} записей из ${allFilteredResults.length} отфильтрованных`);
+      console.log(`🔧 Активные фильтры:`, {
+        is_active: filters.value.is_active,
+        type: filters.value.type,
+        selectedParent: selectedParent.value,
+        searchQuery: searchQuery.value
+      });
     }
 
 
     // Обновляем totalItems только если получили валидное значение
-    if (response.count && response.count > 0) {
+    if (response.count !== undefined && response.count >= 0) {
       totalItems.value = response.count;
     }
     
-    // Плавное обновление данных
-    if (isBackground && accounts.value.length > 0) {
-      // Сравниваем данные и обновляем только если есть изменения
-      const hasChanges = !areAccountsEqual(accounts.value, response.results);
-      if (hasChanges) {
-        // Плавная анимация обновления
-        await updateAccountsSmooth(response.results);
+    // Обновляем данные если нет активных фильтров (случай без фильтров)
+    if (!hasActiveFilters) {
+      if (isBackground && accounts.value.length > 0) {
+        // Сравниваем данные и обновляем только если есть изменения
+        const hasChanges = !areAccountsEqual(accounts.value, response.results);
+        if (hasChanges) {
+          // Плавная анимация обновления
+          await updateAccountsSmooth(response.results);
+        }
+      } else {
+        // Первоначальная загрузка или принудительное обновление
+        accounts.value = response.results;
       }
-    } else {
-      // Первоначальная загрузка или принудительное обновление
-      accounts.value = response.results;
     }
     lastUpdateTime.value = new Date();
 
