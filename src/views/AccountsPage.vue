@@ -171,6 +171,23 @@
         no-data-text="Учетные записи не найдены"
         hide-default-footer
       >
+        <!-- Колонка "ID" -->
+        <template #item.id="{ item }">
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <span class="id-minimal" v-bind="props">
+                {{ item.id }}
+              </span>
+            </template>
+            <div class="id-legend">
+              <div class="legend-title">🆔 Идентификатор</div>
+              <div class="legend-description">
+                ID: {{ item.id }}
+              </div>
+            </div>
+          </v-tooltip>
+        </template>
+
         <!-- Колонка "Компания" -->
         <template #item.name="{ item }">
           <v-tooltip location="top">
@@ -711,12 +728,13 @@ const itemsPerPageOptions = [
 
 // Заголовки таблицы
 const headers = [
-  { title: 'Компания', key: 'name', sortable: true, width: '35%' },
-  { title: 'Тип', key: 'type', sortable: true, width: '12%' },
-  { title: 'Объекты', key: 'objectsTotal', sortable: true, width: '12%' },
-  { title: 'Статус', key: 'isActive', sortable: true, width: '12%' },
-  { title: 'Создан', key: 'creationDatetime', sortable: true, width: '15%' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '14%' },
+  { title: 'ID', key: 'id', sortable: true },
+  { title: 'Компания', key: 'name', sortable: true, width: '30%' },
+  { title: 'Тип', key: 'type', sortable: true },
+  { title: 'Объекты', key: 'objectsTotal', sortable: true },
+  { title: 'Статус', key: 'isActive', sortable: true },
+  { title: 'Создан', key: 'creationDatetime', sortable: true },
+  { title: 'Действия', key: 'actions', sortable: false },
 ];
 
 // Вычисляемые свойства для определения активности фильтров
@@ -1780,10 +1798,109 @@ onUnmounted(() => {
 .accounts-table :deep(.v-data-table-header__content) {
   font-weight: 600;
   color: var(--text-primary);
+  text-align: center !important;
+  justify-content: center;
 }
 
 .accounts-table :deep(.v-data-table__td) {
   border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+}
+
+/* Динамические колонки - автоматическая ширина по содержимому */
+.accounts-table :deep(.v-data-table__th),
+.accounts-table :deep(.v-data-table__td) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+/* Колонка ID - минимальная ширина */
+.accounts-table :deep(.v-data-table__th:first-child),
+.accounts-table :deep(.v-data-table__td:first-child) {
+  width: auto;
+  min-width: 60px;
+  max-width: 100px;
+}
+
+/* Колонка Компания - фиксированная ширина 30% */
+.accounts-table :deep(.v-data-table__th:nth-child(2)),
+.accounts-table :deep(.v-data-table__td:nth-child(2)) {
+  width: 30% !important;
+  min-width: 200px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Колонка Тип - компактная ширина */
+.accounts-table :deep(.v-data-table__th:nth-child(3)),
+.accounts-table :deep(.v-data-table__td:nth-child(3)) {
+  width: auto;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* Колонка Объекты - компактная ширина */
+.accounts-table :deep(.v-data-table__th:nth-child(4)),
+.accounts-table :deep(.v-data-table__td:nth-child(4)) {
+  width: auto;
+  min-width: 100px;
+  max-width: 140px;
+}
+
+/* Колонка Статус - компактная ширина */
+.accounts-table :deep(.v-data-table__th:nth-child(5)),
+.accounts-table :deep(.v-data-table__td:nth-child(5)) {
+  width: auto;
+  min-width: 80px;
+  max-width: 120px;
+}
+
+/* Колонка Создан - средняя ширина */
+.accounts-table :deep(.v-data-table__th:nth-child(6)),
+.accounts-table :deep(.v-data-table__td:nth-child(6)) {
+  width: auto;
+  min-width: 100px;
+  max-width: 150px;
+}
+
+/* Колонка Действия - фиксированная ширина */
+.accounts-table :deep(.v-data-table__th:last-child),
+.accounts-table :deep(.v-data-table__td:last-child) {
+  width: auto;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+/* Центрирование всех элементов в ячейках */
+.accounts-table :deep(.v-data-table__td) > * {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+/* Центрирование текстовых элементов */
+.accounts-table :deep(.v-data-table__td) span,
+.accounts-table :deep(.v-data-table__td) div {
+  display: inline-block;
+  text-align: center;
+}
+
+/* Центрирование элементов с tooltip */
+.accounts-table :deep(.v-data-table__td) .v-tooltip {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.accounts-table :deep(.v-data-table__td) .v-tooltip .v-tooltip__activator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
 }
 
 .custom-pagination-bottom {
@@ -1883,8 +2000,20 @@ onUnmounted(() => {
   .filter-item,
   .filter-search {
     flex: none;
-    width: 100%;
-    min-width: auto;
+  }
+  
+  /* Адаптивные колонки для мобильных устройств */
+  .accounts-table :deep(.v-data-table__th),
+  .accounts-table :deep(.v-data-table__td) {
+    min-width: 60px;
+    max-width: none;
+  }
+  
+  /* На мобильных устройствах колонка Компания получает больше места */
+  .accounts-table :deep(.v-data-table__th:nth-child(2)),
+  .accounts-table :deep(.v-data-table__td:nth-child(2)) {
+    width: 40% !important;
+    min-width: 150px;
   }
   
   .filter-create,
@@ -2017,6 +2146,25 @@ onUnmounted(() => {
 
 .compact-base:hover {
   transform: scale(1.02);
+}
+
+/* Минималистичное отображение ID */
+.id-minimal {
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: help;
+  transition: all 0.2s ease;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #666;
+  background-color: rgba(0, 0, 0, 0.04);
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.id-minimal:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+  color: #333;
+  transform: scale(1.05);
 }
 
 /* Минималистичное отображение типа аккаунта */
@@ -2267,6 +2415,12 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Стили для легенды ID */
+.id-legend {
+  @extend .legend-base;
+  min-width: 200px;
+}
+
 /* Стили для легенды типа аккаунта */
 .type-legend {
   @extend .legend-base;
@@ -2334,6 +2488,7 @@ onUnmounted(() => {
 .objects-compact {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 4px 8px;
   border-radius: 12px;
   background: linear-gradient(135deg, #f5f5f5, #e8e8e8);
@@ -2343,6 +2498,7 @@ onUnmounted(() => {
   font-family: 'Roboto Mono', monospace;
   font-weight: 600;
   font-size: 0.875rem;
+  margin: 0 auto;
 }
 
 .objects-compact:hover {
