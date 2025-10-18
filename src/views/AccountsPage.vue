@@ -415,16 +415,6 @@
                   @click="loginToMonitoring(item)"
                 />
                 <v-list-item
-                  prepend-icon="mdi-file-document-outline"
-                  title="Журнал"
-                  @click="viewJournal(item)"
-                />
-                <v-list-item
-                  prepend-icon="mdi-cog"
-                  title="Свойства учетной записи"
-                  @click="editAccount(item)"
-                />
-                <v-list-item
                   prepend-icon="mdi-swap-horizontal"
                   title="Переместить учетную запись"
                   @click="moveAccount(item)"
@@ -1429,11 +1419,6 @@ const viewAccount = (account: Account) => {
   viewDialog.value = true;
 };
 
-const editAccount = (account: Account) => {
-  // TODO: Реализовать редактирование учетной записи
-  showSnackbar('Редактирование учетных записей пока не реализовано', 'info');
-};
-
 // Методы для меню дополнительных действий
 const loginToCms = (account: Account) => {
   console.log('🔗 Вход в CMS для аккаунта:', account.name);
@@ -1443,11 +1428,6 @@ const loginToCms = (account: Account) => {
 const loginToMonitoring = (account: Account) => {
   console.log('📊 Вход в мониторинг для аккаунта:', account.name);
   showSnackbar(`Вход в мониторинг для "${account.name}" - функция в разработке`, 'info');
-};
-
-const viewJournal = (account: Account) => {
-  console.log('📋 Просмотр журнала для аккаунта:', account.name);
-  showSnackbar(`Журнал для "${account.name}" - функция в разработке`, 'info');
 };
 
 const moveAccount = async (account: Account) => {
