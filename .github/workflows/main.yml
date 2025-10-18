@@ -34,7 +34,7 @@ jobs:
             
             cd "${{ secrets.REPO_PATH }}"
             git fetch --all --prune
-            git pull origin "${{ secrets.BRANCH || 'main' }}"
+            git reset --hard origin/${{ secrets.BRANCH || 'main' }}
             /usr/bin/npm install
             /usr/bin/npm run build
             sudo systemctl reload nginx
