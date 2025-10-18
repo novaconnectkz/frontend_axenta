@@ -425,6 +425,51 @@
               @click="toggleAccountStatus(item)"
               :title="item.isActive ? 'Деактивировать' : 'Активировать'"
             />
+            <v-menu>
+              <template #activator="{ props }">
+                <v-btn
+                  icon="mdi-dots-vertical"
+                  variant="text"
+                  size="x-small"
+                  v-bind="props"
+                  title="Дополнительные действия"
+                />
+              </template>
+              <v-list density="compact">
+                <v-list-item
+                  prepend-icon="mdi-arrow-right-bold"
+                  title="Войти в CMS"
+                  @click="loginToCms(item)"
+                />
+                <v-list-item
+                  prepend-icon="mdi-arrow-right-bold"
+                  title="Войти в мониторинг"
+                  @click="loginToMonitoring(item)"
+                />
+                <v-list-item
+                  prepend-icon="mdi-file-document-outline"
+                  title="Журнал"
+                  @click="viewJournal(item)"
+                />
+                <v-list-item
+                  prepend-icon="mdi-cog"
+                  title="Свойства учетной записи"
+                  @click="editAccount(item)"
+                />
+                <v-list-item
+                  prepend-icon="mdi-swap-horizontal"
+                  title="Переместить учетную запись"
+                  @click="moveAccount(item)"
+                />
+                <v-divider />
+                <v-list-item
+                  prepend-icon="mdi-delete"
+                  title="Удалить учетную запись"
+                  @click="deleteAccount(item)"
+                  class="text-error"
+                />
+              </v-list>
+            </v-menu>
           </div>
         </template>
       </v-data-table>
@@ -1196,6 +1241,33 @@ const editAccount = (account: Account) => {
   // TODO: Реализовать редактирование учетной записи
   showSnackbar('Редактирование учетных записей пока не реализовано', 'info');
 };
+
+// Методы для меню дополнительных действий
+const loginToCms = (account: Account) => {
+  console.log('🔗 Вход в CMS для аккаунта:', account.name);
+  showSnackbar(`Вход в CMS для "${account.name}" - функция в разработке`, 'info');
+};
+
+const loginToMonitoring = (account: Account) => {
+  console.log('📊 Вход в мониторинг для аккаунта:', account.name);
+  showSnackbar(`Вход в мониторинг для "${account.name}" - функция в разработке`, 'info');
+};
+
+const viewJournal = (account: Account) => {
+  console.log('📋 Просмотр журнала для аккаунта:', account.name);
+  showSnackbar(`Журнал для "${account.name}" - функция в разработке`, 'info');
+};
+
+const moveAccount = (account: Account) => {
+  console.log('🔄 Перемещение аккаунта:', account.name);
+  showSnackbar(`Перемещение "${account.name}" - функция в разработке`, 'info');
+};
+
+const deleteAccount = (account: Account) => {
+  console.log('🗑️ Удаление аккаунта:', account.name);
+  showSnackbar(`Удаление "${account.name}" - функция в разработке`, 'warning');
+};
+
 
 // Переход на страницу создания учетной записи
 const goToCreateAccount = () => {
@@ -2114,6 +2186,33 @@ onUnmounted(() => {
 .actions-row .v-btn:hover {
   opacity: 1;
 }
+
+/* Стили для меню дополнительных действий */
+.actions-row .v-menu .v-list {
+  min-width: 200px;
+}
+
+.actions-row .v-list-item {
+  min-height: 36px;
+  padding: 8px 16px;
+}
+
+.actions-row .v-list-item .v-list-item__prepend {
+  margin-inline-end: 12px;
+}
+
+.actions-row .v-list-item .v-list-item__content {
+  font-size: 14px;
+}
+
+.actions-row .v-list-item.text-error {
+  color: rgb(var(--v-theme-error)) !important;
+}
+
+.actions-row .v-list-item.text-error .v-list-item__prepend .v-icon {
+  color: rgb(var(--v-theme-error)) !important;
+}
+
 
 
 /* Компактное отображение статуса аккаунта */
