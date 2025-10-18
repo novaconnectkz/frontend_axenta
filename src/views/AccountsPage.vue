@@ -566,6 +566,74 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Диалог подтверждения удаления -->
+    <v-dialog v-model="deleteDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="text-h5 text-center pa-4">
+          <v-icon icon="mdi-alert-circle" color="error" size="32" class="mr-2" />
+          Подтверждение удаления
+        </v-card-title>
+        
+        <v-card-text class="pa-4">
+          <div class="mb-4">
+            <p class="text-body-1 mb-2">
+              Вы действительно хотите удалить учетную запись?
+            </p>
+            <div class="account-info pa-3" style="background-color: #f5f5f5; border-radius: 8px;">
+              <div class="text-subtitle-1 font-weight-bold">{{ accountToDelete?.name }}</div>
+              <div class="text-caption text-grey-darken-1">ID: {{ accountToDelete?.id }}</div>
+              <div class="text-caption text-grey-darken-1">
+                Тип: {{ accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент' }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-body-2 text-grey-darken-1 mb-2">
+              <strong>Внимание!</strong> Это действие нельзя отменить. Все данные учетной записи будут безвозвратно удалены.
+            </p>
+          </div>
+          
+          <div class="mb-4">
+            <p class="text-body-2 mb-2">
+              Для подтверждения введите ID учетной записи:
+            </p>
+            <v-text-field
+              v-model="deleteConfirmationId"
+              label="ID учетной записи"
+              placeholder="Введите ID для подтверждения"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isDeleting"
+              @keyup.enter="confirmDelete"
+            />
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn
+            color="grey"
+            variant="text"
+            @click="cancelDelete"
+            :disabled="isDeleting"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="error"
+            variant="flat"
+            @click="confirmDelete"
+            :loading="isDeleting"
+            :disabled="deleteConfirmationId !== accountToDelete?.id?.toString()"
+          >
+            <v-icon icon="mdi-delete" class="mr-1" />
+            Удалить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -644,6 +712,12 @@ const parentAccountOptions = ref(createParentAccountOptions());
 // Диалоги
 const viewDialog = ref(false);
 const selectedAccount = ref<Account | null>(null);
+
+// Диалог подтверждения удаления
+const deleteDialog = ref(false);
+const accountToDelete = ref<Account | null>(null);
+const deleteConfirmationId = ref('');
+const isDeleting = ref(false);
 
 
 // Snackbar для уведомлений
@@ -1270,8 +1344,66 @@ const moveAccount = (account: Account) => {
 };
 
 const deleteAccount = (account: Account) => {
-  console.log('🗑️ Удаление аккаунта:', account.name);
-  showSnackbar(`Удаление "${account.name}" - функция в разработке`, 'warning');
+  console.log('🗑️ Запрос на удаление аккаунта:', account.name);
+  
+  accountToDelete.value = account;
+  deleteConfirmationId.value = '';
+  deleteDialog.value = true;
+};
+
+// Подтверждение удаления
+const confirmDelete = async () => {
+  if (!accountToDelete.value) return;
+  
+  // Проверяем, что пользователь ввел правильный ID
+  if (deleteConfirmationId.value !== accountToDelete.value.id.toString()) {
+    showSnackbar('Неверный ID. Введите правильный ID для подтверждения удаления.', 'error');
+    return;
+  }
+  
+  isDeleting.value = true;
+  
+  try {
+    console.log(`🗑️ Удаление аккаунта ${accountToDelete.value.id}: ${accountToDelete.value.name}`);
+    
+    await accountsService.deleteAccount(accountToDelete.value.id);
+    
+    console.log(`✅ Аккаунт ${accountToDelete.value.name} успешно удален`);
+    
+    // Показываем уведомление об успехе
+    showSnackbar(
+      `Аккаунт "${accountToDelete.value.name}" успешно удален`,
+      'success'
+    );
+    
+    // Закрываем диалог
+    deleteDialog.value = false;
+    accountToDelete.value = null;
+    deleteConfirmationId.value = '';
+    
+    // Обновляем данные
+    await loadAccounts();
+    await loadStats();
+    
+  } catch (error) {
+    console.error('❌ Ошибка удаления аккаунта:', error);
+    
+    // Показываем уведомление об ошибке
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    showSnackbar(
+      `Ошибка удаления аккаунта "${accountToDelete.value.name}": ${errorMessage}`,
+      'error'
+    );
+  } finally {
+    isDeleting.value = false;
+  }
+};
+
+// Отмена удаления
+const cancelDelete = () => {
+  deleteDialog.value = false;
+  accountToDelete.value = null;
+  deleteConfirmationId.value = '';
 };
 
 

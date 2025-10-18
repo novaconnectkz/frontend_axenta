@@ -644,6 +644,40 @@ class AccountsService {
   }
 
   /**
+   * Удалить учетную запись
+   */
+  async deleteAccount(id: number): Promise<void> {
+    try {
+      console.log(`🗑️ Удаление учетной записи ${id}`);
+      
+      const response = await this.axentaCloudClient.delete(
+        `/api/cms/accounts/${id}/`
+      );
+      
+      console.log(`✅ Учетная запись ${id} успешно удалена:`, response.status);
+      
+      if (response.status !== 204) {
+        throw new Error('Ошибка удаления учетной записи');
+      }
+    } catch (error: any) {
+      console.error(`❌ Ошибка удаления учетной записи ${id}:`, error);
+      
+      let errorMessage = 'Ошибка удаления учетной записи';
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
    * Получить статистику учетных записей
    */
   async getAccountsStats(): Promise<{
