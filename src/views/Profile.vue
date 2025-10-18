@@ -19,166 +19,129 @@
             </v-card-title>
 
             <v-card-text>
-              <v-row v-if="auth.user.value">
-                <!-- Основная информация -->
-                <v-col cols="12" md="6">
-                  <v-card variant="outlined" class="mb-4">
-                    <v-card-title class="text-h6">
-                      <v-icon class="mr-2">mdi-account</v-icon>
-                      Основная информация
-                    </v-card-title>
-                    <v-card-text>
-                      <v-list density="compact">
-                        <v-list-item>
-                          <v-list-item-title>ID пользователя</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.id }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item>
-                          <v-list-item-title>Логин</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.username }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item>
-                          <v-list-item-title>Полное имя</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.name }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item v-if="auth.user.value.email">
-                          <v-list-item-title>Email</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <a :href="`mailto:${auth.user.value.email}`" class="text-primary">
-                              {{ auth.user.value.email }}
-                            </a>
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item>
-                          <v-list-item-title>Статус</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip 
-                              :color="auth.user.value.isActive ? 'success' : 'error'" 
-                              size="small" 
-                              variant="tonal"
-                            >
-                              {{ auth.user.value.isActive ? 'Активен' : 'Неактивен' }}
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
+              <div v-if="auth.user.value">
+                <v-row>
+                  <!-- Левая колонка -->
+                  <v-col cols="12" md="6">
+                    <v-list density="compact">
+                      <v-list-item>
+                        <v-list-item-title>ID пользователя</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.id }}</v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item>
+                        <v-list-item-title>Логин</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.username }}</v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item>
+                        <v-list-item-title>Полное имя</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.name }}</v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item v-if="auth.user.value.email">
+                        <v-list-item-title>Email</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <a :href="`mailto:${auth.user.value.email}`" class="text-primary">
+                            {{ auth.user.value.email }}
+                          </a>
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item>
+                        <v-list-item-title>Статус</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip 
+                            :color="auth.user.value.isActive ? 'success' : 'error'" 
+                            size="small" 
+                            variant="tonal"
+                          >
+                            {{ auth.user.value.isActive ? 'Активен' : 'Неактивен' }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
 
-                        <v-list-item>
-                          <v-list-item-title>Права администратора</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip 
-                              :color="auth.user.value.isAdmin ? 'warning' : 'default'" 
-                              size="small" 
-                              variant="tonal"
-                            >
-                              {{ auth.user.value.isAdmin ? 'Да' : 'Нет' }}
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                      </v-list>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
+                      <v-list-item>
+                        <v-list-item-title>Права администратора</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip 
+                            :color="auth.user.value.isAdmin ? 'warning' : 'default'" 
+                            size="small" 
+                            variant="tonal"
+                          >
+                            {{ auth.user.value.isAdmin ? 'Да' : 'Нет' }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
 
-                <!-- Информация об аккаунте -->
-                <v-col cols="12" md="6">
-                  <v-card variant="outlined" class="mb-4">
-                    <v-card-title class="text-h6">
-                      <v-icon class="mr-2">mdi-domain</v-icon>
-                      Информация об аккаунте
-                    </v-card-title>
-                    <v-card-text>
-                      <v-list density="compact">
-                        <v-list-item>
-                          <v-list-item-title>Название компании</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.accountName }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item>
-                          <v-list-item-title>Тип аккаунта</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip 
-                              :color="getAccountTypeColor(auth.user.value.accountType)" 
-                              size="small" 
-                              variant="tonal"
-                            >
-                              {{ getAccountTypeLabel(auth.user.value.accountType) }}
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
+                      <v-list-item>
+                        <v-list-item-title>Название компании</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.accountName }}</v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item>
+                        <v-list-item-title>Тип аккаунта</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip 
+                            :color="getAccountTypeColor(auth.user.value.accountType)" 
+                            size="small" 
+                            variant="tonal"
+                          >
+                            {{ getAccountTypeLabel(auth.user.value.accountType) }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
 
-                        <v-list-item v-if="auth.user.value.accountId">
-                          <v-list-item-title>ID аккаунта</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.accountId }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item v-if="auth.user.value.creatorName">
-                          <v-list-item-title>Создатель аккаунта</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.user.value.creatorName }}</v-list-item-subtitle>
-                        </v-list-item>
+                      <v-list-item v-if="auth.user.value.accountId">
+                        <v-list-item-title>ID аккаунта</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.accountId }}</v-list-item-subtitle>
+                      </v-list-item>
+                    </v-list>
+                  </v-col>
 
-                        <v-list-item v-if="auth.user.value.accountBlockingDatetime">
-                          <v-list-item-title>Блокировка аккаунта</v-list-item-title>
-                          <v-list-item-subtitle class="text-error">
-                            <v-icon icon="mdi-alert" size="16" class="mr-1" />
-                            {{ formatDate(auth.user.value.accountBlockingDatetime) }}
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                      </v-list>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
+                  <!-- Правая колонка -->
+                  <v-col cols="12" md="6">
+                    <v-list density="compact">
+                      <v-list-item v-if="auth.user.value.creatorName">
+                        <v-list-item-title>Создатель аккаунта</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.user.value.creatorName }}</v-list-item-subtitle>
+                      </v-list-item>
 
-                <!-- Системная информация -->
-                <v-col cols="12" md="6">
-                  <v-card variant="outlined" class="mb-4">
-                    <v-card-title class="text-h6">
-                      <v-icon class="mr-2">mdi-cog</v-icon>
-                      Системные настройки
-                    </v-card-title>
-                    <v-card-text>
-                      <v-list density="compact">
-                        <v-list-item v-if="auth.user.value.language">
-                          <v-list-item-title>Язык интерфейса</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <v-chip size="small" variant="tonal" color="info">
-                              {{ getLanguageLabel(auth.user.value.language) }}
-                            </v-chip>
-                          </v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item v-if="auth.user.value.timezone">
-                          <v-list-item-title>Часовой пояс</v-list-item-title>
-                          <v-list-item-subtitle>UTC{{ auth.user.value.timezone >= 0 ? '+' : '' }}{{ auth.user.value.timezone }}</v-list-item-subtitle>
-                        </v-list-item>
-                        
-                        <v-list-item v-if="auth.user.value.lastLogin">
-                          <v-list-item-title>Последний вход</v-list-item-title>
-                          <v-list-item-subtitle>{{ formatDate(auth.user.value.lastLogin) }}</v-list-item-subtitle>
-                        </v-list-item>
+                      <v-list-item v-if="auth.user.value.accountBlockingDatetime">
+                        <v-list-item-title>Блокировка аккаунта</v-list-item-title>
+                        <v-list-item-subtitle class="text-error">
+                          <v-icon icon="mdi-alert" size="16" class="mr-1" />
+                          {{ formatDate(auth.user.value.accountBlockingDatetime) }}
+                        </v-list-item-subtitle>
+                      </v-list-item>
 
-                        <v-list-item v-if="auth.company.value">
-                          <v-list-item-title>ID компании в системе</v-list-item-title>
-                          <v-list-item-subtitle>{{ auth.company.value.id }}</v-list-item-subtitle>
-                        </v-list-item>
-                      </v-list>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
+                      <v-list-item v-if="auth.user.value.language">
+                        <v-list-item-title>Язык интерфейса</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <v-chip size="small" variant="tonal" color="info">
+                            {{ getLanguageLabel(auth.user.value.language) }}
+                          </v-chip>
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item v-if="auth.user.value.timezone">
+                        <v-list-item-title>Часовой пояс</v-list-item-title>
+                        <v-list-item-subtitle>UTC{{ auth.user.value.timezone >= 0 ? '+' : '' }}{{ auth.user.value.timezone }}</v-list-item-subtitle>
+                      </v-list-item>
+                      
+                      <v-list-item v-if="auth.user.value.lastLogin">
+                        <v-list-item-title>Последний вход</v-list-item-title>
+                        <v-list-item-subtitle>{{ formatDate(auth.user.value.lastLogin) }}</v-list-item-subtitle>
+                      </v-list-item>
 
-                <!-- JWT Токен -->
-                <v-col cols="12">
-                  <TokenDisplay
-                    :token="auth.token.value"
-                    token-type="Token"
-                    :on-refresh="auth.refreshToken"
-                    @clear="handleClearTokens"
-                  />
-                </v-col>
-              </v-row>
+                      <v-list-item v-if="auth.company.value">
+                        <v-list-item-title>ID компании в системе</v-list-item-title>
+                        <v-list-item-subtitle>{{ auth.company.value.id }}</v-list-item-subtitle>
+                      </v-list-item>
+                    </v-list>
+                  </v-col>
+                </v-row>
+              </div>
 
               <div v-else class="text-center py-8">
                 <v-icon size="64" color="grey">mdi-account-off</v-icon>
@@ -206,21 +169,13 @@
 import { defineComponent, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/context/auth'
-import TokenDisplay from '@/components/Auth/TokenDisplay.vue'
 
 export default defineComponent({
   name: 'Profile',
-  components: {
-    TokenDisplay
-  },
   setup() {
     const router = useRouter()
     const auth = useAuth()
 
-    const handleClearTokens = () => {
-      auth.logout()
-      router.push('/login')
-    }
 
     const getRoleColor = (role) => {
       const colors = {
@@ -313,7 +268,6 @@ export default defineComponent({
 
     return {
       auth,
-      handleClearTokens,
       getRoleColor,
       getRoleLabel,
       getAccountTypeColor,

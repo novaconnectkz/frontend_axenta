@@ -210,18 +210,6 @@
                 </v-col>
               </v-row>
 
-              <!-- JWT Токен -->
-              <v-row class="mt-4">
-                <v-col cols="12">
-                  <TokenDisplay
-                    :token="localAuth.accessToken.value"
-                    :refresh-token="localAuth.refreshToken.value"
-                    token-type="Bearer"
-                    :on-refresh="localAuth.refreshAccessToken"
-                    @clear="handleClearTokens"
-                  />
-                </v-col>
-              </v-row>
 
               <!-- Действия -->
               <v-row class="mt-4">

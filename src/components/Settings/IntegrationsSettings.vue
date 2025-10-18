@@ -47,7 +47,10 @@
         >
           <v-card
             class="integration-card"
-            :class="{ 'integration-card--active': integration.enabled }"
+            :class="{ 
+              'integration-card--active': integration.enabled,
+              'integration-card--demo': isDemoIntegration(integration.id)
+            }"
             elevation="2"
           >
             <!-- Заголовок карточки -->
@@ -71,18 +74,31 @@
               </div>
 
               <!-- Статус -->
-              <v-chip
-                :color="getStatusColor(integration.status)"
-                :variant="integration.enabled ? 'elevated' : 'outlined'"
-                size="small"
-              >
-                <v-icon
-                  start
-                  :icon="getStatusIcon(integration.status)"
-                  size="14"
-                />
-                {{ getStatusLabel(integration.status) }}
-              </v-chip>
+              <div class="d-flex align-center gap-2">
+                <!-- Индикатор "в разработке" для демо интеграций -->
+                <v-chip
+                  v-if="isDemoIntegration(integration.id)"
+                  color="orange"
+                  variant="elevated"
+                  size="small"
+                >
+                  <v-icon start size="14">mdi-hammer-wrench</v-icon>
+                  В разработке
+                </v-chip>
+                
+                <v-chip
+                  :color="getStatusColor(integration.status)"
+                  :variant="integration.enabled ? 'elevated' : 'outlined'"
+                  size="small"
+                >
+                  <v-icon
+                    start
+                    :icon="getStatusIcon(integration.status)"
+                    size="14"
+                  />
+                  {{ getStatusLabel(integration.status) }}
+                </v-chip>
+              </div>
             </v-card-title>
 
             <!-- Описание -->
@@ -108,6 +124,7 @@
               <v-switch
                 v-model="integration.enabled"
                 :label="integration.enabled ? 'Включено' : 'Отключено'"
+                :disabled="isDemoIntegration(integration.id)"
                 color="primary"
                 hide-details
                 @change="toggleIntegration(integration)"
@@ -118,6 +135,7 @@
               <v-btn
                 variant="text"
                 size="small"
+                :disabled="isDemoIntegration(integration.id)"
                 @click="testConnection(integration)"
                 :loading="testingConnections[integration.id]"
               >
@@ -128,6 +146,7 @@
               <v-btn
                 variant="text"
                 size="small"
+                :disabled="isDemoIntegration(integration.id)"
                 @click="editIntegration(integration)"
               >
                 <v-icon start>mdi-cog</v-icon>
@@ -196,6 +215,37 @@
               variant="outlined"
               class="mb-3"
             />
+            
+            <!-- Поле для отображения токена -->
+            <v-text-field
+              v-model="currentToken"
+              label="Токен авторизации"
+              :type="showToken ? 'text' : 'password'"
+              variant="outlined"
+              readonly
+              class="mb-2"
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="copyToken"
+                  :disabled="!currentToken"
+                >
+                  <v-icon>mdi-content-copy</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
             
             <v-text-field
               v-model.number="editDialog.form.settings.sync_interval"
@@ -409,7 +459,8 @@
 <script setup lang="ts">
 import { settingsService } from '@/services/settingsService';
 import type {
-    IntegrationWithSettings
+    IntegrationWithSettings,
+    AxentaIntegrationSettings
 } from '@/types/settings';
 import { computed, onMounted, ref } from 'vue';
 
@@ -435,6 +486,10 @@ const snackbar = ref({
   color: 'info',
   timeout: 5000
 });
+
+// Переменные для управления токеном
+const showToken = ref(false);
+const currentToken = ref('');
 
 // Вычисляемые свойства
 const stats = computed(() => {
@@ -528,11 +583,165 @@ const getStatusLabel = (status: string) => {
   return labels[status] || status;
 };
 
+// Проверка, является ли интеграция демо (в разработке)
+const isDemoIntegration = (integrationId: string) => {
+  return integrationId.includes('-demo');
+};
+
 const loadIntegrations = async () => {
   loading.value = true;
   try {
-    const response = await settingsService.getIntegrations();
-    integrations.value = response.integrations;
+    // Создаем список интеграций с демо данными
+    const allIntegrations: IntegrationWithSettings[] = [];
+    
+    // Пытаемся загрузить Axenta интеграцию
+    let axentaIntegration = null;
+    try {
+      axentaIntegration = await settingsService.getAxentaIntegrationConfig();
+    } catch (error) {
+      console.log('Axenta интеграция не настроена или нет авторизации');
+    }
+    
+    // Axenta Cloud API (реальная интеграция)
+    if (axentaIntegration) {
+      allIntegrations.push(axentaIntegration);
+    } else {
+      // Если интеграция не настроена, добавляем заглушку для настройки
+      allIntegrations.push({
+        id: 'axenta-new',
+        type: 'axenta',
+        name: 'Axenta Cloud API',
+        description: 'Основная интеграция с облачным сервисом Axenta для синхронизации объектов мониторинга',
+        status: 'inactive',
+        enabled: false,
+        lastSync: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        settings: {
+          api_url: 'https://api.axenta.cloud',
+          username: '',
+          password: '',
+          sync_interval: 15,
+          auto_sync_enabled: false,
+          retry_attempts: 3,
+          timeout: 30,
+        },
+      });
+    }
+    
+    // Демо интеграции (в разработке)
+    allIntegrations.push({
+      id: 'bitrix24-demo',
+      type: 'bitrix24',
+      name: 'Битрикс24 CRM',
+      description: 'Интеграция с системой Битрикс24 для синхронизации контактов и сделок',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2024-01-01T10:00:00'),
+      updated_at: new Date('2024-01-15T14:30:00'),
+      settings: {
+        domain: 'company.bitrix24.ru',
+        client_id: '*********************',
+        client_secret: '*********************',
+        webhook_url: 'https://webhook.example.com/bitrix24',
+        sync_contacts: true,
+        sync_deals: true,
+        sync_companies: false,
+      },
+    });
+    
+    allIntegrations.push({
+      id: '1c-demo',
+      type: '1c',
+      name: '1С:Предприятие',
+      description: 'Интеграция с системой 1С для обмена данными о платежах и контрагентах',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2024-01-01T10:00:00'),
+      updated_at: new Date('2024-01-15T14:30:00'),
+      settings: {
+        server_url: 'http://1c-server:8080/accounting/hs/api',
+        database_name: 'company_db',
+        username: '1c_user',
+        password: '*********************',
+        organization_code: 'ORG001',
+        bank_account_code: 'BANK001',
+        payment_type_code: 'PAY001',
+        contract_type_code: 'CONTRACT001',
+        currency_code: 'RUB',
+        auto_export_enabled: false,
+        auto_import_enabled: false,
+        sync_interval: 60,
+      },
+    });
+    
+    allIntegrations.push({
+      id: 'telegram-demo',
+      type: 'telegram',
+      name: 'Telegram Bot',
+      description: 'Интеграция с Telegram для отправки уведомлений пользователям',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2024-01-01T10:00:00'),
+      updated_at: new Date('2024-01-15T14:30:00'),
+      settings: {
+        bot_token: '*********************',
+        webhook_url: 'https://webhook.example.com/telegram',
+        chat_id: '@company_channel',
+        quiet_hours_enabled: true,
+        quiet_hours_start: '22:00',
+        quiet_hours_end: '08:00',
+        message_format: 'markdown',
+      },
+    });
+    
+    allIntegrations.push({
+      id: 'email-demo',
+      type: 'email',
+      name: 'Email SMTP',
+      description: 'Интеграция с SMTP сервером для отправки email уведомлений',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2024-01-01T10:00:00'),
+      updated_at: new Date('2024-01-15T14:30:00'),
+      settings: {
+        smtp_host: 'smtp.example.com',
+        smtp_port: 587,
+        smtp_username: 'noreply@company.com',
+        smtp_password: '*********************',
+        smtp_from_email: 'noreply@company.com',
+        smtp_from_name: 'Axenta CRM',
+        smtp_use_tls: true,
+        template_language: 'ru',
+      },
+    });
+    
+    allIntegrations.push({
+      id: 'sms-demo',
+      type: 'sms',
+      name: 'SMS Gateway',
+      description: 'Интеграция с SMS провайдером для отправки SMS уведомлений',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2024-01-01T10:00:00'),
+      updated_at: new Date('2024-01-15T14:30:00'),
+      settings: {
+        provider: 'smsc',
+        api_key: '*********************',
+        api_secret: '*********************',
+        from_number: '+79001234567',
+        test_mode: true,
+        max_retry_attempts: 3,
+        retry_delay_minutes: 5,
+      },
+    });
+    
+    integrations.value = allIntegrations;
   } catch (error) {
     console.error('Ошибка загрузки интеграций:', error);
     showSnackbar('Ошибка загрузки интеграций', 'error');
@@ -542,6 +751,13 @@ const loadIntegrations = async () => {
 };
 
 const toggleIntegration = async (integration: IntegrationWithSettings) => {
+  // Игнорируем демо интеграции
+  if (isDemoIntegration(integration.id)) {
+    showSnackbar('Эта интеграция находится в разработке', 'warning');
+    integration.enabled = false; // Принудительно отключаем
+    return;
+  }
+  
   try {
     await settingsService.updateIntegration(integration.id, {
       enabled: integration.enabled
@@ -560,14 +776,27 @@ const toggleIntegration = async (integration: IntegrationWithSettings) => {
 };
 
 const testConnection = async (integration: IntegrationWithSettings) => {
+  // Игнорируем демо интеграции
+  if (isDemoIntegration(integration.id)) {
+    showSnackbar('Эта интеграция находится в разработке', 'warning');
+    return;
+  }
+  
   testingConnections.value[integration.id] = true;
   
   try {
-    const result = await settingsService.testIntegrationConnection(integration.id);
+    let result;
+    
+    if (integration.type === 'axenta') {
+      result = await settingsService.testAxentaConnection(integration.settings as AxentaIntegrationSettings);
+    } else {
+      // Для других интеграций используем общий метод
+      result = await settingsService.testIntegrationConnection(integration.id);
+    }
     
     if (result.success) {
       showSnackbar(
-        `Подключение успешно (${result.response_time}мс)`,
+        `Подключение успешно`,
         'success'
       );
     } else {
@@ -582,6 +811,23 @@ const testConnection = async (integration: IntegrationWithSettings) => {
 };
 
 const editIntegration = (integration: IntegrationWithSettings) => {
+  // Игнорируем демо интеграции
+  if (isDemoIntegration(integration.id)) {
+    showSnackbar('Эта интеграция находится в разработке', 'warning');
+    return;
+  }
+  
+  // Сбрасываем состояние показа токена
+  showToken.value = false;
+  
+  // Загружаем токен для Axenta интеграции
+  if (integration.type === 'axenta') {
+    const token = localStorage.getItem('axenta_token');
+    currentToken.value = token || '';
+  } else {
+    currentToken.value = '';
+  }
+  
   editDialog.value.integration = integration;
   editDialog.value.form = {
     name: integration.name,
@@ -597,24 +843,65 @@ const saveIntegration = async () => {
   editDialog.value.saving = true;
   
   try {
-    const updated = await settingsService.updateIntegration(
-      editDialog.value.integration.id,
-      editDialog.value.form
-    );
+    let result;
     
-    // Обновляем в списке
-    const index = integrations.value.findIndex(i => i.id === updated.id);
-    if (index !== -1) {
-      integrations.value[index] = updated;
+    if (editDialog.value.integration.type === 'axenta') {
+      // Для Axenta интеграции используем специальные методы
+      if (editDialog.value.integration.id === 'axenta-new') {
+        // Создаем новую интеграцию
+        result = await settingsService.setupAxentaIntegration(editDialog.value.form.settings);
+      } else {
+        // Обновляем существующую интеграцию
+        result = await settingsService.updateAxentaIntegration(editDialog.value.form.settings);
+      }
+    } else {
+      // Для других интеграций используем общий метод
+      const updated = await settingsService.updateIntegration(
+        editDialog.value.integration.id,
+        editDialog.value.form
+      );
+      
+      // Обновляем в списке
+      const index = integrations.value.findIndex(i => i.id === updated.id);
+      if (index !== -1) {
+        integrations.value[index] = updated;
+      }
+      
+      editDialog.value.show = false;
+      showSnackbar('Интеграция успешно обновлена', 'success');
+      return;
     }
     
-    editDialog.value.show = false;
-    showSnackbar('Интеграция успешно обновлена', 'success');
+    if (result.success) {
+      editDialog.value.show = false;
+      showSnackbar(result.message, 'success');
+      // Перезагружаем список интеграций
+      await loadIntegrations();
+    } else {
+      showSnackbar(result.message, 'error');
+    }
   } catch (error) {
     console.error('Ошибка сохранения интеграции:', error);
     showSnackbar('Ошибка сохранения интеграции', 'error');
   } finally {
     editDialog.value.saving = false;
+  }
+};
+
+// Метод для копирования токена
+const copyToken = async () => {
+  try {
+    if (!currentToken.value) {
+      showSnackbar('Токен не найден. Сначала войдите в систему.', 'warning');
+      return;
+    }
+    
+    // Копируем токен в буфер обмена
+    await navigator.clipboard.writeText(currentToken.value);
+    showSnackbar('Токен скопирован в буфер обмена', 'success');
+  } catch (error) {
+    console.error('Ошибка копирования токена:', error);
+    showSnackbar('Ошибка копирования токена', 'error');
   }
 };
 
@@ -644,6 +931,17 @@ onMounted(() => {
   border: 2px solid rgba(var(--v-theme-primary), 0.3);
 }
 
+/* Стили для демо интеграций */
+.integration-card--demo {
+  opacity: 0.7;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05) 0%, rgba(255, 193, 7, 0.02) 100%);
+}
+
+.integration-card--demo:hover {
+  transform: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
 .integration-card .v-card-title {
   padding-bottom: 8px;
 }
@@ -659,6 +957,22 @@ onMounted(() => {
 
 [data-theme="dark"] .integration-card--active {
   border-color: rgba(var(--v-theme-primary), 0.5);
+}
+
+/* Убираем выделение с кнопок глазика */
+.v-text-field .v-btn--icon {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.v-text-field .v-btn--icon:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.v-text-field .v-btn--icon:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Responsive */

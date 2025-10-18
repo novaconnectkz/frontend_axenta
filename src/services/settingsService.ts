@@ -24,6 +24,28 @@ import {
   TEMPLATE_TYPES,
 } from "@/types/settings";
 
+// API базовый URL
+const API_BASE_URL = config.API_BASE_URL || 'http://localhost:8080';
+
+// Получение токена авторизации
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('axenta_token');
+};
+
+// Создание заголовков для API запросов
+const createHeaders = (): HeadersInit => {
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Token ${token}`;
+  }
+  
+  return headers;
+};
+
 // Демо данные для интеграций
 const demoIntegrations: IntegrationWithSettings[] = [
   {
@@ -1013,6 +1035,246 @@ class SettingsService {
           error instanceof Error ? error.message : "Неизвестная ошибка"
         }`,
         imported_count: 0,
+      };
+    }
+  }
+
+  // ===== Axenta Cloud Integration API =====
+
+  // Получение конфигурации Axenta интеграции
+  async getAxentaIntegrationConfig(): Promise<IntegrationWithSettings | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/config`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // Интеграция не настроена
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Преобразуем ответ в формат IntegrationWithSettings
+      return {
+        id: data.integration.id.toString(),
+        type: INTEGRATION_TYPES.AXENTA,
+        name: data.integration.name,
+        description: data.integration.description,
+        status: data.integration.is_active ? INTEGRATION_STATUSES.ACTIVE : INTEGRATION_STATUSES.INACTIVE,
+        enabled: data.integration.is_active,
+        lastSync: data.integration.last_sync_at ? new Date(data.integration.last_sync_at) : null,
+        created_at: new Date(data.integration.created_at),
+        updated_at: new Date(data.integration.updated_at),
+        settings: {
+          api_url: data.config.api_url,
+          username: data.config.username,
+          password: data.config.password, // Уже замаскирован на бэкенде
+          sync_interval: data.config.sync_interval,
+          auto_sync_enabled: data.config.auto_sync_enabled,
+          retry_attempts: data.config.retry_attempts,
+          timeout: data.config.timeout,
+        },
+      };
+    } catch (error) {
+      console.error('Ошибка получения конфигурации Axenta:', error);
+      throw error;
+    }
+  }
+
+  // Настройка Axenta интеграции
+  async setupAxentaIntegration(settings: any): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/setup`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          api_url: settings.api_url,
+          username: settings.username,
+          password: settings.password,
+          sync_interval: settings.sync_interval || 15,
+          auto_sync_enabled: settings.auto_sync_enabled || false,
+          retry_attempts: settings.retry_attempts || 3,
+          timeout: settings.timeout || 30,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка настройки интеграции');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Интеграция успешно настроена',
+      };
+    } catch (error) {
+      console.error('Ошибка настройки Axenta интеграции:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  // Обновление настроек Axenta интеграции
+  async updateAxentaIntegration(settings: any): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/setup`, {
+        method: 'PUT',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          api_url: settings.api_url,
+          username: settings.username,
+          password: settings.password,
+          sync_interval: settings.sync_interval || 15,
+          auto_sync_enabled: settings.auto_sync_enabled || false,
+          retry_attempts: settings.retry_attempts || 3,
+          timeout: settings.timeout || 30,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка обновления интеграции');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Настройки интеграции обновлены',
+      };
+    } catch (error) {
+      console.error('Ошибка обновления Axenta интеграции:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  // Тестирование подключения к Axenta Cloud
+  async testAxentaConnection(settings: AxentaIntegrationSettings): Promise<{ success: boolean; message: string; connected: boolean }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/test-connection`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify(settings), // Передаем настройки в теле запроса
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: data.details || data.error || 'Ошибка тестирования подключения',
+          connected: false,
+        };
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Подключение успешно',
+        connected: data.connected || true,
+      };
+    } catch (error) {
+      console.error('Ошибка тестирования подключения Axenta:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+        connected: false,
+      };
+    }
+  }
+
+  // Синхронизация объектов с Axenta Cloud
+  async syncAxentaObjects(): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/sync/objects`, {
+        method: 'POST',
+        headers: createHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Ошибка синхронизации');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Синхронизация завершена успешно',
+      };
+    } catch (error) {
+      console.error('Ошибка синхронизации объектов Axenta:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  // Получение статуса Axenta интеграции
+  async getAxentaIntegrationStatus(): Promise<IntegrationStatusResponse | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/status`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return null; // Интеграция не настроена
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        is_active: data.status.is_active,
+        last_sync_at: data.status.last_sync_at ? new Date(data.status.last_sync_at) : null,
+        last_error_at: data.status.last_error_at ? new Date(data.status.last_error_at) : null,
+        error_message: data.status.error_message,
+        sync_count: data.status.sync_count,
+        error_count: data.status.error_count,
+        success_count: data.status.success_count,
+        success_rate: data.status.success_rate,
+        next_sync_at: data.status.next_sync_at ? new Date(data.status.next_sync_at) : null,
+      };
+    } catch (error) {
+      console.error('Ошибка получения статуса Axenta:', error);
+      throw error;
+    }
+  }
+
+  // Удаление Axenta интеграции
+  async deleteAxentaIntegration(): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/setup`, {
+        method: 'DELETE',
+        headers: createHeaders(),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ошибка удаления интеграции');
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Интеграция удалена',
+      };
+    } catch (error) {
+      console.error('Ошибка удаления Axenta интеграции:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
       };
     }
   }

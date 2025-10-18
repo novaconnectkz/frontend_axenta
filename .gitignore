@@ -91,3 +91,16 @@ public
 # Storybook build outputs
 .out
 .storybook-out
+
+# Test files
+test_*.html
+test-*.html
+
+# Deployment scripts (keep only essential ones)
+deploy*.sh
+!deploy_to_github.sh
+!switch_to_production.sh
+
+# Temporary files
+*.tmp
+*.temp

@@ -296,25 +296,6 @@
               <v-list-item prepend-icon="mdi-account" title="Профиль" @click="goToProfile" class="profile-menu-item" />
               <v-list-item prepend-icon="mdi-cog" title="Настройки" @click="goToSettings" class="profile-menu-item" />
               
-              <!-- Копирование токена -->
-              <v-list-item 
-                v-if="auth.token.value"
-                prepend-icon="mdi-content-copy" 
-                title="Копировать токен" 
-                @click="copyCurrentToken"
-                class="profile-menu-item"
-              >
-                <template #append>
-                  <v-icon 
-                    v-if="tokenCopied" 
-                    color="success" 
-                    size="small"
-                  >
-                    mdi-check
-                  </v-icon>
-                </template>
-              </v-list-item>
-              
               <v-divider class="my-2" />
               <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="handleLogout"
                 class="profile-menu-item logout-item" />
@@ -374,7 +355,6 @@ const notifications = ref([]);
 const currentTime = ref(new Date());
 const timeInterval = ref<NodeJS.Timeout | null>(null);
 const lastRefresh = ref(new Date());
-const tokenCopied = ref(false);
 const snackbar = ref({
   show: false,
   text: '',
@@ -540,45 +520,6 @@ const goToSettings = () => {
   router.push('/settings');
 };
 
-const copyCurrentToken = async () => {
-  const token = auth.token.value;
-  if (!token) return;
-  
-  try {
-    await navigator.clipboard.writeText(token);
-    tokenCopied.value = true;
-    showSnackbar('Токен скопирован в буфер обмена!', 'success');
-    
-    // Сбрасываем состояние через 2 секунды
-    setTimeout(() => {
-      tokenCopied.value = false;
-    }, 2000);
-    
-  } catch (error) {
-    console.error('Failed to copy token:', error);
-    
-    // Fallback для старых браузеров
-    try {
-      const textArea = document.createElement('textarea');
-      textArea.value = token;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      
-      tokenCopied.value = true;
-      showSnackbar('Токен скопирован!', 'success');
-      
-      setTimeout(() => {
-        tokenCopied.value = false;
-      }, 2000);
-      
-    } catch (fallbackError) {
-      console.error('Fallback copy failed:', fallbackError);
-      showSnackbar('Ошибка копирования токена', 'error');
-    }
-  }
-};
 
 const handleLogout = async () => {
   try {

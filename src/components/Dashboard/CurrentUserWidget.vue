@@ -141,16 +141,6 @@
           >
             Настройки
           </v-btn>
-          <v-btn
-            v-if="auth.token.value"
-            color="info"
-            variant="outlined"
-            size="small"
-            prepend-icon="mdi-content-copy"
-            @click="copyToken"
-          >
-            Копировать токен
-          </v-btn>
         </div>
       </div>
     </div>
@@ -285,17 +275,6 @@ const goToSettings = () => {
   router.push('/settings')
 }
 
-const copyToken = async () => {
-  const token = auth.token.value
-  if (!token) return
-  
-  try {
-    await navigator.clipboard.writeText(token)
-    // Можно добавить уведомление об успешном копировании
-  } catch (error) {
-    console.error('Failed to copy token:', error)
-  }
-}
 </script>
 
 <style scoped>
