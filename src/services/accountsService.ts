@@ -94,7 +94,7 @@ export interface AccountsFilters {
 class AccountsService {
   private static instance: AccountsService;
   private apiClient = axios.create({
-    baseURL: "http://localhost:8080", // Используем локальный API
+    baseURL: config.backendUrl, // Используем переменную из .env
     timeout: 30000,
   });
 
