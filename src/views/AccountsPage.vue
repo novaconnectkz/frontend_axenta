@@ -384,20 +384,7 @@
         <!-- Колонка "Действия" -->
         <template #item.actions="{ item }">
           <div class="actions-row">
-            <v-btn
-              icon="mdi-eye"
-              variant="text"
-              size="x-small"
-              @click="viewAccount(item)"
-              title="Просмотр"
-            />
-            <v-btn
-              icon="mdi-pencil"
-              variant="text"
-              size="x-small"
-              @click="editAccount(item)"
-              title="Редактировать"
-            />
+            <!-- Иконки "Просмотр" и "Редактировать" удалены -->
             <v-btn
               :icon="item.isActive ? 'mdi-pause' : 'mdi-play'"
               variant="text"
