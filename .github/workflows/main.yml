@@ -28,11 +28,15 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script_stop: true
-          script: |
-            set -e
-            cd "${{ secrets.REPO_PATH }}"
-            git fetch --all --prune
-            git pull origin "${{ secrets.BRANCH || 'main' }}"
-            /usr/bin/npm install
-            /usr/bin/npm run build
-            sudo systemctl reload nginx
+script: |
+  set -e
+  # Настройка Git для CI/CD
+  git config --global user.email "ci@axenta.com"
+  git config --global user.name "CI/CD Bot"
+  
+  cd "${{ secrets.REPO_PATH }}"
+  git fetch --all --prune
+  git pull origin "${{ secrets.BRANCH || 'main' }}"
+  /usr/bin/npm install
+  /usr/bin/npm run build
+  sudo systemctl reload nginx
