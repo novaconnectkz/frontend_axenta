@@ -38,5 +38,5 @@ jobs:
             /usr/bin/npm install
             /usr/bin/npm run build
             sudo systemctl reload nginx
-  /usr/bin/npm run build
-  sudo systemctl reload nginx
+            /usr/bin/npm run build
+            sudo systemctl reload nginx
