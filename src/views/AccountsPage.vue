@@ -592,7 +592,7 @@ const isBackgroundLoading = ref(false); // Для фонового обновл�
 const searchQuery = ref('');
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-const totalItems = ref(332); // Принудительно устанавливаем известное значение
+const totalItems = ref(0); // Динамическое значение из API
 const lastUpdateTime = ref<Date | null>(null);
 
 // Кэш для всех записей (для клиентской фильтрации)
@@ -1042,7 +1042,7 @@ const loadParentAccounts = async () => {
     // Получаем все записи для извлечения уникальных родителей
     const response = await accountsService.getAccounts({
       page: 1,
-      per_page: 332, // Загружаем все для получения полного списка родителей
+      per_page: 1000, // Загружаем большое количество для получения полного списка родителей
     });
     
     // Извлекаем уникальных родителей
@@ -1159,7 +1159,7 @@ const onPageChange = (page: number) => {
 const onItemsPerPageChange = (items: number) => {
   if (items === -1) {
     // Опция "Все" - загружаем все записи
-    itemsPerPage.value = totalItems.value || 332;
+    itemsPerPage.value = totalItems.value || 1000;
   } else {
     itemsPerPage.value = items;
   }
@@ -1177,7 +1177,7 @@ const onOptionsUpdate = (options: any) => {
   if (options.itemsPerPage !== itemsPerPage.value) {
     if (options.itemsPerPage === -1) {
       // Опция "Все"
-      itemsPerPage.value = totalItems.value || 332;
+      itemsPerPage.value = totalItems.value || 1000;
     } else {
       itemsPerPage.value = options.itemsPerPage;
     }
@@ -1204,9 +1204,9 @@ const onSortChange = (sortOptions: any) => {
     currentPage.value = 1;
     
     // Если выбрано "Все", загружаем все записи с новой сортировкой
-    if (itemsPerPage.value === totalItems.value || itemsPerPage.value >= 332) {
-      console.log('📊 Загружаем все 332 записи с новой сортировкой');
-      itemsPerPage.value = 332; // Принудительно загружаем все
+    if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
+      console.log('📊 Загружаем все записи с новой сортировкой');
+      itemsPerPage.value = totalItems.value || 1000; // Загружаем все доступные записи
     }
     
     loadAccounts();
