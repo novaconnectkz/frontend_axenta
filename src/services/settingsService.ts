@@ -1157,6 +1157,51 @@ class SettingsService {
     }
   }
 
+  // Проверка статуса Axenta интеграции
+  async checkAxentaIntegrationStatus(): Promise<{ 
+    isConfigured: boolean; 
+    isActive: boolean; 
+    needsPassword: boolean;
+    lastSync?: Date;
+    errorMessage?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/axenta/status`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            isConfigured: false,
+            isActive: false,
+            needsPassword: true
+          };
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        isConfigured: data.configured || false,
+        isActive: data.active || false,
+        needsPassword: !data.configured || !data.active,
+        lastSync: data.last_sync ? new Date(data.last_sync) : undefined,
+        errorMessage: data.error_message
+      };
+    } catch (error) {
+      console.error('Ошибка проверки статуса Axenta интеграции:', error);
+      return {
+        isConfigured: false,
+        isActive: false,
+        needsPassword: true,
+        errorMessage: error instanceof Error ? error.message : 'Неизвестная ошибка'
+      };
+    }
+  }
+
   // Тестирование подключения к Axenta Cloud
   async testAxentaConnection(settings: AxentaIntegrationSettings): Promise<{ success: boolean; message: string; connected: boolean }> {
     try {

@@ -337,6 +337,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 import { getVersionString } from '@/utils/buildInfo';
 import UserAvatar from '@/components/Common/UserAvatar.vue';
+import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -345,6 +346,7 @@ const router = useRouter();
 const { mobile } = useDisplay();
 const theme = useTheme();
 const auth = useAuth();
+const { checkIntegrationStatus } = useAxentaIntegrationNotifications();
 // const { getConnectionState } = useWebSocket(); // Отключаем до исправления auth context
 
 // Reactive data
@@ -732,6 +734,9 @@ onMounted(() => {
   timeInterval.value = setInterval(() => {
     currentTime.value = new Date();
   }, 1000);
+
+  // Проверяем статус Axenta интеграции
+  checkIntegrationStatus();
 
   // Отключаем автоматическое переключение системной темы
   // Теперь тема управляется только вручную через кнопку переключения
