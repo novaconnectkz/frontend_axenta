@@ -2229,20 +2229,351 @@ const handleWindowResize = () => {
 }
 
 /* Темная тема */
+.accounts-page {
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+[data-theme="dark"] .accounts-page {
+  background-color: #1a1a1a;
+}
+
 [data-theme="dark"] .page-icon {
-  color: var(--apple-blue-light);
+  color: #007AFF;
 }
 
 [data-theme="dark"] .page-title {
-  color: var(--apple-text-primary-dark);
+  color: #ffffff;
 }
 
 [data-theme="dark"] .page-subtitle {
-  color: var(--apple-text-secondary-dark);
+  color: #8e8e93;
 }
 
 [data-theme="dark"] .accounts-table :deep(.v-data-table__td) {
   border-bottom-color: rgba(84, 84, 136, 0.16);
+}
+
+[data-theme="dark"] .accounts-table-card {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+[data-theme="dark"] .accounts-table :deep(.v-data-table-header__content) {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .accounts-table :deep(.v-data-table__td) {
+  color: #ffffff;
+  border-bottom-color: #3a3a3c;
+}
+
+[data-theme="dark"] .accounts-table :deep(.v-data-table__tr:hover) {
+  background-color: rgba(0, 122, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .company-name-compact {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .id-minimal {
+  color: #8e8e93;
+  background-color: rgba(142, 142, 147, 0.12);
+}
+
+[data-theme="dark"] .id-minimal:hover {
+  color: #ffffff;
+  background-color: rgba(142, 142, 147, 0.2);
+}
+
+[data-theme="dark"] .type-minimal {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .status-minimal {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .status-minimal.status-inactive {
+  color: #ff453a;
+}
+
+[data-theme="dark"] .blocking-minimal {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .creation-minimal {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .objects-compact {
+  background: linear-gradient(135deg, #3a3a3c, #2c2c2e);
+  border-color: #3a3a3c;
+}
+
+[data-theme="dark"] .objects-compact:hover {
+  background: linear-gradient(135deg, #007AFF, #0056CC);
+  border-color: #007AFF;
+}
+
+[data-theme="dark"] .objects-active {
+  color: #32d74b;
+}
+
+[data-theme="dark"] .objects-total {
+  color: #007AFF;
+}
+
+[data-theme="dark"] .deleted-count {
+  color: #ff453a;
+}
+
+[data-theme="dark"] .compact-pagination {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+[data-theme="dark"] .range-info {
+  color: #8e8e93;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .page-info {
+  color: #ffffff;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls {
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .nav-controls .v-btn:hover {
+  background-color: #3a3a3c;
+  border-color: #007AFF;
+}
+
+[data-theme="dark"] .search-field :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .search-field :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .search-field :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .filters-row :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .filters-row :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .filters-row :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .filters-row :deep(.v-field--focused) {
+  border-color: #007AFF !important;
+}
+
+[data-theme="dark"] .items-select :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .items-select :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .items-select :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .popup-header {
+  background: linear-gradient(135deg, #2c2c2e 0%, #1a1a1a 100%);
+  border-bottom-color: #3a3a3c;
+}
+
+[data-theme="dark"] .popup-title {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .popup-content {
+  background-color: #1a1a1a;
+}
+
+[data-theme="dark"] .field-label {
+  color: #8e8e93;
+}
+
+[data-theme="dark"] .field-value {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .hierarchy-value {
+  color: #8e8e93;
+}
+
+[data-theme="dark"] .draggable-popup {
+  background-color: #1a1a1a;
+  border: 1px solid #3a3a3c;
+}
+
+/* Темная тема для карточек статистики */
+[data-theme="dark"] .stat-card {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+/* Темная тема для карточки фильтров */
+[data-theme="dark"] .filters-card {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+/* Темная тема для кнопок */
+[data-theme="dark"] .create-button {
+  background-color: #007AFF !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .create-button:hover {
+  background-color: #0056CC !important;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4) !important;
+}
+
+[data-theme="dark"] .filter-clear :deep(.v-btn) {
+  background-color: #ff9500 !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .filter-clear :deep(.v-btn:hover) {
+  background-color: #cc7700 !important;
+}
+
+/* Темная тема для чипов поиска */
+[data-theme="dark"] .search-chips-container .v-chip {
+  background-color: #007AFF !important;
+  color: #ffffff !important;
+}
+
+/* Темная тема для меню действий */
+[data-theme="dark"] .actions-row .v-btn {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .actions-row .v-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Темная тема для списка меню */
+[data-theme="dark"] .actions-row .v-list {
+  background-color: #2c2c2e !important;
+  border: 1px solid #3a3a3c !important;
+}
+
+[data-theme="dark"] .actions-row .v-list-item {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .actions-row .v-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .actions-row .v-list-item.text-error {
+  color: #ff453a !important;
+}
+
+/* Темная тема для диалогов */
+[data-theme="dark"] .v-dialog .v-card {
+  background-color: #2c2c2e !important;
+  border: 1px solid #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-dialog .v-card-title {
+  color: #ffffff !important;
+  border-bottom-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-dialog .v-card-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-dialog .v-text-field :deep(.v-field) {
+  background-color: #1a1a1a !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-dialog .v-text-field :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-dialog .v-text-field :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-dialog .v-textarea :deep(.v-field) {
+  background-color: #1a1a1a !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-dialog .v-textarea :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-dialog .v-textarea :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+/* Темная тема для snackbar */
+[data-theme="dark"] .v-snackbar {
+  background-color: #2c2c2e !important;
+  color: #ffffff !important;
+  border: 1px solid #3a3a3c !important;
+}
+
+/* Темная тема для tooltip */
+[data-theme="dark"] .v-tooltip :deep(.v-overlay__content) {
+  background-color: #2c2c2e !important;
+  color: #ffffff !important;
+  border: 1px solid #3a3a3c !important;
+}
+
+/* Темная тема для select dropdown */
+[data-theme="dark"] .v-select :deep(.v-list) {
+  background-color: #2c2c2e !important;
+  border: 1px solid #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-list-item) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-list-item:hover) {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Темная тема для badge */
+[data-theme="dark"] .v-badge :deep(.v-badge__badge) {
+  background-color: #ff453a !important;
+  color: #ffffff !important;
 }
 
 /* Плавные переходы для строк таблицы */
