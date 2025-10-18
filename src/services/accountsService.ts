@@ -87,8 +87,8 @@ export interface AccountsFilters {
   per_page?: number;
   ordering?: string;
   search?: string;
-  type?: "client" | "partner";
-  is_active?: boolean;
+  type?: "client" | "partner" | null;
+  is_active?: boolean | null;
 }
 
 class AccountsService {

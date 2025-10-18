@@ -619,8 +619,8 @@ const stats = ref({
 
 // Фильтры
 const filters = ref<AccountsFilters>({
-  type: undefined,
-  is_active: undefined,
+  type: null,
+  is_active: null,
 });
 
 // Фильтр по родительскому аккаунту - по умолчанию "Все родители"
@@ -696,11 +696,11 @@ const isSearchActive = computed(() => {
 });
 
 const isTypeFilterActive = computed(() => {
-  return filters.value.type !== undefined;
+  return filters.value.type !== null;
 });
 
 const isStatusFilterActive = computed(() => {
-  return filters.value.is_active !== undefined;
+  return filters.value.is_active !== null;
 });
 
 const isParentFilterActive = computed(() => {
@@ -796,7 +796,7 @@ const loadAccounts = async (isBackground = false) => {
                                      (selectedParent.value && selectedParent.value.trim() !== '') ||
                                      (searchQuery.value && searchQuery.value.trim() !== '');
     
-    const hasClientOnlyFilters = filters.value.is_active !== undefined;
+    const hasClientOnlyFilters = filters.value.is_active !== null;
     
     const hasActiveFilters = hasServerSupportedFilters || hasClientOnlyFilters;
     
@@ -816,6 +816,7 @@ const loadAccounts = async (isBackground = false) => {
         // Данные уже загружены с фильтрами в response, просто обновляем accounts
         accounts.value = response.results;
         totalItems.value = response.count;
+        lastUpdateTime.value = new Date();
         return;
       }
       
@@ -929,6 +930,7 @@ const loadAccounts = async (isBackground = false) => {
     
     // Обновляем данные если нет активных фильтров (случай без фильтров)
     if (!hasActiveFilters) {
+      console.log('🔧 Нет активных фильтров - обновляем данные напрямую');
       if (isBackground && accounts.value.length > 0) {
         // Сравниваем данные и обновляем только если есть изменения
         const hasChanges = !areAccountsEqual(accounts.value, response.results);
@@ -938,6 +940,7 @@ const loadAccounts = async (isBackground = false) => {
         }
       } else {
         // Первоначальная загрузка или принудительное обновление
+        console.log('🔧 Первоначальная загрузка - устанавливаем данные:', response.results.length);
         accounts.value = response.results;
       }
     }
@@ -1106,8 +1109,8 @@ const debouncedSearch = debounce(() => {
 const resetFilters = () => {
   searchQuery.value = '';
   filters.value = {
-    type: undefined,
-    is_active: undefined,
+    type: null,
+    is_active: null,
   };
   selectedParent.value = ''; // Сброс на "Все родители"
   currentPage.value = 1;
@@ -1215,6 +1218,8 @@ const startAutoRefresh = () => {
   if (autoRefreshInterval.value) {
     clearInterval(autoRefreshInterval.value);
   }
+  
+  console.log(`🔄 Автообновление настроено на ${AUTO_REFRESH_DELAY / 1000} секунд`);
   
   autoRefreshInterval.value = setInterval(() => {
     // Используем фоновое обновление только если не идет основная загрузка
@@ -1673,11 +1678,12 @@ const closePopup = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
   loadStats();
   loadParentAccounts(); // Загружаем список родительских аккаунтов
   
-  // Запускаем автоматическое обновление каждую минуту
+  // Запускаем автоматическое обновление каждую минуту (начинается после первой загрузки)
   startAutoRefresh();
   
   // Добавляем обработчик изменения размера окна
