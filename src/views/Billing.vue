@@ -399,34 +399,24 @@
 
               <!-- Действия -->
               <template v-slot:item.actions="{ item }">
-                <v-menu>
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      icon="mdi-dots-vertical"
-                      size="small"
-                      variant="text"
-                      v-bind="props"
-                    ></v-btn>
-                  </template>
-                  <v-list>
-                    <v-list-item @click="viewInvoice(item)">
-                      <v-list-item-title>Просмотр</v-list-item-title>
-                    </v-list-item>
-                    <v-list-item 
-                      v-if="item.status !== 'paid' && item.status !== 'cancelled'"
-                      @click="processPaymentDialog(item)"
-                    >
-                      <v-list-item-title>Оплатить</v-list-item-title>
-                    </v-list-item>
-                    <v-list-item 
-                      v-if="item.status !== 'cancelled'"
-                      @click="cancelInvoice(item)"
-                      class="text-error"
-                    >
-                      <v-list-item-title>Отменить</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
+                <div class="actions-cell">
+                  <v-btn icon="mdi-eye" size="small" variant="text" @click="viewInvoice(item)" />
+                  <v-btn 
+                    v-if="item.status !== 'paid' && item.status !== 'cancelled'"
+                    icon="mdi-credit-card" 
+                    size="small" 
+                    variant="text" 
+                    @click="processPaymentDialog(item)" 
+                  />
+                  <v-btn 
+                    v-if="item.status !== 'cancelled'"
+                    icon="mdi-cancel" 
+                    size="small" 
+                    variant="text" 
+                    color="error"
+                    @click="cancelInvoice(item)" 
+                  />
+                </div>
               </template>
             </v-data-table>
           </v-card-text>

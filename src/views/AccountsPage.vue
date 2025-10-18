@@ -173,16 +173,81 @@
       >
         <!-- Колонка "ID" -->
         <template #item.id="{ item }">
-          <v-tooltip location="top">
+         <v-tooltip
+           location="top"
+           class="id-tooltip"
+           :close-on-content-click="false"
+           :close-on-back="false"
+           :close-on-click="false"
+           :close-on-hover="false"
+           persistent
+           no-click-animation
+           @update:model-value="onTooltipOpen"
+         >
             <template #activator="{ props }">
               <span class="id-minimal" v-bind="props">
                 {{ item.id }}
               </span>
             </template>
-            <div class="id-legend">
-              <div class="legend-title">🆔 Идентификатор</div>
-              <div class="legend-description">
-                ID: {{ item.id }}
+           <div
+             class="id-popup draggable-popup"
+             @mouseenter="keepOpen"
+             @mouseleave="keepOpen"
+           >
+              <div class="popup-header draggable-header">
+                <div class="popup-icon">
+                  <v-icon>mdi-domain</v-icon>
+                </div>
+                <div class="popup-title">{{ item.name }}</div>
+                <v-btn 
+                  icon="mdi-close" 
+                  size="small" 
+                  variant="text" 
+                  class="close-btn"
+                  @click="closePopup"
+                />
+              </div>
+              <div class="popup-content">
+                <div class="popup-field">
+                  <span class="field-label">ID</span>
+                  <span class="field-value">{{ item.id }}</span>
+                </div>
+                <div class="popup-field">
+                  <span class="field-label">Тип компании</span>
+                  <span class="field-value">{{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}</span>
+                </div>
+                <div class="popup-field">
+                  <span class="field-label">Статус</span>
+                  <span class="field-value" :class="{ 'text-success': item.isActive, 'text-error': !item.isActive }">
+                    {{ item.isActive ? 'Активен' : 'Заблокирован' }}
+                  </span>
+                </div>
+                <div v-if="item.adminFullname" class="popup-field">
+                  <span class="field-label">Администратор</span>
+                  <span class="field-value">{{ item.adminFullname }}</span>
+                </div>
+                <div v-if="item.comment" class="popup-field">
+                  <span class="field-label">Комментарий</span>
+                  <span class="field-value">{{ item.comment }}</span>
+                </div>
+                <div v-if="item.hierarchy" class="popup-field hierarchy-field">
+                  <span class="field-label">Иерархия</span>
+                  <span class="field-value hierarchy-value">{{ item.hierarchy }}</span>
+                </div>
+                <div v-if="item.blockingDatetime" class="popup-field">
+                  <span class="field-label">Дата блокировки</span>
+                  <span class="field-value">{{ formatDateShort(item.blockingDatetime) }}</span>
+                </div>
+                <div v-if="item.daysBeforeBlocking !== null" class="popup-field">
+                  <span class="field-label">Дней до блокировки</span>
+                  <span class="field-value" :class="{ 'text-error': item.daysBeforeBlocking <= 3, 'text-warning': item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7 }">
+                    {{ item.daysBeforeBlocking }}
+                  </span>
+                </div>
+                <div class="popup-field">
+                  <span class="field-label">Дата создания</span>
+                  <span class="field-value">{{ formatDateShort(item.creationDatetime) }}</span>
+                </div>
               </div>
             </div>
           </v-tooltip>
@@ -190,80 +255,19 @@
 
         <!-- Колонка "Компания" -->
         <template #item.name="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <div class="company-name-compact" v-bind="props">
-                {{ item.name }}
-              </div>
-            </template>
-            <div class="company-legend">
-              <div class="legend-title">🏢 Информация о компании</div>
-              <div class="legend-item">
-                <span class="legend-color company-status"></span>
-                <span class="legend-text">{{ item.name }}</span>
-              </div>
-              <div v-if="item.contactEmail" class="legend-item">
-                <span class="legend-color email-status"></span>
-                <span class="legend-text">Email: {{ item.contactEmail }}</span>
-              </div>
-              <div v-if="item.contactPhone" class="legend-item">
-                <span class="legend-color phone-status"></span>
-                <span class="legend-text">Телефон: {{ item.contactPhone }}</span>
-              </div>
-              <div v-if="item.maxUsers" class="legend-item">
-                <span class="legend-color users-status"></span>
-                <span class="legend-text">Макс. пользователей: {{ item.maxUsers }}</span>
-              </div>
-              <div v-if="item.adminFullname" class="legend-item">
-                <span :class="['legend-color', item.adminIsActive ? 'admin-status-active' : 'admin-status-inactive']"></span>
-                <span class="legend-text">
-                  Администратор: {{ item.adminFullname }} 
-                  <span :class="item.adminIsActive ? 'text-success' : 'text-error'">
-                    ({{ item.adminIsActive ? 'Активен' : 'Неактивен' }})
-                  </span>
-                </span>
-              </div>
-              <div v-if="item.hierarchy && item.hierarchy.trim()" class="legend-item">
-                <span class="legend-color hierarchy-status"></span>
-                <span class="legend-text">
-                  Иерархия: {{ formatHierarchy(item.hierarchy) }}
-                </span>
-              </div>
-              <div class="legend-description">
-                📊 ID: {{ item.id }} | Создан: {{ formatDateShort(item.creationDatetime) }}
-              </div>
-            </div>
-          </v-tooltip>
+          <div class="company-name-compact">
+            {{ item.name }}
+          </div>
         </template>
 
         <!-- Колонка "Тип" -->
         <template #item.type="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span 
-                class="type-minimal" 
-                :class="{ 'type-partner': item.type === 'partner', 'type-client': item.type === 'client' }"
-                v-bind="props"
-              >
-                {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}
-              </span>
-            </template>
-            <div class="type-legend">
-              <div class="legend-title">🏢 Тип аккаунта</div>
-              <div class="legend-item">
-                <span :class="['legend-color', item.type === 'partner' ? 'type-status-partner' : 'type-status-client']"></span>
-                <span class="legend-text">
-                  {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }} - {{ item.name }}
-                </span>
-              </div>
-              <div class="legend-description">
-                {{ item.type === 'partner' 
-                  ? '🤝 Партнерский аккаунт с расширенными правами и возможностями' 
-                  : '👤 Клиентский аккаунт с базовым набором функций' 
-                }}
-              </div>
-            </div>
-          </v-tooltip>
+          <span 
+            class="type-minimal" 
+            :class="{ 'type-partner': item.type === 'partner', 'type-client': item.type === 'client' }"
+          >
+            {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}
+          </span>
         </template>
 
 
@@ -271,7 +275,17 @@
 
         <!-- Колонка "Объекты" -->
         <template #item.objectsTotal="{ item }">
-          <v-tooltip location="top">
+         <v-tooltip
+           location="top"
+           class="objects-tooltip"
+           :close-on-content-click="false"
+           :close-on-back="false"
+           :close-on-click="false"
+           :close-on-hover="false"
+           persistent
+           no-click-animation
+           @update:model-value="onTooltipOpen"
+         >
             <template #activator="{ props }">
               <div class="objects-compact" v-bind="props">
                 <span v-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
@@ -288,22 +302,37 @@
                 </div>
               </div>
             </template>
-            <div class="objects-legend">
-              <div class="legend-title">📊 Статистика объектов</div>
-              <div class="legend-item">
-                <span class="legend-color active"></span>
-                <span class="legend-text">{{ item.objectsActive || 0 }} - Активные объекты</span>
+            <div 
+              class="objects-popup draggable-popup"
+              @mouseenter="keepOpen"
+              @mouseleave="keepOpen"
+            >
+              <div class="popup-header draggable-header">
+                <div class="popup-icon">
+                  <v-icon>mdi-radar</v-icon>
+                </div>
+                <div class="popup-title">Объекты мониторинга</div>
+                <v-btn 
+                  icon="mdi-close" 
+                  size="small" 
+                  variant="text" 
+                  class="close-btn"
+                  @click="closePopup"
+                />
               </div>
-              <div class="legend-item">
-                <span class="legend-color total"></span>
-                <span class="legend-text">{{ item.objectsTotal || 0 }} - Всего объектов</span>
-              </div>
-              <div v-if="item.objectsDeleted > 0" class="legend-item">
-                <span class="legend-color deleted"></span>
-                <span class="legend-text">{{ item.objectsDeleted }} - Удаленные объекты</span>
-              </div>
-              <div class="legend-formula">
-                Формула: <code>{{ item.objectsActive || 0 }}/{{ item.objectsTotal || 0 }}{{ item.objectsDeleted > 0 ? `/${item.objectsDeleted}` : '' }}</code>
+              <div class="popup-content">
+                <div class="popup-field">
+                  <span class="field-label">Активные объекты</span>
+                  <span class="field-value">{{ item.objectsActive || 0 }}</span>
+                </div>
+                <div class="popup-field">
+                  <span class="field-label">Всего объектов</span>
+                  <span class="field-value">{{ item.objectsTotal || 0 }}</span>
+                </div>
+                <div v-if="item.objectsDeleted > 0" class="popup-field">
+                  <span class="field-label">Удаленные</span>
+                  <span class="field-value">{{ item.objectsDeleted }}</span>
+                </div>
               </div>
             </div>
           </v-tooltip>
@@ -311,110 +340,37 @@
 
         <!-- Колонка "Статус" -->
         <template #item.isActive="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span 
-                class="status-minimal" 
-                :class="{ 'status-active': item.isActive, 'status-inactive': !item.isActive }"
-                v-bind="props"
-              >
-                {{ item.isActive ? 'Активен' : 'Заблокирован' }}
-              </span>
-            </template>
-            <div class="status-legend">
-              <div class="legend-title">⚡ Статус аккаунта</div>
-              <div class="legend-item">
-                <span :class="['legend-color', item.isActive ? 'account-status-active' : 'account-status-inactive']"></span>
-                <span class="legend-text">
-                  {{ item.isActive ? 'Активен' : 'Заблокирован' }} - {{ item.name }}
-                </span>
-              </div>
-              <div class="legend-description">
-                {{ item.isActive 
-                  ? '✅ Аккаунт функционирует нормально и доступен для использования' 
-                  : '❌ Аккаунт заблокирован и недоступен для использования' 
-                }}
-              </div>
-              <div v-if="!item.isActive && item.blockingDatetime" class="legend-extra">
-                🕒 Дата блокировки: {{ formatDate(item.blockingDatetime) }}
-              </div>
-            </div>
-          </v-tooltip>
+          <span 
+            class="status-minimal" 
+            :class="{ 'status-active': item.isActive, 'status-inactive': !item.isActive }"
+          >
+            {{ item.isActive ? 'Активен' : 'Заблокирован' }}
+          </span>
         </template>
 
         <!-- Колонка "Блокировка" -->
         <template #item.blockingInfo="{ item }">
-          <v-tooltip v-if="item.blockingDatetime" location="top">
-            <template #activator="{ props }">
-              <span 
-                class="blocking-minimal" 
-                :class="{ 
-                  'blocking-critical': item.daysBeforeBlocking !== null && item.daysBeforeBlocking <= 3,
-                  'blocking-warning': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7,
-                  'blocking-normal': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 7
-                }"
-                v-bind="props"
-              >
-                {{ formatDateShort(item.blockingDatetime) }}
-              </span>
-            </template>
-            <div class="blocking-legend">
-              <div class="legend-title">🕒 Информация о блокировке</div>
-              <div class="legend-item">
-                <span :class="['legend-color', getBlockingLegendClass(item.daysBeforeBlocking)]"></span>
-                <span class="legend-text">
-                  Блокировка: {{ formatDate(item.blockingDatetime) }}
-                </span>
-              </div>
-              <div v-if="item.daysBeforeBlocking !== null" class="legend-item">
-                <span class="legend-color days-indicator"></span>
-                <span class="legend-text">
-                  Осталось: {{ item.daysBeforeBlocking }} {{ getDaysWord(item.daysBeforeBlocking) }}
-                </span>
-              </div>
-              <div class="legend-description">
-                {{ getBlockingDescription(item.daysBeforeBlocking) }}
-              </div>
-            </div>
-          </v-tooltip>
-          <div v-else class="blocking-unlimited">
-            <v-tooltip location="top">
-              <template #activator="{ props }">
-                <span class="blocking-minimal blocking-none" v-bind="props">
-                  Без ограничений
-                </span>
-              </template>
-              <div class="blocking-legend">
-                <div class="legend-title">♾️ Без ограничений</div>
-                <div class="legend-description">
-                  ✅ Аккаунт не имеет даты блокировки и может использоваться неограниченно
-                </div>
-              </div>
-            </v-tooltip>
-          </div>
+          <span 
+            v-if="item.blockingDatetime"
+            class="blocking-minimal" 
+            :class="{ 
+              'blocking-critical': item.daysBeforeBlocking !== null && item.daysBeforeBlocking <= 3,
+              'blocking-warning': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7,
+              'blocking-normal': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 7
+            }"
+          >
+            {{ formatDateShort(item.blockingDatetime) }}
+          </span>
+          <span v-else class="blocking-minimal blocking-none">
+            Без ограничений
+          </span>
         </template>
 
         <!-- Колонка "Дата создания" -->
         <template #item.creationDatetime="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <span class="creation-minimal" v-bind="props">
-                {{ formatDateShort(item.creationDatetime) }}
-              </span>
-            </template>
-            <div class="creation-legend">
-              <div class="legend-title">📅 Дата создания</div>
-              <div class="legend-item">
-                <span class="legend-color creation-status"></span>
-                <span class="legend-text">
-                  Создан: {{ formatDate(item.creationDatetime) }}
-                </span>
-              </div>
-              <div class="legend-description">
-                ✅ Аккаунт был создан {{ getCreationAge(item.creationDatetime) }} назад
-              </div>
-            </div>
-          </v-tooltip>
+          <span class="creation-minimal">
+            {{ formatDateShort(item.creationDatetime) }}
+          </span>
         </template>
 
         <!-- Колонка "Действия" -->
@@ -1524,6 +1480,170 @@ const getYearsWord = (years: number) => {
 
 // Watcher больше не нужен, так как индивидуальная очистка фильтров отключена
 
+// Убраны функции перетаскивания
+
+const keepOpen = (event) => {
+  // Функция для предотвращения закрытия popup при наведении
+  // Останавливаем всплытие события, чтобы tooltip не закрывался
+  event.stopPropagation();
+  event.preventDefault();
+};
+
+const positionPopupInViewport = (popup) => {
+  if (!popup) return;
+  
+  const rect = popup.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const margin = 20;
+  
+  let newX = rect.left;
+  let newY = rect.top;
+  
+  // Горизонтальное позиционирование - центрируем относительно элемента
+  const elementCenterX = rect.left + (rect.width / 2);
+  newX = elementCenterX - (rect.width / 2);
+  
+  // Проверяем границы по горизонтали
+  if (newX < margin) {
+    newX = margin;
+  }
+  if (newX + rect.width > viewportWidth - margin) {
+    newX = viewportWidth - rect.width - margin;
+  }
+  
+  // Вертикальное позиционирование - ВСЕГДА СВЕРХУ
+  const popupHeight = rect.height;
+  const elementHeight = 50; // Высота строки таблицы
+  
+  console.log('Popup positioning (always up):', {
+    originalY: rect.top,
+    popupHeight,
+    elementHeight,
+    viewportHeight,
+    elementCenterX,
+    newX
+  });
+  
+  // ВСЕГДА показываем popup сверху элемента
+  newY = rect.top - popupHeight - 15; // 15px отступ от элемента
+  
+  console.log('Показываем popup сверху:', newY);
+  
+  // Если popup выходит за верхнюю границу - сдвигаем вниз, но все равно сверху
+  if (newY < margin) {
+    newY = margin;
+    console.log('Popup выходит за верхнюю границу, сдвигаем к верху экрана:', newY);
+  }
+  
+  // Проверяем, не выходит ли popup за нижнюю границу
+  if (newY + popupHeight > viewportHeight - margin) {
+    newY = viewportHeight - popupHeight - margin;
+    console.log('Popup выходит за нижнюю границу, сдвигаем вверх:', newY);
+  }
+  
+  // Применяем позицию
+  const deltaX = newX - rect.left;
+  const deltaY = newY - rect.top;
+  
+  console.log('Final positioning:', { newX, newY, deltaX, deltaY });
+  
+  popup.style.setProperty('--popup-x', `${deltaX}px`);
+  popup.style.setProperty('--popup-y', `${deltaY}px`);
+};
+
+const onTooltipOpen = (isOpen) => {
+  if (isOpen) {
+    // Небольшая задержка, чтобы popup успел отрендериться
+    setTimeout(() => {
+      const popups = document.querySelectorAll('.draggable-popup');
+      popups.forEach(popup => {
+        // Находим элемент, который вызвал popup
+        const triggerElement = popup.closest('.v-tooltip')?.querySelector('[data-tooltip]') || 
+                              popup.closest('.v-tooltip')?.querySelector('td');
+        
+        if (triggerElement) {
+          const triggerRect = triggerElement.getBoundingClientRect();
+          console.log('Trigger element found:', triggerRect);
+          
+          // Определяем позицию элемента в списке
+          const tableRows = document.querySelectorAll('tbody tr');
+          const currentRow = triggerElement.closest('tr');
+          const rowIndex = Array.from(tableRows).indexOf(currentRow);
+          const totalRows = tableRows.length;
+          const isLastTwoRows = rowIndex >= totalRows - 2;
+          
+          console.log('Row position:', { rowIndex, totalRows, isLastTwoRows });
+          
+          // Позиционируем popup относительно элемента-триггера
+          const popupRect = popup.getBoundingClientRect();
+          const popupHeight = popupRect.height;
+          const margin = 20;
+          
+          // Горизонтальное позиционирование - центрируем относительно элемента
+          const elementCenterX = triggerRect.left + (triggerRect.width / 2);
+          let newX = elementCenterX - (popupRect.width / 2);
+          
+          // Проверяем границы по горизонтали
+          if (newX < margin) {
+            newX = margin;
+          }
+          if (newX + popupRect.width > window.innerWidth - margin) {
+            newX = window.innerWidth - popupRect.width - margin;
+          }
+          
+          // Вертикальное позиционирование
+          let newY;
+          
+          if (isLastTwoRows) {
+            // Для последних 2 строк - ВСЕГДА СВЕРХУ с большим отступом (как у третьей позиции снизу)
+            newY = triggerRect.top - popupHeight - 30; // Увеличенный отступ для последних строк
+            console.log('Last two rows - positioning above with extra margin:', newY);
+          } else {
+            // Для остальных строк - стандартное позиционирование
+            newY = triggerRect.top - popupHeight - 15;
+            console.log('Regular positioning above:', newY);
+          }
+          
+          // Если popup выходит за верхнюю границу
+          if (newY < margin) {
+            newY = margin;
+            console.log('Popup выходит за верхнюю границу, сдвигаем к верху экрана:', newY);
+          }
+          
+          // Применяем позицию
+          const deltaX = newX - popupRect.left;
+          const deltaY = newY - popupRect.top;
+          
+          console.log('Custom positioning:', { 
+            triggerRect, 
+            popupRect, 
+            newX, 
+            newY, 
+            deltaX, 
+            deltaY,
+            isLastTwoRows
+          });
+          
+          popup.style.setProperty('--popup-x', `${deltaX}px`);
+          popup.style.setProperty('--popup-y', `${deltaY}px`);
+        } else {
+          // Fallback к стандартному позиционированию
+          positionPopupInViewport(popup);
+        }
+      });
+    }, 150); // Увеличиваем задержку для более надежного позиционирования
+  }
+};
+
+const closePopup = () => {
+  // Закрываем все активные popup
+  const popups = document.querySelectorAll('.draggable-popup');
+  popups.forEach(popup => {
+    popup.style.display = 'none';
+  });
+};
+
 // Lifecycle hooks
 onMounted(() => {
   loadAccounts();
@@ -1532,48 +1652,65 @@ onMounted(() => {
   
   // Запускаем автоматическое обновление каждую минуту
   startAutoRefresh();
+  
+  // Добавляем обработчик изменения размера окна
+  window.addEventListener('resize', handleWindowResize);
 });
 
 onUnmounted(() => {
   stopAutoRefresh();
+  // Удаляем обработчик при размонтировании компонента
+  window.removeEventListener('resize', handleWindowResize);
 });
+
+const handleWindowResize = () => {
+  const popups = document.querySelectorAll('.draggable-popup');
+  popups.forEach(popup => {
+    positionPopupInViewport(popup);
+  });
+};
 
 // Методы
 </script>
 
 <style scoped>
 .accounts-page {
-  padding: 24px;
+  padding: 0 24px 24px 24px; /* Убираем верхний отступ */
   background-color: #f5f5f5;
   min-height: 100vh;
 }
 
-/* Заголовок страницы в стиле /users */
+/* Заголовок в самом верху страницы */
 .page-header {
-  margin-bottom: 24px;
+  margin-bottom: 16px; /* Уменьшаем отступ снизу */
+  padding: 0; /* Убираем все отступы */
+  margin-top: 0; /* Убираем отступ сверху */
 }
 
 .page-title-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px; /* Уменьшаем промежуток */
 }
 
 .page-icon {
   color: var(--apple-blue);
+  font-size: 24px !important; /* Уменьшаем размер иконки */
 }
 
 .page-title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.5rem; /* Уменьшаем размер шрифта */
+  font-weight: 600; /* Уменьшаем жирность */
   margin: 0;
   color: var(--apple-text-primary);
+  line-height: 1.2; /* Уменьшаем межстрочный интервал */
 }
 
 .page-subtitle {
-  font-size: 1rem;
+  font-size: 0.85rem; /* Уменьшаем размер шрифта */
   color: var(--apple-text-secondary);
-  margin: 4px 0 0 0;
+  margin: 2px 0 0 0; /* Уменьшаем отступ сверху */
+  line-height: 1.2; /* Уменьшаем межстрочный интервал */
 }
 
 
@@ -1906,24 +2043,34 @@ onUnmounted(() => {
 .custom-pagination-bottom {
   border-top: 1px solid #e0e0e0;
   background-color: #fafafa;
+  /* Расширяем блок пагинации */
+  min-height: 60px;
+  padding: 20px 0;
 }
 
-/* Максимально компактная пагинация */
+/* Расширенная пагинация */
 .compact-pagination {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 16px;
+  padding: 20px 24px;
   flex-wrap: nowrap;
   white-space: nowrap;
+  /* Увеличиваем высоту блока */
+  min-height: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 0 16px;
 }
 
 .items-select {
-  min-width: 50px !important; /* Принудительная минимальная ширина */
+  min-width: 60px !important; /* Увеличиваем минимальную ширину */
   width: fit-content !important; /* Ширина по содержимому */
   max-width: 120px !important; /* Максимальная ширина */
   flex-shrink: 0;
+  /* Улучшаем внешний вид */
+  height: 40px;
 }
 
 /* Принудительное переопределение стилей Vuetify */
@@ -1949,35 +2096,46 @@ onUnmounted(() => {
 }
 
 .range-info {
-  font-size: 0.8rem;
-  color: #666;
+  font-size: 0.9rem; /* Увеличиваем размер шрифта */
+  color: #555; /* Улучшаем цвет */
   flex-shrink: 0;
-  min-width: 100px;
+  min-width: 120px; /* Увеличиваем минимальную ширину */
   text-align: center;
-  font-weight: 500;
+  font-weight: 600; /* Увеличиваем жирность */
+  padding: 8px 12px; /* Добавляем отступы */
+  background-color: #f0f0f0; /* Добавляем фон */
+  border-radius: 6px; /* Скругленные углы */
 }
 
 .nav-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px; /* Увеличиваем промежуток */
   flex-shrink: 0;
+  padding: 4px; /* Добавляем отступы */
+  background-color: #f0f0f0; /* Добавляем фон */
+  border-radius: 6px; /* Скругленные углы */
 }
 
 .page-info {
-  font-size: 0.8rem;
-  color: #666;
-  font-weight: 600;
-  min-width: 40px;
+  font-size: 0.9rem; /* Увеличиваем размер шрифта */
+  color: #555; /* Улучшаем цвет */
+  font-weight: 700; /* Увеличиваем жирность */
+  min-width: 50px; /* Увеличиваем минимальную ширину */
   text-align: center;
-  padding: 0 8px;
+  padding: 8px 12px; /* Увеличиваем отступы */
+  background-color: #e8e8e8; /* Добавляем фон */
+  border-radius: 6px; /* Скругленные углы */
 }
 
-/* Компактные кнопки навигации */
+/* Улучшенные кнопки навигации */
 .nav-controls .v-btn {
-  min-width: 28px !important;
-  width: 28px;
-  height: 28px;
+  min-width: 32px !important; /* Увеличиваем размер */
+  width: 32px;
+  height: 32px;
+  border-radius: 6px; /* Скругленные углы */
+  background-color: white; /* Белый фон */
+  border: 1px solid #ddd; /* Добавляем рамку */
 }
 
 .accounts-table {
@@ -2077,22 +2235,14 @@ onUnmounted(() => {
 
 /* Компактное отображение названия компании */
 .company-name-compact {
-  font-weight: 600;
-  color: #1976d2;
-  cursor: help;
+  font-weight: 500;
+  color: #333;
   padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
   display: inline-block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.company-name-compact:hover {
-  background-color: rgba(25, 118, 210, 0.08);
-  transform: scale(1.01);
 }
 
 /* Стили для легенды компании */
@@ -2171,26 +2321,16 @@ onUnmounted(() => {
 .type-minimal {
   font-weight: 500;
   font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
   padding: 2px 4px;
-  border-radius: 4px;
+  color: #333;
 }
 
 .type-minimal.type-partner {
-  color: #2e7d32;
-}
-
-.type-minimal.type-partner:hover {
-  background-color: rgba(46, 125, 50, 0.1);
+  color: #333;
 }
 
 .type-minimal.type-client {
-  color: #1976d2;
-}
-
-.type-minimal.type-client:hover {
-  background-color: rgba(25, 118, 210, 0.1);
+  color: #333;
 }
 
 
@@ -2236,83 +2376,48 @@ onUnmounted(() => {
 .status-minimal {
   font-weight: 500;
   font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
   padding: 2px 4px;
-  border-radius: 4px;
+  color: #333;
 }
 
 .status-minimal.status-active {
-  color: #2e7d32;
-}
-
-.status-minimal.status-active:hover {
-  background-color: rgba(46, 125, 50, 0.1);
+  color: #333;
 }
 
 .status-minimal.status-inactive {
   color: #d32f2f;
 }
 
-.status-minimal.status-inactive:hover {
-  background-color: rgba(211, 47, 47, 0.1);
-}
-
 /* Минималистичное отображение блокировки */
 .blocking-minimal {
   font-weight: 500;
   font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
   padding: 2px 4px;
-  border-radius: 4px;
+  color: #333;
 }
 
 .blocking-minimal.blocking-critical {
-  color: #d32f2f;
-}
-
-.blocking-minimal.blocking-critical:hover {
-  background-color: rgba(211, 47, 47, 0.1);
+  color: #333;
 }
 
 .blocking-minimal.blocking-warning {
-  color: #f57c00;
-}
-
-.blocking-minimal.blocking-warning:hover {
-  background-color: rgba(245, 124, 0, 0.1);
+  color: #333;
 }
 
 .blocking-minimal.blocking-normal {
-  color: #1976d2;
-}
-
-.blocking-minimal.blocking-normal:hover {
-  background-color: rgba(25, 118, 210, 0.1);
+  color: #333;
 }
 
 .blocking-minimal.blocking-none {
-  color: #2e7d32;
-}
-
-.blocking-minimal.blocking-none:hover {
-  background-color: rgba(46, 125, 50, 0.1);
+  color: #333;
 }
 
 /* Минималистичное отображение даты создания */
 .creation-minimal {
   font-weight: 500;
   font-size: 0.875rem;
-  cursor: help;
-  transition: all 0.2s ease;
   padding: 2px 4px;
-  border-radius: 4px;
-  color: #7b1fa2;
-}
-
-.creation-minimal:hover {
-  background-color: rgba(123, 31, 162, 0.1);
+  color: #333;
 }
 
 /* Ряд действий */
@@ -2848,9 +2953,264 @@ onUnmounted(() => {
   font-weight: 600 !important;
 }
 
+/* Стили для всплывающего меню в стиле скриншота */
+.objects-popup,
+.id-popup {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  min-width: 380px;
+  max-width: 450px;
+  border: none; /* Убираем рамку */
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.popup-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #007AFF 0%, #0056CC 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.popup-icon .v-icon {
+  color: white;
+  font-size: 18px;
+}
+
+.popup-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a1a1a;
+  flex: 1;
+}
+
+.popup-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.popup-action-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  text-transform: none;
+  border: 1px solid #007AFF;
+  color: #007AFF;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.popup-action-btn:hover {
+  background: #007AFF;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+}
+
+.popup-content {
+  padding: 20px;
+}
+
+.popup-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  min-height: 20px;
+}
+
+.popup-field:last-child {
+  border-bottom: none;
+}
+
+.field-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+  min-width: 140px;
+  flex-shrink: 0;
+  margin-right: 16px;
+}
+
+.field-value {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 600;
+  text-align: right;
+  flex: 1;
+  word-break: break-word;
+  line-height: 1.4;
+  max-width: 200px;
+}
+
+/* Специальные стили для иерархии */
+.hierarchy-field {
+  align-items: flex-start;
+}
+
+.hierarchy-value {
+  text-align: left !important;
+  max-width: none !important;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+  font-size: 12px;
+  color: #555;
+}
+
+.phone-link,
+.email-link {
+  color: #007AFF;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.phone-link:hover,
+.email-link:hover {
+  color: #0056CC;
+}
+
+/* Цветовое кодирование для полей */
+.text-success {
+  color: #2e7d32 !important;
+}
+
+.text-error {
+  color: #d32f2f !important;
+}
+
+.text-warning {
+  color: #f57c00 !important;
+}
+
+/* Стили для tooltip */
+.objects-tooltip :deep(.v-tooltip__content),
+.id-tooltip :deep(.v-tooltip__content) {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.objects-tooltip :deep(.v-overlay__content),
+.id-tooltip :deep(.v-overlay__content) {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* Предотвращаем закрытие tooltip при наведении на содержимое */
+.objects-tooltip :deep(.v-overlay),
+.id-tooltip :deep(.v-overlay) {
+  pointer-events: none !important;
+}
+
+.objects-tooltip :deep(.v-overlay .draggable-popup),
+.id-tooltip :deep(.v-overlay .draggable-popup) {
+  pointer-events: auto !important;
+}
+
+/* Дополнительные стили для предотвращения закрытия */
+.objects-tooltip :deep(.v-tooltip__content),
+.id-tooltip :deep(.v-tooltip__content) {
+  pointer-events: auto !important;
+}
+
+.objects-tooltip :deep(.v-overlay__content),
+.id-tooltip :deep(.v-overlay__content) {
+  pointer-events: auto !important;
+}
+
+/* Стили для popup */
+.draggable-popup {
+  position: fixed !important;
+  z-index: 9999 !important;
+  /* Принудительная защита от исчезновения */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  /* Плавное позиционирование */
+  transform: translate(var(--popup-x, 0px), var(--popup-y, 0px));
+  transition: transform 0.2s ease-out;
+  /* Улучшенные стили для лучшей видимости */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  border: none; /* Убираем рамку */
+  border-radius: 8px;
+  background: white;
+  /* Максимальная ширина для предотвращения перекрытия */
+  max-width: 400px;
+  min-width: 300px;
+}
+
+.draggable-header {
+  user-select: none;
+}
+
+.close-btn {
+  margin-left: auto;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.close-btn:hover {
+  opacity: 1;
+}
+
+/* Дополнительные стили для предотвращения закрытия popup */
+.objects-tooltip :deep(.v-overlay__backdrop),
+.id-tooltip :deep(.v-overlay__backdrop) {
+  pointer-events: none !important;
+}
+
+.objects-tooltip :deep(.v-overlay__scrim),
+.id-tooltip :deep(.v-overlay__scrim) {
+  pointer-events: none !important;
+}
+
+/* Убеждаемся, что popup остается открытым */
+.draggable-popup:hover {
+  pointer-events: auto !important;
+}
+
+.draggable-popup * {
+  pointer-events: auto !important;
+}
+
+/* Стили для id-popup (используем те же стили что и objects-popup) */
+.id-popup {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  min-width: 380px;
+  max-width: 450px;
+  border: none; /* Убираем рамку */
+}
+
 @media (max-width: 768px) {
   .accounts-page {
-    padding: 16px;
+    padding: 0 16px 16px 16px; /* Убираем верхний отступ на мобильных */
   }
   
   .header-content {
@@ -2859,7 +3219,19 @@ onUnmounted(() => {
   }
   
   .page-title {
-    font-size: 1.5rem;
+    font-size: 1.25rem; /* Еще меньше на мобильных */
+    line-height: 1.1;
+  }
+  
+  .page-subtitle {
+    font-size: 0.8rem; /* Еще меньше на мобильных */
+    line-height: 1.1;
+  }
+  
+  .page-header {
+    margin-bottom: 12px; /* Еще меньше отступ на мобильных */
+    padding: 0; /* Убираем все отступы на мобильных */
+    margin-top: 0; /* Убираем отступ сверху на мобильных */
   }
 }
 </style>

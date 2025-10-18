@@ -176,41 +176,29 @@
 
     <!-- Индикаторы состояния -->
     <div class="status-indicators">
-      <v-tooltip v-if="isWarrantyExpired" text="Гарантия истекла">
-        <template #activator="{ props }">
-          <v-icon
-            icon="mdi-shield-alert"
-            color="error"
-            size="16"
-            v-bind="props"
-            class="status-indicator"
-          />
-        </template>
-      </v-tooltip>
+      <v-icon
+        v-if="isWarrantyExpired"
+        icon="mdi-shield-alert"
+        color="error"
+        size="16"
+        class="status-indicator"
+      />
       
-      <v-tooltip v-if="needsMaintenance" text="Требует обслуживания">
-        <template #activator="{ props }">
-          <v-icon
-            icon="mdi-wrench-clock"
-            color="warning"
-            size="16"
-            v-bind="props"
-            class="status-indicator"
-          />
-        </template>
-      </v-tooltip>
+      <v-icon
+        v-if="needsMaintenance"
+        icon="mdi-wrench-clock"
+        color="warning"
+        size="16"
+        class="status-indicator"
+      />
 
-      <v-tooltip v-if="equipment.object_id" text="Установлено на объекте">
-        <template #activator="{ props }">
-          <v-icon
-            icon="mdi-check-circle"
-            color="success"
-            size="16"
-            v-bind="props"
-            class="status-indicator"
-          />
-        </template>
-      </v-tooltip>
+      <v-icon
+        v-if="equipment.object_id"
+        icon="mdi-check-circle"
+        color="success"
+        size="16"
+        class="status-indicator"
+      />
     </div>
   </v-card>
 </template>

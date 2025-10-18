@@ -117,19 +117,13 @@
             </v-list-item-subtitle>
 
             <template v-slot:append>
-              <v-tooltip location="top">
-                <template v-slot:activator="{ props }">
-                  <v-chip
-                    v-bind="props"
-                    :color="getActivityColor(activity.type)"
-                    size="x-small"
-                    variant="tonal"
-                  >
-                    {{ getActivityTypeLabel(activity.type) }}
-                  </v-chip>
-                </template>
-                <span>{{ formatFullTime(activity.timestamp) }}</span>
-              </v-tooltip>
+              <v-chip
+                :color="getActivityColor(activity.type)"
+                size="x-small"
+                variant="tonal"
+              >
+                {{ getActivityTypeLabel(activity.type) }}
+              </v-chip>
             </template>
           </v-list-item>
 

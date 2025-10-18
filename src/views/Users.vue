@@ -34,25 +34,16 @@
               :color="isMultipleUserSearch ? 'primary' : undefined"
             >
               <template #prepend-icon>
-                <v-tooltip :text="userSearchHint" location="bottom">
-                  <template #activator="{ props }">
-                    <v-icon 
-                      v-bind="props" 
-                      :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'" 
-                      :color="isMultipleUserSearch ? 'primary' : undefined"
-                    />
-                  </template>
-                </v-tooltip>
+                <v-icon 
+                  :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'" 
+                  :color="isMultipleUserSearch ? 'primary' : undefined"
+                />
               </template>
               
               <template #append-inner v-if="isMultipleUserSearch">
-                <v-tooltip text="Активен точный поиск по нескольким пользователям">
-                  <template #activator="{ props }">
-                    <v-chip v-bind="props" size="x-small" color="primary" variant="flat">
-                      {{ userSearchTermsArray.length }}
-                    </v-chip>
-                  </template>
-                </v-tooltip>
+                <v-chip size="x-small" color="primary" variant="flat">
+                  {{ userSearchTermsArray.length }}
+                </v-chip>
               </template>
             </AppleInput>
           </div>
@@ -322,39 +313,17 @@
           <!-- Действия -->
           <template #item.actions="{ item }">
             <div class="actions-cell">
-              <v-tooltip text="Просмотр">
-                <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewUser(item)">
-                    <v-icon size="22">mdi-eye</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
+              <v-btn icon="mdi-eye" size="small" variant="text" @click="viewUser(item)">
+                <v-icon size="22">mdi-eye</v-icon>
+              </v-btn>
 
-              <v-tooltip text="Редактировать">
-                <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editUser(item)">
-                    <v-icon size="22">mdi-pencil</v-icon>
-                  </v-btn>
-                </template>
-              </v-tooltip>
+              <v-btn icon="mdi-pencil" size="small" variant="text" @click="editUser(item)">
+                <v-icon size="22">mdi-pencil</v-icon>
+              </v-btn>
 
-              <v-menu>
-                <template #activator="{ props }">
-                  <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text">
-                    <v-icon size="22">mdi-dots-vertical</v-icon>
-                  </v-btn>
-                </template>
-
-                <v-list density="compact">
-                  <v-list-item prepend-icon="mdi-key" title="Сбросить пароль" @click="resetUserPassword(item)" />
-                  <v-list-item v-if="item.is_active" prepend-icon="mdi-pause-circle" title="Деактивировать"
-                    @click="toggleUserActivity(item, false)" />
-                  <v-list-item v-else prepend-icon="mdi-check-circle" title="Активировать"
-                    @click="toggleUserActivity(item, true)" />
-                  <v-divider />
-                  <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error" @click="deleteUser(item)" />
-                </v-list>
-              </v-menu>
+              <v-btn icon="mdi-dots-vertical" size="small" variant="text" @click="showUserMenu(item)">
+                <v-icon size="22">mdi-dots-vertical</v-icon>
+              </v-btn>
             </div>
           </template>
         </v-data-table>
@@ -1254,6 +1223,25 @@ const bulkDeactivateUsers = async () => {
     showSnackbar('Ошибка массовой деактивации пользователей', 'error');
   } finally {
     bulkActionsLoading.value = false;
+  }
+};
+
+// Функция для показа меню пользователя
+const showUserMenu = (user: UserWithRelations) => {
+  // Показываем контекстное меню с действиями
+  const actions = [
+    { title: 'Сбросить пароль', icon: 'mdi-key', action: () => resetUserPassword(user) },
+    { title: user.is_active ? 'Деактивировать' : 'Активировать', icon: user.is_active ? 'mdi-pause-circle' : 'mdi-check-circle', action: () => toggleUserActivity(user, !user.is_active) },
+    { title: 'Удалить', icon: 'mdi-delete', action: () => deleteUser(user), color: 'error' }
+  ];
+  
+  // Для простоты показываем alert с действиями
+  const actionText = actions.map((action, index) => `${index + 1}. ${action.title}`).join('\n');
+  const choice = prompt(`Выберите действие для пользователя ${user.username}:\n\n${actionText}\n\nВведите номер действия (1-${actions.length}):`);
+  
+  const choiceIndex = parseInt(choice) - 1;
+  if (choiceIndex >= 0 && choiceIndex < actions.length) {
+    actions[choiceIndex].action();
   }
 };
 

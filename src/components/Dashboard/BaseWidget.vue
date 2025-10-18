@@ -26,24 +26,13 @@
           :disabled="loading"
         />
 
-        <v-menu v-if="configurable">
-          <template v-slot:activator="{ props }">
-            <v-btn
-              icon="mdi-cog"
-              size="small"
-              variant="text"
-              v-bind="props"
-            />
-          </template>
-          <v-list>
-            <v-list-item @click="$emit('configure')">
-              <v-list-item-title>Настроить</v-list-item-title>
-            </v-list-item>
-            <v-list-item @click="$emit('remove')">
-              <v-list-item-title>Удалить</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-menu>
+        <v-btn
+          v-if="configurable"
+          icon="mdi-cog"
+          size="small"
+          variant="text"
+          @click="handleConfigure"
+        />
       </div>
     </v-card-title>
 
@@ -182,13 +171,18 @@ export default defineComponent({
       emit('refresh');
     };
 
+    const handleConfigure = () => {
+      emit('configure');
+    };
+
 
     return {
       widgetClasses,
       widgetStyle,
       displayTitle,
       skeletonType,
-      handleRefresh
+      handleRefresh,
+      handleConfigure
     };
   }
 });

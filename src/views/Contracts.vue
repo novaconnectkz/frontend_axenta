@@ -107,12 +107,8 @@
             </v-chip>
           </div>
           <div class="table-actions">
-            <v-tooltip text="Обновить данные">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-refresh" size="small" variant="text" @click="loadContracts"
-                  :loading="loading" />
-              </template>
-            </v-tooltip>
+            <v-btn icon="mdi-refresh" size="small" variant="text" @click="loadContracts"
+              :loading="loading" />
           </div>
         </div>
       </template>
@@ -183,36 +179,11 @@
         <!-- Действия -->
         <template #item.actions="{ item }">
           <div class="actions-cell">
-            <v-tooltip text="Просмотр">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewContract(item)" />
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Редактировать">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editContract(item)" />
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Привязать объекты">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-link" size="small" variant="text" @click="openObjectsDialog(item)" />
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Рассчитать стоимость">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-calculator" size="small" variant="text" @click="calculateCost(item)" />
-              </template>
-            </v-tooltip>
-
-            <v-tooltip text="Удалить">
-              <template #activator="{ props }">
-                <v-btn v-bind="props" icon="mdi-delete" size="small" variant="text" color="error"
-                  @click="deleteContract(item)" />
-              </template>
-            </v-tooltip>
+            <v-btn icon="mdi-eye" size="small" variant="text" @click="viewContract(item)" />
+            <v-btn icon="mdi-pencil" size="small" variant="text" @click="editContract(item)" />
+            <v-btn icon="mdi-link" size="small" variant="text" @click="openObjectsDialog(item)" />
+            <v-btn icon="mdi-calculator" size="small" variant="text" @click="calculateCost(item)" />
+            <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deleteContract(item)" />
           </div>
         </template>
       </v-data-table>
