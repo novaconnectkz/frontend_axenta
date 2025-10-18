@@ -98,6 +98,12 @@ class AccountsService {
     timeout: 30000,
   });
 
+  // Отдельный клиент для Axenta Cloud API
+  private axentaCloudClient = axios.create({
+    baseURL: "https://axenta.cloud",
+    timeout: 30000,
+  });
+
 
   constructor() {
     // Добавляем interceptor для автоматического добавления токена авторизации
@@ -170,6 +176,20 @@ class AccountsService {
         return Promise.reject(error);
       }
     );
+
+    // Добавляем interceptor для Axenta Cloud API
+    this.axentaCloudClient.interceptors.request.use((config) => {
+      // Используем токен для Axenta Cloud
+      const token = localStorage.getItem("axenta_token") || 
+                   localStorage.getItem("token") ||
+                   localStorage.getItem("authToken");
+      
+      if (token) {
+        config.headers.Authorization = `Token ${token}`;
+      }
+      
+      return config;
+    });
   }
 
   static getInstance(): AccountsService {
@@ -343,6 +363,91 @@ class AccountsService {
     } catch (error) {
       console.error(`❌ Ошибка получения учетной записи ${id}:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * Очистить дату блокировки аккаунта
+   */
+  async clearBlockingDatetime(id: number): Promise<void> {
+    try {
+      console.log(`🔄 Очистка даты блокировки для аккаунта ${id}`);
+      
+      const response = await this.axentaCloudClient.patch<any>(
+        `/api/cms/accounts/${id}/`,
+        { blockingDatetime: null }
+      );
+      
+      console.log(`✅ Дата блокировки очищена для аккаунта ${id}:`, response.data);
+      
+      if (response.status !== 200) {
+        throw new Error('Ошибка очистки даты блокировки');
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка очистки даты блокировки для аккаунта ${id}:`, error);
+      throw error;
+    }
+  }
+
+        /**
+         * Активировать учетную запись
+         */
+        async activateAccount(id: number): Promise<void> {
+          try {
+            console.log(`🔄 Активация учетной записи ${id}`);
+            
+            // Сначала очищаем дату блокировки, если она есть
+            await this.clearBlockingDatetime(id);
+            
+            // Затем активируем аккаунт через POST метод к /activate/ эндпоинту
+            const response = await this.axentaCloudClient.post<any>(
+              `/api/cms/accounts/${id}/activate/`,
+              { state: true }
+            );
+            
+            console.log(`✅ Учетная запись ${id} активирована:`, response.data);
+            
+            if (response.status !== 201) {
+              throw new Error('Ошибка активации учетной записи');
+            }
+          } catch (error) {
+            console.error(`❌ Ошибка активации учетной записи ${id}:`, error);
+            throw error;
+          }
+        }
+
+        /**
+         * Деактивировать учетную запись
+         */
+        async deactivateAccount(id: number): Promise<void> {
+          try {
+            console.log(`🔄 Деактивация учетной записи ${id}`);
+            
+            // Используем правильный POST метод к /activate/ эндпоинту
+            const response = await this.axentaCloudClient.post<any>(
+              `/api/cms/accounts/${id}/activate/`,
+              { state: false }
+            );
+            
+            console.log(`✅ Учетная запись ${id} деактивирована:`, response.data);
+            
+            if (response.status !== 201) {
+              throw new Error('Ошибка деактивации учетной записи');
+            }
+          } catch (error) {
+            console.error(`❌ Ошибка деактивации учетной записи ${id}:`, error);
+            throw error;
+          }
+        }
+
+  /**
+   * Переключить статус учетной записи (активация/деактивация)
+   */
+  async toggleAccountStatus(id: number, isActive: boolean): Promise<void> {
+    if (isActive) {
+      await this.activateAccount(id);
+    } else {
+      await this.deactivateAccount(id);
     }
   }
 

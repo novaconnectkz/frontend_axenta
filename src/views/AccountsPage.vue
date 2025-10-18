@@ -1209,25 +1209,38 @@ const showSnackbar = (text: string, color: string = 'info') => {
 };
 
 const toggleAccountStatus = async (account: Account) => {
+  const newStatus = !account.isActive;
+  const action = newStatus ? 'активации' : 'деактивации';
+  
   try {
-    const newStatus = !account.isActive;
-    const action = newStatus ? 'активации' : 'деактивации';
-    
     console.log(`🔄 ${action} аккаунта:`, account.name);
     
-    // TODO: Реализовать API вызов для изменения статуса
-    // await accountsService.toggleAccountStatus(account.id, newStatus);
+    // Вызываем API для изменения статуса
+    await accountsService.toggleAccountStatus(account.id, newStatus);
     
-    // Временно обновляем локально для демонстрации
+    // Обновляем локальное состояние
     account.isActive = newStatus;
     
     console.log(`✅ Аккаунт ${account.name} ${newStatus ? 'активирован' : 'деактивирован'}`);
+    
+    // Показываем уведомление об успехе
+    showSnackbar(
+      `Аккаунт "${account.name}" успешно ${newStatus ? 'активирован' : 'деактивирован'}`,
+      'success'
+    );
     
     // Обновляем данные
     await loadAccounts();
     
   } catch (error) {
     console.error('❌ Ошибка изменения статуса аккаунта:', error);
+    
+    // Показываем уведомление об ошибке
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    showSnackbar(
+      `Ошибка ${action} аккаунта "${account.name}": ${errorMessage}`,
+      'error'
+    );
   }
 };
 
