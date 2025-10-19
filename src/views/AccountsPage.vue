@@ -404,16 +404,21 @@
                 />
               </template>
               <v-list density="compact">
-                <v-list-item
-                  prepend-icon="mdi-arrow-right-bold"
-                  title="Войти в CMS"
-                  @click="loginToCms(item)"
-                />
+                <!-- Пункт "Войти в мониторинг" - отображается для всех типов аккаунтов -->
                 <v-list-item
                   prepend-icon="mdi-arrow-right-bold"
                   title="Войти в мониторинг"
                   @click="loginToMonitoring(item)"
                 />
+                
+                <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
+                <v-list-item
+                  v-if="item.type === 'partner'"
+                  prepend-icon="mdi-arrow-right-bold"
+                  title="Войти в CMS"
+                  @click="loginToCms(item)"
+                />
+                
                 <v-list-item
                   prepend-icon="mdi-swap-horizontal"
                   title="Переместить учетную запись"

@@ -296,6 +296,27 @@
               <v-list-item prepend-icon="mdi-account" title="Профиль" @click="goToProfile" class="profile-menu-item" />
               <v-list-item prepend-icon="mdi-cog" title="Настройки" @click="goToSettings" class="profile-menu-item" />
               
+              <!-- Условные пункты меню в зависимости от статуса пользователя -->
+              <v-divider class="my-2" />
+              
+              <!-- Пункт "Войти в мониторинг" - отображается для всех пользователей -->
+              <v-list-item 
+                prepend-icon="mdi-monitor" 
+                title="Войти в мониторинг" 
+                @click="goToMonitoring" 
+                class="profile-menu-item" 
+              />
+              
+              <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
+              <v-list-item 
+                v-if="isPartner"
+                prepend-icon="mdi-cog-outline" 
+                title="Войти в CMS" 
+                @click="goToCMS" 
+                class="profile-menu-item" 
+              />
+              
+              
               <v-divider class="my-2" />
               <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="handleLogout"
                 class="profile-menu-item logout-item" />
@@ -489,6 +510,24 @@ const appVersion = computed(() => {
   return getVersionString();
 });
 
+// Определяем, является ли пользователь партнером
+const isPartner = computed(() => {
+  const accountType = auth.user.value?.accountType;
+  
+  // Список типов, которые считаются партнерами
+  const partnerTypes = ['partner', 'admin', 'manager'];
+  
+  // Проверяем, что пользователь является партнером
+  const isPartnerUser = partnerTypes.includes(accountType?.toLowerCase() || '');
+  
+  // Если accountType не определен или пустой, считаем клиентом
+  if (!accountType || accountType.trim() === '') {
+    return false;
+  }
+  
+  return isPartnerUser;
+});
+
 // Methods
 const toggleRail = () => {
   rail.value = !rail.value;
@@ -520,6 +559,16 @@ const goToProfile = () => {
 
 const goToSettings = () => {
   router.push('/settings');
+};
+
+const goToMonitoring = () => {
+  // Переход к системе мониторинга (внешняя ссылка)
+  window.open('https://axenta.glonass-saratov.ru', '_blank');
+};
+
+const goToCMS = () => {
+  // Переход к CMS (текущее приложение)
+  router.push('/dashboard');
 };
 
 
