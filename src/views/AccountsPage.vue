@@ -88,16 +88,7 @@
               :items="accountTypes"
               variant="outlined"
               density="comfortable"
-              @update:model-value="(value) => {
-                // Очищаем кэш при изменении фильтра типа
-                allAccountsCache.value = [];
-                cacheTimestamp.value = null;
-                // Устанавливаем значение фильтра
-                filters.value.type = value;
-                // Сбрасываем страницу на первую при изменении фильтра
-                currentPage.value = 1;
-                loadAccounts();
-              }"
+              @update:model-value="onTypeFilterChange"
             />
           </div>
           <div class="filter-item">
@@ -107,16 +98,7 @@
               :items="statusOptions"
               variant="outlined"
               density="comfortable"
-              @update:model-value="(value) => {
-                // Очищаем кэш при изменении фильтра статуса
-                allAccountsCache.value = [];
-                cacheTimestamp.value = null;
-                // Устанавливаем значение фильтра
-                filters.value.is_active = value;
-                // Сбрасываем страницу на первую при изменении фильтра
-                currentPage.value = 1;
-                loadAccounts();
-              }"
+              @update:model-value="onStatusFilterChange"
             />
           </div>
           <div class="filter-item">
@@ -740,17 +722,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { debounce } from 'lodash-es';
 import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
-import { useAuth } from '@/context/auth';
-import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
-import AppleInput from '@/components/Apple/AppleInput.vue';
-
-// Получаем контекст авторизации
-const auth = useAuth();
 
 // Router
 const router = useRouter();
@@ -919,12 +895,6 @@ const companySearchTermsArray = computed(() => {
   return searchQuery.value.split(',').map(term => term.trim()).filter(term => term.length > 0);
 });
 
-const companySearchHint = computed(() => {
-  if (isMultipleCompanySearch.value) {
-    return `Поиск по ${companySearchTermsArray.value.length} компаниям: ${companySearchTermsArray.value.join(', ')}`;
-  }
-  return 'Введите названия компаний через запятую для поиска нескольких одновременно';
-});
 
 // Вычисляемые свойства для кастомной пагинации
 const totalPages = computed(() => {
@@ -1132,7 +1102,7 @@ const loadAccounts = async (isBackground = false) => {
     }
     lastUpdateTime.value = new Date();
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Ошибка загрузки учетных записей:', error);
     
     // Показываем детальную информацию об ошибке
@@ -1308,6 +1278,33 @@ const resetFilters = () => {
   loadAccounts();
 };
 
+// Обработчики изменений фильтров
+const onTypeFilterChange = (value: string | null) => {
+  // Очищаем кэш при изменении фильтра типа
+  allAccountsCache.value = [];
+  if (cacheTimestamp.value) {
+    cacheTimestamp.value = null;
+  }
+  // Устанавливаем значение фильтра
+  filters.value.type = value as "client" | "partner" | null;
+  // Сбрасываем страницу на первую при изменении фильтра
+  currentPage.value = 1;
+  loadAccounts();
+};
+
+const onStatusFilterChange = (value: boolean | null) => {
+  // Очищаем кэш при изменении фильтра статуса
+  allAccountsCache.value = [];
+  if (cacheTimestamp.value) {
+    cacheTimestamp.value = null;
+  }
+  // Устанавливаем значение фильтра
+  filters.value.is_active = value;
+  // Сбрасываем страницу на первую при изменении фильтра
+  currentPage.value = 1;
+  loadAccounts();
+};
+
 // Метод для удаления отдельного термина поиска компании
 const removeCompanySearchTerm = (index: number) => {
   const terms = companySearchTermsArray.value;
@@ -1337,10 +1334,6 @@ const onParentChange = (parent: string) => {
   loadAccounts();
 };
 
-const onPageChange = (page: number) => {
-  currentPage.value = page;
-  loadAccounts();
-};
 
 const onItemsPerPageChange = (items: number) => {
   if (items === -1) {
@@ -1354,25 +1347,6 @@ const onItemsPerPageChange = (items: number) => {
   loadAccounts();
 };
 
-const onOptionsUpdate = (options: any) => {
-  // Обновляем параметры пагинации
-  if (options.page !== currentPage.value) {
-    currentPage.value = options.page;
-  }
-  
-  if (options.itemsPerPage !== itemsPerPage.value) {
-    if (options.itemsPerPage === -1) {
-      // Опция "Все"
-      itemsPerPage.value = totalItems.value || 1000;
-    } else {
-      itemsPerPage.value = options.itemsPerPage;
-    }
-    currentPage.value = 1; // Сбрасываем на первую страницу при изменении количества
-  }
-  
-  // Загружаем данные с новыми параметрами
-  loadAccounts();
-};
 
 const onSortChange = (sortOptions: any) => {
   if (sortOptions && sortOptions.length > 0) {
@@ -1424,10 +1398,6 @@ const stopAutoRefresh = () => {
   }
 };
 
-const viewAccount = (account: Account) => {
-  selectedAccount.value = account;
-  viewDialog.value = true;
-};
 
 // Методы для меню дополнительных действий
 const loginToCms = async (account: Account) => {
@@ -1535,8 +1505,9 @@ const confirmDelete = async () => {
     
     // Показываем уведомление об ошибке
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    const accountName = accountToDelete.value?.name || 'неизвестный аккаунт';
     showSnackbar(
-      `Ошибка удаления аккаунта "${accountToDelete.value.name}": ${errorMessage}`,
+      `Ошибка удаления аккаунта "${accountName}": ${errorMessage}`,
       'error'
     );
   } finally {
@@ -1699,15 +1670,6 @@ const goToNextPage = () => {
 
 
 // Утилиты форматирования
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('ru-RU', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
 
 const formatDateShort = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('ru-RU', {
@@ -1717,159 +1679,29 @@ const formatDateShort = (dateString: string) => {
   });
 };
 
-const formatHierarchy = (hierarchy: string) => {
-  if (!hierarchy || !hierarchy.trim()) {
-    return 'Не указана';
-  }
-  
-  // Логируем исходную иерархию для отладки
-  console.log('🔧 formatHierarchy input:', hierarchy);
-  console.log('🔧 formatHierarchy input length:', hierarchy.length);
-  console.log('🔧 formatHierarchy input chars:', hierarchy.split('').map(c => c.charCodeAt(0)));
-  
-  // Декодируем HTML-сущности если они есть
-  let decodedHierarchy = hierarchy
-    .replace(/&gt;/g, '>')
-    .replace(/&lt;/g, '<')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
-  
-  if (decodedHierarchy !== hierarchy) {
-    console.log('🔧 formatHierarchy decoded:', decodedHierarchy);
-  }
-  
-  // Иерархия обычно приходит в формате "Axenta > GLOMOS > Компания"
-  // Преобразуем в более читаемый формат
-  // Используем более надежный способ разбиения строки
-  const hierarchyParts = decodedHierarchy
-    .split(/[>]/) // Разбиваем по символу >
-    .map(part => part.trim()) // Убираем пробелы
-    .filter(part => part.length > 0); // Убираем пустые части
-  
-  console.log('🔧 formatHierarchy parts:', hierarchyParts);
-  console.log('🔧 formatHierarchy parts count:', hierarchyParts.length);
-  
-  if (hierarchyParts.length === 0) {
-    return 'Не указана';
-  }
-  
-  // Показываем полную иерархию для лучшего понимания
-  const result = hierarchyParts.join(' → ');
-  console.log('🔧 formatHierarchy result:', result);
-  return result;
-};
 
-const formatTime = (date: Date) => {
-  return date.toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-};
 
-const formatStorage = (bytes: number) => {
-  if (bytes === 0) return '0 Б';
-  const k = 1024;
-  const sizes = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
 
-const getBlockingColor = (days: number) => {
-  if (days <= 3) return 'error';
-  if (days <= 7) return 'warning';
-  if (days <= 30) return 'info';
-  return 'success';
-};
 
-const getBlockingLegendClass = (days: number | null) => {
-  if (days === null) return 'blocking-status-none';
-  if (days <= 3) return 'blocking-status-critical';
-  if (days <= 7) return 'blocking-status-warning';
-  return 'blocking-status-normal';
-};
 
-const getDaysWord = (days: number) => {
-  const lastDigit = days % 10;
-  const lastTwoDigits = days % 100;
-  
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'дней';
-  if (lastDigit === 1) return 'день';
-  if (lastDigit >= 2 && lastDigit <= 4) return 'дня';
-  return 'дней';
-};
 
-const getBlockingDescription = (days: number | null) => {
-  if (days === null) return '✅ Аккаунт не имеет ограничений по времени';
-  if (days <= 3) return '🚨 Критично! Аккаунт будет заблокирован в ближайшие дни';
-  if (days <= 7) return '⚠️ Внимание! Аккаунт скоро будет заблокирован';
-  if (days <= 30) return '📅 Аккаунт будет заблокирован в течение месяца';
-  return '✅ До блокировки еще много времени';
-};
 
-const getCreationAge = (dateString: string) => {
-  const creationDate = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - creationDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 1) return '1 день';
-  if (diffDays < 7) return `${diffDays} ${getDaysWord(diffDays)}`;
-  if (diffDays < 30) {
-    const weeks = Math.floor(diffDays / 7);
-    return weeks === 1 ? '1 неделю' : `${weeks} ${getWeeksWord(weeks)}`;
-  }
-  if (diffDays < 365) {
-    const months = Math.floor(diffDays / 30);
-    return months === 1 ? '1 месяц' : `${months} ${getMonthsWord(months)}`;
-  }
-  const years = Math.floor(diffDays / 365);
-  return years === 1 ? '1 год' : `${years} ${getYearsWord(years)}`;
-};
 
-const getWeeksWord = (weeks: number) => {
-  const lastDigit = weeks % 10;
-  const lastTwoDigits = weeks % 100;
-  
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'недель';
-  if (lastDigit === 1) return 'неделю';
-  if (lastDigit >= 2 && lastDigit <= 4) return 'недели';
-  return 'недель';
-};
 
-const getMonthsWord = (months: number) => {
-  const lastDigit = months % 10;
-  const lastTwoDigits = months % 100;
-  
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'месяцев';
-  if (lastDigit === 1) return 'месяц';
-  if (lastDigit >= 2 && lastDigit <= 4) return 'месяца';
-  return 'месяцев';
-};
 
-const getYearsWord = (years: number) => {
-  const lastDigit = years % 10;
-  const lastTwoDigits = years % 100;
-  
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) return 'лет';
-  if (lastDigit === 1) return 'год';
-  if (lastDigit >= 2 && lastDigit <= 4) return 'года';
-  return 'лет';
-};
 
 // Watcher больше не нужен, так как индивидуальная очистка фильтров отключена
 
 // Убраны функции перетаскивания
 
-const keepOpen = (event) => {
+const keepOpen = (event: Event) => {
   // Функция для предотвращения закрытия popup при наведении
   // Останавливаем всплытие события, чтобы tooltip не закрывался
   event.stopPropagation();
   event.preventDefault();
 };
 
-const positionPopupInViewport = (popup) => {
+const positionPopupInViewport = (popup: HTMLElement | null) => {
   if (!popup) return;
   
   const rect = popup.getBoundingClientRect();
@@ -1932,12 +1764,14 @@ const positionPopupInViewport = (popup) => {
   popup.style.setProperty('--popup-y', `${deltaY}px`);
 };
 
-const onTooltipOpen = (isOpen) => {
+const onTooltipOpen = (isOpen: boolean) => {
   if (isOpen) {
     // Небольшая задержка, чтобы popup успел отрендериться
     setTimeout(() => {
       const popups = document.querySelectorAll('.draggable-popup');
       popups.forEach(popup => {
+        if (!(popup instanceof HTMLElement)) return;
+        
         // Находим элемент, который вызвал popup
         const triggerElement = popup.closest('.v-tooltip')?.querySelector('[data-tooltip]') || 
                               popup.closest('.v-tooltip')?.querySelector('td');
@@ -1949,6 +1783,7 @@ const onTooltipOpen = (isOpen) => {
           // Определяем позицию элемента в списке
           const tableRows = document.querySelectorAll('tbody tr');
           const currentRow = triggerElement.closest('tr');
+          if (!currentRow) return;
           const rowIndex = Array.from(tableRows).indexOf(currentRow);
           const totalRows = tableRows.length;
           const isLastTwoRows = rowIndex >= totalRows - 2;
@@ -2020,7 +1855,9 @@ const closePopup = () => {
   // Закрываем все активные popup
   const popups = document.querySelectorAll('.draggable-popup');
   popups.forEach(popup => {
-    popup.style.display = 'none';
+    if (popup instanceof HTMLElement) {
+      popup.style.display = 'none';
+    }
   });
 };
 
@@ -2047,7 +1884,9 @@ onUnmounted(() => {
 const handleWindowResize = () => {
   const popups = document.querySelectorAll('.draggable-popup');
   popups.forEach(popup => {
-    positionPopupInViewport(popup);
+    if (popup instanceof HTMLElement) {
+      positionPopupInViewport(popup);
+    }
   });
 };
 
@@ -3241,20 +3080,30 @@ const handleWindowResize = () => {
 
 /* Стили для легенды ID */
 .id-legend {
-  @extend .legend-base;
+  padding: 12px;
   min-width: 200px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 /* Стили для легенды типа аккаунта */
 .type-legend {
-  @extend .legend-base;
+  padding: 12px;
+  min-width: 300px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 
 /* Стили для легенды статуса */
 .status-legend {
-  @extend .legend-base;
+  padding: 12px;
   min-width: 350px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 
