@@ -703,6 +703,36 @@ class AccountsService {
       throw error;
     }
   }
+
+  /**
+   * Войти в CMS или мониторинг с токеном другого пользователя
+   */
+  async loginAs(userId: number, type: 'cms' | 'monitoring'): Promise<{ redirectUrl: string }> {
+    try {
+      console.log(`🔐 Вход в ${type} для пользователя ${userId}`);
+      
+      const response = await this.axentaCloudClient.post<any>(
+        `/api/cms/users/login_as/`,
+        {
+          userId: userId,
+          type: type
+        }
+      );
+
+      console.log(`✅ Получен URL для входа в ${type}:`, response.data);
+      
+      if (!response.data.redirectUrl) {
+        throw new Error('Не получен URL для перенаправления');
+      }
+
+      return {
+        redirectUrl: response.data.redirectUrl
+      };
+    } catch (error) {
+      console.error(`❌ Ошибка входа в ${type} для пользователя ${userId}:`, error);
+      throw error;
+    }
+  }
 }
 
 // Экспортируем singleton instance

@@ -836,7 +836,7 @@ const snackbar = ref({
   show: false,
   text: '',
   color: 'info',
-  timeout: 5000
+  timeout: 30000
 });
 
 // Опции для фильтров
@@ -1430,14 +1430,50 @@ const viewAccount = (account: Account) => {
 };
 
 // Методы для меню дополнительных действий
-const loginToCms = (account: Account) => {
-  console.log('🔗 Вход в CMS для аккаунта:', account.name);
-  showSnackbar(`Вход в CMS для "${account.name}" - функция в разработке`, 'info');
+const loginToCms = async (account: Account) => {
+  try {
+    console.log('🔗 Вход в CMS для аккаунта:', account.name);
+    
+    if (!account.adminId) {
+      showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
+      return;
+    }
+
+    const result = await accountsService.loginAs(account.adminId, 'cms');
+    
+    console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+    
+    // Открываем новую вкладку с URL для входа
+    window.open(result.redirectUrl, '_blank');
+    
+  } catch (error: any) {
+    console.error('❌ Ошибка входа в CMS:', error);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    showSnackbar(`Ошибка входа в CMS: ${errorMessage}`, 'error');
+  }
 };
 
-const loginToMonitoring = (account: Account) => {
-  console.log('📊 Вход в мониторинг для аккаунта:', account.name);
-  showSnackbar(`Вход в мониторинг для "${account.name}" - функция в разработке`, 'info');
+const loginToMonitoring = async (account: Account) => {
+  try {
+    console.log('📊 Вход в мониторинг для аккаунта:', account.name);
+    
+    if (!account.adminId) {
+      showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
+      return;
+    }
+
+    const result = await accountsService.loginAs(account.adminId, 'monitoring');
+    
+    console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
+    
+    // Открываем новую вкладку с URL для входа
+    window.open(result.redirectUrl, '_blank');
+    
+  } catch (error: any) {
+    console.error('❌ Ошибка входа в мониторинг:', error);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    showSnackbar(`Ошибка входа в мониторинг: ${errorMessage}`, 'error');
+  }
 };
 
 const moveAccount = async (account: Account) => {
