@@ -147,6 +147,16 @@
         </div>
       </div>
 
+      <!-- Справка -->
+      <v-tooltip location="bottom">
+        <template #activator="{ props }">
+          <v-btn v-bind="props" icon variant="text" @click="showHelpDialog = true" class="help-btn">
+            <v-icon>mdi-help-circle-outline</v-icon>
+          </v-btn>
+        </template>
+        <span>Справка и инструкции</span>
+      </v-tooltip>
+
       <!-- Переключатель темы -->
       <v-tooltip location="bottom">
         <template #activator="{ props }">
@@ -348,6 +358,9 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Диалог справки -->
+    <HelpDialog v-model="showHelpDialog" />
   </v-app>
 </template>
 
@@ -358,6 +371,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
 import { getVersionString } from '@/utils/buildInfo';
 import UserAvatar from '@/components/Common/UserAvatar.vue';
+import HelpDialog from '@/components/Common/HelpDialog.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
@@ -384,6 +398,9 @@ const snackbar = ref({
   color: 'info',
   timeout: 5000
 });
+
+// Диалог справки
+const showHelpDialog = ref(false);
 
 // Навигационные элементы
 const navigationItems = computed(() => [
@@ -1994,5 +2011,18 @@ onUnmounted(() => {
   .v-navigation-drawer--temporary {
     z-index: 2000 !important;
   }
+}
+
+/* Стили для иконки помощи */
+.help-btn {
+  transition: all 0.2s ease;
+}
+
+.help-btn:hover {
+  transform: scale(1.1);
+}
+
+.help-btn .v-icon {
+  color: rgb(var(--v-theme-primary));
 }
 </style>
