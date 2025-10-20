@@ -217,8 +217,12 @@
               </div>
               <div class="popup-content">
                 <div class="popup-field">
-                  <span class="field-label">ID</span>
+                  <span class="field-label">ID учетной записи</span>
                   <span class="field-value">{{ item.id }}</span>
+                </div>
+                <div class="popup-field">
+                  <span class="field-label">ID администратора</span>
+                  <span class="field-value">{{ item.adminId }}</span>
                 </div>
                 <div class="popup-field">
                   <span class="field-label">Тип компании</span>
@@ -736,7 +740,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, computed, watch } from 'vue';
 import { debounce } from 'lodash-es';
 import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
@@ -861,7 +865,8 @@ const itemsPerPageOptions = [
 ];
 
 // Заголовки таблицы
-const headers = [
+
+const headers = computed(() => [
   { title: 'ID', key: 'id', sortable: true },
   { title: 'Компания', key: 'name', sortable: true, width: '30%' },
   { title: 'Тип', key: 'type', sortable: true },
@@ -869,7 +874,7 @@ const headers = [
   { title: 'Статус', key: 'isActive', sortable: true },
   { title: 'Создан', key: 'creationDatetime', sortable: true },
   { title: 'Действия', key: 'actions', sortable: false },
-];
+]);
 
 // Вычисляемые свойства для определения активности фильтров
 const isSearchActive = computed(() => {
@@ -2593,6 +2598,7 @@ const handleWindowResize = () => {
   background-color: rgba(142, 142, 147, 0.2);
 }
 
+
 [data-theme="dark"] .type-minimal {
   color: #ffffff;
 }
@@ -2986,6 +2992,12 @@ const handleWindowResize = () => {
   background-color: rgba(0, 0, 0, 0.08);
   color: #333;
   transform: scale(1.05);
+}
+
+
+/* Плавный переход ширины колонки */
+.accounts-table .v-data-table__td {
+  transition: width 0.3s ease;
 }
 
 /* Минималистичное отображение типа аккаунта */
