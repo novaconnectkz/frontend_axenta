@@ -43,18 +43,17 @@
               <v-card variant="outlined" class="instruction-card">
                 <v-card-title class="instruction-title">
                   <v-icon :icon="instruction.icon" class="mr-2" :color="instruction.color" />
-                  {{ instruction.title }}
+                  <span v-html="highlightText(instruction.title, searchQuery)"></span>
                 </v-card-title>
                 
                 <v-card-text>
                   <div class="instruction-content">
-                    <p class="instruction-description mb-3">{{ instruction.description }}</p>
+                    <p class="instruction-description mb-3" v-html="highlightText(instruction.description, searchQuery)"></p>
                     
                     <div v-if="instruction.steps && instruction.steps.length > 0" class="instruction-steps">
                       <h4 class="text-subtitle-2 mb-2">Пошаговая инструкция:</h4>
                       <ol class="steps-list">
-                        <li v-for="(step, index) in instruction.steps" :key="index" class="mb-2">
-                          {{ step }}
+                        <li v-for="(step, index) in instruction.steps" :key="index" class="mb-2" v-html="highlightText(step, searchQuery)">
                         </li>
                       </ol>
                     </div>
@@ -66,8 +65,7 @@
                           Полезные советы:
                         </template>
                         <ul class="tips-list mt-2">
-                          <li v-for="(tip, index) in instruction.tips" :key="index" class="mb-1">
-                            {{ tip }}
+                          <li v-for="(tip, index) in instruction.tips" :key="index" class="mb-1" v-html="highlightText(tip, searchQuery)">
                           </li>
                         </ul>
                       </v-alert>
@@ -80,8 +78,8 @@
                         size="small"
                         variant="outlined"
                         class="mr-1 mb-1"
+                        v-html="highlightText(keyword, searchQuery)"
                       >
-                        {{ keyword }}
                       </v-chip>
                     </div>
                   </div>
@@ -118,6 +116,32 @@ const emit = defineEmits<{
 
 // Reactive data
 const searchQuery = ref('');
+
+// Methods
+const highlightText = (text: string, query: string): string => {
+  if (!query || !text) {
+    return text;
+  }
+
+  const queryWords = query.toLowerCase().trim().split(/\s+/).filter(word => word.length > 0);
+  
+  if (queryWords.length === 0) {
+    return text;
+  }
+
+  let highlightedText = text;
+  
+  queryWords.forEach(word => {
+    const regex = new RegExp(`(${escapeRegExp(word)})`, 'gi');
+    highlightedText = highlightedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+  });
+
+  return highlightedText;
+};
+
+const escapeRegExp = (string: string): string => {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 // Computed
 const dialog = computed({
@@ -196,5 +220,21 @@ const filteredInstructions = computed(() => {
 
 .border-b {
   border-bottom: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+/* Подсветка найденных слов */
+.search-highlight {
+  background-color: rgb(var(--v-theme-warning));
+  color: rgb(var(--v-theme-on-warning));
+  padding: 0.1em 0.2em;
+  border-radius: 0.25em;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Темная тема для подсветки */
+[data-theme="dark"] .search-highlight {
+  background-color: rgb(var(--v-theme-warning-darken-1));
+  color: rgb(var(--v-theme-on-warning));
 }
 </style>
