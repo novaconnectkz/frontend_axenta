@@ -148,7 +148,7 @@
 
       <v-data-table
         :headers="headers"
-        :items="accounts"
+        :items="accountsWithNumbers"
         :loading="isLoading"
         :items-per-page="-1"
         :sort-by="[{ key: sortBy, order: sortOrder }]"
@@ -161,6 +161,11 @@
         no-data-text="Учетные записи не найдены"
         hide-default-footer
       >
+        <!-- Колонка "№" -->
+        <template #item.rowNumber="{ item }">
+          <span class="row-number">{{ item.rowNumber }}</span>
+        </template>
+
         <!-- Колонка "ID" -->
         <template #item.id="{ item }">
          <v-tooltip
@@ -843,6 +848,7 @@ const itemsPerPageOptions = [
 // Заголовки таблицы
 
 const headers = computed(() => [
+  { title: '№', key: 'rowNumber', sortable: false, width: '60px' },
   { title: 'ID', key: 'id', sortable: true },
   { title: 'Компания', key: 'name', sortable: true, width: '30%' },
   { title: 'Тип', key: 'type', sortable: true },
@@ -895,6 +901,15 @@ const companySearchTermsArray = computed(() => {
   return searchQuery.value.split(',').map(term => term.trim()).filter(term => term.length > 0);
 });
 
+
+// Computed свойство для добавления нумерации строк
+const accountsWithNumbers = computed(() => {
+  const startNumber = (currentPage.value - 1) * itemsPerPage.value + 1;
+  return accounts.value.map((account, index) => ({
+    ...account,
+    rowNumber: startNumber + index
+  }));
+});
 
 // Вычисляемые свойства для кастомной пагинации
 const totalPages = computed(() => {
@@ -2173,17 +2188,26 @@ const handleWindowResize = () => {
   vertical-align: middle;
 }
 
-/* Колонка ID - минимальная ширина */
+/* Колонка № - фиксированная ширина */
 .accounts-table :deep(.v-data-table__th:first-child),
 .accounts-table :deep(.v-data-table__td:first-child) {
+  width: 60px !important;
+  min-width: 60px;
+  max-width: 60px;
+  text-align: center;
+}
+
+/* Колонка ID - минимальная ширина */
+.accounts-table :deep(.v-data-table__th:nth-child(2)),
+.accounts-table :deep(.v-data-table__td:nth-child(2)) {
   width: auto;
   min-width: 60px;
   max-width: 100px;
 }
 
 /* Колонка Компания - фиксированная ширина 30% */
-.accounts-table :deep(.v-data-table__th:nth-child(2)),
-.accounts-table :deep(.v-data-table__td:nth-child(2)) {
+.accounts-table :deep(.v-data-table__th:nth-child(3)),
+.accounts-table :deep(.v-data-table__td:nth-child(3)) {
   width: 30% !important;
   min-width: 200px;
   white-space: normal;
@@ -2191,32 +2215,32 @@ const handleWindowResize = () => {
 }
 
 /* Колонка Тип - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(3)),
-.accounts-table :deep(.v-data-table__td:nth-child(3)) {
+.accounts-table :deep(.v-data-table__th:nth-child(4)),
+.accounts-table :deep(.v-data-table__td:nth-child(4)) {
   width: auto;
   min-width: 80px;
   max-width: 120px;
 }
 
 /* Колонка Объекты - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(4)),
-.accounts-table :deep(.v-data-table__td:nth-child(4)) {
+.accounts-table :deep(.v-data-table__th:nth-child(5)),
+.accounts-table :deep(.v-data-table__td:nth-child(5)) {
   width: auto;
   min-width: 100px;
   max-width: 140px;
 }
 
 /* Колонка Статус - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(5)),
-.accounts-table :deep(.v-data-table__td:nth-child(5)) {
+.accounts-table :deep(.v-data-table__th:nth-child(6)),
+.accounts-table :deep(.v-data-table__td:nth-child(6)) {
   width: auto;
   min-width: 80px;
   max-width: 120px;
 }
 
 /* Колонка Создан - средняя ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(6)),
-.accounts-table :deep(.v-data-table__td:nth-child(6)) {
+.accounts-table :deep(.v-data-table__th:nth-child(7)),
+.accounts-table :deep(.v-data-table__td:nth-child(7)) {
   width: auto;
   min-width: 100px;
   max-width: 150px;
@@ -2228,6 +2252,13 @@ const handleWindowResize = () => {
   width: auto;
   min-width: 120px;
   max-width: 180px;
+}
+
+/* Стили для номера строки */
+.row-number {
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 0.9em;
 }
 
 /* Центрирование всех элементов в ячейках */
