@@ -339,12 +339,20 @@
 
         <!-- Колонка "Статус" -->
         <template #item.isActive="{ item }">
-          <span 
-            class="status-minimal" 
-            :class="{ 'status-active': item.isActive, 'status-inactive': !item.isActive }"
+          <v-tooltip
+            location="top"
+            :text="item.isActive ? 'Активен' : 'Заблокирован'"
           >
-            {{ item.isActive ? 'Активен' : 'Заблокирован' }}
-          </span>
+            <template #activator="{ props }">
+              <v-icon
+                v-bind="props"
+                :icon="item.isActive ? 'mdi-check-circle' : 'mdi-close-circle'"
+                :color="item.isActive ? 'success' : 'error'"
+                size="24"
+                class="status-icon"
+              />
+            </template>
+          </v-tooltip>
         </template>
 
         <!-- Колонка "Блокировка" -->
@@ -2236,6 +2244,10 @@ const handleWindowResize = () => {
   width: auto;
   min-width: 80px;
   max-width: 120px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
 }
 
 /* Колонка Создан - средняя ширина */
@@ -2975,6 +2987,31 @@ const handleWindowResize = () => {
 
 .status-minimal.status-inactive {
   color: #d32f2f;
+}
+
+/* Стили для иконок статуса */
+.status-icon {
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.status-icon:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
+}
+
+/* Дополнительные стили для центрирования иконок в ячейке */
+.accounts-table :deep(.v-data-table__td) .v-tooltip .v-tooltip__activator {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Минималистичное отображение блокировки */
