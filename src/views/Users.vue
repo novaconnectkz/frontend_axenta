@@ -342,9 +342,57 @@
                 <v-icon size="22">mdi-pencil</v-icon>
               </v-btn>
 
-              <v-btn icon="mdi-dots-vertical" size="small" variant="text" @click="showUserMenu(item)">
-                <v-icon size="22">mdi-dots-vertical</v-icon>
-              </v-btn>
+              <v-menu>
+                <template #activator="{ props }">
+                  <v-btn 
+                    icon="mdi-dots-vertical" 
+                    size="small" 
+                    variant="text" 
+                    v-bind="props"
+                  >
+                    <v-icon size="22">mdi-dots-vertical</v-icon>
+                  </v-btn>
+                </template>
+                <v-list density="compact">
+                  <!-- Доступ к мониторингу для партнеров и клиентов -->
+                  <v-list-item 
+                    v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент')"
+                    @click="loginToMonitoring(item)"
+                    prepend-icon="mdi-chart-line"
+                  >
+                    <v-list-item-title>Войти в мониторинг</v-list-item-title>
+                  </v-list-item>
+                  
+                  <!-- Доступ к CMS только для партнеров -->
+                  <v-list-item 
+                    v-if="item.role && item.role.display_name === 'Партнер'"
+                    @click="loginToCMS(item)"
+                    prepend-icon="mdi-cog"
+                  >
+                    <v-list-item-title>Войти в CMS</v-list-item-title>
+                  </v-list-item>
+                  
+                  <v-divider v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент')" />
+                  
+                  <v-list-item @click="showUserProperties(item)" prepend-icon="mdi-account-cog">
+                    <v-list-item-title>Свойства пользователя</v-list-item-title>
+                  </v-list-item>
+                  
+                  <v-list-item @click="resetUserPassword(item)" prepend-icon="mdi-key">
+                    <v-list-item-title>Сменить пароль</v-list-item-title>
+                  </v-list-item>
+                  
+                  <v-divider />
+                  
+                  <v-list-item 
+                    @click="deleteUser(item)" 
+                    prepend-icon="mdi-delete" 
+                    class="text-error"
+                  >
+                    <v-list-item-title>Удалить пользователя</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
             </div>
           </template>
         </v-data-table>
@@ -933,6 +981,25 @@ const resetUserPassword = (user: UserWithRelations) => {
   };
 };
 
+// Login to monitoring
+const loginToMonitoring = (user: UserWithRelations) => {
+  // TODO: Реализовать логику входа в мониторинг
+  console.log('Вход в мониторинг для пользователя:', user.username);
+  showSnackbar('Функция входа в мониторинг находится в разработке', 'info');
+};
+
+// Login to CMS
+const loginToCMS = (user: UserWithRelations) => {
+  // TODO: Реализовать логику входа в CMS
+  console.log('Вход в CMS для пользователя:', user.username);
+  showSnackbar('Функция входа в CMS находится в разработке', 'info');
+};
+
+// Show user properties
+const showUserProperties = (user: UserWithRelations) => {
+  viewUser(user);
+};
+
 // removed unused: openInactiveUsersDialog
 
 const onInactiveUsersSuccess = async (message: string) => {
@@ -1379,25 +1446,6 @@ const bulkDeactivateUsers = async () => {
     showSnackbar('Ошибка массовой деактивации пользователей', 'error');
   } finally {
     bulkActionsLoading.value = false;
-  }
-};
-
-// Функция для показа меню пользователя
-const showUserMenu = (user: UserWithRelations) => {
-  // Показываем контекстное меню с действиями
-  const actions = [
-    { title: 'Сбросить пароль', icon: 'mdi-key', action: () => resetUserPassword(user) },
-    { title: user.is_active ? 'Деактивировать' : 'Активировать', icon: user.is_active ? 'mdi-pause-circle' : 'mdi-check-circle', action: () => toggleUserActivity(user, !user.is_active) },
-    { title: 'Удалить', icon: 'mdi-delete', action: () => deleteUser(user), color: 'error' }
-  ];
-  
-  // Для простоты показываем alert с действиями
-  const actionText = actions.map((action, index) => `${index + 1}. ${action.title}`).join('\n');
-  const choice = prompt(`Выберите действие для пользователя ${user.username}:\n\n${actionText}\n\nВведите номер действия (1-${actions.length}):`);
-  
-  const choiceIndex = parseInt(choice) - 1;
-  if (choiceIndex >= 0 && choiceIndex < actions.length) {
-    actions[choiceIndex].action();
   }
 };
 
