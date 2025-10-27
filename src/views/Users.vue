@@ -213,12 +213,17 @@
           :loading="loading" 
           :items-per-page="pagination.limit"
           :page="pagination.page" 
+          :server-items-length="serverItemsLength"
           :items-per-page-options="perPageOptions"
+          :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
           @update:page="handlePageChange" 
           @update:items-per-page="handlePerPageChange"
+          @update:sort-by="handleSortChange"
           item-value="id" 
           class="users-table" 
           :row-props="getRowProps"
+          :must-sort="false"
+          hide-default-footer
           no-data-text="Пользователи не найдены"
           loading-text="Загрузка пользователей..."
         >
@@ -327,6 +332,59 @@
             </div>
           </template>
         </v-data-table>
+
+        <!-- Кастомный футер с пагинацией в стиле Accounts -->
+        <div class="compact-pagination">
+          <v-select
+            v-model="itemsPerPageForSelect"
+            :items="perPageOptions"
+            variant="outlined"
+            density="compact"
+            class="items-select"
+            @update:model-value="handlePerPageChange"
+            hide-details
+          />
+          <span class="range-info">
+            {{ pagination.limit > 0 && pagination.limit < 100000 
+              ? `${(pagination.page - 1) * pagination.limit + 1}-${Math.min(pagination.page * pagination.limit, serverItemsLength)} из ${serverItemsLength}` 
+              : `Все ${serverItemsLength} записей` }}
+          </span>
+          <div class="nav-controls">
+            <v-btn
+              icon="mdi-page-first"
+              variant="text"
+              size="x-small"
+              :disabled="pagination.page === 1"
+              @click="handlePageChange(1)"
+              title="Первая"
+            />
+            <v-btn
+              icon="mdi-chevron-left"
+              variant="text"
+              size="x-small"
+              :disabled="pagination.page === 1"
+              @click="handlePageChange(pagination.page - 1)"
+              title="Предыдущая"
+            />
+            <span class="page-info">{{ pagination.page }} / {{ usersData?.pages || 1 }}</span>
+            <v-btn
+              icon="mdi-chevron-right"
+              variant="text"
+              size="x-small"
+              :disabled="pagination.page >= (usersData?.pages || 1)"
+              @click="handlePageChange(pagination.page + 1)"
+              title="Следующая"
+            />
+            <v-btn
+              icon="mdi-page-last"
+              variant="text"
+              size="x-small"
+              :disabled="pagination.page >= (usersData?.pages || 1)"
+              @click="handlePageChange(usersData?.pages || 1)"
+              title="Последняя"
+            />
+          </div>
+        </div>
       </div>
     </AppleCard>
 
@@ -409,15 +467,16 @@ const bulkActionsLoading = ref(false);
 // Pagination
 const pagination = ref({
   page: 1,
-  limit: 20,
+  limit: 10,
 });
 
-// Filters (убираем ordering, поскольку используем клиентскую сортировку)
+// Filters
 const filters = ref<UserFilters>({
   search: '',
   role: undefined,
   user_type: undefined,
   active: undefined,
+  ordering: '-creation_datetime', // По умолчанию сортируем по дате создания в порядке убывания
 });
 
 // Options for selects
@@ -485,15 +544,37 @@ const successNotification = reactive({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some(value =>
+  // Проверяем только реальные фильтры (исключаем сортировку)
+  const realFilters = { ...filters.value };
+  // Убираем параметр ordering из проверки, так как это не фильтр, а сортировка
+  delete realFilters.ordering;
+  
+  return Object.values(realFilters).some(value =>
     value !== undefined && value !== null && value !== ''
   );
 });
 
 const activeFiltersCount = computed(() => {
-  return Object.values(filters.value).filter(value =>
+  // Подсчитываем только реальные фильтры (исключаем сортировку)
+  const realFilters = { ...filters.value };
+  // Убираем параметр ordering из подсчета, так как это не фильтр, а сортировка
+  delete realFilters.ordering;
+  
+  return Object.values(realFilters).filter(value =>
     value !== undefined && value !== null && value !== ''
   ).length;
+});
+
+// Computed properties для пагинации
+const serverItemsLength = computed(() => {
+  const total = usersData.value?.total ?? 0;
+  console.log('🔍 Computed serverItemsLength:', total);
+  return total;
+});
+
+const itemsPerPageForSelect = computed({
+  get: () => pagination.value.limit === 100000 ? -1 : pagination.value.limit,
+  set: (value) => handlePerPageChange(value)
 });
 
 // Computed properties для групповых действий
@@ -568,7 +649,7 @@ const sortByString = (a: any, b: any, key: string) => {
 const sortByDate = (a: any, b: any) => {
   const timeA = a._creation_datetime_sort || 0;
   const timeB = b._creation_datetime_sort || 0;
-  return timeA - timeB;
+  return timeA - timeB; // Клиентская сортировка по возрастанию (сервер уже присылает в правильном порядке)
 };
 
 const sortByRole = (a: any, b: any) => {
@@ -585,39 +666,33 @@ const tableHeaders = computed(() => [
     title: 'ID', 
     value: 'id', 
     sortable: true, 
-    width: 80,
-    sort: (a: any, b: any) => sortByNumber(a, b, 'id')
+    width: 80
   },
   { 
     title: 'Пользователь', 
     value: 'username', 
     sortable: true, 
-    width: 200,
-    sort: (a: any, b: any) => sortByString(a, b, 'username')
+    width: 200
   },
   { 
     title: 'Email', 
     value: 'email', 
-    sortable: true,
-    sort: (a: any, b: any) => sortByString(a, b, 'email')
+    sortable: true
   },
   { 
     title: 'Полное имя', 
     value: 'name', 
-    sortable: true,
-    sort: (a: any, b: any) => sortByString(a, b, 'name')
+    sortable: true
   },
   { 
     title: 'Создатель', 
     value: 'creator_name', 
-    sortable: true,
-    sort: (a: any, b: any) => sortByString(a, b, 'creator_name')
+    sortable: true
   },
   { 
     title: 'Дата создания', 
     value: 'creation_datetime', 
-    sortable: true, 
-    sort: sortByDate 
+    sortable: true
   },
   { title: 'Роль', value: 'role', sortable: false },
   // { title: 'Тип', value: 'user_type', sortable: true }, // Отключено, но функционал сохранен
@@ -626,10 +701,14 @@ const tableHeaders = computed(() => [
 
 // Доступные значения для количества элементов на странице
 const perPageOptions = [
-  { title: '10 на странице', value: 10 },
-  { title: '20 на странице', value: 20 },
-  { title: '50 на странице', value: 50 },
-  { title: '100 на странице', value: 100 },
+  { title: '10', value: 10 },
+  { title: '20', value: 20 },
+  { title: '50', value: 50 },
+  { title: '100', value: 100 },
+  { title: '200', value: 200 },
+  { title: '500', value: 500 },
+  { title: '1000', value: 1000 },
+  { title: 'Все', value: -1 },
 ];
 
 // Methods
@@ -670,8 +749,13 @@ const loadUsers = async () => {
         page: response.data.page,
         limit: response.data.limit,
         pages: response.data.pages,
-        items_count: response.data.items.length
+        items_count: response.data.items.length,
+        server_items_length: response.data.total
       });
+      console.log('🔍 usersData.value:', usersData.value);
+      console.log('🔍 usersData.value.total:', usersData.value?.total, 'type:', typeof usersData.value?.total);
+      console.log('🔍 users.value.length:', users.value.length);
+      console.log('🔍 Размер таблицы будет:', parseInt(usersData.value?.total) || 0);
       
       // Отладка дат для первых нескольких пользователей
       console.log('📅 Отладка дат создания пользователей:');
@@ -767,6 +851,7 @@ const clearFilters = () => {
     role: undefined,
     user_type: undefined,
     active: undefined,
+    ordering: '-creation_datetime', // Сохраняем сортировку по умолчанию
   };
   pagination.value.page = 1;
   loadUsers();
@@ -849,12 +934,53 @@ const handlePageChange = (page: number) => {
 };
 
 const handlePerPageChange = (limit: number) => {
-  pagination.value.limit = limit;
+  // Обрабатываем значение -1 как "Все"
+  if (limit === -1) {
+    // Устанавливаем очень большое значение для загрузки всех записей
+    pagination.value.limit = 100000; // Без ограничений для вывода всех
+  } else {
+    pagination.value.limit = limit;
+  }
   pagination.value.page = 1;
   loadUsers();
 };
 
-// Удалена функция handleSortChange, поскольку теперь используется клиентская сортировка
+// Sort handler
+const handleSortChange = (sortBy: any[]) => {
+  console.log('🔀 Sorting changed:', sortBy);
+  
+  if (!sortBy || sortBy.length === 0) {
+    // Если сортировка сброшена, возвращаем сортировку по дате создания
+    filters.value.ordering = '-creation_datetime';
+  } else {
+    const sortItem = sortBy[0];
+    const key = sortItem.key;
+    const order = sortItem.order;
+    
+    // Маппинг полей для серверной сортировки
+    const fieldMapping: Record<string, string> = {
+      'id': 'id',
+      'username': 'username',
+      'email': 'email',
+      'name': 'name',  // Сервер использует поле name
+      'creator_name': 'creator_name',
+      'creation_datetime': 'creation_datetime'
+    };
+    
+    const serverField = fieldMapping[key];
+    if (serverField) {
+      // Формируем параметр ordering для сервера
+      if (order === 'desc') {
+        filters.value.ordering = `-${serverField}`;
+      } else {
+        filters.value.ordering = serverField;
+      }
+    }
+  }
+  
+  pagination.value.page = 1;
+  loadUsers();
+};
 
 // Utility methods
 const getUserFullName = (user: UserWithRelations): string => {
@@ -1925,4 +2051,115 @@ onMounted(async () => {
   background-color: rgba(244, 67, 54, 0.08) !important;
   border-left: 4px solid #f44336 !important;
 } */
+
+/* Компактная пагинация в стиле Accounts */
+.compact-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 20px 24px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-height: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 0 16px;
+}
+
+.items-select {
+  min-width: 60px !important;
+  width: fit-content !important;
+  max-width: 120px !important;
+  flex-shrink: 0;
+  height: 40px;
+}
+
+.items-select :deep(.v-field) {
+  min-width: 50px !important;
+  width: auto !important;
+}
+
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.items-select :deep(.v-field__append-inner) {
+  padding-left: 4px !important;
+}
+
+.items-select :deep(.v-select__selection) {
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.range-info {
+  font-size: 0.9rem;
+  color: #555;
+  flex-shrink: 0;
+  min-width: 120px;
+  text-align: center;
+  font-weight: 600;
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+
+.page-info {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 700;
+  padding: 4px 8px;
+  min-width: 50px;
+  text-align: center;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+
+.nav-controls .v-btn {
+  min-width: 32px;
+  height: 32px;
+}
+
+/* Темная тема */
+[data-theme="dark"] .compact-pagination {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+[data-theme="dark"] .range-info {
+  color: #8e8e93;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .page-info {
+  color: #ffffff;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls {
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .nav-controls .v-btn:hover {
+  background-color: #3a3a3c;
+  border-color: #007AFF;
+}
 </style>
