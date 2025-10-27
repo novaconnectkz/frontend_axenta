@@ -292,8 +292,34 @@
 
           <!-- Роль -->
           <template #item.role="{ item }">
-            <v-chip v-if="item.role" :text="item.role.display_name" :color="item.role.color || 'primary'" size="small"
-              variant="tonal" />
+            <div v-if="item.role" class="d-flex align-center">
+              <!-- Для ролей "Партнер" и "Клиент" показываем только иконку с подсказкой -->
+              <v-tooltip
+                v-if="item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент'"
+                location="top"
+              >
+                <template #activator="{ props }">
+                  <v-icon 
+                    v-bind="props"
+                    :icon="getRoleIcon(item.role.display_name)" 
+                    :color="item.role.color || 'primary'"
+                    size="28"
+                    class="role-icon-only"
+                  />
+                </template>
+                <span>{{ item.role.display_name }}</span>
+              </v-tooltip>
+              <!-- Для остальных ролей показываем иконку с текстом -->
+              <template v-else>
+                <v-icon 
+                  :icon="getRoleIcon(item.role.display_name)" 
+                  :color="item.role.color || 'primary'"
+                  size="24"
+                  class="role-icon"
+                />
+                <span class="role-name ml-2">{{ item.role.display_name }}</span>
+              </template>
+            </div>
             <span v-else class="text-medium-emphasis">Не назначена</span>
           </template>
 
@@ -1025,6 +1051,20 @@ const getUserTypeIcon = (type: string): string => {
     admin: 'mdi-shield-account',
   };
   return iconMap[type as keyof typeof iconMap] || 'mdi-account';
+};
+
+// Функция для получения иконки роли
+const getRoleIcon = (roleName: string): string => {
+  const roleIconMap: Record<string, string> = {
+    'Партнер': 'mdi-handshake',
+    'Клиент': 'mdi-account-group',
+    'Администратор': 'mdi-shield-account',
+    'Менеджер': 'mdi-account-supervisor',
+    'Техник': 'mdi-account-hard-hat',
+    'Бухгалтер': 'mdi-calculator',
+    'Пользователь': 'mdi-account',
+  };
+  return roleIconMap[roleName] || 'mdi-account-outline';
 };
 
 // Функция форматирования даты
@@ -2151,5 +2191,29 @@ onMounted(async () => {
 [data-theme="dark"] .nav-controls .v-btn:hover {
   background-color: #3a3a3c;
   border-color: #007AFF;
+}
+
+/* Стили для иконок ролей */
+.role-icon-only {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.role-icon-only:hover {
+  transform: scale(1.1);
+}
+
+.role-icon {
+  margin-right: 8px;
+  transition: transform 0.2s ease;
+}
+
+.role-icon:hover {
+  transform: scale(1.1);
+}
+
+.role-name {
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 </style>
