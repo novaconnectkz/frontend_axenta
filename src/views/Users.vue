@@ -195,16 +195,6 @@
         </div>
       </div>
 
-      <template #header>
-        <div class="table-header">
-          <div class="table-title-section">
-            <v-icon icon="mdi-format-list-bulleted" class="mr-2" />
-            Список пользователей
-            <v-chip v-if="usersData" :text="usersData.total.toString()" size="small" class="ml-2" />
-          </div>
-        </div>
-      </template>
-
       <!-- Таблица пользователей -->
       <div class="table-container">
         <v-data-table 
