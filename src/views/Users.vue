@@ -351,12 +351,11 @@
                 <template #activator="{ props }">
                   <v-btn 
                     icon="mdi-dots-vertical" 
-                    size="small" 
+                    size="x-small" 
                     variant="text" 
                     v-bind="props"
-                  >
-                    <v-icon size="22">mdi-dots-vertical</v-icon>
-                  </v-btn>
+                    title="Дополнительные действия"
+                  />
                 </template>
                 <v-list density="compact">
                   <v-list-item @click="viewUser(item)" prepend-icon="mdi-eye">
