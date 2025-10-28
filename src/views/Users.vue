@@ -1249,24 +1249,38 @@ const showSuccessNotification = (title: string, message: string, details?: strin
 
 // Функции для работы с активностью пользователей
 const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) => {
+  const action = isActive ? 'активации' : 'деактивации';
+  
   try {
-    const response = await usersService.updateUser(user.id, { is_active: isActive });
-    if (response.status === 'success') {
-      // Обновляем пользователя в локальном состоянии
-      const index = users.value.findIndex(u => u.id === user.id);
-      if (index !== -1) {
-        users.value[index].is_active = isActive;
-      }
-      showSnackbar(
-        `Пользователь "${user.username}" ${isActive ? 'активирован' : 'деактивирован'}`,
-        'success'
-      );
-    } else {
-      showSnackbar(response.error || 'Ошибка изменения активности пользователя', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка изменения активности пользователя:', error);
-    showSnackbar('Ошибка изменения активности пользователя', 'error');
+    console.log(`🔄 ${action} пользователя:`, user.username);
+    
+    // Вызываем API для изменения статуса
+    await usersService.toggleUserStatus(user.id, isActive);
+    
+    // Обновляем локальное состояние
+    user.is_active = isActive;
+    
+    console.log(`✅ Пользователь ${user.username} ${isActive ? 'активирован' : 'деактивирован'}`);
+    
+    // Показываем уведомление об успехе
+    showSnackbar(
+      `Пользователь "${user.username}" успешно ${isActive ? 'активирован' : 'деактивирован'}`,
+      'success'
+    );
+    
+    // Обновляем данные
+    await loadUsers();
+    await loadStats();
+    
+  } catch (error) {
+    console.error('❌ Ошибка изменения статуса пользователя:', error);
+    
+    // Показываем уведомление об ошибке
+    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
+    showSnackbar(
+      `Ошибка ${action} пользователя "${user.username}": ${errorMessage}`,
+      'error'
+    );
   }
 };
 

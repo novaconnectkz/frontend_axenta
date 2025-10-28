@@ -189,17 +189,52 @@ export class UsersService {
   }
 
   // Деактивация пользователя
-  async deactivateUser(
-    id: number
-  ): Promise<{ status: string; data: UserWithRelations; error?: string }> {
-    return this.updateUser(id, { is_active: false });
+  async deactivateUser(id: number): Promise<void> {
+    try {
+      console.log(`🔄 Деактивация пользователя ${id}`);
+      
+      const response = await this.apiClient.post(`/cms/users/${id}/activate/`, {
+        state: false
+      });
+      
+      console.log(`✅ Пользователь ${id} деактивирован:`, response.data);
+      
+      if (response.status !== 201) {
+        throw new Error('Ошибка деактивации пользователя');
+      }
+    } catch (error: any) {
+      console.error(`❌ Ошибка деактивации пользователя ${id}:`, error);
+      throw error;
+    }
   }
 
   // Активация пользователя
-  async activateUser(
-    id: number
-  ): Promise<{ status: string; data: UserWithRelations; error?: string }> {
-    return this.updateUser(id, { is_active: true });
+  async activateUser(id: number): Promise<void> {
+    try {
+      console.log(`🔄 Активация пользователя ${id}`);
+      
+      const response = await this.apiClient.post(`/cms/users/${id}/activate/`, {
+        state: true
+      });
+      
+      console.log(`✅ Пользователь ${id} активирован:`, response.data);
+      
+      if (response.status !== 201) {
+        throw new Error('Ошибка активации пользователя');
+      }
+    } catch (error: any) {
+      console.error(`❌ Ошибка активации пользователя ${id}:`, error);
+      throw error;
+    }
+  }
+
+  // Переключить статус пользователя (активация/деактивация)
+  async toggleUserStatus(id: number, isActive: boolean): Promise<void> {
+    if (isActive) {
+      await this.activateUser(id);
+    } else {
+      await this.deactivateUser(id);
+    }
   }
 
   // Массовая деактивация пользователей
