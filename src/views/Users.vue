@@ -339,14 +339,14 @@
           <!-- Действия -->
           <template #item.actions="{ item }">
             <div class="actions-cell">
-              <v-btn icon="mdi-eye" size="small" variant="text" @click="viewUser(item)">
-                <v-icon size="22">mdi-eye</v-icon>
-              </v-btn>
-
-              <v-btn icon="mdi-pencil" size="small" variant="text" @click="editUser(item)">
-                <v-icon size="22">mdi-pencil</v-icon>
-              </v-btn>
-
+              <v-btn
+                :icon="item.is_active ? 'mdi-pause' : 'mdi-play'"
+                variant="text"
+                size="x-small"
+                :color="item.is_active ? 'warning' : 'success'"
+                @click="toggleUserActivity(item, !item.is_active)"
+                :title="item.is_active ? 'Деактивировать' : 'Активировать'"
+              />
               <v-menu>
                 <template #activator="{ props }">
                   <v-btn 
@@ -359,6 +359,16 @@
                   </v-btn>
                 </template>
                 <v-list density="compact">
+                  <v-list-item @click="viewUser(item)" prepend-icon="mdi-eye">
+                    <v-list-item-title>Просмотр</v-list-item-title>
+                  </v-list-item>
+                  
+                  <v-list-item @click="editUser(item)" prepend-icon="mdi-pencil">
+                    <v-list-item-title>Редактировать</v-list-item-title>
+                  </v-list-item>
+                  
+                  <v-divider />
+                  
                   <!-- Доступ к мониторингу для партнеров и клиентов -->
                   <v-list-item 
                     v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент')"
