@@ -417,17 +417,17 @@ const navigationItems = computed(() => [
     subtitle: 'Управление компаниями'
   },
   {
+    path: '/users',
+    icon: 'mdi-account-group',
+    title: 'Пользователи',
+    subtitle: 'Управление пользователями'
+  },
+  {
     path: '/objects',
     icon: 'mdi-office-building',
     title: 'Объекты',
     subtitle: 'Управление объектами',
     badge: 0 // Можно добавить счетчик
-  },
-  {
-    path: '/users',
-    icon: 'mdi-account-group',
-    title: 'Пользователи',
-    subtitle: 'Управление пользователями'
   },
   {
     path: '/installations',
