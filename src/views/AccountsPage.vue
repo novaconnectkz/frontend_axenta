@@ -843,14 +843,13 @@ const statusOptions = [
 
 // Опции для количества записей на странице
 const itemsPerPageOptions = [
+  { value: 5, title: '5' },
   { value: 10, title: '10' },
   { value: 25, title: '25' },
   { value: 50, title: '50' },
+  { value: 75, title: '75' },
   { value: 100, title: '100' },
-  { value: 200, title: '200' },
-  { value: 500, title: '500' },
-  { value: 1000, title: '1000' },
-  { value: -1, title: 'Все' }, // -1 означает все записи
+  { value: 150, title: '150' },
 ];
 
 // Заголовки таблицы
