@@ -284,9 +284,14 @@
 
         <!-- Дата создания -->
         <template #item.creation_datetime="{ item }">
-          <span v-if="item.creation_datetime" class="text-body-2">
-            {{ formatDate(item.creation_datetime) }}
-          </span>
+          <v-tooltip v-if="item.creation_datetime" location="top">
+            <template #activator="{ props }">
+              <span v-bind="props" class="text-body-2">
+                {{ formatDateOnly(item.creation_datetime) }}
+              </span>
+            </template>
+            <span>{{ formatTimeOnly(item.creation_datetime) }}</span>
+          </v-tooltip>
           <span v-else class="text-medium-emphasis">—</span>
         </template>
 
@@ -1134,7 +1139,35 @@ const getRoleIcon = (roleName: string): string => {
   return roleIconMap[roleName] || 'mdi-account-outline';
 };
 
-// Функция форматирования даты
+// Функция форматирования даты (только дата)
+const formatDateOnly = (dateString: string): string => {
+  console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
+  const date = new Date(dateString);
+  console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
+  
+  const formatted = date.toLocaleDateString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+  
+  console.log('📅 Отформатированная дата:', formatted);
+  return formatted;
+};
+
+// Функция форматирования времени (для подсказки)
+const formatTimeOnly = (dateString: string): string => {
+  const date = new Date(dateString);
+  
+  const formatted = date.toLocaleTimeString('ru-RU', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  
+  return formatted;
+};
+
+// Функция форматирования полной даты и времени (для обратной совместимости)
 const formatDate = (dateString: string): string => {
   console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
   const date = new Date(dateString);
