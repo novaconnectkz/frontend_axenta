@@ -15,22 +15,12 @@
         </p>
         
         <AppleInput
-          v-model="form.adminPassword"
-          label="Ваш пароль администратора"
-          type="password"
-          placeholder="Введите ваш пароль для подтверждения"
-          required
-          :error-message="errors.adminPassword"
-        />
-        
-        <AppleInput
           v-model="form.password"
           label="Новый пароль"
           type="password"
           placeholder="Введите новый пароль"
           required
           :error-message="errors.password"
-          class="mt-4"
         />
         
         <AppleInput
@@ -97,7 +87,6 @@ const emit = defineEmits<Emits>();
 const resetting = ref(false);
 
 const form = ref({
-  adminPassword: '',
   password: '',
   confirmPassword: '',
 });
@@ -113,7 +102,6 @@ const show = computed({
 // Methods
 const resetForm = () => {
   form.value = {
-    adminPassword: '',
     password: '',
     confirmPassword: '',
   };
@@ -122,11 +110,6 @@ const resetForm = () => {
 
 const validateForm = (): boolean => {
   errors.value = {};
-  
-  if (!form.value.adminPassword.trim()) {
-    errors.value.adminPassword = 'Пароль администратора обязателен';
-    return false;
-  }
   
   if (!form.value.password.trim()) {
     errors.value.password = 'Новый пароль обязателен';
@@ -161,7 +144,6 @@ const resetPassword = async () => {
     
     const response = await usersService.updateUserPassword(
       props.user.id,
-      form.value.adminPassword,
       form.value.password,
       form.value.confirmPassword
     );

@@ -287,26 +287,22 @@
                   />
                 </template>
                 <v-list density="compact">
-                  
-                  <!-- Доступ к мониторингу для партнеров и клиентов -->
-                  <v-list-item 
-                    v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент')"
+                  <!-- Пункт "Войти в мониторинг" - отображается для всех пользователей -->
+                  <v-list-item
+                    prepend-icon="mdi-arrow-right-bold"
+                    title="Войти в мониторинг"
                     @click="loginToMonitoring(item)"
-                    prepend-icon="mdi-chart-line"
-                  >
-                    <v-list-item-title>Войти в мониторинг</v-list-item-title>
-                  </v-list-item>
+                  />
                   
-                  <!-- Доступ к CMS только для партнеров -->
-                  <v-list-item 
+                  <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
+                  <v-list-item
                     v-if="item.role && item.role.display_name === 'Партнер'"
+                    prepend-icon="mdi-arrow-right-bold"
+                    title="Войти в CMS"
                     @click="loginToCMS(item)"
-                    prepend-icon="mdi-cog"
-                  >
-                    <v-list-item-title>Войти в CMS</v-list-item-title>
-                  </v-list-item>
+                  />
                   
-                  <v-divider v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент')" />
+                  <v-divider />
                   
                   <v-list-item @click="showUserProperties(item)" prepend-icon="mdi-account-cog">
                     <v-list-item-title>Свойства пользователя</v-list-item-title>
@@ -430,6 +426,7 @@ import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import usersService from '@/services/usersService';
+import accountsService from '@/services/accountsService';
 import type {
   UserFilters,
   UserWithRelations
@@ -872,17 +869,51 @@ const resetUserPassword = (user: UserWithRelations) => {
 };
 
 // Login to monitoring
-const loginToMonitoring = (user: UserWithRelations) => {
-  // TODO: Реализовать логику входа в мониторинг
-  console.log('Вход в мониторинг для пользователя:', user.username);
-  showSnackbar('Функция входа в мониторинг находится в разработке', 'info');
+const loginToMonitoring = async (user: UserWithRelations) => {
+  try {
+    console.log('📊 Вход в мониторинг для пользователя:', user.username);
+    
+    if (!user.id) {
+      showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
+      return;
+    }
+
+    const result = await accountsService.loginAs(user.id, 'monitoring');
+    
+    console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
+    
+    // Открываем новую вкладку с URL для входа
+    window.open(result.redirectUrl, '_blank');
+    
+  } catch (error: any) {
+    console.error('❌ Ошибка входа в мониторинг:', error);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    showSnackbar(`Ошибка входа в мониторинг: ${errorMessage}`, 'error');
+  }
 };
 
 // Login to CMS
-const loginToCMS = (user: UserWithRelations) => {
-  // TODO: Реализовать логику входа в CMS
-  console.log('Вход в CMS для пользователя:', user.username);
-  showSnackbar('Функция входа в CMS находится в разработке', 'info');
+const loginToCMS = async (user: UserWithRelations) => {
+  try {
+    console.log('🔗 Вход в CMS для пользователя:', user.username);
+    
+    if (!user.id) {
+      showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
+      return;
+    }
+
+    const result = await accountsService.loginAs(user.id, 'cms');
+    
+    console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+    
+    // Открываем новую вкладку с URL для входа
+    window.open(result.redirectUrl, '_blank');
+    
+  } catch (error: any) {
+    console.error('❌ Ошибка входа в CMS:', error);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    showSnackbar(`Ошибка входа в CMS: ${errorMessage}`, 'error');
+  }
 };
 
 // Show user properties

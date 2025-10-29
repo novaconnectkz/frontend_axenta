@@ -296,13 +296,11 @@ export class UsersService {
   // Смена пароля пользователя администратором
   async updateUserPassword(
     userId: number,
-    adminPassword: string,
     newPassword: string,
     confirmNewPassword: string
   ): Promise<{ status: string; message: string; error?: string }> {
     try {
       const response = await this.apiClient.post("/auth/cms/update_user_password/", {
-        adminPassword,
         userId,
         newPassword,
         confirmNewPassword,
