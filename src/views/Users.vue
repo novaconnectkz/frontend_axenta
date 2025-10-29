@@ -287,15 +287,6 @@
                   />
                 </template>
                 <v-list density="compact">
-                  <v-list-item @click="viewUser(item)" prepend-icon="mdi-eye">
-                    <v-list-item-title>Просмотр</v-list-item-title>
-                  </v-list-item>
-                  
-                  <v-list-item @click="editUser(item)" prepend-icon="mdi-pencil">
-                    <v-list-item-title>Редактировать</v-list-item-title>
-                  </v-list-item>
-                  
-                  <v-divider />
                   
                   <!-- Доступ к мониторингу для партнеров и клиентов -->
                   <v-list-item 
