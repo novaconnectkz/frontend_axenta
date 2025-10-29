@@ -140,61 +140,6 @@
 
     <!-- Список пользователей -->
     <AppleCard class="users-table-card" variant="outlined">
-      <!-- Панель групповых действий -->
-      <div v-if="selectedUsers.length > 0" class="bulk-actions-panel">
-        <div class="bulk-actions-info">
-          <v-icon>mdi-checkbox-marked</v-icon>
-          Выбрано пользователей: {{ selectedUsers.length }}
-        </div>
-        <div class="bulk-actions-buttons">
-          <AppleButton 
-            variant="text" 
-            size="small" 
-            prepend-icon="mdi-close" 
-            @click="clearSelection"
-          >
-            Снять выделение
-          </AppleButton>
-          
-          <!-- Активация/деактивация -->
-          <AppleButton 
-            v-if="hasInactiveUsers"
-            variant="secondary" 
-            size="small" 
-            prepend-icon="mdi-check-circle" 
-            color="success"
-            :loading="bulkActionsLoading"
-            @click="bulkActivateUsers"
-          >
-            Активировать ({{ inactiveUsersCount }})
-          </AppleButton>
-          
-          <AppleButton 
-            v-if="hasActiveUsers"
-            variant="secondary" 
-            size="small" 
-            prepend-icon="mdi-pause-circle" 
-            color="warning"
-            :loading="bulkActionsLoading"
-            @click="bulkDeactivateUsers"
-          >
-            Деактивировать ({{ activeUsersCount }})
-          </AppleButton>
-          
-          <!-- Удаление -->
-          <AppleButton 
-            variant="secondary" 
-            size="small" 
-            prepend-icon="mdi-delete" 
-            color="error"
-            :loading="bulkActionsLoading"
-            @click="bulkDeleteUsers"
-          >
-            Удалить ({{ selectedUsers.length }})
-          </AppleButton>
-        </div>
-      </div>
-
       <!-- Таблица пользователей -->
       <div class="table-container">
         <v-data-table 
@@ -217,32 +162,16 @@
           no-data-text="Пользователи не найдены"
           loading-text="Загрузка пользователей..."
         >
-          <!-- Чекбокс выделения -->
-          <template #item.select="{ item }">
-            <v-checkbox 
-              :model-value="isUserSelected(item)" 
-              @update:model-value="toggleUserSelection(item)"
-              hide-details 
-              density="compact" 
-            />
-          </template>
-
-          <!-- Заголовок чекбокса -->
-          <template #header.select>
-            <v-checkbox 
-              :model-value="selectAll" 
-              :indeterminate="selectedUsers.length > 0 && selectedUsers.length < users.length"
-              @update:model-value="toggleSelectAll"
-              hide-details 
-              density="compact"
-            />
-          </template>
-
           <!-- Активность - отключено, но функционал сохранен -->
           <!-- <template #item.is_active="{ item }">
             <v-checkbox :model-value="item.is_active" @update:model-value="(val) => toggleUserActivity(item, !!val)"
               hide-details density="compact" />
           </template> -->
+
+          <!-- Номер строки -->
+          <template #item.rowNumber="{ index }">
+            <span class="row-number">{{ (pagination.page - 1) * pagination.limit + index + 1 }}</span>
+          </template>
 
           <!-- ID -->
           <template #item.id="{ item }">
@@ -479,16 +408,6 @@
     <InactiveUsersDialog v-model="inactiveUsersDialog.show" @success="onInactiveUsersSuccess"
       @error="showSnackbar($event, 'error')" />
 
-    <!-- Диалог подтверждения массового удаления -->
-    <BulkDeleteConfirmDialog
-      v-model="showBulkDeleteDialog"
-      :items="selectedUsersForDelete"
-      item-type="пользователей"
-      :loading="bulkActionsLoading"
-      @confirm="executeBulkDelete"
-      @cancel="showBulkDeleteDialog = false"
-    />
-
     <!-- Snackbar для уведомлений -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
       {{ snackbar.text }}
@@ -514,7 +433,6 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
-import BulkDeleteConfirmDialog from '@/components/Common/BulkDeleteConfirmDialog.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
@@ -536,11 +454,6 @@ const loading = ref(false);
 // removed unused: exporting
 const users = ref<UserWithRelations[]>([]);
 const usersData = ref<any>(null);
-
-// Bulk selection
-const selectedUsers = ref<UserWithRelations[]>([]);
-const selectAll = ref(false);
-const bulkActionsLoading = ref(false);
 
 // Pagination
 const pagination = ref({
@@ -600,9 +513,6 @@ const inactiveUsersDialog = ref({
   show: false,
 });
 
-// Bulk delete dialog
-const showBulkDeleteDialog = ref(false);
-
 // Snackbar
 const snackbar = ref({
   show: false,
@@ -653,28 +563,6 @@ const serverItemsLength = computed(() => {
 const itemsPerPageForSelect = computed({
   get: () => pagination.value.limit === 100000 ? -1 : pagination.value.limit,
   set: (value) => handlePerPageChange(value)
-});
-
-// Computed properties для групповых действий
-const activeUsersCount = computed(() => {
-  return selectedUsers.value.filter(user => user.is_active).length;
-});
-
-const inactiveUsersCount = computed(() => {
-  return selectedUsers.value.filter(user => !user.is_active).length;
-});
-
-const hasActiveUsers = computed(() => {
-  return activeUsersCount.value > 0;
-});
-
-const hasInactiveUsers = computed(() => {
-  return inactiveUsersCount.value > 0;
-});
-
-// Приведение выбранных пользователей к типу, ожидаемому диалогом удаления
-const selectedUsersForDelete = computed(() => {
-  return selectedUsers.value.map(u => ({ id: u.id, name: u.username }));
 });
 
 // Computed properties для множественного поиска пользователей
@@ -738,7 +626,7 @@ const sortByRole = (a: any, b: any) => {
 
 // Table headers
 const tableHeaders = computed(() => [
-  { title: '', value: 'select', sortable: false, width: 50 },
+  { title: '№', value: 'rowNumber', sortable: false, width: 60 },
   // { title: 'Активность', value: 'is_active', sortable: false, width: 100 }, // Отключено, но функционал сохранен
   { 
     title: 'ID', 
@@ -962,8 +850,6 @@ const onUserSaved = async () => {
   );
   await loadUsers();
   await loadStats();
-  // Очищаем выделение после изменений
-  clearSelection();
 };
 
 const deleteUser = async (user: UserWithRelations) => {
@@ -1282,48 +1168,6 @@ const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) =>
   }
 };
 
-// Функции для работы с выделением
-const isUserSelected = (user: UserWithRelations): boolean => {
-  return selectedUsers.value.some(u => u.id === user.id);
-};
-
-const toggleUserSelection = (user: UserWithRelations) => {
-  const index = selectedUsers.value.findIndex(u => u.id === user.id);
-  if (index > -1) {
-    selectedUsers.value.splice(index, 1);
-  } else {
-    selectedUsers.value.push(user);
-  }
-  updateSelectAllState();
-};
-
-const updateSelectAllState = () => {
-  if (selectedUsers.value.length === 0) {
-    selectAll.value = false;
-  } else if (selectedUsers.value.length === users.value.length) {
-    selectAll.value = true;
-  } else {
-    selectAll.value = false;
-  }
-};
-
-const toggleSelectAll = () => {
-  if (selectAll.value || selectedUsers.value.length === users.value.length) {
-    // Снимаем выделение со всех
-    selectedUsers.value = [];
-    selectAll.value = false;
-  } else {
-    // Выделяем всех видимых пользователей
-    selectedUsers.value = [...users.value];
-    selectAll.value = true;
-  }
-};
-
-const clearSelection = () => {
-  selectedUsers.value = [];
-  selectAll.value = false;
-};
-
 // Удаление отдельного поискового термина для пользователей
 const removeUserSearchTerm = (index: number) => {
   const currentSearch = filters.value.search ?? '';
@@ -1333,191 +1177,10 @@ const removeUserSearchTerm = (index: number) => {
   debouncedSearch();
 };
 
-// Групповые действия
-const bulkDeleteUsers = () => {
-  if (selectedUsers.value.length === 0) {
-    showSnackbar('Выберите пользователей для удаления', 'warning');
-    return;
-  }
-
-  // Проверяем, есть ли администраторы среди выбранных пользователей
-  const adminUsers = selectedUsers.value.filter(user => 
-    user.role && (user.role.name === 'admin' || user.role.name === 'administrator')
-  );
-
-  if (adminUsers.length > 0) {
-    const adminUsernames = adminUsers.map(u => u.username).join(', ');
-    showSnackbar(
-      `Нельзя удалить администраторов: ${adminUsernames}. Сначала смените им роль.`,
-      'error'
-    );
-    return;
-  }
-
-  // Проверяем, есть ли активные пользователи с недавней активностью
-  const recentlyActiveUsers = selectedUsers.value.filter(user => {
-    if (!user.last_login) return false;
-    const lastLogin = new Date(user.last_login);
-    const dayAgo = new Date();
-    dayAgo.setDate(dayAgo.getDate() - 1);
-    return lastLogin > dayAgo;
-  });
-
-  if (recentlyActiveUsers.length > 0) {
-    const activeUsernames = recentlyActiveUsers.map(u => u.username).join(', ');
-    if (!confirm(`Внимание! Среди выбранных пользователей есть те, кто заходил в систему за последние 24 часа: ${activeUsernames}.\n\nВы действительно хотите продолжить?`)) {
-      return;
-    }
-  }
-
-  showBulkDeleteDialog.value = true;
-};
-
-const executeBulkDelete = async () => {
-  try {
-    bulkActionsLoading.value = true;
-    const userIds = selectedUsers.value.map(u => u.id);
-    
-    const response = await usersService.deleteUsers(userIds);
-    
-    if (response.status === 'success') {
-      showBulkDeleteDialog.value = false;
-      clearSelection();
-      await loadUsers();
-      await loadStats();
-      showSuccessNotification(
-        'Пользователи удалены',
-        'Выбранные пользователи были успешно удалены из системы',
-        `Удалено пользователей: ${response.deleted}`,
-        'mdi-account-remove'
-      );
-    } else {
-      showSnackbar(response.error || 'Ошибка группового удаления пользователей', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка группового удаления пользователей:', error);
-    showSnackbar('Ошибка группового удаления пользователей', 'error');
-  } finally {
-    bulkActionsLoading.value = false;
-  }
-};
-
-// Массовая активация пользователей
-const bulkActivateUsers = async () => {
-  if (inactiveUsersCount.value === 0) {
-    showSnackbar('Нет неактивных пользователей для активации', 'warning');
-    return;
-  }
-
-  const inactiveUsers = selectedUsers.value.filter(user => !user.is_active);
-  const usernames = inactiveUsers.map(u => u.username).join(', ');
-  
-  if (!confirm(`Вы уверены, что хотите активировать ${inactiveUsers.length} пользователей?\n\n${usernames}`)) {
-    return;
-  }
-
-  try {
-    bulkActionsLoading.value = true;
-    // userIds not used in demo implementation
-    
-    // В реальном API здесь будет вызов usersService.activateUsers(userIds)
-    // Для демо имитируем успешный ответ
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Обновляем статус в локальных данных (для демо)
-    inactiveUsers.forEach(user => {
-      user.is_active = true;
-    });
-    
-    clearSelection();
-    await loadUsers();
-    await loadStats();
-    showSuccessNotification(
-      'Пользователи активированы',
-      'Выбранные пользователи были успешно активированы',
-      `Активировано пользователей: ${inactiveUsers.length}`,
-      'mdi-account-check'
-    );
-  } catch (error: any) {
-    console.error('Ошибка массовой активации пользователей:', error);
-    showSnackbar('Ошибка массовой активации пользователей', 'error');
-  } finally {
-    bulkActionsLoading.value = false;
-  }
-};
-
-// Массовая деактивация пользователей  
-const bulkDeactivateUsers = async () => {
-  if (activeUsersCount.value === 0) {
-    showSnackbar('Нет активных пользователей для деактивации', 'warning');
-    return;
-  }
-
-  const activeUsers = selectedUsers.value.filter(user => user.is_active);
-  
-  // Проверяем, есть ли администраторы
-  const adminUsers = activeUsers.filter(user => 
-    user.role && (user.role.name === 'admin' || user.role.name === 'administrator')
-  );
-
-  if (adminUsers.length > 0) {
-    const adminUsernames = adminUsers.map(u => u.username).join(', ');
-    showSnackbar(
-      `Нельзя деактивировать администраторов: ${adminUsernames}. Сначала смените им роль.`,
-      'error'
-    );
-    return;
-  }
-
-  const usernames = activeUsers.map(u => u.username).join(', ');
-  if (!confirm(`Вы уверены, что хотите деактивировать ${activeUsers.length} пользователей?\n\n${usernames}`)) {
-    return;
-  }
-
-  try {
-    bulkActionsLoading.value = true;
-    // userIds not used in demo implementation
-    
-    // В реальном API здесь будет вызов usersService.deactivateUsers(userIds)
-    // Для демо имитируем успешный ответ
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Обновляем статус в локальных данных (для демо)
-    activeUsers.forEach(user => {
-      user.is_active = false;
-    });
-    
-    clearSelection();
-    await loadUsers();
-    await loadStats();
-    showSuccessNotification(
-      'Пользователи деактивированы',
-      'Выбранные пользователи были успешно деактивированы',
-      `Деактивировано пользователей: ${activeUsers.length}`,
-      'mdi-account-cancel'
-    );
-  } catch (error: any) {
-    console.error('Ошибка массовой деактивации пользователей:', error);
-    showSnackbar('Ошибка массовой деактивации пользователей', 'error');
-  } finally {
-    bulkActionsLoading.value = false;
-  }
-};
-
 // Watchers
 watch([filters], () => {
   pagination.value.page = 1;
-  clearSelection(); // Очищаем выделение при изменении фильтров
   loadUsers();
-}, { deep: true });
-
-// Очищаем выделение при изменении пользователей
-watch(users, () => {
-  // Удаляем из выделения пользователей, которых больше нет в списке
-  selectedUsers.value = selectedUsers.value.filter(selectedUser =>
-    users.value.some(user => user.id === selectedUser.id)
-  );
-  updateSelectAllState();
 }, { deep: true });
 
 // Lifecycle
