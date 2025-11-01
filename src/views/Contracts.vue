@@ -189,8 +189,7 @@
       </v-data-table>
     </AppleCard>
 
-    <!-- Диалоги (временно отключены для отладки) -->
-    <!-- 
+    <!-- Диалоги -->
     <ContractDialog v-model="showContractDialog" :contract="selectedContract" :tariff-plans="tariffPlans"
       @success="onContractSuccess" @error="showSnackbar($event, 'error')" />
 
@@ -201,7 +200,6 @@
       @error="showSnackbar($event, 'error')" />
 
     <ExpiringContractsDialog v-model="showExpiringDialog" :contracts="expiringContracts" @refresh="loadContracts" />
-    -->
 
     <!-- Snackbar для уведомлений -->
     <v-snackbar v-model="showSnackbar" :color="snackbarColor" :timeout="4000">
@@ -229,12 +227,15 @@ import type {
 } from '@/types/contracts';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Импорт компонентов диалогов
-// import ContractDialog from '@/components/Contracts/ContractDialog.vue';
-// import ContractObjectsDialog from '@/components/Contracts/ContractObjectsDialog.vue';
-// import ContractViewDialog from '@/components/Contracts/ContractViewDialog.vue';
-// import ExpiringContractsDialog from '@/components/Contracts/ExpiringContractsDialog.vue';
+import ContractDialog from '@/components/Contracts/ContractDialog.vue';
+import ContractObjectsDialog from '@/components/Contracts/ContractObjectsDialog.vue';
+import ContractViewDialog from '@/components/Contracts/ContractViewDialog.vue';
+import ExpiringContractsDialog from '@/components/Contracts/ExpiringContractsDialog.vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -443,28 +444,23 @@ const debouncedSearch = debounce(() => {
 }, 300);
 
 const openCreateDialog = () => {
-  // Временно отключено для отладки
-  console.log('Создание договора (временно отключено)');
-  // selectedContract.value = null;
-  // showContractDialog.value = true;
+  // Перенаправляем на страницу создания договора
+  router.push('/contracts/create');
 };
 
 const editContract = (contract: ContractWithRelations) => {
-  console.log('Редактирование договора:', contract.number);
-  // selectedContract.value = contract;
-  // showContractDialog.value = true;
+  selectedContract.value = contract;
+  showContractDialog.value = true;
 };
 
 const viewContract = (contract: ContractWithRelations) => {
-  console.log('Просмотр договора:', contract.number);
-  // selectedContract.value = contract;
-  // showViewDialog.value = true;
+  selectedContract.value = contract;
+  showViewDialog.value = true;
 };
 
 const openObjectsDialog = (contract: ContractWithRelations) => {
-  console.log('Привязка объектов к договору:', contract.number);
-  // selectedContract.value = contract;
-  // showObjectsDialog.value = true;
+  selectedContract.value = contract;
+  showObjectsDialog.value = true;
 };
 
 const calculateCost = async (contract: ContractWithRelations) => {

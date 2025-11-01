@@ -69,6 +69,46 @@
               </v-row>
             </div>
 
+            <!-- Учетная запись и объекты -->
+            <div class="form-section" v-if="!isEdit">
+              <h3 class="section-title">
+                <v-icon icon="mdi-account-group" class="mr-2" />
+                Учетная запись и объекты
+              </h3>
+              
+              <v-row>
+                <v-col cols="12">
+                  <v-select
+                    v-model="form.account_id"
+                    :items="accountOptions"
+                    label="Учетная запись"
+                    variant="outlined"
+                    density="comfortable"
+                    prepend-icon="mdi-account"
+                    :loading="loadingAccounts"
+                    hint="Выберите учетную запись для автоматической привязки её объектов к договору"
+                    persistent-hint
+                    clearable
+                  >
+                    <template #item="{ props, item }">
+                      <v-list-item v-bind="props">
+                        <template #prepend>
+                          <v-avatar size="small" :color="item.raw.isActive ? 'success' : 'error'">
+                            <v-icon :icon="item.raw.isActive ? 'mdi-check' : 'mdi-close'" />
+                          </v-avatar>
+                        </template>
+                        
+                        <v-list-item-title>{{ item.title }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          {{ item.raw.objectsActive }} активных объектов
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                    </template>
+                  </v-select>
+                </v-col>
+              </v-row>
+            </div>
+
             <!-- Информация о клиенте -->
             <div class="form-section">
               <h3 class="section-title">
@@ -316,12 +356,16 @@ import { computed, nextTick, ref, watch } from 'vue';
 import type { 
   ContractWithRelations, 
   ContractForm,
+} from '@/types/contracts';
+import {
   CONTRACT_STATUS_LABELS,
   CURRENCY_OPTIONS,
   NOTIFICATION_PERIOD_OPTIONS,
 } from '@/types/contracts';
 import type { BillingPlan } from '@/types/billing';
+import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
+import accountsService from '@/services/accountsService';
 import { AppleButton, AppleInput } from '@/components/Apple';
 
 // Props
@@ -347,6 +391,15 @@ const formRef = ref();
 const formValid = ref(false);
 const saving = ref(false);
 const loadingTariffPlans = ref(false);
+const loadingAccounts = ref(false);
+const accounts = ref<Account[]>([]);
+const accountOptions = computed(() => {
+  return accounts.value.map(account => ({
+    value: account.id,
+    title: `${account.name}${account.objectsTotal > 0 ? ` (${account.objectsTotal} объектов)` : ''}`,
+    raw: account,
+  }));
+});
 
 // Computed
 const dialog = computed({
@@ -377,6 +430,7 @@ const defaultForm: ContractForm = {
   notify_before: 30,
   notes: '',
   external_id: '',
+  account_id: undefined,
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
@@ -392,10 +446,12 @@ const currencyOptions = CURRENCY_OPTIONS.map(option => ({
   title: option.title,
 }));
 
-const notificationOptions = NOTIFICATION_PERIOD_OPTIONS.map(option => ({
-  value: option.value,
-  title: option.title,
-}));
+const notificationOptions = computed(() => {
+  return NOTIFICATION_PERIOD_OPTIONS.map(option => ({
+    value: option.value,
+    title: option.title,
+  }));
+});
 
 const tariffPlanOptions = computed(() => {
   return props.tariffPlans.map(plan => ({
@@ -455,15 +511,30 @@ const fillForm = (contract: ContractWithRelations) => {
     client_address: contract.client_address || '',
     start_date: contract.start_date.split('T')[0],
     end_date: contract.end_date.split('T')[0],
-    tariff_plan_id: contract.tariff_plan_id,
-    total_amount: contract.total_amount,
+    tariff_plan_id: contract.tariff_plan_id || 0,
+    total_amount: contract.total_amount || '',
     currency: contract.currency,
     status: contract.status,
     is_active: contract.is_active,
     notify_before: contract.notify_before,
     notes: contract.notes || '',
     external_id: contract.external_id || '',
+    account_id: undefined, // Не загружаем account_id при редактировании
   };
+};
+
+// Загрузка списка учетных записей
+const loadAccounts = async () => {
+  if (loadingAccounts.value) return;
+  loadingAccounts.value = true;
+  try {
+    const response = await accountsService.getAccounts({ is_active: true });
+    accounts.value = response.results || [];
+  } catch (error) {
+    console.error('Ошибка загрузки учетных записей:', error);
+  } finally {
+    loadingAccounts.value = false;
+  }
 };
 
 const onTariffPlanChange = (planId: number) => {
@@ -520,12 +591,18 @@ watch(() => props.contract, (newContract) => {
 }, { immediate: true });
 
 watch(() => props.modelValue, (newValue) => {
+  console.log('🔵 ContractDialog modelValue changed:', newValue, { isEdit: isEdit.value });
   if (newValue && props.contract) {
     fillForm(props.contract);
   } else if (newValue) {
     resetForm();
+    // Загружаем список учетных записей при открытии диалога создания
+    if (!isEdit.value) {
+      console.log('🔵 Loading accounts for new contract...');
+      loadAccounts();
+    }
   }
-});
+}, { immediate: true });
 </script>
 
 <style scoped>

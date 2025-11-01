@@ -142,6 +142,15 @@ const routes = [
           // permissions: ["contracts.view"], // Временно отключено для отладки
         },
       },
+      {
+        path: "contracts/create",
+        name: "CreateContract",
+        component: () => import("@/views/CreateContract.vue"),
+        meta: {
+          title: "Создание договора",
+          requiresAuth: true,
+        },
+      },
 
       // Биллинг
       {

@@ -246,11 +246,15 @@
         </v-btn>
       </template>
     </v-snackbar>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Эмиты
 const emit = defineEmits<{
@@ -556,8 +560,8 @@ const clearFilters = () => {
 };
 
 const createContract = () => {
-  console.log('Создание договора из биллинга');
-  showSnackbarMessage('Создание договора (в разработке)', 'info');
+  // Перенаправляем на страницу создания договора
+  router.push('/contracts/create');
 };
 
 const viewContract = (contract: Contract) => {

@@ -67,6 +67,15 @@ export const CURRENCY_OPTIONS = [
   { value: "EUR", title: "Евро (€)" },
 ] as const;
 
+// Периоды уведомления об истечении договора
+export const NOTIFICATION_PERIOD_OPTIONS = [
+  { value: 7, title: "7 дней" },
+  { value: 14, title: "14 дней" },
+  { value: 30, title: "30 дней" },
+  { value: 60, title: "60 дней" },
+  { value: 90, title: "90 дней" },
+] as const;
+
 // Базовый интерфейс договора
 export interface ContractBase {
   id: number;
@@ -100,13 +109,39 @@ export interface ContractForm {
   title: string;
   description?: string;
   client_name: string;
-  client_contact?: string;
+  client_inn?: string;
+  client_kpp?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
   start_date: string;
   end_date: string;
-  status: ContractStatus;
-  monthly_fee: string;
+  tariff_plan_id: number;
+  total_amount: string;
   currency: string;
+  status: ContractStatus;
   is_active: boolean;
+  notify_before?: number;
+  notes?: string;
+  external_id?: string;
+  account_id?: number; // ID учетной записи Axenta для автоматической привязки объектов
+}
+
+// Договор с дополнительными полями и связями
+export interface ContractWithRelations extends Contract {
+  client_inn?: string;
+  client_kpp?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  tariff_plan_id?: number;
+  total_amount?: string;
+  notify_before?: number;
+  notes?: string;
+  external_id?: string;
+  tariff_plan?: any;
+  appendices?: ContractAppendix[];
+  objects?: any[];
 }
 
 // Ответ API для договоров
