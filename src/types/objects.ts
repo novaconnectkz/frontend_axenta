@@ -13,6 +13,7 @@ export interface ObjectBase {
 
   // Новые поля согласно требованиям
   accountName?: string; // Название учетной записи
+  accountId?: number; // ID учетной записи для фильтрации
   creatorName?: string; // Создатель (ФИО)
   deviceTypeName?: string; // Модель устройства
   phoneNumbers?: string[]; // Номера телефонов (массив)
@@ -142,6 +143,7 @@ export interface ObjectFilters {
 
   // Новые фильтры по полям
   accountName?: string;
+  accountId?: number; // ID учетной записи для фильтрации объектов
   creatorName?: string;
   deviceTypeName?: string;
   uniqueId?: string;

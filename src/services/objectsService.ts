@@ -87,6 +87,7 @@ export class ObjectsService {
       
       // Новые поля из Axenta Cloud
       accountName: obj.accountName,
+      accountId: obj.accountId, // Сохраняем accountId для фильтрации
       creatorName: obj.creatorName,
       deviceTypeName: obj.deviceTypeName,
       phoneNumbers: obj.phoneNumbers,
@@ -103,9 +104,9 @@ export class ObjectsService {
       imei: obj.uniqueId || "",
       phone_number: obj.phoneNumbers?.[0] || "",
       serial_number: obj.uniqueId || "",
-      company_id: obj.accountId,
-      contract_id: obj.accountId,
-      location_id: obj.accountId,
+      company_id: obj.accountId || 0,
+      contract_id: 0, // contract_id должен быть 0 для объектов без договора
+      location_id: obj.accountId || 0,
       settings: "{}",
       tags: [obj.deviceTypeName, obj.accountType].filter(Boolean),
       notes: `Создатель: ${obj.creatorName}`,
@@ -168,6 +169,7 @@ export class ObjectsService {
 
     // Новые фильтры
     if (filters.accountName) params.append("accountName", filters.accountName);
+    if (filters.accountId) params.append("accountId", filters.accountId.toString());
     if (filters.creatorName) params.append("creatorName", filters.creatorName);
     if (filters.deviceTypeName)
       params.append("deviceTypeName", filters.deviceTypeName);
@@ -175,12 +177,17 @@ export class ObjectsService {
 
     try {
       console.log("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
+      console.log("📡 Request URL params:", params.toString());
+      const requestUrl = `/auth/cms/objects/?${params.toString()}`;
+      console.log("🔗 Full request URL:", requestUrl);
       
       // Используем аутентифицированный CMS API endpoint
-      const response = await this.apiClient.get(
-        `/auth/cms/objects/?${params.toString()}`
-      );
-      console.log("✅ Backend objects API response:", response.data);
+      const response = await this.apiClient.get(requestUrl);
+      console.log("✅ Backend objects API response:", {
+        status: response.status,
+        itemsCount: response.data?.data?.items?.length || response.data?.results?.length || 0,
+        total: response.data?.data?.total || response.data?.count || 0
+      });
       
       // Проверяем структуру ответа
       if (response.data.count !== undefined && response.data.results) {

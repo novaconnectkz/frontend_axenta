@@ -78,10 +78,13 @@
               
               <v-row>
                 <v-col cols="12">
-                  <v-select
+                  <v-autocomplete
                     v-model="form.account_id"
                     :items="accountOptions"
+                    item-title="title"
+                    item-value="value"
                     label="Учетная запись"
+                    placeholder="Начните вводить название учетной записи..."
                     variant="outlined"
                     density="comfortable"
                     prepend-icon="mdi-account"
@@ -89,6 +92,10 @@
                     hint="Выберите учетную запись для автоматической привязки её объектов к договору"
                     persistent-hint
                     clearable
+                    :custom-filter="filterAccounts"
+                    no-data-text="Учетные записи не найдены"
+                    loading-text="Загрузка учетных записей..."
+                    :menu-props="{ maxHeight: 300 }"
                   >
                     <template #item="{ props, item }">
                       <v-list-item v-bind="props">
@@ -98,13 +105,23 @@
                           </v-avatar>
                         </template>
                         
-                        <v-list-item-title>{{ item.title }}</v-list-item-title>
+                        <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
                         <v-list-item-subtitle>
-                          {{ item.raw.objectsActive }} активных объектов
+                          <span class="font-weight-medium">{{ item.raw.objectsActive ?? 0 }} активных объектов</span>
+                          <span v-if="item.raw.objectsTotal !== undefined && item.raw.objectsTotal > 0 && item.raw.objectsTotal !== item.raw.objectsActive" class="text-caption text-grey-600 ml-1">
+                            (всего: {{ item.raw.objectsTotal }})
+                          </span>
+                          <span v-if="item.raw.type" class="text-caption text-grey-500 ml-2">
+                            • {{ item.raw.type === 'client' ? 'Клиент' : item.raw.type === 'partner' ? 'Партнер' : item.raw.type }}
+                          </span>
                         </v-list-item-subtitle>
                       </v-list-item>
                     </template>
-                  </v-select>
+                    <template #selection="{ item }">
+                      <span v-if="item && item.raw" class="font-weight-medium">{{ item.raw.name }}</span>
+                      <span v-else-if="selectedAccount" class="font-weight-medium">{{ selectedAccount.name }}</span>
+                    </template>
+                  </v-autocomplete>
                 </v-col>
               </v-row>
             </div>
@@ -393,10 +410,22 @@ const saving = ref(false);
 const loadingTariffPlans = ref(false);
 const loadingAccounts = ref(false);
 const accounts = ref<Account[]>([]);
+
+// Найти учетную запись по ID для отображения
+const findAccountById = (accountId: number | undefined) => {
+  if (!accountId) return null;
+  return accounts.value.find(acc => acc.id === accountId) || null;
+};
+
+// Computed для отображения выбранной учетной записи
+const selectedAccount = computed(() => {
+  if (!form.value.account_id) return null;
+  return findAccountById(form.value.account_id);
+});
 const accountOptions = computed(() => {
   return accounts.value.map(account => ({
     value: account.id,
-    title: `${account.name}${account.objectsTotal > 0 ? ` (${account.objectsTotal} объектов)` : ''}`,
+    title: account.name, // Только название учетной записи
     raw: account,
   }));
 });
@@ -523,18 +552,86 @@ const fillForm = (contract: ContractWithRelations) => {
   };
 };
 
-// Загрузка списка учетных записей
+// Загрузка списка учетных записей (все доступные)
 const loadAccounts = async () => {
   if (loadingAccounts.value) return;
   loadingAccounts.value = true;
   try {
-    const response = await accountsService.getAccounts({ is_active: true });
-    accounts.value = response.results || [];
+    let allAccounts: Account[] = [];
+    let page = 1;
+    let hasMore = true;
+    const perPage = 100;
+    const maxPages = 50; // Защита от бесконечных циклов
+
+    // Загружаем все страницы с учетными записями
+    while (hasMore && page <= maxPages) {
+      const response = await accountsService.getAccounts({ 
+        page, 
+        per_page: perPage,
+        ordering: 'name'
+        // Не используем фильтр is_active, чтобы загрузить все записи
+      });
+      
+      if (response.results && response.results.length > 0) {
+        allAccounts = allAccounts.concat(response.results);
+        hasMore = !!response.next;
+        page++;
+        console.log(`📋 Загружено ${allAccounts.length} из ${response.count || 'неизвестно'} учетных записей`);
+      } else {
+        hasMore = false;
+      }
+    }
+
+    accounts.value = allAccounts;
+    console.log(`✅ Всего загружено ${accounts.value.length} учетных записей`);
   } catch (error) {
     console.error('Ошибка загрузки учетных записей:', error);
   } finally {
     loadingAccounts.value = false;
   }
+};
+
+// Функция фильтрации учетных записей для поиска
+const filterAccounts = (value: string, query: string, item: any) => {
+  if (!query) return true;
+  
+  const searchTerm = query.toLowerCase().trim();
+  if (!searchTerm) return true;
+  
+  const account = item?.raw || item;
+  if (!account) return false;
+  
+  // Поиск по названию учетной записи
+  if (account.name && account.name.toLowerCase().includes(searchTerm)) {
+    return true;
+  }
+  
+  // Поиск по ID учетной записи
+  if (account.id && account.id.toString().includes(searchTerm)) {
+    return true;
+  }
+  
+  // Поиск по Admin ID
+  if (account.adminId && account.adminId.toString().includes(searchTerm)) {
+    return true;
+  }
+  
+  // Поиск по типу учетной записи
+  if (account.type) {
+    const typeText = account.type === 'client' ? 'клиент' : 
+                    account.type === 'partner' ? 'партнер' : 
+                    account.type.toLowerCase();
+    if (typeText.includes(searchTerm)) {
+      return true;
+    }
+  }
+  
+  // Поиск по title (отображаемому тексту)
+  if (item?.title && item.title.toLowerCase().includes(searchTerm)) {
+    return true;
+  }
+  
+  return false;
 };
 
 const onTariffPlanChange = (planId: number) => {

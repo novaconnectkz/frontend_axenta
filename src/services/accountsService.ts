@@ -217,36 +217,66 @@ class AccountsService {
       const accounts = response.data.results || [];
       const count = response.data.count || 0;
       
+      // Логируем первую учетную запись для проверки структуры данных
+      if (accounts.length > 0) {
+        console.log('🔍 DEBUG: Первая учетная запись из API (сырые данные):', {
+          rawAccount: accounts[0],
+          objectsActive: accounts[0].objectsActive,
+          objectsTotal: accounts[0].objectsTotal,
+          objects_active: accounts[0].objects_active,
+          objects_total: accounts[0].objects_total,
+          allKeys: Object.keys(accounts[0])
+        });
+      }
+
       // Преобразуем данные аккаунтов в формат Account
-      const results: Account[] = accounts.map((account: any) => ({
-        id: account.id,
-        name: account.name,
-        type: account.type === "partner" ? "partner" : "client",
-        adminFullname: account.adminFullname || "Не указано",
-        adminId: account.adminId || 0,
-        adminIsActive: account.adminIsActive !== false,
-        parentAccountName: account.parentAccountName || "",
-        objectsActive: account.objectsActive || 0,
-        objectsTotal: account.objectsTotal || 0,
-        objectsDeleted: account.objectsDeleted || 0,
-        comment: account.comment || null,
-        isActive: account.isActive !== false,
-        blockingDatetime: account.blockingDatetime || null,
-        hierarchy: account.hierarchy || "",
-        daysBeforeBlocking: account.daysBeforeBlocking || null,
-        creationDatetime: account.creationDatetime || new Date().toISOString(),
-        // Дополнительные поля из API
-        country: account.country,
-        city: account.city,
-        address: account.address,
-        contactEmail: account.contactEmail,
-        contactPhone: account.contactPhone,
-        language: account.language,
-        timezone: account.timezone,
-        currency: account.currency,
-        maxUsers: account.maxUsers,
-        storageQuota: account.storageQuota,
-      }));
+      const results: Account[] = accounts.map((account: any) => {
+        // Используем правильное извлечение полей с учетом разных вариантов названий
+        const objectsActive = account.objectsActive ?? account.objects_active ?? account.objectsActive ?? 0;
+        const objectsTotal = account.objectsTotal ?? account.objects_total ?? account.objectsTotal ?? 0;
+        const objectsDeleted = account.objectsDeleted ?? account.objects_deleted ?? 0;
+        
+        // Логируем для первой учетной записи
+        if (accounts.indexOf(account) === 0) {
+          console.log('🔍 DEBUG: Маппинг первой учетной записи:', {
+            name: account.name,
+            objectsActiveSource: account.objectsActive,
+            objectsTotalSource: account.objectsTotal,
+            objectsActiveMapped: objectsActive,
+            objectsTotalMapped: objectsTotal
+          });
+        }
+        
+        return {
+          id: account.id,
+          name: account.name,
+          type: account.type === "partner" ? "partner" : "client",
+          adminFullname: account.adminFullname || "Не указано",
+          adminId: account.adminId || 0,
+          adminIsActive: account.adminIsActive !== false,
+          parentAccountName: account.parentAccountName || "",
+          objectsActive: objectsActive,
+          objectsTotal: objectsTotal,
+          objectsDeleted: objectsDeleted,
+          comment: account.comment || null,
+          isActive: account.isActive !== false,
+          blockingDatetime: account.blockingDatetime || null,
+          hierarchy: account.hierarchy || "",
+          daysBeforeBlocking: account.daysBeforeBlocking || null,
+          creationDatetime: account.creationDatetime || new Date().toISOString(),
+          // Дополнительные поля из API
+          country: account.country,
+          city: account.city,
+          address: account.address,
+          contactEmail: account.contactEmail,
+          contactPhone: account.contactPhone,
+          language: account.language,
+          timezone: account.timezone,
+          currency: account.currency,
+          maxUsers: account.maxUsers,
+          storageQuota: account.storageQuota,
+        };
+      });
 
       // Формируем ответ в том же формате, что и от API
       const finalResponse = {
