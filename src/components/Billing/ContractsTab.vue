@@ -1,112 +1,9 @@
 <template>
   <div class="contracts-tab">
-    <!-- Заголовок секции -->
-    <div class="section-header">
-      <div class="section-title">
-        <v-icon icon="mdi-file-document-multiple" class="mr-2" />
-        Договоры
-        <v-chip v-if="contracts.length > 0" size="small" class="ml-2">
-          {{ contracts.length }}
-        </v-chip>
-      </div>
-      
-      <div class="section-actions">
-        <v-btn 
-          v-if="!demoMode" 
-          color="success" 
-          variant="outlined"
-          prepend-icon="mdi-play-circle"
-          @click="enableDemoMode"
-          size="small"
-        >
-          Демо режим
-        </v-btn>
-        <v-btn 
-          v-else 
-          color="warning" 
-          variant="outlined"
-          prepend-icon="mdi-stop-circle" 
-          @click="disableDemoMode"
-          size="small"
-        >
-          Выйти из демо
-        </v-btn>
-        <v-btn 
-          color="primary" 
-          prepend-icon="mdi-plus" 
-          @click="createContract"
-          size="small"
-        >
-          Создать договор
-        </v-btn>
-      </div>
-    </div>
-
-    <!-- Уведомление о демо режиме -->
-    <v-alert 
-      v-if="demoMode" 
-      type="info" 
-      variant="tonal" 
-      class="demo-alert mb-4"
-      density="compact"
-    >
-      <template #prepend>
-        <v-icon icon="mdi-play-circle" size="20" />
-      </template>
-      <div class="alert-content">
-        <strong>Демо режим:</strong> Отображаются {{ contracts.length }} тестовых договоров для демонстрации интерфейса.
-      </div>
-    </v-alert>
-
-    <!-- Статистика договоров -->
-    <div class="contracts-stats mb-4" v-if="contracts.length > 0">
-      <v-row>
-        <v-col cols="6" sm="3">
-          <v-card variant="outlined" class="stat-card">
-            <v-card-text class="text-center pa-3">
-              <v-icon icon="mdi-file-document-multiple" size="24" color="primary" class="mb-1" />
-              <div class="stat-value">{{ stats.total }}</div>
-              <div class="stat-label">Всего</div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        
-        <v-col cols="6" sm="3">
-          <v-card variant="outlined" class="stat-card">
-            <v-card-text class="text-center pa-3">
-              <v-icon icon="mdi-check-circle" size="24" color="success" class="mb-1" />
-              <div class="stat-value">{{ stats.active }}</div>
-              <div class="stat-label">Активные</div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        
-        <v-col cols="6" sm="3">
-          <v-card variant="outlined" class="stat-card">
-            <v-card-text class="text-center pa-3">
-              <v-icon icon="mdi-clock-alert" size="24" color="warning" class="mb-1" />
-              <div class="stat-value">{{ stats.expiring_soon }}</div>
-              <div class="stat-label">Истекают</div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-        
-        <v-col cols="6" sm="3">
-          <v-card variant="outlined" class="stat-card">
-            <v-card-text class="text-center pa-3">
-              <v-icon icon="mdi-currency-rub" size="20" color="info" class="mb-1" />
-              <div class="stat-value-small">{{ formatCurrencyShort(stats.total_amount) }}</div>
-              <div class="stat-label">Стоимость</div>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-    </div>
-
     <!-- Фильтры -->
-    <v-card variant="outlined" class="filters-card mb-4" v-if="contracts.length > 0">
+    <v-card variant="outlined" class="filters-card mb-4">
       <v-card-text class="pa-3">
-        <v-row>
+        <v-row align="center">
           <v-col cols="12" md="4">
             <v-text-field
               v-model="searchQuery"
@@ -116,6 +13,7 @@
               density="compact"
               clearable
               hide-details
+              rounded="lg"
             />
           </v-col>
           
@@ -128,6 +26,7 @@
               density="compact"
               clearable
               hide-details
+              rounded="lg"
             />
           </v-col>
           
@@ -140,28 +39,58 @@
               density="compact"
               clearable
               hide-details
+              rounded="lg"
             />
           </v-col>
           
-          <v-col cols="6" md="2">
-            <v-checkbox
-              v-model="expiringFilter"
-              label="Истекающие"
-              density="compact"
-              hide-details
-            />
+          <v-col cols="6" md="2" class="expiring-filter-col">
+            <div class="expiring-filter-wrapper">
+              <v-switch
+                v-model="expiringFilter"
+                label="Истекающие"
+                density="compact"
+                hide-details
+                color="primary"
+                class="expiring-switch"
+              />
+            </div>
           </v-col>
           
-          <v-col cols="6" md="2">
-            <v-btn
-              variant="outlined"
-              size="small"
-              @click="clearFilters"
-              :disabled="!hasActiveFilters"
-              block
-            >
-              Очистить
-            </v-btn>
+          <!-- Действия -->
+          <v-col cols="12" md="2" class="filter-actions">
+            <div class="actions-container">
+              <div class="filter-create">
+                <v-btn
+                  icon="mdi-plus"
+                  color="primary"
+                  variant="flat"
+                  @click="createContract"
+                  class="create-button"
+                  :title="'Создать договор'"
+                />
+              </div>
+              
+              <div class="filter-clear">
+                <v-btn
+                  v-show="hasActiveFilters"
+                  icon="mdi-filter-remove"
+                  variant="flat"
+                  color="warning"
+                  density="comfortable"
+                  @click="clearFilters"
+                  :title="hasActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
+                  :class="{ 'filter-clear-active': hasActiveFilters }"
+                >
+                  <v-badge
+                    v-if="hasActiveFilters"
+                    :content="getActiveFiltersCount()"
+                    color="white"
+                    text-color="warning"
+                    inline
+                  />
+                </v-btn>
+              </div>
+            </div>
           </v-col>
         </v-row>
       </v-card-text>
@@ -321,7 +250,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+
+// Эмиты
+const emit = defineEmits<{
+  (e: 'stats-updated', stats: {
+    total: number
+    active: number
+    expiring_soon: number
+    total_amount: string
+  }): void
+}>();
 
 // Интерфейс для договора (упрощенный)
 interface Contract {
@@ -427,6 +366,16 @@ const stats = computed(() => {
   };
 });
 
+// Отслеживаем изменения статистики и передаем в родительский компонент
+watch(stats, (newStats) => {
+  emit('stats-updated', {
+    total: newStats.total,
+    active: newStats.active,
+    expiring_soon: newStats.expiring_soon,
+    total_amount: newStats.total_amount,
+  });
+}, { immediate: true });
+
 const hasActiveFilters = computed(() => {
   return !!(
     searchQuery.value ||
@@ -435,6 +384,15 @@ const hasActiveFilters = computed(() => {
     expiringFilter.value
   );
 });
+
+const getActiveFiltersCount = (): number => {
+  let count = 0;
+  if (searchQuery.value) count++;
+  if (statusFilter.value) count++;
+  if (activeFilter.value !== null) count++;
+  if (expiringFilter.value) count++;
+  return count;
+};
 
 // Методы
 const enableDemoMode = async () => {
@@ -753,39 +711,177 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-.contracts-stats {
-  /* Статистика договоров */
-}
-
-.stat-card {
-  height: 80px;
-  min-height: 80px;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 2px 0;
-  line-height: 1.2;
-}
-
-.stat-value-small {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 2px 0;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 10px;
-  font-weight: 500;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
 .filters-card {
-  border-radius: 8px;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 8px;
+}
+
+.actions-container {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.filter-create,
+.filter-clear {
+  display: flex;
+  align-items: center;
+}
+
+/* Стили для фильтра "Истекающие" */
+.expiring-filter-col {
+  display: flex;
+  align-items: center;
+}
+
+.expiring-filter-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 0, 0, 0.23);
+  border-radius: 10px;
+  background-color: white;
+  transition: all 0.2s ease;
+}
+
+.expiring-filter-wrapper:hover {
+  border-color: rgba(0, 0, 0, 0.87);
+}
+
+.expiring-switch :deep(.v-switch) {
+  margin: 0;
+}
+
+.expiring-switch :deep(.v-switch__track) {
+  height: 20px;
+  width: 36px;
+}
+
+.expiring-switch :deep(.v-switch__thumb) {
+  height: 16px;
+  width: 16px;
+}
+
+.expiring-switch :deep(.v-label) {
+  font-size: 0.875rem;
+  white-space: nowrap;
+  margin-left: 8px;
+}
+
+/* Стили для кнопок в стиле AccountsPage */
+.filter-create :deep(.v-btn),
+.filter-clear :deep(.v-btn) {
+  height: 44px !important;
+  min-height: 44px !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+}
+
+.filter-clear :deep(.v-btn) {
+  width: 44px !important;
+  min-width: 44px !important;
+}
+
+/* Специальные стили для кнопки Создать */
+.create-button {
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.create-button:hover {
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+.create-button :deep(.v-icon) {
+  color: white !important;
+  font-size: 20px !important;
+}
+
+.filter-create :deep(.v-btn .v-icon),
+.filter-clear :deep(.v-btn .v-icon) {
+  font-size: 20px !important;
+}
+
+.filter-create :deep(.v-btn .v-btn__content),
+.filter-clear :deep(.v-btn .v-btn__content) {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Анимация для активной кнопки очистки фильтров */
+.filter-clear-active {
+  position: relative;
+  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
+  animation: pulse-filter 2s infinite;
+}
+
+@keyframes pulse-filter {
+  0% {
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 2px 12px rgba(255, 152, 0, 0.5);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+  }
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 960px) {
+  .actions-container {
+    gap: 6px;
+    justify-content: flex-start;
+  }
+  
+  .btn-text {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .actions-container {
+    justify-content: space-between;
+    gap: 8px;
+  }
+  
+  .actions-container .v-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+  
+  .btn-text {
+    display: none;
+  }
+  
+  .actions-container .v-btn {
+    min-width: 44px !important;
+    width: 44px !important;
+    flex: none;
+    padding: 0 !important;
+  }
 }
 
 .contracts-table {
@@ -830,21 +926,5 @@ onMounted(async () => {
     justify-content: stretch;
   }
 
-  .stat-card {
-    height: 70px;
-    min-height: 70px;
-  }
-
-  .stat-value {
-    font-size: 18px;
-  }
-
-  .stat-value-small {
-    font-size: 12px;
-  }
-
-  .stat-label {
-    font-size: 9px;
-  }
 }
 </style>

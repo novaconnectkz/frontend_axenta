@@ -116,7 +116,7 @@ class BillingService {
    */
   async getBillingPlan(id: number): Promise<BillingPlan> {
     const response: AxiosResponse<BillingPlanResponse> =
-      await this.apiClient.get(`/billing/plans/${id}`);
+      await this.apiClient.get(`/auth/billing/plans/${id}`);
     if (!response.data.data) {
       throw new Error("Тарифный план не найден");
     }
@@ -128,7 +128,7 @@ class BillingService {
    */
   async createBillingPlan(data: CreateBillingPlanData): Promise<BillingPlan> {
     const response: AxiosResponse<BillingPlanResponse> =
-      await this.apiClient.post("/billing/plans", data);
+      await this.apiClient.post("/auth/billing/plans", data);
     if (!response.data.data) {
       throw new Error("Ошибка создания тарифного плана");
     }
@@ -143,7 +143,7 @@ class BillingService {
     data: UpdateBillingPlanData
   ): Promise<BillingPlan> {
     const response: AxiosResponse<BillingPlanResponse> =
-      await this.apiClient.put(`/billing/plans/${id}`, data);
+      await this.apiClient.put(`/auth/billing/plans/${id}`, data);
     if (!response.data.data) {
       throw new Error("Ошибка обновления тарифного плана");
     }
@@ -154,7 +154,7 @@ class BillingService {
    * Удалить тарифный план
    */
   async deleteBillingPlan(id: number): Promise<void> {
-    await this.apiClient.delete(`/billing/plans/${id}`);
+    await this.apiClient.delete(`/auth/billing/plans/${id}`);
   }
 
   // ========== ПОДПИСКИ ==========
@@ -182,7 +182,7 @@ class BillingService {
     data: CreateSubscriptionData
   ): Promise<Subscription> {
     const response: AxiosResponse<SubscriptionResponse> =
-      await this.apiClient.post("/billing/subscriptions", data);
+      await this.apiClient.post("/auth/billing/subscriptions", data);
     if (!response.data.data) {
       throw new Error("Ошибка создания подписки");
     }
@@ -197,7 +197,7 @@ class BillingService {
     data: UpdateSubscriptionData
   ): Promise<Subscription> {
     const response: AxiosResponse<SubscriptionResponse> =
-      await this.apiClient.put(`/billing/subscriptions/${id}`, data);
+      await this.apiClient.put(`/auth/billing/subscriptions/${id}`, data);
     if (!response.data.data) {
       throw new Error("Ошибка обновления подписки");
     }
@@ -208,7 +208,7 @@ class BillingService {
    * Удалить подписку
    */
   async deleteSubscription(id: number): Promise<void> {
-    await this.apiClient.delete(`/billing/subscriptions/${id}`);
+    await this.apiClient.delete(`/auth/billing/subscriptions/${id}`);
   }
 
   // ========== РАСЧЕТЫ И СЧЕТА ==========
@@ -226,7 +226,7 @@ class BillingService {
     if (periodEnd) params.period_end = periodEnd;
 
     const response: AxiosResponse<BillingCalculationResponse> =
-      await this.apiClient.get(`/billing/contracts/${contractId}/calculate`, {
+      await this.apiClient.get(`/auth/billing/contracts/${contractId}/calculate`, {
         params,
       });
     if (!response.data.data) {
@@ -243,7 +243,7 @@ class BillingService {
     data: GenerateInvoiceData
   ): Promise<Invoice> {
     const response: AxiosResponse<InvoiceResponse> = await this.apiClient.post(
-      `/billing/contracts/${contractId}/invoice`,
+      `/auth/billing/contracts/${contractId}/invoice`,
       data
     );
     if (!response.data.data) {
@@ -259,7 +259,7 @@ class BillingService {
     filter?: InvoicesFilter
   ): Promise<{ invoices: Invoice[]; total: number }> {
     const response: AxiosResponse<InvoicesResponse> = await this.apiClient.get(
-      "/billing/invoices",
+      "/auth/billing/invoices",
       {
         params: filter,
       }
@@ -275,7 +275,7 @@ class BillingService {
    */
   async getInvoice(id: number): Promise<Invoice> {
     const response: AxiosResponse<InvoiceResponse> = await this.apiClient.get(
-      `/billing/invoices/${id}`
+      `/auth/billing/invoices/${id}`
     );
     if (!response.data.data) {
       throw new Error("Счет не найден");
@@ -291,7 +291,7 @@ class BillingService {
     data: ProcessPaymentData
   ): Promise<Invoice> {
     const response: AxiosResponse<InvoiceResponse> = await this.apiClient.post(
-      `/billing/invoices/${invoiceId}/payment`,
+      `/auth/billing/invoices/${invoiceId}/payment`,
       data
     );
     if (!response.data.data) {
@@ -307,7 +307,7 @@ class BillingService {
     invoiceId: number,
     data: CancelInvoiceData
   ): Promise<void> {
-    await this.apiClient.post(`/billing/invoices/${invoiceId}/cancel`, data);
+    await this.apiClient.post(`/auth/billing/invoices/${invoiceId}/cancel`, data);
   }
 
   /**
@@ -316,7 +316,7 @@ class BillingService {
   async getOverdueInvoices(companyId?: number): Promise<Invoice[]> {
     const params = companyId ? { company_id: companyId } : {};
     const response: AxiosResponse<InvoicesResponse> = await this.apiClient.get(
-      "/billing/invoices/overdue",
+      "/auth/billing/invoices/overdue",
       { params }
     );
     return response.data.data || [];
@@ -334,7 +334,7 @@ class BillingService {
     if (companyId) params.company_id = companyId;
 
     const response: AxiosResponse<InvoicesResponse> = await this.apiClient.get(
-      "/billing/invoices/period",
+      "/auth/billing/invoices/period",
       { params }
     );
     return response.data.data || [];
@@ -349,7 +349,7 @@ class BillingService {
     filter: BillingHistoryFilter
   ): Promise<{ history: BillingHistory[]; total: number }> {
     const response: AxiosResponse<BillingHistoryResponse> =
-      await this.apiClient.get("/billing/history", {
+      await this.apiClient.get("/auth/billing/history", {
         params: filter,
       });
     return {
@@ -364,14 +364,26 @@ class BillingService {
    * Получить настройки биллинга компании
    */
   async getBillingSettings(companyId: number): Promise<BillingSettings> {
-    const response: AxiosResponse<BillingSettingsResponse> =
-      await this.apiClient.get("/billing/settings", {
-        params: { company_id: companyId },
-      });
-    if (!response.data.data) {
-      throw new Error("Настройки биллинга не найдены");
+    // Используем простой эндпоинт для отладки (без авторизации)
+    try {
+      const response: AxiosResponse<BillingSettingsResponse> =
+        await this.apiClient.get("/billing-settings-simple");
+      if (!response.data.data) {
+        throw new Error("Настройки биллинга не найдены");
+      }
+      return response.data.data;
+    } catch (error) {
+      console.error("Ошибка при загрузке настроек:", error);
+      // Fallback к защищенному эндпоинту (если нужен)
+      const response: AxiosResponse<BillingSettingsResponse> =
+        await this.apiClient.get("/auth/billing/settings", {
+          params: { company_id: companyId },
+        });
+      if (!response.data.data) {
+        throw new Error("Настройки биллинга не найдены");
+      }
+      return response.data.data;
     }
-    return response.data.data;
   }
 
   /**
@@ -382,7 +394,7 @@ class BillingService {
     data: UpdateBillingSettingsData
   ): Promise<BillingSettings> {
     const response: AxiosResponse<BillingSettingsResponse> =
-      await this.apiClient.put("/billing/settings", data, {
+      await this.apiClient.put("/auth/billing/settings", data, {
         params: { company_id: companyId },
       });
     if (!response.data.data) {
@@ -405,7 +417,7 @@ class BillingService {
     if (month) params.month = month;
 
     const response: AxiosResponse<BillingStatisticsResponse> =
-      await this.apiClient.get("/billing/statistics", { params });
+      await this.apiClient.get("/auth/billing/statistics", { params });
     if (!response.data.data) {
       throw new Error("Ошибка получения статистики");
     }
@@ -516,7 +528,7 @@ class BillingService {
    * Автоматически сгенерировать счета за месяц
    */
   async autoGenerateInvoices(year: number, month: number): Promise<void> {
-    await this.apiClient.post("/billing/auto-generate", null, {
+    await this.apiClient.post("/auth/billing/auto-generate", null, {
       params: { year, month },
     });
   }
@@ -525,7 +537,7 @@ class BillingService {
    * Обработать плановые удаления объектов
    */
   async processScheduledDeletions(): Promise<void> {
-    await this.apiClient.post("/billing/process-deletions");
+    await this.apiClient.post("/auth/billing/process-deletions");
   }
 
   // ========== ЭКСПОРТ ДАННЫХ ==========
@@ -534,7 +546,7 @@ class BillingService {
    * Экспортировать счета в Excel
    */
   async exportInvoices(filter?: InvoicesFilter): Promise<Blob> {
-    const response = await this.apiClient.get("/billing/invoices/export", {
+    const response = await this.apiClient.get("/auth/billing/invoices/export", {
       params: filter,
       responseType: "blob",
     });
@@ -545,7 +557,7 @@ class BillingService {
    * Экспортировать историю биллинга в Excel
    */
   async exportBillingHistory(filter: BillingHistoryFilter): Promise<Blob> {
-    const response = await this.apiClient.get("/billing/history/export", {
+    const response = await this.apiClient.get("/auth/billing/history/export", {
       params: filter,
       responseType: "blob",
     });
@@ -563,7 +575,7 @@ class BillingService {
     const params: any = { company_id: companyId, year };
     if (month) params.month = month;
 
-    const response = await this.apiClient.get("/billing/report/export", {
+    const response = await this.apiClient.get("/auth/billing/report/export", {
       params,
       responseType: "blob",
     });

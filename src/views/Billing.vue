@@ -11,33 +11,86 @@
     </v-row>
 
     <!-- Статистические карточки -->
-    <v-row class="mb-6">
-      <v-col cols="12" md="3">
-        <v-card class="text-center pa-4" color="primary" variant="tonal">
-          <v-icon size="40" class="mb-2">mdi-currency-rub</v-icon>
-          <div class="text-h5 font-weight-bold">{{ formatCurrency(dashboardData?.widgets.total_revenue.value || 0) }}</div>
-          <div class="text-body-2">Общий доход</div>
+    <v-row class="mb-6 stats-row" no-gutters>
+      <!-- Основная статистика биллинга -->
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="primary" class="mb-2">mdi-currency-rub</v-icon>
+            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.total_revenue.value || 0) }}</div>
+            <div class="stat-label">Общий доход</div>
+          </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="12" md="3">
-        <v-card class="text-center pa-4" color="success" variant="tonal">
-          <v-icon size="40" class="mb-2">mdi-credit-card-check</v-icon>
-          <div class="text-h5 font-weight-bold">{{ dashboardData?.widgets.active_subscriptions.value || 0 }}</div>
-          <div class="text-body-2">Активные подписки</div>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="success" class="mb-2">mdi-credit-card-check</v-icon>
+            <div class="stat-value">{{ dashboardData?.widgets.active_subscriptions.value || 0 }}</div>
+            <div class="stat-label">Активные подписки</div>
+          </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="12" md="3">
-        <v-card class="text-center pa-4" color="warning" variant="tonal">
-          <v-icon size="40" class="mb-2">mdi-clock-alert</v-icon>
-          <div class="text-h5 font-weight-bold">{{ formatCurrency(dashboardData?.widgets.outstanding_amount.value || 0) }}</div>
-          <div class="text-body-2">К оплате</div>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="warning" class="mb-2">mdi-clock-alert</v-icon>
+            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.outstanding_amount.value || 0) }}</div>
+            <div class="stat-label">К оплате</div>
+          </v-card-text>
         </v-card>
       </v-col>
-      <v-col cols="12" md="3">
-        <v-card class="text-center pa-4" color="error" variant="tonal">
-          <v-icon size="40" class="mb-2">mdi-alert-circle</v-icon>
-          <div class="text-h5 font-weight-bold">{{ formatCurrency(dashboardData?.widgets.overdue_amount.value || 0) }}</div>
-          <div class="text-body-2">Просрочено</div>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="error" class="mb-2">mdi-alert-circle</v-icon>
+            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.overdue_amount.value || 0) }}</div>
+            <div class="stat-label">Просрочено</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      
+      <!-- Статистика договоров -->
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="primary" class="mb-2">mdi-file-document-multiple</v-icon>
+            <div class="stat-value">{{ contractsStats?.total || 0 }}</div>
+            <div class="stat-label">Всего договоров</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="success" class="mb-2">mdi-check-circle</v-icon>
+            <div class="stat-value">{{ contractsStats?.active || 0 }}</div>
+            <div class="stat-label">Активные договоры</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="warning" class="mb-2">mdi-clock-alert</v-icon>
+            <div class="stat-value">{{ contractsStats?.expiring_soon || 0 }}</div>
+            <div class="stat-label">Истекают</div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+      
+      <v-col cols="12" sm="6" md="3" class="pa-2">
+        <v-card variant="outlined" class="stats-card text-center">
+          <v-card-text class="pa-4">
+            <v-icon size="32" color="info" class="mb-2">mdi-currency-rub</v-icon>
+            <div class="stat-value">{{ formatCurrencyShort(contractsStats?.total_amount || 0) }}</div>
+            <div class="stat-label">Стоимость</div>
+          </v-card-text>
         </v-card>
       </v-col>
     </v-row>
@@ -70,7 +123,7 @@
     <v-window v-model="activeTab">
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
-        <ContractsTab />
+        <ContractsTab @stats-updated="handleContractsStatsUpdate" />
       </v-window-item>
 
       <!-- Тарифные планы -->
@@ -429,7 +482,14 @@
           <v-card-title>Настройки биллинга</v-card-title>
           
           <v-card-text>
-            <v-form v-model="settingsFormValid" v-if="billingSettings">
+            <!-- Загрузка -->
+            <div v-if="loadingSettings" class="text-center py-12">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <p class="mt-4 text-grey">Загрузка настроек...</p>
+            </div>
+            
+            <!-- Форма настроек -->
+            <v-form v-model="settingsFormValid" v-else-if="billingSettings">
               <v-row>
                 <v-col cols="12" md="6">
                   <h4 class="mb-4">Генерация счетов</h4>
@@ -541,6 +601,12 @@
                 </v-col>
               </v-row>
             </v-form>
+            
+            <!-- Сообщение об ошибке -->
+            <div v-else class="text-center py-12">
+              <v-icon size="64" color="grey-lighten-1">mdi-cog-alert</v-icon>
+              <p class="mt-4 text-grey">Не удалось загрузить настройки</p>
+            </div>
           </v-card-text>
         </v-card>
       </v-window-item>
@@ -930,6 +996,12 @@ const plans = ref<BillingPlan[]>([])
 const subscriptions = ref<Subscription[]>([])
 const invoices = ref<Invoice[]>([])
 const billingSettings = ref<BillingSettings | null>(null)
+const contractsStats = ref<{
+  total: number
+  active: number
+  expiring_soon: number
+  total_amount: string
+} | null>(null)
 
 // Состояния загрузки
 const loadingPlans = ref(false)
@@ -1304,6 +1376,29 @@ const formatCurrency = (amount: string | number, currency = 'RUB') => {
   return billingService.formatCurrency(amount, currency)
 }
 
+const formatCurrencyShort = (amount: string | number, currency = 'RUB') => {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  if (num >= 1000000) {
+    return `${(num / 1000000).toFixed(1)}М ${currency}`
+  } else if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}К ${currency}`
+  }
+  return `${num.toFixed(0)} ${currency}`
+}
+
+const handleContractsStatsUpdate = (stats: {
+  total: number
+  active: number
+  expiring_soon: number
+  total_amount: string
+}) => {
+  contractsStats.value = stats
+}
+
+const formatPrice = (amount: string | number, currency = 'RUB') => {
+  return billingService.formatCurrency(amount, currency)
+}
+
 const formatDate = (date: string) => {
   return billingService.formatDate(date)
 }
@@ -1379,5 +1474,44 @@ onMounted(async () => {
 
 .text-primary {
   color: rgb(var(--v-theme-primary)) !important;
+}
+
+/* Стили для всех статистических карточек */
+.stats-row {
+  margin: -8px;
+}
+
+.stats-row .v-col {
+  padding: 8px !important;
+}
+
+.stats-card {
+  height: 120px;
+  min-height: 120px;
+  transition: all 0.2s ease;
+  border-radius: 12px;
+  width: 100%;
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card .stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 4px 0;
+  line-height: 1.2;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.stats-card .stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface-variant));
+  text-transform: none;
+  letter-spacing: 0;
+  margin-top: 4px;
 }
 </style>

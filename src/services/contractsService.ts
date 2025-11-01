@@ -91,7 +91,7 @@ class ContractsService {
     limit: number;
   }> {
     const response: AxiosResponse<ContractsResponse> = await this.apiClient.get(
-      "/api/contracts",
+      "/auth/contracts",
       { params: filters }
     );
 
@@ -108,7 +108,7 @@ class ContractsService {
    */
   async getContract(id: number): Promise<ContractWithRelations> {
     const response: AxiosResponse<ContractResponse> = await this.apiClient.get(
-      `/api/contracts/${id}`
+      `/auth/contracts/${id}`
     );
     if (!response.data.data) {
       throw new Error("Договор не найден");
@@ -121,7 +121,7 @@ class ContractsService {
    */
   async createContract(data: ContractForm): Promise<ContractWithRelations> {
     const response: AxiosResponse<ContractResponse> = await this.apiClient.post(
-      "/api/contracts",
+      "/auth/contracts",
       data
     );
     if (!response.data.data) {
@@ -138,7 +138,7 @@ class ContractsService {
     data: Partial<ContractForm>
   ): Promise<ContractWithRelations> {
     const response: AxiosResponse<ContractResponse> = await this.apiClient.put(
-      `/api/contracts/${id}`,
+      `/auth/contracts/${id}`,
       data
     );
     if (!response.data.data) {
@@ -151,7 +151,7 @@ class ContractsService {
    * Удалить договор
    */
   async deleteContract(id: number): Promise<void> {
-    await this.apiClient.delete(`/api/contracts/${id}`);
+    await this.apiClient.delete(`/auth/contracts/${id}`);
   }
 
   // ========== ПРИЛОЖЕНИЯ К ДОГОВОРАМ ==========
@@ -161,7 +161,7 @@ class ContractsService {
    */
   async getContractAppendices(contractId: number): Promise<ContractAppendix[]> {
     const response: AxiosResponse<ContractAppendicesResponse> =
-      await this.apiClient.get(`/api/contracts/${contractId}/appendices`);
+      await this.apiClient.get(`/auth/contracts/${contractId}/appendices`);
     return response.data.data || [];
   }
 
@@ -174,7 +174,7 @@ class ContractsService {
   ): Promise<ContractAppendix> {
     const response: AxiosResponse<ContractAppendixResponse> =
       await this.apiClient.post(
-        `/api/contracts/${contractId}/appendices`,
+        `/auth/contracts/${contractId}/appendices`,
         data
       );
     if (!response.data.data) {
@@ -191,7 +191,7 @@ class ContractsService {
     data: Partial<ContractAppendixForm>
   ): Promise<ContractAppendix> {
     const response: AxiosResponse<ContractAppendixResponse> =
-      await this.apiClient.put(`/api/contract-appendices/${id}`, data);
+      await this.apiClient.put(`/auth/contract-appendices/${id}`, data);
     if (!response.data.data) {
       throw new Error("Ошибка обновления приложения");
     }
@@ -202,7 +202,7 @@ class ContractsService {
    * Удалить приложение к договору
    */
   async deleteContractAppendix(id: number): Promise<void> {
-    await this.apiClient.delete(`/api/contract-appendices/${id}`);
+    await this.apiClient.delete(`/auth/contract-appendices/${id}`);
   }
 
   // ========== РАСЧЕТЫ И АНАЛИТИКА ==========
@@ -214,7 +214,7 @@ class ContractsService {
     contractId: number
   ): Promise<ContractCostCalculation> {
     const response: AxiosResponse<ContractCostResponse> =
-      await this.apiClient.get(`/api/contracts/${contractId}/calculate`);
+      await this.apiClient.get(`/auth/contracts/${contractId}/calculate`);
     if (!response.data.data) {
       throw new Error("Ошибка расчета стоимости");
     }
@@ -226,7 +226,7 @@ class ContractsService {
    */
   async getExpiringContracts(days = 30): Promise<ContractWithRelations[]> {
     const response: AxiosResponse<ExpiringContractsResponse> =
-      await this.apiClient.get("/api/contracts/expiring", {
+      await this.apiClient.get("/auth/contracts/expiring", {
         params: { days },
       });
     return response.data.data || [];
