@@ -81,10 +81,43 @@ export class ErrorHandler {
   showSuccess(title: string, message: string): void {
     this.notifications.showSuccess(title, message)
   }
+
+  /**
+   * Универсальный обработчик ошибок (для глобальных ошибок Vue и JavaScript)
+   */
+  handleError(error: any, context?: string): void {
+    console.error(`Error${context ? ` in ${context}` : ''}:`, error)
+
+    // Если это ошибка с response (API ошибка), используем handleApiError
+    if (error?.response) {
+      this.handleApiError(error, context)
+      return
+    }
+
+    // Если это объект Error с сообщением
+    if (error instanceof Error) {
+      const errorMessage = error.message || 'Произошла неизвестная ошибка'
+      this.notifications.showError('Ошибка', errorMessage)
+      return
+    }
+
+    // Если это строка
+    if (typeof error === 'string') {
+      this.notifications.showError('Ошибка', error)
+      return
+    }
+
+    // Для всех остальных случаев - показываем общую ошибку
+    const errorMessage = error?.message || error?.toString() || 'Произошла неизвестная ошибка'
+    this.notifications.showError('Ошибка', errorMessage)
+  }
 }
 
 // Экспортируем экземпляр для использования по умолчанию
 export const errorHandler = new ErrorHandler()
+
+// Алиас для совместимости с api.ts
+export const globalErrorHandler = errorHandler
 
 // Экспортируем функцию для создания нового экземпляра
 export const createErrorHandler = () => new ErrorHandler()
