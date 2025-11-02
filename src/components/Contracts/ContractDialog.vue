@@ -123,25 +123,25 @@
                     <template #item="{ props, item }">
                       <v-list-item v-bind="props">
                         <template #prepend>
-                          <v-avatar size="small" :color="item.raw.isActive ? 'success' : 'error'">
-                            <v-icon :icon="item.raw.isActive ? 'mdi-check' : 'mdi-close'" />
+                          <v-avatar size="small" :color="(item.raw as unknown as Account).isActive ? 'success' : 'error'">
+                            <v-icon :icon="(item.raw as unknown as Account).isActive ? 'mdi-check' : 'mdi-close'" />
                           </v-avatar>
                         </template>
                         
-                        <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
+                        <v-list-item-title>{{ (item.raw as unknown as Account).name }}</v-list-item-title>
                         <v-list-item-subtitle>
-                          <span class="font-weight-medium">{{ item.raw.objectsActive ?? 0 }} активных объектов</span>
-                          <span v-if="item.raw.objectsTotal !== undefined && item.raw.objectsTotal > 0 && item.raw.objectsTotal !== item.raw.objectsActive" class="text-caption text-grey-600 ml-1">
-                            (всего: {{ item.raw.objectsTotal }})
+                          <span class="font-weight-medium">{{ (item.raw as unknown as Account).objectsActive ?? 0 }} активных объектов</span>
+                          <span v-if="(item.raw as unknown as Account).objectsTotal !== undefined && (item.raw as unknown as Account).objectsTotal > 0 && (item.raw as unknown as Account).objectsTotal !== (item.raw as unknown as Account).objectsActive" class="text-caption text-grey-600 ml-1">
+                            (всего: {{ (item.raw as unknown as Account).objectsTotal }})
                           </span>
-                          <span v-if="item.raw.type" class="text-caption text-grey-500 ml-2">
-                            • {{ item.raw.type === 'client' ? 'Клиент' : item.raw.type === 'partner' ? 'Партнер' : item.raw.type }}
+                          <span v-if="(item.raw as unknown as Account).type" class="text-caption text-grey-500 ml-2">
+                            • {{ (item.raw as unknown as Account).type === 'client' ? 'Клиент' : (item.raw as unknown as Account).type === 'partner' ? 'Партнер' : (item.raw as unknown as Account).type }}
                           </span>
                         </v-list-item-subtitle>
                       </v-list-item>
                     </template>
                     <template #selection="{ item }">
-                      <span v-if="item && item.raw" class="font-weight-medium">{{ item.raw.name }}</span>
+                      <span v-if="item && item.raw" class="font-weight-medium">{{ (item.raw as unknown as Account).name }}</span>
                       <span v-else-if="selectedAccount" class="font-weight-medium">{{ selectedAccount.name }}</span>
                     </template>
                   </v-autocomplete>
@@ -168,12 +168,57 @@
                 </v-col>
                 
                 <v-col cols="12" md="4">
-                  <AppleInput
-                    v-model="form.client_inn"
-                    label="ИНН"
-                    prepend-icon="mdi-card-account-details"
-                    :rules="[rules.inn]"
-                  />
+                  <div style="position: relative;" ref="innAutocompleteRef">
+                    <AppleInput
+                      ref="innInputRef"
+                      :model-value="form.client_inn"
+                      @update:modelValue="handleInnUpdate"
+                      label="ИНН"
+                      prepend-icon="mdi-card-account-details"
+                      :rules="[rules.inn]"
+                      :loading="loadingOrganizationData"
+                      hint="Введите ИНН или ОГРН для поиска организации"
+                      persistent-hint
+                      @valueChange="handleInnUpdate"
+                      @input="handleInnUpdate"
+                      @focus="handleInnFocus"
+                      @blur="handleInnBlur"
+                    />
+                    <!-- Выпадающее меню с результатами -->
+                    <v-menu
+                      v-model="showOrganizationMenu"
+                      :activator="innAutocompleteRef"
+                      location="bottom"
+                      :max-height="400"
+                      eager
+                      offset-y
+                    >
+                      <v-list v-if="organizationSuggestions.length > 0" density="compact">
+                        <v-list-item
+                          v-for="(suggestion, index) in organizationSuggestions"
+                          :key="index"
+                          @click="onOrganizationSelect(suggestion)"
+                          class="cursor-pointer"
+                        >
+                          <template #prepend>
+                            <v-avatar size="small" color="primary">
+                              <v-icon icon="mdi-domain" />
+                            </v-avatar>
+                          </template>
+                          <v-list-item-title>{{ suggestion.name }}</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <span v-if="suggestion.inn">ИНН: {{ suggestion.inn }}</span>
+                            <span v-if="suggestion.kpp" class="ml-2">КПП: {{ suggestion.kpp }}</span>
+                          </v-list-item-subtitle>
+                        </v-list-item>
+                      </v-list>
+                      <v-list v-else-if="loadingOrganizationData" density="compact">
+                        <v-list-item>
+                          <v-list-item-title>Поиск организации...</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
+                  </div>
                 </v-col>
               </v-row>
 
@@ -251,8 +296,8 @@
                         
                         <v-list-item-title>{{ item.title }}</v-list-item-title>
                         <v-list-item-subtitle>
-                          {{ formatCurrency(item.raw.price) }}/мес
-                          • До {{ item.raw.max_devices }} устройств
+                          {{ formatCurrency((item.raw as unknown as BillingPlan).price) }}/мес
+                          • До {{ (item.raw as unknown as BillingPlan).max_devices }} устройств
                         </v-list-item-subtitle>
                       </v-list-item>
                     </template>
@@ -393,6 +438,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch, onMounted } from 'vue';
+import type { DaDataOrganization } from '@/services/dadataService';
 import { useRouter } from 'vue-router';
 import type { 
   ContractWithRelations, 
@@ -408,8 +454,8 @@ import type { BillingPlan } from '@/types/billing';
 import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
+import dadataService from '@/services/dadataService';
 import { AppleButton, AppleInput } from '@/components/Apple';
-import { useUserStore } from '@/store/user';
 
 // Props
 interface Props {
@@ -440,7 +486,14 @@ const generatingNumber = ref(false);
 const numerators = ref<ContractNumerator[]>([]);
 const loadingNumerators = ref(false);
 const selectedNumeratorId = ref<number | null>(null);
-const userStore = useUserStore();
+const loadingOrganizationData = ref(false);
+const selectedOrganization = ref<any>(null);
+const innSearchQuery = ref<string>('');
+const organizationSuggestions = ref<Array<{name: string; inn: string; kpp?: string; raw: DaDataOrganization}>>([]);
+const innSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+const innAutocompleteRef = ref<any>(null);
+const innInputRef = ref<any>(null);
+const showOrganizationMenu = ref(false);
 const router = useRouter();
 
 // Найти учетную запись по ID для отображения
@@ -496,6 +549,57 @@ const defaultForm: ContractForm = {
 
 const form = ref<ContractForm>({ ...defaultForm });
 
+// Обработчик обновления ИНН из событий компонента
+const handleInnUpdate = (val: string | Event) => {
+  let actualValue: string;
+  if (val instanceof Event) {
+    const target = val.target as HTMLInputElement;
+    actualValue = target.value;
+  } else {
+    actualValue = String(val || '');
+  }
+  
+  form.value.client_inn = actualValue;
+  handleInnValueChanged(actualValue);
+};
+
+// Функция для обработки изменения ИНН - вызывается напрямую из событий
+const handleInnValueChanged = (value: string) => {
+  const actualValue = String(value || '').trim();
+  
+  // Обновляем form.client_inn (уже обновлен в handleInnUpdate, но на всякий случай)
+  if (form.value.client_inn !== actualValue) {
+    form.value.client_inn = actualValue;
+  }
+  
+  // Проверяем валидность и запускаем поиск
+  if (actualValue.length >= 10 && /^\d{10}$|^\d{12}$|^\d{13}$/.test(actualValue)) {
+    innSearchQuery.value = actualValue;
+    onInnSearch(actualValue);
+  } else {
+    if (actualValue === '') {
+      organizationSuggestions.value = [];
+      showOrganizationMenu.value = false;
+    }
+  }
+};
+
+// Watch для автоматического отслеживания form.client_inn (дополнительная проверка)
+watch(
+  () => form.value.client_inn,
+  (newValue, oldValue) => {
+    if (newValue !== oldValue && newValue) {
+      const searchValue = String(newValue || '').trim();
+      if (searchValue.length >= 10 && /^\d{10}$|^\d{12}$|^\d{13}$/.test(searchValue)) {
+        // Вызываем напрямую, т.к. form.client_inn уже обновлен
+        innSearchQuery.value = searchValue;
+        onInnSearch(searchValue);
+      }
+    }
+  },
+  { immediate: false }
+);
+
 // Options
 const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]) => ({
   value,
@@ -546,8 +650,8 @@ const rules = {
   },
   inn: (value: string) => {
     if (!value) return true;
-    const pattern = /^[0-9]{10,12}$/;
-    return pattern.test(value) || 'ИНН должен содержать 10 или 12 цифр';
+    const pattern = /^[0-9]{10}$|^[0-9]{12}$|^[0-9]{13}$/;
+    return pattern.test(value) || 'ИНН должен содержать 10 или 12 цифр, ОГРН - 13 цифр';
   },
   number: (value: string) => {
     if (!value) return true;
@@ -563,6 +667,14 @@ const rules = {
 // Methods
 const resetForm = () => {
   form.value = { ...defaultForm };
+  selectedOrganization.value = null;
+  innSearchQuery.value = '';
+  organizationSuggestions.value = [];
+  showOrganizationMenu.value = false;
+  if (innSearchTimeout.value) {
+    clearTimeout(innSearchTimeout.value);
+    innSearchTimeout.value = null;
+  }
   if (formRef.value) {
     formRef.value.resetValidation();
   }
@@ -633,7 +745,7 @@ const loadAccounts = async () => {
 };
 
 // Функция фильтрации учетных записей для поиска
-const filterAccounts = (value: string, query: string, item: any) => {
+const filterAccounts = (_value: string, query: string, item: any) => {
   if (!query) return true;
   
   const searchTerm = query.toLowerCase().trim();
@@ -721,11 +833,24 @@ const formatCurrency = (amount: number, currency = 'RUB'): string => {
 
 // Load numerators
 const loadNumerators = async () => {
-  if (!userStore.company?.id) return;
+  // Получаем company_id из localStorage
+  const companyData = localStorage.getItem('axenta_company');
+  let companyId: number | undefined;
+  
+  if (companyData) {
+    try {
+      const company = JSON.parse(companyData);
+      companyId = parseInt(company.id, 10);
+    } catch (e) {
+      console.warn('Invalid company data in localStorage');
+    }
+  }
+  
+  if (!companyId) return;
   
   loadingNumerators.value = true;
   try {
-    numerators.value = await contractsService.getContractNumerators(userStore.company.id);
+    numerators.value = await contractsService.getContractNumerators(companyId);
     
     // Auto-select default numerator if exists
     const defaultNumerator = numerators.value.find(n => n.is_default);
@@ -736,6 +861,152 @@ const loadNumerators = async () => {
     console.error('Error loading numerators:', error);
   } finally {
     loadingNumerators.value = false;
+  }
+};
+
+// handleInnValueUpdate больше не используется - используем прямой watch
+
+// Обработчик фокуса на поле ИНН
+const handleInnFocus = () => {
+  // Если есть результаты, показываем меню
+  if (organizationSuggestions.value.length > 0) {
+    showOrganizationMenu.value = true;
+  }
+};
+
+// Обработчик потери фокуса
+const handleInnBlur = () => {
+  // Закрываем меню с небольшой задержкой, чтобы клик по элементу успел сработать
+  setTimeout(() => {
+    showOrganizationMenu.value = false;
+  }, 200);
+};
+
+// Поиск организаций по ИНН/ОГРН с debounce
+const onInnSearch = (value: string | null) => {
+  const searchValue = (value || '').toString();
+  
+  // Очищаем предыдущий таймер
+  if (innSearchTimeout.value) {
+    clearTimeout(innSearchTimeout.value);
+    innSearchTimeout.value = null;
+  }
+  
+  // Очищаем результаты при очистке поля
+  if (!searchValue || searchValue.trim() === '') {
+    organizationSuggestions.value = [];
+    selectedOrganization.value = null;
+    return;
+  }
+  
+  const cleanValue = searchValue.trim().replace(/\s+/g, '');
+  
+  // Проверяем, что это валидный ИНН или ОГРН
+  if (!/^\d{10}$|^\d{12}$|^\d{13}$/.test(cleanValue)) {
+    organizationSuggestions.value = [];
+    return;
+  }
+  
+  // Устанавливаем debounce на 500ms
+  innSearchTimeout.value = setTimeout(async () => {
+    await searchOrganizations(cleanValue);
+  }, 500);
+};
+
+// Поиск организаций в DaData
+const searchOrganizations = async (query: string) => {
+  loadingOrganizationData.value = true;
+  try {
+    const orgData = await dadataService.findOrganizationById(query);
+    
+    if (orgData) {
+      const extractedData = dadataService.extractOrganizationData(orgData);
+      
+      // Получаем название организации из данных
+      let orgName = extractedData.client_name || '';
+      // Если название не найдено, пытаемся получить из структуры orgData
+      if (!orgName && orgData.value) {
+        orgName = orgData.value;
+      }
+      if (!orgName) {
+        // Пытаемся получить из вложенной структуры data
+        const data = (orgData as any).data;
+        if (data?.name) {
+          if (typeof data.name === 'object') {
+            orgName = data.name.full_with_opf || data.name.full || data.name.short_with_opf || data.name.short || '';
+          } else if (typeof data.name === 'string') {
+            orgName = data.name;
+          }
+        }
+      }
+      
+      // Добавляем найденную организацию в список предложений
+      const suggestion = {
+        name: orgName || 'Организация',
+        inn: extractedData.client_inn || query,
+        kpp: extractedData.client_kpp,
+        raw: orgData,
+      };
+      
+      organizationSuggestions.value = [suggestion];
+      
+      // Даём Vue время обновить DOM
+      await nextTick();
+      
+      // Открываем меню с результатами
+      if (organizationSuggestions.value.length > 0) {
+        showOrganizationMenu.value = true;
+      }
+    } else {
+      organizationSuggestions.value = [];
+    }
+  } catch (error: any) {
+    console.error('Ошибка поиска организации:', error);
+    organizationSuggestions.value = [];
+    // Показываем ошибку пользователю только если это не проблема с API ключом
+    if (!error.message?.includes('API ключ DaData не настроен')) {
+      emit('error', error.message || 'Ошибка при поиске организации');
+    }
+  } finally {
+    loadingOrganizationData.value = false;
+  }
+};
+
+// Обработчик выбора организации из списка
+const onOrganizationSelect = (selected: any) => {
+  // Если выбран объект из списка предложений
+  if (selected && typeof selected === 'object' && selected.raw) {
+    const orgData: DaDataOrganization = selected.raw;
+    const extractedData = dadataService.extractOrganizationData(orgData);
+    
+    // Заполняем все поля данными из выбранной организации
+    if (extractedData.client_name) {
+      form.value.client_name = extractedData.client_name;
+    }
+    
+    if (extractedData.client_inn) {
+      form.value.client_inn = extractedData.client_inn;
+    }
+    
+    if (extractedData.client_kpp) {
+      form.value.client_kpp = extractedData.client_kpp;
+    }
+    
+    if (extractedData.client_address) {
+      form.value.client_address = extractedData.client_address;
+    }
+    
+    if (extractedData.client_phone) {
+      form.value.client_phone = extractedData.client_phone;
+    }
+    
+    if (extractedData.client_email) {
+      form.value.client_email = extractedData.client_email;
+    }
+    
+    // Закрываем меню
+    showOrganizationMenu.value = false;
+    organizationSuggestions.value = [];
   }
 };
 
@@ -751,11 +1022,24 @@ const generateNumber = async () => {
   
   generatingNumber.value = true;
   try {
+    // Получаем company_id из localStorage
+    const companyData = localStorage.getItem('axenta_company');
+    let companyId: number | undefined;
+    
+    if (companyData) {
+      try {
+        const company = JSON.parse(companyData);
+        companyId = parseInt(company.id, 10);
+      } catch (e) {
+        console.warn('Invalid company data in localStorage');
+      }
+    }
+    
     const result = await contractsService.generateContractNumber(
       selectedNumeratorId.value,
       {
         client_id: form.value.account_id,
-        company_id: userStore.company?.id,
+        company_id: companyId,
       }
     );
     form.value.number = result.number;
@@ -766,6 +1050,49 @@ const generateNumber = async () => {
     generatingNumber.value = false;
   }
 };
+
+// Watcher для отслеживания изменений form.client_inn - ПРЯМОЙ вызов
+watch(
+  () => form.value.client_inn,
+  (newValue, oldValue) => {
+    console.log('🔍🔍🔍🔍🔍 WATCH FIRED: form.client_inn changed:', { 
+      newValue, 
+      oldValue, 
+      newType: typeof newValue,
+      oldType: typeof oldValue
+    });
+    
+    const searchValue = (newValue || '').toString();
+    const oldSearchValue = (oldValue || '').toString();
+    
+    // Вызываем поиск ТОЛЬКО если значение изменилось и не пустое
+    if (searchValue !== oldSearchValue && searchValue.trim() !== '') {
+      console.log('🔍 WATCH: Calling onInnSearch directly');
+      innSearchQuery.value = searchValue;
+      onInnSearch(searchValue);
+    } else if (searchValue.trim() === '') {
+      organizationSuggestions.value = [];
+      showOrganizationMenu.value = false;
+    }
+  },
+  { immediate: false }
+);
+
+// Альтернативный watch через глубокое отслеживание form объекта
+watch(
+  () => form.value,
+  (newForm, oldForm) => {
+    if (newForm.client_inn !== oldForm?.client_inn) {
+      console.log('🔍 WATCH (deep): form.client_inn changed via deep watch');
+      const searchValue = (newForm.client_inn || '').toString();
+      if (searchValue.trim() !== '') {
+        innSearchQuery.value = searchValue;
+        onInnSearch(searchValue);
+      }
+    }
+  },
+  { deep: true, immediate: false }
+);
 
 // Watchers
 watch(() => props.contract, (newContract) => {
@@ -796,10 +1123,123 @@ watch(() => props.modelValue, (newValue) => {
       loadNumerators();
     }
   }
+  
+  // Тестовый вызов при открытии диалога
+  if (newValue && !isEdit.value) {
+    console.log('🔍 Dialog opened, watch should be ready');
+  }
 }, { immediate: true });
 
 // Lifecycle
 onMounted(() => {
+  console.log('🔍 ContractDialog mounted, initializing...');
+  console.log('🔍 Initial form.client_inn:', form.value.client_inn);
+  console.log('🔍 Testing API connection...');
+  
+  // Тестовый вызов API для проверки
+  setTimeout(async () => {
+    try {
+      const testResult = await dadataService.findOrganizationById('6455051190');
+      console.log('🔍 Test API call result:', testResult ? 'SUCCESS' : 'NO RESULT');
+      if (testResult) {
+        console.log('🔍 Test organization name:', testResult.value);
+      }
+    } catch (error) {
+      console.error('🔍 Test API call error:', error);
+    }
+  }, 1000);
+  
+  // Функция для установки прямого обработчика на input
+  const setupDirectInputListener = () => {
+    console.log('🔴 setupDirectInputListener called');
+    console.log('🔴 innInputRef.value:', innInputRef.value);
+    
+    if (!innInputRef.value) {
+      console.log('🔴❌ innInputRef.value is null/undefined');
+      return false;
+    }
+    
+    const inputElement = (innInputRef.value as any)?.inputRef;
+    console.log('🔴 inputElement:', inputElement);
+    console.log('🔴 inputElement type:', typeof inputElement);
+    
+    if (!inputElement) {
+      console.log('🔴❌ inputElement is null/undefined');
+      // Попробуем получить через другой путь
+      const input = innInputRef.value.$el?.querySelector('input');
+      console.log('🔴 Trying $el.querySelector:', input);
+      if (input) {
+        console.log('🔴 Found input via $el.querySelector');
+        const directHandler = (event: Event) => {
+          const target = event.target as HTMLInputElement;
+          const value = target.value;
+          console.log('🔴🔴🔴 DIRECT EVENT LISTENER (querySelector) triggered with:', value);
+          form.value.client_inn = value;
+          handleInnValueChanged(value);
+        };
+        input.addEventListener('input', directHandler);
+        console.log('🔴✅ Direct listener added via querySelector');
+        return true;
+      }
+      return false;
+    }
+    
+    console.log('🔴 Setting up DIRECT input event listener on element');
+    // Удаляем старый обработчик если есть
+    const oldHandler = (inputElement as any)._innDirectHandler;
+    if (oldHandler) {
+      console.log('🔴 Removing old handler');
+      inputElement.removeEventListener('input', oldHandler);
+    }
+    
+    const directHandler = (event: Event) => {
+      const target = event.target as HTMLInputElement;
+      const value = target.value;
+      console.log('🔴🔴🔴 DIRECT EVENT LISTENER triggered with:', value);
+      form.value.client_inn = value;
+      handleInnValueChanged(value);
+    };
+    
+    // Сохраняем ссылку на обработчик для возможного удаления
+    (inputElement as any)._innDirectHandler = directHandler;
+    inputElement.addEventListener('input', directHandler);
+    console.log('🔴✅ Direct event listener added successfully');
+    console.log('🔴 Input element:', inputElement);
+    console.log('🔴 Input value:', (inputElement as HTMLInputElement).value);
+    return true;
+  };
+
+  // Добавляем обработчик при монтировании
+  setTimeout(() => {
+    if (!setupDirectInputListener()) {
+      // Повторная попытка через 500ms
+      setTimeout(() => setupDirectInputListener(), 500);
+    }
+  }, 100);
+  
+  // Добавляем обработчик при открытии диалога
+  watch(() => props.modelValue, (isOpen) => {
+    if (isOpen) {
+      console.log('🔴 Dialog opened, setting up input listener...');
+      // Ждем пока DOM обновится
+      nextTick(() => {
+        console.log('🔴 After nextTick, innInputRef.value:', !!innInputRef.value);
+        setTimeout(() => {
+          const success = setupDirectInputListener();
+          if (success) {
+            console.log('🔴✅ Direct listener setup SUCCESS');
+          } else {
+            console.log('🔴❌ Direct listener setup FAILED, retrying...');
+            // Еще одна попытка через больший интервал
+            setTimeout(() => {
+              setupDirectInputListener();
+            }, 1000);
+          }
+        }, 200);
+      });
+    }
+  });
+  
   loadNumerators();
 });
 </script>

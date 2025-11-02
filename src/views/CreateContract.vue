@@ -287,11 +287,56 @@
               </v-col>
               
               <v-col cols="12" md="4">
-                <AppleInput
-                  v-model="form.client_inn"
-                  label="ИНН"
-                  :rules="[rules.inn]"
-                />
+                <div style="position: relative;" ref="innAutocompleteRef">
+                  <AppleInput
+                    ref="innInputRef"
+                    :model-value="form.client_inn"
+                    @update:modelValue="handleInnUpdate"
+                    label="ИНН"
+                    :rules="[rules.inn]"
+                    :loading="loadingOrganizationData"
+                    hint="Введите ИНН или ОГРН для поиска организации"
+                    persistent-hint
+                    @valueChange="handleInnUpdate"
+                    @input="handleInnUpdate"
+                    @focus="handleInnFocus"
+                    @blur="handleInnBlur"
+                  />
+                  <!-- Выпадающее меню с результатами -->
+                  <v-menu
+                    v-model="showOrganizationMenu"
+                    :activator="innAutocompleteRef"
+                    location="bottom"
+                    :max-height="400"
+                    eager
+                    offset-y
+                  >
+                    <v-list v-if="organizationSuggestions.length > 0" density="compact">
+                      <v-list-item
+                        v-for="(suggestion, index) in organizationSuggestions"
+                        :key="index"
+                        @click="onOrganizationSelect(suggestion)"
+                        class="cursor-pointer"
+                      >
+                        <template #prepend>
+                          <v-avatar size="small" color="primary">
+                            <v-icon icon="mdi-domain" />
+                          </v-avatar>
+                        </template>
+                        <v-list-item-title>{{ suggestion.name }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          <span v-if="suggestion.inn">ИНН: {{ suggestion.inn }}</span>
+                          <span v-if="suggestion.kpp" class="ml-2">КПП: {{ suggestion.kpp }}</span>
+                        </v-list-item-subtitle>
+                      </v-list-item>
+                    </v-list>
+                    <v-list v-else-if="loadingOrganizationData" density="compact">
+                      <v-list-item>
+                        <v-list-item-title>Поиск организации...</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
+                </div>
               </v-col>
             </v-row>
 
@@ -515,11 +560,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import type { 
   ContractForm,
 } from '@/types/contracts';
+import type { DaDataOrganization } from '@/services/dadataService';
 import {
   CONTRACT_STATUS_LABELS,
   CURRENCY_OPTIONS,
@@ -530,6 +576,7 @@ import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
+import dadataService from '@/services/dadataService';
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 
@@ -548,6 +595,14 @@ const loadingAccountObjects = ref(false);
 const selectedAccountName = ref('');
 const selectedObjectsForContract = ref<number[]>([]);
 const objectsSearchQuery = ref('');
+const loadingOrganizationData = ref(false);
+const selectedOrganization = ref<any>(null);
+const innSearchQuery = ref<string>('');
+const organizationSuggestions = ref<Array<{name: string; inn: string; kpp?: string; raw: DaDataOrganization}>>([]);
+const innSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+const innAutocompleteRef = ref<any>(null);
+const innInputRef = ref<any>(null);
+const showOrganizationMenu = ref(false);
 
 // Заголовки таблицы объектов
 const objectsTableHeaders = [
@@ -666,8 +721,8 @@ const rules = {
   },
   inn: (value: string) => {
     if (!value) return true;
-    const pattern = /^[0-9]{10,12}$/;
-    return pattern.test(value) || 'ИНН должен содержать 10 или 12 цифр';
+    const pattern = /^[0-9]{10}$|^[0-9]{12}$|^[0-9]{13}$/;
+    return pattern.test(value) || 'ИНН должен содержать 10 или 12 цифр, ОГРН - 13 цифр';
   },
   number: (value: string) => {
     if (!value) return true;
@@ -1157,6 +1212,185 @@ watch(() => form.value.account_id, async (newAccountId, oldAccountId) => {
     objectsSearchQuery.value = '';
   }
 });
+
+// Обработчик обновления ИНН из событий компонента
+const handleInnUpdate = (val: string | Event) => {
+  let actualValue: string;
+  if (val instanceof Event) {
+    const target = val.target as HTMLInputElement;
+    actualValue = target.value;
+  } else {
+    actualValue = String(val || '');
+  }
+  
+  form.value.client_inn = actualValue;
+  handleInnValueChanged(actualValue);
+};
+
+// Функция для обработки изменения ИНН
+const handleInnValueChanged = (value: string) => {
+  const actualValue = String(value || '').trim();
+  
+  if (form.value.client_inn !== actualValue) {
+    form.value.client_inn = actualValue;
+  }
+  
+  // Проверяем валидность и запускаем поиск
+  if (actualValue.length >= 10 && /^\d{10}$|^\d{12}$|^\d{13}$/.test(actualValue)) {
+    innSearchQuery.value = actualValue;
+    onInnSearch(actualValue);
+  } else {
+    if (actualValue === '') {
+      organizationSuggestions.value = [];
+      showOrganizationMenu.value = false;
+    }
+  }
+};
+
+// Watch для автоматического отслеживания form.client_inn
+watch(
+  () => form.value.client_inn,
+  (newValue, oldValue) => {
+    if (newValue !== oldValue && newValue) {
+      const searchValue = String(newValue || '').trim();
+      if (searchValue.length >= 10 && /^\d{10}$|^\d{12}$|^\d{13}$/.test(searchValue)) {
+        innSearchQuery.value = searchValue;
+        onInnSearch(searchValue);
+      }
+    }
+  },
+  { immediate: false }
+);
+
+// Обработчик фокуса на поле ИНН
+const handleInnFocus = () => {
+  if (organizationSuggestions.value.length > 0) {
+    showOrganizationMenu.value = true;
+  }
+};
+
+// Обработчик потери фокуса
+const handleInnBlur = () => {
+  setTimeout(() => {
+    showOrganizationMenu.value = false;
+  }, 200);
+};
+
+// Поиск организаций по ИНН/ОГРН с debounce
+const onInnSearch = (value: string | null) => {
+  const searchValue = (value || '').toString();
+  
+  if (innSearchTimeout.value) {
+    clearTimeout(innSearchTimeout.value);
+    innSearchTimeout.value = null;
+  }
+  
+  if (!searchValue || searchValue.trim() === '') {
+    organizationSuggestions.value = [];
+    selectedOrganization.value = null;
+    return;
+  }
+  
+  const cleanValue = searchValue.trim().replace(/\s+/g, '');
+  
+  if (!/^\d{10}$|^\d{12}$|^\d{13}$/.test(cleanValue)) {
+    organizationSuggestions.value = [];
+    return;
+  }
+  
+  innSearchTimeout.value = setTimeout(async () => {
+    await searchOrganizations(cleanValue);
+  }, 500);
+};
+
+// Поиск организаций в DaData
+const searchOrganizations = async (query: string) => {
+  loadingOrganizationData.value = true;
+  try {
+    const orgData = await dadataService.findOrganizationById(query);
+    
+    if (orgData) {
+      const extractedData = dadataService.extractOrganizationData(orgData);
+      
+      // Получаем название организации из данных
+      let orgName = extractedData.client_name || '';
+      if (!orgName && orgData.value) {
+        orgName = orgData.value;
+      }
+      if (!orgName) {
+        const data = (orgData as any).data;
+        if (data?.name) {
+          if (typeof data.name === 'object') {
+            orgName = data.name.full_with_opf || data.name.full || data.name.short_with_opf || data.name.short || '';
+          } else if (typeof data.name === 'string') {
+            orgName = data.name;
+          }
+        }
+      }
+      
+      const suggestion = {
+        name: orgName || 'Организация',
+        inn: extractedData.client_inn || query,
+        kpp: extractedData.client_kpp,
+        raw: orgData,
+      };
+      
+      organizationSuggestions.value = [suggestion];
+      
+      await nextTick();
+      
+      if (organizationSuggestions.value.length > 0) {
+        showOrganizationMenu.value = true;
+      }
+    } else {
+      organizationSuggestions.value = [];
+    }
+  } catch (error: any) {
+    console.error('Ошибка поиска организации:', error);
+    organizationSuggestions.value = [];
+    if (!error.message?.includes('API ключ DaData не настроен')) {
+      showSnackbarMessage(error.message || 'Ошибка при поиске организации', 'warning');
+    }
+  } finally {
+    loadingOrganizationData.value = false;
+  }
+};
+
+// Обработчик выбора организации из списка
+const onOrganizationSelect = (selected: any) => {
+  if (selected && typeof selected === 'object' && selected.raw) {
+    const orgData: DaDataOrganization = selected.raw;
+    const extractedData = dadataService.extractOrganizationData(orgData);
+    
+    if (extractedData.client_name) {
+      form.value.client_name = extractedData.client_name;
+    }
+    
+    if (extractedData.client_inn) {
+      form.value.client_inn = extractedData.client_inn;
+    }
+    
+    if (extractedData.client_kpp) {
+      form.value.client_kpp = extractedData.client_kpp;
+    }
+    
+    if (extractedData.client_address) {
+      form.value.client_address = extractedData.client_address;
+    }
+    
+    if (extractedData.client_phone) {
+      form.value.client_phone = extractedData.client_phone;
+    }
+    
+    if (extractedData.client_email) {
+      form.value.client_email = extractedData.client_email;
+    }
+    
+    showOrganizationMenu.value = false;
+    organizationSuggestions.value = [];
+    showSnackbarMessage('Данные организации успешно заполнены', 'success');
+  }
+};
 
 // Lifecycle
 onMounted(async () => {

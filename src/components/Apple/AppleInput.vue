@@ -105,6 +105,7 @@ interface Props {
   variant?: 'outlined' | 'filled' | 'underlined';
   autocomplete?: string;
   maxlength?: number;
+  onChange?: (value: string) => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -119,6 +120,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: string];
+  'input': [value: string];
+  'valueChange': [value: string];
   focus: [event: FocusEvent];
   blur: [event: FocusEvent];
   keydown: [event: KeyboardEvent];
@@ -165,7 +168,29 @@ const inputWrapperClasses = computed(() => [
 // Methods
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
-  emit('update:modelValue', target.value);
+  const value = target.value;
+  console.log('🔵 AppleInput handleInput called:', value);
+  
+  // Эмитим все события
+  emit('update:modelValue', value);
+  emit('input', value);
+  emit('valueChange', value); // Кастомное событие для надежности
+  
+  console.log('🔵 AppleInput emitted: update:modelValue, input, valueChange');
+  
+  // Также вызываем onChange если он передан через props
+  console.log('🔵 Checking onChange prop:', { hasOnChange: !!props.onChange, onChangeType: typeof props.onChange });
+  if (props.onChange && typeof props.onChange === 'function') {
+    console.log('🔵 AppleInput calling onChange prop with value:', value);
+    try {
+      props.onChange(value);
+      console.log('🔵 onChange prop called successfully');
+    } catch (error) {
+      console.error('🔵 Error calling onChange:', error);
+    }
+  } else {
+    console.log('🔵 onChange prop is not a function or not provided');
+  }
 };
 
 const handleFocus = (event: FocusEvent) => {
