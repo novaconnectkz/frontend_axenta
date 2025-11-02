@@ -192,11 +192,37 @@
       
       // Обработка ошибок до загрузки Vue
       window.addEventListener('error', function(event) {
-        console.error('Global error before Vue:', event.error);
+        // Игнорируем известные некритичные ошибки
+        const ignoredErrors = [
+          'ResizeObserver loop completed with undelivered notifications',
+          'ResizeObserver loop limit exceeded',
+        ];
+        const shouldIgnore = event.message && ignoredErrors.some(msg => event.message.includes(msg));
+        
+        if (shouldIgnore) {
+          // Тихо игнорируем известные некритичные ошибки
+          return;
+        }
+        
+        // Игнорируем null ошибки и ошибки загрузки ресурсов
+        if (event.error !== null && event.error !== undefined) {
+          console.error('Global error before Vue:', event.error);
+        } else if (event.filename && !event.filename.includes('favicon')) {
+          // Логируем только если это не ошибка загрузки favicon
+          console.warn('Global error before Vue (null error):', {
+            message: event.message,
+            filename: event.filename,
+            lineno: event.lineno,
+            colno: event.colno
+          });
+        }
       });
       
       window.addEventListener('unhandledrejection', function(event) {
-        console.error('Unhandled promise rejection before Vue:', event.reason);
+        // Игнорируем null ошибки
+        if (event.reason !== null && event.reason !== undefined) {
+          console.error('Unhandled promise rejection before Vue:', event.reason);
+        }
       });
       
       // Функция для скрытия загрузочного экрана

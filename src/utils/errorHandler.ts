@@ -86,6 +86,25 @@ export class ErrorHandler {
    * Универсальный обработчик ошибок (для глобальных ошибок Vue и JavaScript)
    */
   handleError(error: any, context?: string): void {
+    // Пропускаем null и undefined ошибки, чтобы избежать лишних уведомлений
+    if (error === null || error === undefined) {
+      console.warn(`Null/undefined error${context ? ` in ${context}` : ''} - пропущено`)
+      return
+    }
+
+    // Извлекаем сообщение об ошибке для проверки на игнорируемые ошибки
+    const errorMessageText = error?.message || error?.toString() || ''
+    const ignoredErrors = [
+      'ResizeObserver loop completed with undelivered notifications',
+      'ResizeObserver loop limit exceeded',
+      'Non-Error promise rejection captured',
+    ]
+    
+    if (ignoredErrors.some(msg => errorMessageText.includes(msg))) {
+      // Тихо игнорируем известные некритичные ошибки
+      return
+    }
+
     console.error(`Error${context ? ` in ${context}` : ''}:`, error)
 
     // Если это ошибка с response (API ошибка), используем handleApiError
@@ -96,20 +115,26 @@ export class ErrorHandler {
 
     // Если это объект Error с сообщением
     if (error instanceof Error) {
-      const errorMessage = error.message || 'Произошла неизвестная ошибка'
-      this.notifications.showError('Ошибка', errorMessage)
+      const message = error.message || 'Произошла неизвестная ошибка'
+      this.notifications.showError('Ошибка', message)
       return
     }
 
     // Если это строка
     if (typeof error === 'string') {
-      this.notifications.showError('Ошибка', error)
+      if (error.trim()) {
+        this.notifications.showError('Ошибка', error)
+      }
       return
     }
 
-    // Для всех остальных случаев - показываем общую ошибку
-    const errorMessage = error?.message || error?.toString() || 'Произошла неизвестная ошибка'
-    this.notifications.showError('Ошибка', errorMessage)
+    // Пытаемся извлечь сообщение об ошибке
+    const finalMessage = error?.message || error?.error?.message || error?.toString?.() || String(error)
+    
+    // Показываем уведомление только если есть реальное сообщение
+    if (finalMessage && finalMessage !== 'null' && finalMessage !== 'undefined') {
+      this.notifications.showError('Ошибка', finalMessage)
+    }
   }
 }
 
@@ -134,20 +159,49 @@ export function useErrorHandler() {
  */
 export function setupGlobalErrorHandler(app: any): void {
   // Настройка глобального обработчика ошибок Vue
-  app.config.errorHandler = (err: any, vm: any, info: string) => {
+  app.config.errorHandler = (err: any, _vm: any, info: string) => {
     console.error('Vue Error:', err, info)
     errorHandler.handleError(err, 'Vue Component')
   }
 
   // Настройка обработчика необработанных промисов
   window.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled Promise Rejection:', event.reason)
-    errorHandler.handleError(event.reason, 'Promise Rejection')
+    // Игнорируем null ошибки
+    if (event.reason !== null && event.reason !== undefined) {
+      console.error('Unhandled Promise Rejection:', event.reason)
+      errorHandler.handleError(event.reason, 'Promise Rejection')
+    }
   })
 
   // Настройка обработчика глобальных ошибок JavaScript
   window.addEventListener('error', (event) => {
-    console.error('Global JavaScript Error:', event.error)
-    errorHandler.handleError(event.error, 'JavaScript Error')
+    // Игнорируем известные некритичные ошибки
+    const ignoredErrors = [
+      'ResizeObserver loop completed with undelivered notifications',
+      'ResizeObserver loop limit exceeded',
+      'Non-Error promise rejection captured',
+    ]
+    
+    const errorMessage = event.message || event.error?.message || ''
+    const shouldIgnore = ignoredErrors.some(msg => errorMessage.includes(msg))
+    
+    if (shouldIgnore) {
+      // Тихо игнорируем известные некритичные ошибки
+      return
+    }
+    
+    // Игнорируем null ошибки и ошибки загрузки ресурсов (favicon и т.д.)
+    if (event.error !== null && event.error !== undefined) {
+      console.error('Global JavaScript Error:', event.error)
+      errorHandler.handleError(event.error, 'JavaScript Error')
+    } else if (event.filename && !event.filename.includes('favicon') && event.message && !shouldIgnore) {
+      // Логируем только если есть реальное сообщение об ошибке
+      console.warn('Global JavaScript Error (null error):', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno
+      })
+    }
   })
 }
