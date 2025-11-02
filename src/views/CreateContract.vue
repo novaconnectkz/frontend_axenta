@@ -277,16 +277,32 @@
             </h3>
             
             <v-row>
+              <v-col cols="12" md="4">
+                <label class="apple-input-label">Тип клиента <span class="apple-input-required">*</span></label>
+                <v-select
+                  v-model="form.client_type"
+                  :items="CLIENT_TYPE_OPTIONS"
+                  :rules="[rules.required]"
+                  variant="outlined"
+                  density="comfortable"
+                  required
+                  hide-details
+                  @update:model-value="onClientTypeChange"
+                />
+              </v-col>
+              
               <v-col cols="12" md="8">
                 <AppleInput
                   v-model="form.client_name"
-                  label="Наименование клиента"
+                  :label="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON ? 'ФИО клиента' : 'Наименование клиента'"
                   :rules="[rules.required]"
                   required
                 />
               </v-col>
-              
-              <v-col cols="12" md="4">
+            </v-row>
+            
+            <v-row v-if="form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
+              <v-col cols="12" :md="form.client_type === CLIENT_TYPES.ORGANIZATION ? 6 : 12">
                 <div style="position: relative;" ref="innAutocompleteRef">
                   <AppleInput
                     ref="innInputRef"
@@ -294,16 +310,17 @@
                     @update:modelValue="handleInnUpdate"
                     label="ИНН"
                     :rules="[rules.inn]"
-                    :loading="loadingOrganizationData"
-                    hint="Введите ИНН или ОГРН для поиска организации"
+                    :loading="loadingOrganizationData && form.client_type === CLIENT_TYPES.ORGANIZATION"
+                    :hint="form.client_type === CLIENT_TYPES.ORGANIZATION ? 'Введите ИНН (10 цифр) или ОГРН (13 цифр) для поиска организации' : 'Введите ИНН (12 цифр) или ОГРНИП (13 цифр)'"
                     persistent-hint
                     @valueChange="handleInnUpdate"
                     @input="handleInnUpdate"
                     @focus="handleInnFocus"
                     @blur="handleInnBlur"
                   />
-                  <!-- Выпадающее меню с результатами -->
+                  <!-- Выпадающее меню с результатами (только для организаций) -->
                   <v-menu
+                    v-if="form.client_type === CLIENT_TYPES.ORGANIZATION"
                     v-model="showOrganizationMenu"
                     :activator="innAutocompleteRef"
                     location="bottom"
@@ -338,15 +355,54 @@
                   </v-menu>
                 </div>
               </v-col>
-            </v-row>
-
-            <v-row>
-              <v-col cols="12" md="4">
+              
+              <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION" cols="12" md="6">
                 <AppleInput
                   v-model="form.client_kpp"
                   label="КПП"
                 />
               </v-col>
+            </v-row>
+            
+            <!-- ОГРН и ОКПО для организаций -->
+            <v-row v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
+              <v-col cols="12" md="6">
+                <AppleInput
+                  v-model="form.client_ogrn"
+                  label="ОГРН"
+                  :rules="[rules.ogrn]"
+                  hint="13 цифр"
+                  persistent-hint
+                  maxlength="13"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="6">
+                <AppleInput
+                  v-model="form.client_okpo"
+                  label="ОКПО"
+                  hint="8 или 10 цифр"
+                  persistent-hint
+                  maxlength="10"
+                />
+              </v-col>
+            </v-row>
+            
+            <!-- ОГРНИП для ИП -->
+            <v-row v-if="form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
+              <v-col cols="12" md="6">
+                <AppleInput
+                  v-model="form.client_ogrnip"
+                  label="ОГРНИП"
+                  :rules="[rules.ogrnip]"
+                  hint="13 цифр"
+                  persistent-hint
+                  maxlength="13"
+                />
+              </v-col>
+            </v-row>
+
+            <v-row>
               
               <v-col cols="12" md="4">
                 <AppleInput
@@ -365,12 +421,76 @@
                 />
               </v-col>
             </v-row>
+            
+            <!-- Сайт для организаций и ИП -->
+            <v-row v-if="form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
+              <v-col cols="12" md="6">
+                <AppleInput
+                  v-model="form.client_website"
+                  label="Сайт (при наличии)"
+                  hint="Необязательно"
+                  persistent-hint
+                  type="url"
+                />
+              </v-col>
+            </v-row>
 
             <v-row>
-              <v-col cols="12">
-                <label class="apple-input-label">Адрес</label>
+              <!-- Адреса для организаций -->
+              <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
+                <v-col cols="12">
+                  <label class="apple-input-label">Юридический адрес</label>
+                  <v-textarea
+                    v-model="form.client_legal_address"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hide-details
+                  />
+                </v-col>
+                
+                <v-col cols="12">
+                  <label class="apple-input-label">Почтовый адрес</label>
+                  <v-textarea
+                    v-model="form.client_postal_address"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hide-details
+                  />
+                </v-col>
+              </template>
+              
+              <!-- Адреса для физических лиц -->
+              <template v-if="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON">
+                <v-col cols="12">
+                  <label class="apple-input-label">Адрес регистрации</label>
+                  <v-textarea
+                    v-model="form.client_registration_address"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hide-details
+                  />
+                </v-col>
+                
+                <v-col cols="12">
+                  <label class="apple-input-label">Адрес фактического проживания</label>
+                  <v-textarea
+                    v-model="form.client_actual_address"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hide-details
+                  />
+                </v-col>
+              </template>
+              
+              <!-- Адрес регистрации (место жительства) для ИП -->
+              <v-col v-if="form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR" cols="12">
+                <label class="apple-input-label">Адрес регистрации (место жительства)</label>
                 <v-textarea
-                  v-model="form.client_address"
+                  v-model="form.client_registration_address"
                   variant="outlined"
                   density="comfortable"
                   rows="2"
@@ -378,6 +498,213 @@
                 />
               </v-col>
             </v-row>
+            
+            <!-- Паспортные данные для физических лиц и ИП -->
+            <template v-if="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
+              <h4 class="subsection-title mt-4 mb-3">
+                <v-icon icon="mdi-card-account-details" size="small" class="mr-2" />
+                Паспортные данные
+              </h4>
+              
+              <v-row>
+                <v-col cols="12" md="3">
+                  <AppleInput
+                    v-model="form.client_passport_series"
+                    label="Серия паспорта"
+                    maxlength="4"
+                  />
+                </v-col>
+                
+                <v-col cols="12" md="9">
+                  <AppleInput
+                    v-model="form.client_passport_number"
+                    label="Номер паспорта"
+                    maxlength="6"
+                  />
+                </v-col>
+              </v-row>
+              
+              <v-row>
+                <v-col cols="12">
+                  <label class="apple-input-label">Выдан</label>
+                  <v-textarea
+                    v-model="form.client_passport_issued_by"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hide-details
+                  />
+                </v-col>
+              </v-row>
+              
+              <v-row>
+                <v-col cols="12" md="6">
+                  <AppleInput
+                    v-model="form.client_passport_issue_date"
+                    label="Дата выдачи"
+                    type="date"
+                  />
+                </v-col>
+                
+                <v-col cols="12" md="6">
+                  <AppleInput
+                    v-model="form.client_passport_department_code"
+                    label="Код подразделения"
+                    maxlength="7"
+                    hint="Формат: XXX-XXX"
+                    persistent-hint
+                  />
+                </v-col>
+              </v-row>
+            </template>
+            
+            <!-- ИНН и СНИЛС для физических лиц -->
+            <template v-if="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON">
+              <v-row class="mt-2">
+                <v-col cols="12" md="6">
+                  <AppleInput
+                    v-model="form.client_inn"
+                    label="ИНН"
+                    hint="Необязательно"
+                    persistent-hint
+                  />
+                </v-col>
+                
+                <v-col cols="12" md="6">
+                  <AppleInput
+                    v-model="form.client_snils"
+                    label="СНИЛС"
+                    hint="Формат: XXX-XXX-XXX XX"
+                    persistent-hint
+                    maxlength="14"
+                  />
+                </v-col>
+              </v-row>
+            </template>
+            
+            <!-- Банковские реквизиты для всех типов клиентов -->
+            <template v-if="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR || form.client_type === CLIENT_TYPES.ORGANIZATION">
+              <h4 class="subsection-title mt-4 mb-3">
+                <v-icon icon="mdi-bank" size="small" class="mr-2" />
+                Банковские реквизиты
+              </h4>
+              
+              <!-- Для организаций порядок: Расчётный счёт, Корреспондентский счёт, Банк, БИК -->
+              <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <AppleInput
+                      v-model="form.client_bank_account"
+                      label="Расчётный счёт"
+                      maxlength="20"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="12" md="6">
+                    <AppleInput
+                      v-model="form.client_bank_correspondent_account"
+                      label="Корреспондентский счёт"
+                      maxlength="20"
+                    />
+                  </v-col>
+                </v-row>
+                
+                <v-row>
+                  <v-col cols="12" md="8">
+                    <AppleInput
+                      v-model="form.client_bank_name"
+                      label="Банк"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="12" md="4">
+                    <AppleInput
+                      v-model="form.client_bank_bik"
+                      label="БИК"
+                      maxlength="9"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+              
+              <!-- Для физических лиц и ИП порядок: Банк, БИК, Корреспондентский счёт, Расчётный счёт, Получатель -->
+              <template v-else>
+                <v-row>
+                  <v-col cols="12">
+                    <AppleInput
+                      v-model="form.client_bank_name"
+                      label="Наименование банка"
+                    />
+                  </v-col>
+                </v-row>
+                
+                <v-row>
+                  <v-col cols="12" md="4">
+                    <AppleInput
+                      v-model="form.client_bank_bik"
+                      label="БИК"
+                      maxlength="9"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="12" md="4">
+                    <AppleInput
+                      v-model="form.client_bank_correspondent_account"
+                      label="Корреспондентский счёт"
+                      maxlength="20"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="12" md="4">
+                    <AppleInput
+                      v-model="form.client_bank_account"
+                      label="Расчётный счёт"
+                      maxlength="20"
+                    />
+                  </v-col>
+                </v-row>
+                
+                <v-row>
+                  <v-col cols="12">
+                    <AppleInput
+                      v-model="form.client_bank_recipient"
+                      label="Получатель"
+                    />
+                  </v-col>
+                </v-row>
+              </template>
+            </template>
+            
+            <!-- Дополнительные поля для организаций -->
+            <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
+              <h4 class="subsection-title mt-4 mb-3">
+                <v-icon icon="mdi-account-tie" size="small" class="mr-2" />
+                Руководство
+              </h4>
+              
+              <v-row>
+                <v-col cols="12">
+                  <AppleInput
+                    v-model="form.client_director"
+                    label="Генеральный директор / Руководитель"
+                  />
+                </v-col>
+              </v-row>
+              
+              <v-row>
+                <v-col cols="12">
+                  <label class="apple-input-label">Действует на основании</label>
+                  <v-textarea
+                    v-model="form.client_based_on"
+                    variant="outlined"
+                    density="comfortable"
+                    rows="2"
+                    hint="Например: Устава, доверенности № ___ от «___» ______ 20___ г."
+                    persistent-hint
+                  />
+                </v-col>
+              </v-row>
+            </template>
           </div>
 
           <!-- Тарификация и стоимость -->
@@ -570,6 +897,9 @@ import {
   CONTRACT_STATUS_LABELS,
   CURRENCY_OPTIONS,
   NOTIFICATION_PERIOD_OPTIONS,
+  CLIENT_TYPE_OPTIONS,
+  CLIENT_TYPES,
+  type ClientType,
 } from '@/types/contracts';
 import type { BillingPlan } from '@/types/billing';
 import type { Account } from '@/services/accountsService';
@@ -639,12 +969,36 @@ const defaultForm: ContractForm = {
   number: '',
   title: '',
   description: '',
+  client_type: CLIENT_TYPES.ORGANIZATION,
   client_name: '',
   client_inn: '',
   client_kpp: '',
   client_email: '',
   client_phone: '',
   client_address: '',
+  client_legal_address: '',
+  client_postal_address: '',
+  client_ogrn: '',
+  client_okpo: '',
+  client_director: '',
+  client_based_on: '',
+  // Поля для физических лиц и ИП
+  client_passport_series: '',
+  client_passport_number: '',
+  client_passport_issued_by: '',
+  client_passport_issue_date: '',
+  client_passport_department_code: '',
+  client_registration_address: '',
+  client_actual_address: '',
+  client_snils: '',
+  client_ogrnip: '',
+  client_website: '',
+  // Банковские реквизиты
+  client_bank_name: '',
+  client_bank_bik: '',
+  client_bank_correspondent_account: '',
+  client_bank_account: '',
+  client_bank_recipient: '',
   start_date: new Date().toISOString().split('T')[0],
   end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +1 год
   tariff_plan_id: 0,
@@ -721,8 +1075,27 @@ const rules = {
   },
   inn: (value: string) => {
     if (!value) return true;
-    const pattern = /^[0-9]{10}$|^[0-9]{12}$|^[0-9]{13}$/;
-    return pattern.test(value) || 'ИНН должен содержать 10 или 12 цифр, ОГРН - 13 цифр';
+    const clientType = form.value.client_type;
+    // Для организации - 10 цифр, для ИП - 12 цифр
+    if (clientType === CLIENT_TYPES.ORGANIZATION) {
+      const pattern = /^[0-9]{10}$|^[0-9]{13}$/; // 10 цифр ИНН или 13 ОГРН
+      return pattern.test(value) || 'ИНН должен содержать 10 цифр, ОГРН - 13 цифр';
+    } else if (clientType === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+      const pattern = /^[0-9]{12}$|^[0-9]{13}$/; // 12 цифр ИНН или 13 ОГРНИП
+      return pattern.test(value) || 'ИНН должен содержать 12 цифр, ОГРНИП - 13 цифр';
+    }
+    // Для физических лиц ИНН не требуется
+    return true;
+  },
+  ogrnip: (value: string) => {
+    if (!value) return true;
+    const pattern = /^[0-9]{13}$/;
+    return pattern.test(value) || 'ОГРНИП должен содержать 13 цифр';
+  },
+  ogrn: (value: string) => {
+    if (!value) return true;
+    const pattern = /^[0-9]{13}$/;
+    return pattern.test(value) || 'ОГРН должен содержать 13 цифр';
   },
   number: (value: string) => {
     if (!value) return true;
@@ -1200,6 +1573,44 @@ const formatCurrency = (amount: number, currency = 'RUB'): string => {
   return contractsService.formatCurrency(amount, currency);
 };
 
+// Обработчик изменения типа клиента
+const onClientTypeChange = (clientType: ClientType) => {
+  // При смене типа клиента очищаем поля, которые не нужны для нового типа
+  if (clientType === CLIENT_TYPES.PHYSICAL_PERSON) {
+    // Для физических лиц не нужны ИНН (будет показан отдельно), КПП, обычный адрес
+    form.value.client_kpp = '';
+    form.value.client_address = '';
+    organizationSuggestions.value = [];
+    showOrganizationMenu.value = false;
+  } else if (clientType === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+    // Для ИП не нужен КПП и адрес фактического проживания
+    form.value.client_kpp = '';
+    form.value.client_actual_address = '';
+    form.value.client_snils = '';
+    // Адрес регистрации используется для ИП, не очищаем
+  } else if (clientType === CLIENT_TYPES.ORGANIZATION) {
+    // Для организации очищаем все поля физических лиц и ИП
+    form.value.client_passport_series = '';
+    form.value.client_passport_number = '';
+    form.value.client_passport_issued_by = '';
+    form.value.client_passport_issue_date = '';
+    form.value.client_passport_department_code = '';
+    form.value.client_registration_address = '';
+    form.value.client_actual_address = '';
+    form.value.client_snils = '';
+    form.value.client_ogrnip = '';
+    // Очищаем старый адрес, если он был
+    if (!form.value.client_legal_address) {
+      form.value.client_address = '';
+    }
+  }
+  // Если переключились на организацию или ИП, очищаем поиск организаций
+  if (clientType !== CLIENT_TYPES.ORGANIZATION) {
+    organizationSuggestions.value = [];
+    showOrganizationMenu.value = false;
+  }
+};
+
 // Watcher для автоматической загрузки объектов при изменении account_id
 watch(() => form.value.account_id, async (newAccountId, oldAccountId) => {
   console.log('🔵 watch account_id changed:', { newAccountId, oldAccountId });
@@ -1235,14 +1646,23 @@ const handleInnValueChanged = (value: string) => {
     form.value.client_inn = actualValue;
   }
   
-  // Проверяем валидность и запускаем поиск
-  if (actualValue.length >= 10 && /^\d{10}$|^\d{12}$|^\d{13}$/.test(actualValue)) {
-    innSearchQuery.value = actualValue;
-    onInnSearch(actualValue);
-  } else {
+  // Проверяем валидность и запускаем поиск только для организаций
+  const clientType = form.value.client_type;
+  if (clientType === CLIENT_TYPES.ORGANIZATION) {
+    // Для организаций: 10 цифр ИНН или 13 ОГРН
+    if (actualValue.length >= 10 && /^\d{10}$|^\d{13}$/.test(actualValue)) {
+      innSearchQuery.value = actualValue;
+      onInnSearch(actualValue);
+    } else {
+      if (actualValue === '') {
+        organizationSuggestions.value = [];
+        showOrganizationMenu.value = false;
+      }
+    }
+  } else if (clientType === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+    // Для ИП: 12 цифр ИНН или 13 ОГРНИП (поиск не выполняем)
     if (actualValue === '') {
-      organizationSuggestions.value = [];
-      showOrganizationMenu.value = false;
+      // Очистка при пустом значении
     }
   }
 };
@@ -1276,8 +1696,13 @@ const handleInnBlur = () => {
   }, 200);
 };
 
-// Поиск организаций по ИНН/ОГРН с debounce
+// Поиск организаций по ИНН/ОГРН с debounce (только для организаций)
 const onInnSearch = (value: string | null) => {
+  // Поиск работает только для организаций
+  if (form.value.client_type !== CLIENT_TYPES.ORGANIZATION) {
+    return;
+  }
+  
   const searchValue = (value || '').toString();
   
   if (innSearchTimeout.value) {
@@ -1293,7 +1718,8 @@ const onInnSearch = (value: string | null) => {
   
   const cleanValue = searchValue.trim().replace(/\s+/g, '');
   
-  if (!/^\d{10}$|^\d{12}$|^\d{13}$/.test(cleanValue)) {
+  // Для организаций: 10 цифр ИНН или 13 ОГРН
+  if (!/^\d{10}$|^\d{13}$/.test(cleanValue)) {
     organizationSuggestions.value = [];
     return;
   }
@@ -1460,6 +1886,14 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   color: rgb(var(--v-theme-primary));
+}
+
+.subsection-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+  display: flex;
+  align-items: center;
 }
 
 .form-actions {
