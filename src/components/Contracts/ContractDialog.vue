@@ -28,7 +28,42 @@
                     :rules="[rules.required]"
                     prepend-icon="mdi-identifier"
                     required
-                  />
+                  >
+                    <template #append-inner>
+                      <v-btn
+                        v-if="!isEdit && selectedNumeratorId"
+                        icon="mdi-reload"
+                        size="small"
+                        variant="text"
+                        @click="generateNumber"
+                        :loading="generatingNumber"
+                        title="Сгенерировать номер"
+                      ></v-btn>
+                    </template>
+                  </AppleInput>
+                  <div v-if="!isEdit" class="mt-2">
+                    <v-select
+                      v-model="selectedNumeratorId"
+                      :items="numeratorOptions"
+                      label="Нумератор"
+                      variant="outlined"
+                      density="compact"
+                      prepend-icon="mdi-format-list-numbered"
+                      hint="Выберите нумератор для автоматической генерации номера"
+                      persistent-hint
+                      clearable
+                    >
+                      <template #append-item>
+                        <v-list-item 
+                          class="d-flex justify-center cursor-pointer"
+                          @click="router.push('/billing?tab=settings')"
+                        >
+                          <v-icon>mdi-format-list-numbered</v-icon>
+                          <span class="ml-2">Настроить нумераторы</span>
+                        </v-list-item>
+                      </template>
+                    </v-select>
+                  </div>
                 </v-col>
                 
                 <v-col cols="12" md="6">
@@ -39,18 +74,6 @@
                     variant="outlined"
                     density="comfortable"
                     prepend-icon="mdi-flag"
-                  />
-                </v-col>
-              </v-row>
-
-              <v-row>
-                <v-col cols="12">
-                  <AppleInput
-                    v-model="form.title"
-                    label="Название договора"
-                    :rules="[rules.required]"
-                    prepend-icon="mdi-format-title"
-                    required
                   />
                 </v-col>
               </v-row>
@@ -369,10 +392,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import type { 
   ContractWithRelations, 
   ContractForm,
+  ContractNumerator,
 } from '@/types/contracts';
 import {
   CONTRACT_STATUS_LABELS,
@@ -384,6 +409,7 @@ import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import { AppleButton, AppleInput } from '@/components/Apple';
+import { useUserStore } from '@/store/user';
 
 // Props
 interface Props {
@@ -410,6 +436,12 @@ const saving = ref(false);
 const loadingTariffPlans = ref(false);
 const loadingAccounts = ref(false);
 const accounts = ref<Account[]>([]);
+const generatingNumber = ref(false);
+const numerators = ref<ContractNumerator[]>([]);
+const loadingNumerators = ref(false);
+const selectedNumeratorId = ref<number | null>(null);
+const userStore = useUserStore();
+const router = useRouter();
 
 // Найти учетную запись по ID для отображения
 const findAccountById = (accountId: number | undefined) => {
@@ -487,6 +519,15 @@ const tariffPlanOptions = computed(() => {
     value: plan.id,
     title: plan.name,
     raw: plan,
+  }));
+});
+
+const numeratorOptions = computed(() => {
+  return numerators.value.map(numerator => ({
+    value: numerator.id,
+    title: numerator.name,
+    subtitle: `${numerator.template} (Счетчик: ${numerator.counter_value})`,
+    raw: numerator,
   }));
 });
 
@@ -678,6 +719,54 @@ const formatCurrency = (amount: number, currency = 'RUB'): string => {
   return contractsService.formatCurrency(amount, currency);
 };
 
+// Load numerators
+const loadNumerators = async () => {
+  if (!userStore.company?.id) return;
+  
+  loadingNumerators.value = true;
+  try {
+    numerators.value = await contractsService.getContractNumerators(userStore.company.id);
+    
+    // Auto-select default numerator if exists
+    const defaultNumerator = numerators.value.find(n => n.is_default);
+    if (defaultNumerator && !isEdit.value) {
+      selectedNumeratorId.value = defaultNumerator.id;
+    }
+  } catch (error) {
+    console.error('Error loading numerators:', error);
+  } finally {
+    loadingNumerators.value = false;
+  }
+};
+
+// Generate contract number
+const generateNumber = async () => {
+  if (!selectedNumeratorId.value) return;
+  
+  // Если номер уже введен вручную, спрашиваем подтверждение
+  if (form.value.number && form.value.number.trim() !== '') {
+    const confirmed = confirm('Номер договора уже заполнен. Заменить его автоматически сгенерированным номером?');
+    if (!confirmed) return;
+  }
+  
+  generatingNumber.value = true;
+  try {
+    const result = await contractsService.generateContractNumber(
+      selectedNumeratorId.value,
+      {
+        client_id: form.value.account_id,
+        company_id: userStore.company?.id,
+      }
+    );
+    form.value.number = result.number;
+  } catch (error: any) {
+    console.error('Error generating number:', error);
+    emit('error', error.message || 'Ошибка генерации номера');
+  } finally {
+    generatingNumber.value = false;
+  }
+};
+
 // Watchers
 watch(() => props.contract, (newContract) => {
   if (newContract) {
@@ -686,6 +775,13 @@ watch(() => props.contract, (newContract) => {
     resetForm();
   }
 }, { immediate: true });
+
+// Убрали автогенерацию при выборе нумератора - пользователь сам нажимает кнопку
+// watch(() => selectedNumeratorId.value, (newId) => {
+//   if (newId && !isEdit.value) {
+//     generateNumber();
+//   }
+// });
 
 watch(() => props.modelValue, (newValue) => {
   console.log('🔵 ContractDialog modelValue changed:', newValue, { isEdit: isEdit.value });
@@ -697,9 +793,15 @@ watch(() => props.modelValue, (newValue) => {
     if (!isEdit.value) {
       console.log('🔵 Loading accounts for new contract...');
       loadAccounts();
+      loadNumerators();
     }
   }
 }, { immediate: true });
+
+// Lifecycle
+onMounted(() => {
+  loadNumerators();
+});
 </script>
 
 <style scoped>

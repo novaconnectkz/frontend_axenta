@@ -242,3 +242,64 @@ export interface ContractStats {
   average_monthly_fee: string;
   expiring_soon: number;
 }
+
+// Нумератор договоров
+export interface ContractNumerator {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  company_id: number;
+  name: string;
+  prefix: string;
+  template: string;
+  description?: string;
+  counter_value: number;
+  is_default: boolean;
+  is_active: boolean;
+  auto_reset: boolean;
+  reset_period?: string;
+  notes?: string;
+}
+
+// Форма нумератора
+export interface ContractNumeratorForm {
+  name: string;
+  prefix: string;
+  template: string;
+  description?: string;
+  is_default: boolean;
+  is_active: boolean;
+  auto_reset: boolean;
+  reset_period?: string;
+  notes?: string;
+}
+
+// Ответ API для нумераторов
+export interface ContractNumeratorsResponse {
+  status: "success" | "error";
+  data: ContractNumerator[];
+  count: number;
+  message?: string;
+}
+
+// Плейсхолдеры для шаблона номера
+export const CONTRACT_NUMBER_PLACEHOLDERS = [
+  { value: "{PREFIX}", label: "Префикс", description: "Префикс нумератора (например, AX)" },
+  { value: "{SEQ}", label: "Последовательный номер", description: "Автоматически увеличивающийся номер" },
+  { value: "{DAY}", label: "Текущий день", description: "День месяца (01-31)" },
+  { value: "{MONTH}", label: "Текущий месяц", description: "Месяц (01-12)" },
+  { value: "{YEAR}", label: "Текущий год", description: "Год (2024)" },
+  { value: "{YEAR_SHORT}", label: "Короткий год", description: "Последние 2 цифры года (24)" },
+  { value: "{RANDOM}", label: "Случайный номер", description: "Случайное 6-значное число" },
+  { value: "{ID}", label: "ID договора", description: "Уникальный ID договора" },
+  { value: "{COMPANY_ID}", label: "ID компании", description: "ID компании" },
+  { value: "{CLIENT_ID}", label: "ID клиента", description: "ID клиента" },
+] as const;
+
+// Опции периода сброса
+export const RESET_PERIOD_OPTIONS = [
+  { value: "never", title: "Никогда" },
+  { value: "yearly", title: "Ежегодно" },
+  { value: "monthly", title: "Ежемесячно" },
+] as const;

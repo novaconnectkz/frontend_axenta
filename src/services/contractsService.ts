@@ -19,6 +19,9 @@ import type {
   ContractWithRelations,
   ContractsResponse,
   ExpiringContractsResponse,
+  ContractNumerator,
+  ContractNumeratorForm,
+  ContractNumeratorsResponse,
 } from "@/types/contracts";
 import axios, { type AxiosResponse } from "axios";
 
@@ -1139,6 +1142,80 @@ class ContractsService {
 
     const diffTime = endDate.getTime() - now.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  // ========== ОПЕРАЦИИ С НУМЕРАТОРАМИ ДОГОВОРОВ ==========
+
+  /**
+   * Получить список нумераторов договоров
+   */
+  async getContractNumerators(companyId: number): Promise<ContractNumerator[]> {
+    const response: AxiosResponse<ContractNumeratorsResponse> =
+      await this.apiClient.get("/auth/contract-numerators", {
+        params: { company_id: companyId },
+      });
+
+    return response.data.data || [];
+  }
+
+  /**
+   * Получить конкретный нумератор по ID
+   */
+  async getContractNumerator(id: number): Promise<ContractNumerator> {
+    const response = await this.apiClient.get(`/auth/contract-numerators/${id}`);
+    return response.data.data;
+  }
+
+  /**
+   * Создать новый нумератор
+   */
+  async createContractNumerator(
+    data: ContractNumeratorForm
+  ): Promise<ContractNumerator> {
+    const response = await this.apiClient.post(
+      "/auth/contract-numerators",
+      data
+    );
+    return response.data.data;
+  }
+
+  /**
+   * Обновить нумератор
+   */
+  async updateContractNumerator(
+    id: number,
+    data: Partial<ContractNumeratorForm>
+  ): Promise<ContractNumerator> {
+    const response = await this.apiClient.put(
+      `/auth/contract-numerators/${id}`,
+      data
+    );
+    return response.data.data;
+  }
+
+  /**
+   * Удалить нумератор
+   */
+  async deleteContractNumerator(id: number): Promise<void> {
+    await this.apiClient.delete(`/auth/contract-numerators/${id}`);
+  }
+
+  /**
+   * Сгенерировать номер договора по ID нумератора
+   */
+  async generateContractNumber(
+    numeratorId: number,
+    params?: {
+      client_id?: number;
+      company_id?: number;
+      contract_id?: number;
+    }
+  ): Promise<{ number: string; counter: number }> {
+    const response = await this.apiClient.post(
+      `/auth/contract-numerators/${numeratorId}/generate`,
+      params || {}
+    );
+    return response.data.data;
   }
 }
 

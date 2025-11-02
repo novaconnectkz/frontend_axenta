@@ -185,6 +185,9 @@ export interface BillingSettings {
   require_payment_confirm: boolean;
   enable_inactive_discounts: boolean;
   inactive_discount_ratio: string;
+  contract_numbering_method: string;
+  contract_default_numerator_id?: number;
+  bitrix24_deal_number_field?: string;
 }
 
 // Расчет биллинга

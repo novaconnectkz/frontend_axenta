@@ -478,6 +478,7 @@
 
       <!-- Настройки биллинга -->
       <v-window-item value="settings">
+        <!-- Настройки биллинга -->
         <v-card>
           <v-card-title>Настройки биллинга</v-card-title>
           
@@ -587,6 +588,39 @@
                     color="primary"
                   ></v-switch>
                 </v-col>
+
+                <v-col cols="12" md="6">
+                  <h4 class="mb-4">Нумерация договоров</h4>
+                  <v-select
+                    v-model="billingSettings.contract_numbering_method"
+                    :items="contractNumberingMethods"
+                    label="Способ нумерации"
+                    prepend-icon="mdi-format-list-numbered"
+                    hint="Выберите способ генерации номеров договоров"
+                    persistent-hint
+                  ></v-select>
+                  
+                  <v-select
+                    v-if="billingSettings.contract_numbering_method === 'numerator'"
+                    v-model="billingSettings.contract_default_numerator_id"
+                    :items="numeratorOptions"
+                    label="Нумератор по умолчанию"
+                    prepend-icon="mdi-clock-start"
+                    hint="Нумератор будет автоматически использоваться при создании договоров"
+                    persistent-hint
+                    clearable
+                  ></v-select>
+                  
+                  <v-text-field
+                    v-if="billingSettings.contract_numbering_method === 'bitrix24'"
+                    v-model="billingSettings.bitrix24_deal_number_field"
+                    label="Поле номера в Bitrix24"
+                    prepend-icon="mdi-pound"
+                    hint="Код пользовательского поля в Bitrix24 (например, UF_CRM_CONTRACT_NUMBER)"
+                    persistent-hint
+                    placeholder="UF_CRM_CONTRACT_NUMBER"
+                  ></v-text-field>
+                </v-col>
               </v-row>
               
               <v-row class="mt-4">
@@ -609,6 +643,9 @@
             </div>
           </v-card-text>
         </v-card>
+        
+        <!-- Нумераторы договоров -->
+        <ContractNumeratorsTab class="mt-6" />
       </v-window-item>
     </v-window>
 
@@ -969,7 +1006,9 @@
 
 <script lang="ts" setup>
 import ContractsTab from '@/components/Billing/ContractsTab.vue'
+import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
 import { billingService } from '@/services/billingService'
+import contractsService from '@/services/contractsService'
 import type {
     BillingDashboardData,
     BillingPlan,
@@ -984,10 +1023,14 @@ import type {
     UpdateBillingSettingsData,
     UpdateSubscriptionData
 } from '@/types/billing'
+import type { ContractNumerator } from '@/types/contracts'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
 
 // Реактивные данные
-const activeTab = ref('contracts') // Начинаем с договоров
+const activeTab = ref((route.query.tab as string) || 'contracts') // Начинаем с договоров или из query
 const currentCompanyId = ref(1) // В реальном приложении получать из контекста
 
 // Данные
@@ -1002,6 +1045,8 @@ const contractsStats = ref<{
   expiring_soon: number
   total_amount: string
 } | null>(null)
+const contractNumerators = ref<ContractNumerator[]>([])
+const loadingNumerators = ref(false)
 
 // Состояния загрузки
 const loadingPlans = ref(false)
@@ -1054,6 +1099,12 @@ const statusOptions = [
   { title: 'Неактивные', value: false }
 ]
 
+const contractNumberingMethods = [
+  { title: 'Вручную', value: 'manual', icon: 'mdi-hand-pointing-right', description: 'Номер вводится вручную при создании договора' },
+  { title: 'Автоматически (нумератор)', value: 'numerator', icon: 'mdi-format-list-numbered', description: 'Номер генерируется автоматически по выбранному нумератору' },
+  { title: 'Из Bitrix24', value: 'bitrix24', icon: 'mdi-cloud-download', description: 'Номер берется из пользовательского поля сделки в Bitrix24' }
+]
+
 const subscriptionStatuses = [
   { title: 'Активная', value: 'active' },
   { title: 'Истекшая', value: 'expired' },
@@ -1098,6 +1149,14 @@ const invoiceHeaders = [
 ]
 
 // Вычисляемые свойства
+const numeratorOptions = computed(() => {
+  return contractNumerators.value.map(numerator => ({
+    value: numerator.id,
+    title: numerator.name,
+    subtitle: numerator.template,
+  }))
+})
+
 const filteredPlans = computed(() => {
   let filtered = plans.value
 
@@ -1190,10 +1249,22 @@ const fetchBillingSettings = async () => {
   loadingSettings.value = true
   try {
     billingSettings.value = await billingService.getBillingSettings(currentCompanyId.value)
+    await fetchContractNumerators()
   } catch (error) {
     console.error('Ошибка при загрузке настроек:', error)
   } finally {
     loadingSettings.value = false
+  }
+}
+
+const fetchContractNumerators = async () => {
+  loadingNumerators.value = true
+  try {
+    contractNumerators.value = await contractsService.getContractNumerators(currentCompanyId.value)
+  } catch (error) {
+    console.error('Ошибка при загрузке нумераторов:', error)
+  } finally {
+    loadingNumerators.value = false
   }
 }
 

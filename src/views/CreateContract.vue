@@ -38,44 +38,31 @@
                   v-model="form.number"
                   label="Номер договора"
                   :rules="[rules.required]"
-                  prepend-icon="mdi-identifier"
                   required
                 />
               </v-col>
               
               <v-col cols="12" md="6">
+                <label class="apple-input-label">Статус</label>
                 <v-select
                   v-model="form.status"
                   :items="statusOptions"
-                  label="Статус"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-flag"
+                  hide-details
                 />
               </v-col>
             </v-row>
 
             <v-row>
               <v-col cols="12">
-                <AppleInput
-                  v-model="form.title"
-                  label="Название договора"
-                  :rules="[rules.required]"
-                  prepend-icon="mdi-format-title"
-                  required
-                />
-              </v-col>
-            </v-row>
-
-            <v-row>
-              <v-col cols="12">
+                <label class="apple-input-label">Описание</label>
                 <v-textarea
                   v-model="form.description"
-                  label="Описание"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-text"
-                  rows="3"
+                  rows="2"
+                  hide-details
                 />
               </v-col>
             </v-row>
@@ -90,16 +77,15 @@
             
             <v-row>
               <v-col cols="12">
+                <label class="apple-input-label">Учетная запись</label>
                 <v-autocomplete
                   v-model="form.account_id"
                   :items="accountOptions"
                   item-title="title"
                   item-value="value"
-                  label="Учетная запись"
                   placeholder="Начните вводить название учетной записи..."
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-account"
                   :loading="loadingAccounts"
                   hint="Выберите учетную запись для автоматической привязки её объектов к договору"
                   persistent-hint
@@ -296,7 +282,6 @@
                   v-model="form.client_name"
                   label="Наименование клиента"
                   :rules="[rules.required]"
-                  prepend-icon="mdi-domain"
                   required
                 />
               </v-col>
@@ -305,7 +290,6 @@
                 <AppleInput
                   v-model="form.client_inn"
                   label="ИНН"
-                  prepend-icon="mdi-card-account-details"
                   :rules="[rules.inn]"
                 />
               </v-col>
@@ -316,7 +300,6 @@
                 <AppleInput
                   v-model="form.client_kpp"
                   label="КПП"
-                  prepend-icon="mdi-card-account-details-outline"
                 />
               </v-col>
               
@@ -324,7 +307,6 @@
                 <AppleInput
                   v-model="form.client_email"
                   label="Email"
-                  prepend-icon="mdi-email"
                   :rules="[rules.email]"
                   type="email"
                 />
@@ -334,7 +316,6 @@
                 <AppleInput
                   v-model="form.client_phone"
                   label="Телефон"
-                  prepend-icon="mdi-phone"
                   :rules="[rules.phone]"
                 />
               </v-col>
@@ -342,13 +323,13 @@
 
             <v-row>
               <v-col cols="12">
+                <label class="apple-input-label">Адрес</label>
                 <v-textarea
                   v-model="form.client_address"
-                  label="Адрес"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-map-marker"
                   rows="2"
+                  hide-details
                 />
               </v-col>
             </v-row>
@@ -363,16 +344,16 @@
             
             <v-row>
               <v-col cols="12" md="6">
+                <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
                 <v-select
                   v-model="form.tariff_plan_id"
                   :items="tariffPlanOptions"
-                  label="Тарифный план"
                   :rules="[rules.required]"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-package-variant"
                   :loading="loadingTariffPlans"
                   required
+                  hide-details
                   @update:model-value="onTariffPlanChange"
                 >
                   <template #item="{ props, item }">
@@ -397,7 +378,6 @@
                 <AppleInput
                   v-model="form.total_amount"
                   label="Общая стоимость"
-                  prepend-icon="mdi-calculator"
                   :rules="[rules.number]"
                   type="number"
                   step="0.01"
@@ -405,13 +385,13 @@
               </v-col>
               
               <v-col cols="12" md="3">
+                <label class="apple-input-label">Валюта</label>
                 <v-select
                   v-model="form.currency"
                   :items="currencyOptions"
-                  label="Валюта"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-cash"
+                  hide-details
                 />
               </v-col>
             </v-row>
@@ -430,7 +410,6 @@
                   v-model="form.start_date"
                   label="Дата начала"
                   :rules="[rules.required]"
-                  prepend-icon="mdi-calendar-start"
                   type="date"
                   required
                 />
@@ -441,20 +420,19 @@
                   v-model="form.end_date"
                   label="Дата окончания"
                   :rules="[rules.required, rules.endDateAfterStart]"
-                  prepend-icon="mdi-calendar-end"
                   type="date"
                   required
                 />
               </v-col>
               
               <v-col cols="12" md="4">
+                <label class="apple-input-label">Уведомлять за</label>
                 <v-select
                   v-model="form.notify_before"
                   :items="notificationOptions"
-                  label="Уведомлять за"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-bell"
+                  hide-details
                 />
               </v-col>
             </v-row>
@@ -481,7 +459,6 @@
                 <AppleInput
                   v-model="form.external_id"
                   label="Внешний ID"
-                  prepend-icon="mdi-identifier"
                   hint="ID в внешних системах (1С, Битрикс24)"
                   persistent-hint
                 />
@@ -490,13 +467,13 @@
 
             <v-row>
               <v-col cols="12">
+                <label class="apple-input-label">Примечания</label>
                 <v-textarea
                   v-model="form.notes"
-                  label="Примечания"
                   variant="outlined"
                   density="comfortable"
-                  prepend-icon="mdi-note-text"
                   rows="3"
+                  hide-details
                 />
               </v-col>
             </v-row>
@@ -806,8 +783,6 @@ const loadAccounts = async () => {
             name: firstAccount.name,
             objectsTotal: firstAccount.objectsTotal,
             objectsActive: firstAccount.objectsActive,
-            objects_total: firstAccount.objects_total,
-            objects_active: firstAccount.objects_active,
             allFields: Object.keys(firstAccount)
           });
         }
@@ -1301,6 +1276,31 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* Выравнивание полей ввода по нижнему краю */
+.form-section :deep(.v-row) {
+  align-items: flex-end;
+}
+
+/* Добавляем gap между label и полем */
+.form-section .v-col > label.apple-input-label + .v-select,
+.form-section .v-col > label.apple-input-label + .v-autocomplete,
+.form-section .v-col > label.apple-input-label + .v-textarea,
+.form-section .v-col > label.apple-input-label + .v-text-field {
+  margin-top: 6px;
+}
+
+/* Обеспечиваем одинаковую высоту для полей ввода */
+.form-section :deep(.apple-input-wrapper-base) {
+  height: 56px;
+}
+
+.form-section :deep(.v-select .v-field),
+.form-section :deep(.v-autocomplete .v-field),
+.form-section :deep(.v-textarea .v-field),
+.form-section :deep(.v-text-field .v-field) {
+  height: 56px;
 }
 </style>
 

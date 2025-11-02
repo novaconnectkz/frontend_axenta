@@ -90,7 +90,7 @@ import { computed, ref, useAttrs } from 'vue';
 
 interface Props {
   modelValue?: string | number;
-  type?: 'text' | 'password' | 'email' | 'tel' | 'url' | 'search' | 'number';
+  type?: 'text' | 'password' | 'email' | 'tel' | 'url' | 'search' | 'number' | 'date';
   label?: string;
   placeholder?: string;
   helperText?: string;
@@ -221,6 +221,8 @@ defineExpose({
   font-weight: 500;
   color: var(--text-secondary);
   transition: color 0.15s ease-out;
+  line-height: 1.2;
+  min-height: 17px;
 }
 
 .apple-input-label-error {
