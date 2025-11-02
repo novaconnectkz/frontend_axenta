@@ -31,7 +31,9 @@ export interface DaDataOrganization {
     inn?: string; // ИНН
     ogrn?: string; // ОГРН
     ogrn_date?: number; // Дата выдачи ОГРН
+    okpo?: string; // ОКПО
     type?: string; // Тип организации (LEGAL, INDIVIDUAL)
+    website?: string; // Сайт организации
     address?: {
       value?: string; // Полный адрес
       unrestricted_value?: string;
@@ -249,8 +251,15 @@ class DaDataService {
     client_inn?: string;
     client_kpp?: string;
     client_address?: string;
+    client_legal_address?: string;
+    client_postal_address?: string;
     client_phone?: string;
     client_email?: string;
+    client_ogrn?: string;
+    client_okpo?: string;
+    client_director?: string;
+    client_based_on?: string;
+    client_website?: string;
   } {
     console.log('🔍 extractOrganizationData received:', orgData);
     
@@ -317,15 +326,87 @@ class DaDataService {
       clientEmail = org.email;
     }
 
+    // Извлекаем адреса
+    let legalAddress = '';
+    let postalAddress = '';
+    if (typeof address === 'object' && address !== null) {
+      const addressValue = address.value || address.unrestricted_value || '';
+      legalAddress = addressValue;
+      postalAddress = addressValue; // По умолчанию почтовый адрес = юридический, если не указан отдельно
+      
+      // Если есть data с подробной информацией об адресе
+      if (address.data) {
+        const addrData = address.data;
+        // Формируем полный адрес из компонентов
+        const addressParts = [
+          addrData.postal_code,
+          addrData.country,
+          addrData.region,
+          addrData.area,
+          addrData.city,
+          addrData.settlement,
+          addrData.street,
+          addrData.house,
+          addrData.block,
+          addrData.flat,
+        ].filter(Boolean);
+        
+        if (addressParts.length > 0) {
+          const fullAddress = addressParts.join(', ');
+          legalAddress = fullAddress;
+          postalAddress = fullAddress;
+        }
+      }
+    } else if (typeof address === 'string') {
+      legalAddress = address;
+      postalAddress = address;
+    }
+
+    // Извлекаем ОГРН
+    const ogrn = org.ogrn || '';
+
+    // Извлекаем ОКПО (если есть в данных)
+    const okpo = org.okpo || '';
+
+    // Извлекаем информацию о руководителе
+    let director = '';
+    if (org.management) {
+      const management = org.management;
+      if (management.name) {
+        director = management.name;
+        if (management.post) {
+          director = `${management.post} ${management.name}`.trim();
+        }
+      }
+    }
+
+    // Формируем "Действует на основании"
+    let basedOn = 'Устава';
+    if (org.opf) {
+      const opfShort = org.opf.short || '';
+      const opfFull = org.opf.full || '';
+      if (opfShort || opfFull) {
+        basedOn = opfShort || opfFull;
+      }
+    }
+
+    // Извлекаем сайт (если есть в данных)
+    const website = org.website || '';
+
     return {
       client_name: clientName,
       client_inn: org.inn || '',
       client_kpp: org.kpp || '',
-      client_address: (typeof address === 'object' && address !== null) 
-        ? (address.value || address.unrestricted_value || '')
-        : (typeof address === 'string' ? address : ''),
+      client_address: legalAddress, // Для обратной совместимости
+      client_legal_address: legalAddress,
+      client_postal_address: postalAddress,
       client_phone: clientPhone,
       client_email: clientEmail,
+      client_ogrn: ogrn,
+      client_okpo: okpo,
+      client_director: director,
+      client_based_on: basedOn,
+      client_website: website,
     };
   }
 }
