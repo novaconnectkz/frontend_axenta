@@ -242,6 +242,75 @@ class DaDataService {
   }
 
   /**
+   * Поиск банка по БИК через бэкенд API
+   * @param bik БИК банка (9 цифр)
+   * @returns Данные банка
+   */
+  async findBankByBik(bik: string): Promise<any | null> {
+    try {
+      console.log('🏦 DaDataService.findBankByBik called with BIK:', bik);
+      
+      // Очищаем БИК от пробелов и других символов
+      const cleanBik = bik.trim().replace(/\s+/g, '');
+      console.log('🏦 Cleaned BIK:', cleanBik);
+      
+      // Валидация: БИК должен быть 9 цифр
+      if (!/^\d{9}$/.test(cleanBik)) {
+        throw new Error('БИК должен содержать 9 цифр');
+      }
+
+      const requestBody = { 
+        query: cleanBik
+      };
+      console.log('🏦 Request body:', requestBody);
+      
+      // Отправляем запрос на бэкенд API
+      const apiPath = '/auth/dadata/bank';
+      console.log('🏦 Making POST request to:', apiPath);
+      
+      const response = await this.apiClient.post<any>(
+        apiPath,
+        requestBody
+      );
+      
+      console.log('🏦✅ Bank response received:', response.status, response.data);
+
+      // Проверяем статус ответа
+      if (response.data.status === 'success' && response.data.data) {
+        return response.data.data;
+      }
+
+      // Если банк не найден
+      if (response.data.message) {
+        console.log('DaData bank search result:', response.data.message);
+      }
+
+      return null;
+    } catch (error: any) {
+      console.error('Error finding bank by BIK:', error);
+      
+      // Обрабатываем специфичные ошибки
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        throw new Error('Ошибка авторизации. Пожалуйста, войдите в систему заново');
+      }
+      
+      if (error.response?.status === 429) {
+        throw new Error('Превышен лимит запросов к DaData API. Попробуйте позже');
+      }
+      
+      // Если сервер вернул сообщение об ошибке
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+      
+      throw new Error(
+        error.message || 
+        'Ошибка при поиске банка'
+      );
+    }
+  }
+
+  /**
    * Преобразование данных DaData в данные для формы договора
    * @param orgData Данные организации из DaData (может быть как DaDataOrganization, так и DaDataSuggestion)
    * @returns Данные для заполнения формы

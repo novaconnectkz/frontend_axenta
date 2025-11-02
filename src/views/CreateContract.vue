@@ -402,21 +402,6 @@
             
             <!-- Реквизиты для ИП -->
             <template v-if="form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
-              <v-alert
-                type="info"
-                variant="tonal"
-                density="compact"
-                class="mb-3"
-                :icon="false"
-              >
-                <div class="d-flex align-center">
-                  <v-icon icon="mdi-information" color="primary" size="20" class="mr-2" />
-                  <span class="text-body-2">
-                    Для ИП реквизиты заполняются вручную. Введите ИНН (12 цифр) или ОГРНИП (13 цифр)
-                  </span>
-                </div>
-              </v-alert>
-              
               <v-row>
                 <v-col cols="12" md="6">
                   <div style="position: relative;" ref="innAutocompleteRef">
@@ -554,57 +539,69 @@
             
             <!-- Паспортные данные для физических лиц и ИП -->
             <template v-if="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
-              <h4 class="subsection-title mt-3 mb-2">
-                <v-icon icon="mdi-card-account-details" size="small" class="mr-2" />
-                Паспортные данные
-              </h4>
-              
-              <v-row>
-                <v-col cols="12" md="2">
-                  <AppleInput
-                    v-model="form.client_passport_series"
-                    label="Серия"
-                    :maxlength="4"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="3">
-                  <AppleInput
-                    v-model="form.client_passport_number"
-                    label="Номер"
-                    :maxlength="6"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="3">
-                  <AppleInput
-                    v-model="form.client_passport_issue_date"
-                    label="Дата выдачи"
-                    type="date"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="4">
-                  <AppleInput
-                    v-model="form.client_passport_department_code"
-                    label="Код подразделения"
-                    :maxlength="7"
-                  />
-                </v-col>
-              </v-row>
-              
-              <v-row>
-                <v-col cols="12">
-                  <label class="apple-input-label">Выдан</label>
-                  <v-textarea
-                    v-model="form.client_passport_issued_by"
-                    variant="outlined"
-                    density="compact"
-                    rows="1"
-                    hide-details
-                  />
-                </v-col>
-              </v-row>
+              <v-expansion-panels 
+                v-model="passportExpanded" 
+                class="mt-3"
+                variant="accordion"
+                :multiple="false"
+              >
+                <v-expansion-panel>
+                  <v-expansion-panel-title>
+                    <div class="d-flex align-center">
+                      <v-icon icon="mdi-card-account-details" size="small" class="mr-2" />
+                      <span class="subsection-title">Паспортные данные</span>
+                    </div>
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text>
+                    <v-row>
+                      <v-col cols="12" md="2">
+                        <AppleInput
+                          v-model="form.client_passport_series"
+                          label="Серия"
+                          :maxlength="4"
+                        />
+                      </v-col>
+                      
+                      <v-col cols="12" md="3">
+                        <AppleInput
+                          v-model="form.client_passport_number"
+                          label="Номер"
+                          :maxlength="6"
+                        />
+                      </v-col>
+                      
+                      <v-col cols="12" md="3">
+                        <AppleInput
+                          v-model="form.client_passport_issue_date"
+                          label="Дата выдачи"
+                          type="date"
+                        />
+                      </v-col>
+                      
+                      <v-col cols="12" md="4">
+                        <AppleInput
+                          v-model="form.client_passport_department_code"
+                          label="Код подразделения"
+                          :maxlength="7"
+                        />
+                      </v-col>
+                    </v-row>
+                    
+                    <v-row>
+                      <v-col cols="12">
+                        <label class="apple-input-label">Выдан</label>
+                        <v-textarea
+                          v-model="form.client_passport_issued_by"
+                          variant="outlined"
+                          density="compact"
+                          rows="1"
+                          hide-details
+                        />
+                      </v-col>
+                    </v-row>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
             </template>
             
             <!-- ИНН и СНИЛС для физических лиц -->
@@ -691,11 +688,78 @@
                   </v-col>
                   
                   <v-col cols="12" md="4">
-                    <AppleInput
-                      v-model="form.client_bank_bik"
-                      label="БИК"
-                      :maxlength="9"
-                    />
+                    <div style="position: relative;" ref="bikAutocompleteRef" class="inn-field-container">
+                      <AppleInput
+                        :model-value="form.client_bank_bik"
+                        @update:modelValue="handleBikUpdate"
+                        label="БИК"
+                        :maxlength="9"
+                        :loading="loadingBankData"
+                        @focus="handleBikFocus"
+                        @blur="handleBikBlur"
+                      />
+                      <v-tooltip location="top" :open-on-hover="true">
+                        <template #activator="{ props }">
+                          <div
+                            v-bind="props"
+                            class="inn-info-icon-wrapper"
+                          >
+                            <v-icon
+                              icon="mdi-information-outline"
+                              color="primary"
+                              size="20"
+                            />
+                          </div>
+                        </template>
+                        <div style="max-width: 320px; padding: 4px;">
+                          <div class="text-body-2 font-weight-medium mb-2">
+                            Автоматическое заполнение реквизитов банка
+                          </div>
+                          <div class="text-caption">
+                            Введите БИК (9 цифр), и система автоматически заполнит:
+                            <ul class="mt-2 mb-2 pl-3" style="text-align: left; line-height: 1.6;">
+                              <li>Наименование банка</li>
+                              <li>Корреспондентский счёт</li>
+                            </ul>
+                            <strong>После ввода появится список с найденным банком - выберите его из списка для автозаполнения.</strong>
+                          </div>
+                        </div>
+                      </v-tooltip>
+                    </div>
+                    <!-- Выпадающее меню с результатами -->
+                    <v-menu
+                      v-model="showBankMenu"
+                      :activator="bikAutocompleteRef"
+                      location="bottom"
+                      :max-height="400"
+                      eager
+                      offset-y
+                    >
+                      <v-list v-if="bankSuggestions.length > 0" density="compact">
+                        <v-list-item
+                          v-for="(suggestion, index) in bankSuggestions"
+                          :key="index"
+                          @click="onBankSelect(suggestion)"
+                          class="cursor-pointer"
+                        >
+                          <template #prepend>
+                            <v-avatar size="small" color="primary">
+                              <v-icon icon="mdi-bank" />
+                            </v-avatar>
+                          </template>
+                          <v-list-item-title>{{ suggestion.name }}</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <span v-if="suggestion.bik">БИК: {{ suggestion.bik }}</span>
+                            <span v-if="suggestion.correspondentAccount" class="ml-2">К/с: {{ suggestion.correspondentAccount }}</span>
+                          </v-list-item-subtitle>
+                        </v-list-item>
+                      </v-list>
+                      <v-list v-else-if="loadingBankData" density="compact">
+                        <v-list-item>
+                          <v-list-item-title>Поиск банка...</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
                   </v-col>
                 </v-row>
               </template>
@@ -713,11 +777,78 @@
                 
                 <v-row>
                   <v-col cols="12" md="4">
-                    <AppleInput
-                      v-model="form.client_bank_bik"
-                      label="БИК"
-                      :maxlength="9"
-                    />
+                    <div style="position: relative;" ref="bikAutocompleteRef" class="inn-field-container">
+                      <AppleInput
+                        :model-value="form.client_bank_bik"
+                        @update:modelValue="handleBikUpdate"
+                        label="БИК"
+                        :maxlength="9"
+                        :loading="loadingBankData"
+                        @focus="handleBikFocus"
+                        @blur="handleBikBlur"
+                      />
+                      <v-tooltip location="top" :open-on-hover="true">
+                        <template #activator="{ props }">
+                          <div
+                            v-bind="props"
+                            class="inn-info-icon-wrapper"
+                          >
+                            <v-icon
+                              icon="mdi-information-outline"
+                              color="primary"
+                              size="20"
+                            />
+                          </div>
+                        </template>
+                        <div style="max-width: 320px; padding: 4px;">
+                          <div class="text-body-2 font-weight-medium mb-2">
+                            Автоматическое заполнение реквизитов банка
+                          </div>
+                          <div class="text-caption">
+                            Введите БИК (9 цифр), и система автоматически заполнит:
+                            <ul class="mt-2 mb-2 pl-3" style="text-align: left; line-height: 1.6;">
+                              <li>Наименование банка</li>
+                              <li>Корреспондентский счёт</li>
+                            </ul>
+                            <strong>После ввода появится список с найденным банком - выберите его из списка для автозаполнения.</strong>
+                          </div>
+                        </div>
+                      </v-tooltip>
+                    </div>
+                    <!-- Выпадающее меню с результатами -->
+                    <v-menu
+                      v-model="showBankMenu"
+                      :activator="bikAutocompleteRef"
+                      location="bottom"
+                      :max-height="400"
+                      eager
+                      offset-y
+                    >
+                      <v-list v-if="bankSuggestions.length > 0" density="compact">
+                        <v-list-item
+                          v-for="(suggestion, index) in bankSuggestions"
+                          :key="index"
+                          @click="onBankSelect(suggestion)"
+                          class="cursor-pointer"
+                        >
+                          <template #prepend>
+                            <v-avatar size="small" color="primary">
+                              <v-icon icon="mdi-bank" />
+                            </v-avatar>
+                          </template>
+                          <v-list-item-title>{{ suggestion.name }}</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <span v-if="suggestion.bik">БИК: {{ suggestion.bik }}</span>
+                            <span v-if="suggestion.correspondentAccount" class="ml-2">К/с: {{ suggestion.correspondentAccount }}</span>
+                          </v-list-item-subtitle>
+                        </v-list-item>
+                      </v-list>
+                      <v-list v-else-if="loadingBankData" density="compact">
+                        <v-list-item>
+                          <v-list-item-title>Поиск банка...</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
                   </v-col>
                   
                   <v-col cols="12" md="4">
@@ -975,6 +1106,12 @@ const innSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 const innAutocompleteRef = ref<any>(null);
 const innInputRef = ref<any>(null);
 const showOrganizationMenu = ref(false);
+const loadingBankData = ref(false);
+const bikSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+const bikAutocompleteRef = ref<any>(null);
+const showBankMenu = ref(false);
+const bankSuggestions = ref<Array<{name: string; bik: string; correspondentAccount?: string; raw: any}>>([]);
+const passportExpanded = ref<number | null>(0); // Индекс панели: 0 = развернуто, null = свернуто
 
 // Заголовки таблицы объектов
 const objectsTableHeaders = [
@@ -1763,12 +1900,16 @@ const onClientTypeChange = (clientType: ClientType) => {
     form.value.client_address = '';
     organizationSuggestions.value = [];
     showOrganizationMenu.value = false;
+    // Для физических лиц паспортные данные развернуты по умолчанию (индекс 0 = развернуто)
+    passportExpanded.value = 0;
   } else if (clientType === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
     // Для ИП не нужен КПП и адрес фактического проживания
     form.value.client_kpp = '';
     form.value.client_actual_address = '';
     form.value.client_snils = '';
     // Адрес регистрации используется для ИП, не очищаем
+    // Для ИП паспортные данные свернуты по умолчанию (null = свернуто)
+    passportExpanded.value = null;
   } else if (clientType === CLIENT_TYPES.ORGANIZATION) {
     // Для организации очищаем все поля физических лиц и ИП
     form.value.client_passport_series = '';
@@ -1790,6 +1931,10 @@ const onClientTypeChange = (clientType: ClientType) => {
     organizationSuggestions.value = [];
     showOrganizationMenu.value = false;
   }
+  
+  // Очищаем предложения банков при смене типа клиента
+  bankSuggestions.value = [];
+  showBankMenu.value = false;
 };
 
 // Watcher для автоматической загрузки объектов при изменении account_id
@@ -1870,11 +2015,191 @@ const handleInnFocus = () => {
   }
 };
 
+// Обработчик обновления БИК
+const handleBikUpdate = (value: string | Event) => {
+  let actualValue: string;
+  if (value instanceof Event) {
+    const target = value.target as HTMLInputElement;
+    actualValue = target.value;
+  } else {
+    actualValue = String(value || '');
+  }
+  
+  form.value.client_bank_bik = actualValue;
+  
+  // Очищаем предыдущий таймаут
+  if (bikSearchTimeout.value) {
+    clearTimeout(bikSearchTimeout.value);
+    bikSearchTimeout.value = null;
+  }
+  
+  // Если БИК заполнен полностью (9 цифр), ищем банк
+  const cleanedBik = actualValue.trim().replace(/\s+/g, '');
+  if (cleanedBik.length === 9 && /^\d{9}$/.test(cleanedBik)) {
+    // Debounce - ждем 500ms после последнего ввода
+    bikSearchTimeout.value = setTimeout(() => {
+      searchBankByBik(cleanedBik);
+    }, 500);
+  } else {
+    // Если БИК неполный или удален, очищаем предложения
+    if (cleanedBik.length < 9) {
+      bankSuggestions.value = [];
+      showBankMenu.value = false;
+    }
+  }
+};
+
+// Поиск банка по БИК через DaData
+const searchBankByBik = async (bik: string) => {
+  if (!bik || bik.length !== 9 || !/^\d{9}$/.test(bik)) {
+    bankSuggestions.value = [];
+    return;
+  }
+  
+  loadingBankData.value = true;
+  bankSuggestions.value = [];
+  
+  try {
+    console.log('🏦 Searching bank by BIK:', bik);
+    const bankData = await dadataService.findBankByBik(bik);
+    
+    if (bankData) {
+      console.log('🏦✅ Bank data received:', bankData);
+      
+      // Структура ответа от DaData: {value: "Наименование", data: {...}}
+      const bank = bankData.data || bankData;
+      
+      // Извлекаем название банка
+      let bankName = '';
+      if (bank.name) {
+        if (typeof bank.name === 'object' && bank.name.payment) {
+          bankName = bank.name.payment;
+        } else if (typeof bank.name === 'object' && bank.name.full) {
+          bankName = bank.name.full;
+        } else if (typeof bank.name === 'string') {
+          bankName = bank.name;
+        }
+      } else if (bankData.value) {
+        bankName = bankData.value;
+      }
+      
+      // Создаем предложение для выбора
+      const suggestion = {
+        name: bankName,
+        bik: bank.bic || bank.bik || bik,
+        correspondentAccount: bank.correspondent_account || '',
+        raw: bankData
+      };
+      
+      bankSuggestions.value = [suggestion];
+      
+      // Показываем меню с результатами
+      await nextTick();
+      if (bankSuggestions.value.length > 0) {
+        showBankMenu.value = true;
+      }
+    } else {
+      console.log('🏦⚠️ Bank not found by BIK:', bik);
+      bankSuggestions.value = [];
+    }
+  } catch (error: any) {
+    console.error('🏦❌ Error searching bank by BIK:', error);
+    bankSuggestions.value = [];
+    
+    // Если 404, возможно бэкенд не перезапущен - не показываем ошибку пользователю
+    if (error.response?.status === 404) {
+      console.warn('🏦⚠️ Endpoint /api/auth/dadata/bank not found. Backend may need restart.');
+      // Не показываем ошибку, так как это техническая проблема
+      return;
+    }
+    
+    showSnackbarMessage(error.message || 'Ошибка при поиске банка', 'error');
+  } finally {
+    loadingBankData.value = false;
+  }
+};
+
+// Заполнение полей банка из данных DaData
+const fillBankData = (bankData: any) => {
+  console.log('🏦 Filling bank data:', bankData);
+  
+  // Структура ответа от DaData: {value: "Наименование", data: {...}}
+  const bank = bankData.data || bankData;
+  
+  // Наименование банка (приоритет: name.payment, name.full, name, value)
+  if (bank.name) {
+    if (typeof bank.name === 'object' && bank.name.payment) {
+      // Новая структура: name это объект с полем payment
+      form.value.client_bank_name = bank.name.payment;
+    } else if (typeof bank.name === 'object' && bank.name.full) {
+      form.value.client_bank_name = bank.name.full;
+    } else if (typeof bank.name === 'string') {
+      // Старая структура: name это строка
+      form.value.client_bank_name = bank.name;
+    }
+  } else if (bankData.value) {
+    form.value.client_bank_name = bankData.value;
+  }
+  
+  // Корреспондентский счет
+  if (bank.correspondent_account) {
+    form.value.client_bank_correspondent_account = bank.correspondent_account;
+  }
+  
+  // БИК уже заполнен пользователем, но проверим что совпадает с ответом
+  // В ответе DaData поле называется "bic", а не "bik"
+  const bankBik = bank.bic || bank.bik;
+  if (bankBik && bankBik !== form.value.client_bank_bik) {
+    // Если БИК в ответе отличается, обновляем (на случай опечатки)
+    form.value.client_bank_bik = bankBik;
+  }
+  
+  showSnackbarMessage('Данные банка успешно заполнены', 'success');
+};
+
 // Обработчик потери фокуса
 const handleInnBlur = () => {
   setTimeout(() => {
     showOrganizationMenu.value = false;
   }, 200);
+};
+
+// Обработчик фокуса на поле БИК
+const handleBikFocus = () => {
+  if (bankSuggestions.value.length > 0) {
+    showBankMenu.value = true;
+  }
+};
+
+// Обработчик потери фокуса на поле БИК
+const handleBikBlur = () => {
+  setTimeout(() => {
+    showBankMenu.value = false;
+  }, 200);
+};
+
+// Обработчик выбора банка из списка
+const onBankSelect = (suggestion: {name: string; bik: string; correspondentAccount?: string; raw: any}) => {
+  console.log('🏦 Bank selected:', suggestion);
+  
+  if (suggestion.raw) {
+    fillBankData(suggestion.raw);
+  } else {
+    // Если нет полных данных, заполняем только то, что есть
+    if (suggestion.name) {
+      form.value.client_bank_name = suggestion.name;
+    }
+    if (suggestion.correspondentAccount) {
+      form.value.client_bank_correspondent_account = suggestion.correspondentAccount;
+    }
+    if (suggestion.bik) {
+      form.value.client_bank_bik = suggestion.bik;
+    }
+    showSnackbarMessage('Данные банка успешно заполнены', 'success');
+  }
+  
+  showBankMenu.value = false;
+  bankSuggestions.value = [];
 };
 
 // Поиск организаций по ИНН/ОГРН с debounce (только для организаций)
