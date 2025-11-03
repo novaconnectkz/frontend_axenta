@@ -132,14 +132,6 @@
         <v-card class="mb-6">
           <v-card-title>
             <span>Тарифные планы</span>
-            <v-spacer></v-spacer>
-            <v-btn 
-              color="primary" 
-              @click="openPlanDialog()"
-              prepend-icon="mdi-plus"
-            >
-              Добавить план
-            </v-btn>
           </v-card-title>
           
           <v-card-text>
@@ -149,7 +141,6 @@
                 <v-text-field
                   v-model="planSearchQuery"
                   label="Поиск по названию"
-                  prepend-icon="mdi-magnify"
                   clearable
                   variant="outlined"
                   density="compact"
@@ -164,6 +155,16 @@
                   density="compact"
                   clearable
                 ></v-select>
+              </v-col>
+              <v-col cols="12" md="6" lg="4">
+                <v-btn
+                  icon="mdi-plus"
+                  variant="flat"
+                  color="primary"
+                  size="small"
+                  @click="openPlanDialog()"
+                  title="Добавить план"
+                />
               </v-col>
             </v-row>
 
@@ -199,47 +200,6 @@
                 <span class="text-caption text-grey ml-1">
                   / {{ getBillingPeriodText(item.billing_period) }}
                 </span>
-              </template>
-
-              <!-- Возможности -->
-              <template v-slot:item.features="{ item }">
-                <div class="d-flex flex-wrap ga-1">
-                  <v-chip
-                    v-if="item.max_devices > 0"
-                    size="x-small"
-                    color="blue"
-                  >
-                    {{ item.max_devices }} устройств
-                  </v-chip>
-                  <v-chip
-                    v-else-if="item.max_devices === 0"
-                    size="x-small"
-                    color="green"
-                  >
-                    ∞ устройств
-                  </v-chip>
-                  <v-chip
-                    v-if="item.has_analytics"
-                    size="x-small"
-                    color="purple"
-                  >
-                    Аналитика
-                  </v-chip>
-                  <v-chip
-                    v-if="item.has_api"
-                    size="x-small"
-                    color="indigo"
-                  >
-                    API
-                  </v-chip>
-                  <v-chip
-                    v-if="item.has_support"
-                    size="x-small"
-                    color="teal"
-                  >
-                    Поддержка
-                  </v-chip>
-                </div>
               </template>
 
               <!-- Статус -->
@@ -650,23 +610,24 @@
     </v-window>
 
     <!-- Диалог создания/редактирования плана -->
-    <v-dialog v-model="planDialog" max-width="800px" persistent>
+    <v-dialog v-model="planDialog" max-width="600px" persistent>
       <v-card>
         <v-card-title>
-          <span class="text-h5">
+          <span class="text-h6">
             {{ editingPlan?.id ? 'Редактировать план' : 'Создать план' }}
           </span>
         </v-card-title>
 
         <v-card-text>
           <v-form ref="planForm" v-model="planFormValid">
-            <v-row>
+            <v-row dense>
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="editingPlan.name"
-                  label="Название плана"
+                  label="Название"
                   :rules="[v => !!v || 'Название обязательно']"
                   required
+                  density="compact"
                 ></v-text-field>
               </v-col>
               <v-col cols="12" md="6">
@@ -678,114 +639,46 @@
                   step="0.01"
                   :rules="[v => (v !== null && v !== undefined && !isNaN(v) && v >= 0) || 'Цена должна быть положительным числом']"
                   required
+                  density="compact"
                 ></v-text-field>
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="6" md="3">
                 <v-select
                   v-model="editingPlan.currency"
                   :items="currencies"
                   label="Валюта"
+                  density="compact"
                 ></v-select>
               </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="6" md="9">
                 <v-select
                   v-model="editingPlan.billing_period"
                   :items="billingPeriods"
                   label="Период биллинга"
+                  density="compact"
                 ></v-select>
               </v-col>
               <v-col cols="12">
                 <v-textarea
                   v-model="editingPlan.description"
                   label="Описание"
-                  rows="3"
+                  rows="2"
+                  density="compact"
                 ></v-textarea>
               </v-col>
-            </v-row>
-
-            <!-- Лимиты -->
-            <v-divider class="my-4"></v-divider>
-            <h4 class="mb-4">Лимиты и возможности</h4>
-            
-            <v-row>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="editingPlan.max_devices"
-                  label="Максимум устройств"
-                  type="number"
-                  min="0"
-                  hint="0 = безлимитно"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="editingPlan.max_users"
-                  label="Максимум пользователей"
-                  type="number"
-                  min="0"
-                  hint="0 = безлимитно"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="4">
-                <v-text-field
-                  v-model.number="editingPlan.max_storage"
-                  label="Хранилище (ГБ)"
-                  type="number"
-                  min="0"
-                  hint="0 = безлимитно"
-                ></v-text-field>
-              </v-col>
-            </v-row>
-
-            <!-- Возможности -->
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="editingPlan.has_analytics"
-                  label="Аналитика"
-                  color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="editingPlan.has_api"
-                  label="API доступ"
-                  color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="editingPlan.has_support"
-                  label="Техническая поддержка"
-                  color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="editingPlan.has_custom_domain"
-                  label="Пользовательский домен"
-                  color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" md="6">
+              <v-col cols="12">
                 <v-switch
                   v-model="editingPlan.is_active"
                   label="Активен"
                   color="primary"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="editingPlan.is_popular"
-                  label="Популярный"
-                  color="orange"
+                  hide-details
                 ></v-switch>
               </v-col>
             </v-row>
           </v-form>
         </v-card-text>
 
-        <v-card-actions>
+        <v-card-actions class="px-4 pb-4">
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closePlanDialog">Отмена</v-btn>
           <v-btn 
@@ -1059,6 +952,7 @@
 </template>
 
 <script lang="ts" setup>
+import { AppleButton } from '@/components/Apple'
 import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
 import { billingService } from '@/services/billingService'
@@ -1187,7 +1081,6 @@ const invoiceStatusOptions = [
 const planHeaders = [
   { title: 'Название', key: 'name', sortable: true },
   { title: 'Цена', key: 'price', sortable: true },
-  { title: 'Возможности', key: 'features', sortable: false },
   { title: 'Статус', key: 'is_active', sortable: true },
   { title: 'Действия', key: 'actions', sortable: false }
 ]
@@ -1360,15 +1253,7 @@ const openPlanDialog = (plan?: BillingPlan) => {
       price: 0,
       currency: 'RUB',
       billing_period: 'monthly',
-      max_devices: 0,
-      max_users: 0,
-      max_storage: 0,
-      has_analytics: false,
-      has_api: false,
-      has_support: false,
-      has_custom_domain: false,
-      is_active: true,
-      is_popular: false
+      is_active: true
     }
   }
   planDialog.value = true
