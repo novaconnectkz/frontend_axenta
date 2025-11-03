@@ -99,14 +99,12 @@ class BillingService {
    * Получить список тарифных планов
    */
   async getBillingPlans(companyId?: number): Promise<BillingPlan[]> {
-    // Используем простой эндпоинт для отладки (без авторизации)
     try {
       const response: AxiosResponse<BillingPlansResponse> =
-        await this.apiClient.get("/billing-plans-simple");
+        await this.apiClient.get("/auth/billing/plans");
       return response.data.data || [];
     } catch (error) {
       console.error("Ошибка при загрузке планов:", error);
-      // Возвращаем пустой массив вместо fallback к защищенному эндпоинту
       return [];
     }
   }
@@ -163,14 +161,14 @@ class BillingService {
    * Получить список подписок компании
    */
   async getSubscriptions(companyId: number): Promise<Subscription[]> {
-    // Используем простой эндпоинт для отладки (без авторизации)
     try {
       const response: AxiosResponse<SubscriptionsResponse> =
-        await this.apiClient.get("/subscriptions-simple");
+        await this.apiClient.get("/auth/billing/subscriptions", {
+          params: { company_id: companyId }
+        });
       return response.data.data || [];
     } catch (error) {
       console.error("Ошибка при загрузке подписок:", error);
-      // Возвращаем пустой массив вместо fallback к защищенному эндпоинту
       return [];
     }
   }
@@ -364,17 +362,7 @@ class BillingService {
    * Получить настройки биллинга компании
    */
   async getBillingSettings(companyId: number): Promise<BillingSettings> {
-    // Используем простой эндпоинт для отладки (без авторизации)
     try {
-      const response: AxiosResponse<BillingSettingsResponse> =
-        await this.apiClient.get("/billing-settings-simple");
-      if (!response.data.data) {
-        throw new Error("Настройки биллинга не найдены");
-      }
-      return response.data.data;
-    } catch (error) {
-      console.error("Ошибка при загрузке настроек:", error);
-      // Fallback к защищенному эндпоинту (если нужен)
       const response: AxiosResponse<BillingSettingsResponse> =
         await this.apiClient.get("/auth/billing/settings", {
           params: { company_id: companyId },
@@ -383,6 +371,9 @@ class BillingService {
         throw new Error("Настройки биллинга не найдены");
       }
       return response.data.data;
+    } catch (error) {
+      console.error("Ошибка при загрузке настроек:", error);
+      throw error;
     }
   }
 

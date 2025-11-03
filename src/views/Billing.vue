@@ -671,12 +671,12 @@
               </v-col>
               <v-col cols="12" md="6">
                 <v-text-field
-                  v-model.number="editingPlan.price"
+                  v-model="editingPlan.price"
                   label="Цена"
                   type="number"
                   min="0"
                   step="0.01"
-                  :rules="[v => v >= 0 || 'Цена не может быть отрицательной']"
+                  :rules="[v => (v !== null && v !== undefined && !isNaN(v) && v >= 0) || 'Цена должна быть положительным числом']"
                   required
                 ></v-text-field>
               </v-col>
