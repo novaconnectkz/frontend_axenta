@@ -125,9 +125,10 @@ class BillingService {
   /**
    * Создать новый тарифный план
    */
-  async createBillingPlan(data: CreateBillingPlanData): Promise<BillingPlan> {
+  async createBillingPlan(data: CreateBillingPlanData, companyId?: number): Promise<BillingPlan> {
+    const params = companyId ? { company_id: companyId } : {};
     const response: AxiosResponse<BillingPlanResponse> =
-      await this.apiClient.post("/auth/billing/plans", data);
+      await this.apiClient.post("/auth/billing/plans", data, { params });
     if (!response.data.data) {
       throw new Error("Ошибка создания тарифного плана");
     }
@@ -139,10 +140,12 @@ class BillingService {
    */
   async updateBillingPlan(
     id: number,
-    data: UpdateBillingPlanData
+    data: UpdateBillingPlanData,
+    companyId?: number
   ): Promise<BillingPlan> {
+    const params = companyId ? { company_id: companyId } : {};
     const response: AxiosResponse<BillingPlanResponse> =
-      await this.apiClient.put(`/auth/billing/plans/${id}`, data);
+      await this.apiClient.put(`/auth/billing/plans/${id}`, data, { params });
     if (!response.data.data) {
       throw new Error("Ошибка обновления тарифного плана");
     }

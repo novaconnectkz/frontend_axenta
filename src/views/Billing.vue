@@ -1271,9 +1271,9 @@ const savePlan = async () => {
   savingPlan.value = true
   try {
     if (editingPlan.value.id) {
-      await billingService.updateBillingPlan(editingPlan.value.id, editingPlan.value as UpdateBillingPlanData)
+      await billingService.updateBillingPlan(editingPlan.value.id, editingPlan.value as UpdateBillingPlanData, currentCompanyId.value)
     } else {
-      await billingService.createBillingPlan(editingPlan.value as CreateBillingPlanData)
+      await billingService.createBillingPlan(editingPlan.value as CreateBillingPlanData, currentCompanyId.value)
     }
     await fetchPlans()
     await loadDashboardData()
