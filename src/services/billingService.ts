@@ -100,8 +100,9 @@ class BillingService {
    */
   async getBillingPlans(companyId?: number): Promise<BillingPlan[]> {
     try {
+      const params = companyId ? { company_id: companyId } : {};
       const response: AxiosResponse<BillingPlansResponse> =
-        await this.apiClient.get("/auth/billing/plans");
+        await this.apiClient.get("/auth/billing/plans", { params });
       return response.data.data || [];
     } catch (error) {
       console.error("Ошибка при загрузке планов:", error);
