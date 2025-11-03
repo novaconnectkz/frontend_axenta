@@ -925,6 +925,60 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог генерации счета -->
+    <v-dialog v-model="generateInvoiceDialog" max-width="600px" persistent>
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Сгенерировать счет</span>
+        </v-card-title>
+
+        <v-card-text>
+          <v-form>
+            <v-row>
+              <v-col cols="12">
+                <v-select
+                  v-model.number="selectedContractId"
+                  :items="contractSelectItems"
+                  label="Договор"
+                  :loading="loadingContracts"
+                  hint="Выберите договор для которого нужно создать счет"
+                  persistent-hint
+                  required
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="invoiceFormData.period_start"
+                  label="Дата начала периода"
+                  type="date"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="invoiceFormData.period_end"
+                  label="Дата окончания периода"
+                  type="date"
+                  required
+                ></v-text-field>
+              </v-col>
+            </v-row>
+          </v-form>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn variant="text" @click="generateInvoiceDialog = false">Отмена</v-btn>
+          <v-btn 
+            color="primary" 
+            @click="generateInvoice"
+          >
+            Сгенерировать
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Диалог просмотра счета -->
     <v-dialog v-model="invoiceViewDialog" max-width="800px">
       <v-card v-if="selectedInvoice">
@@ -1015,6 +1069,7 @@ import type {
     BillingSettings,
     CreateBillingPlanData,
     CreateSubscriptionData,
+    GenerateInvoiceData,
     Invoice,
     InvoiceStatus,
     ProcessPaymentData,
@@ -1047,6 +1102,8 @@ const contractsStats = ref<{
 } | null>(null)
 const contractNumerators = ref<ContractNumerator[]>([])
 const loadingNumerators = ref(false)
+const availableContracts = ref<any[]>([])
+const loadingContracts = ref(false)
 
 // Состояния загрузки
 const loadingPlans = ref(false)
@@ -1080,6 +1137,11 @@ const settingsFormValid = ref(false)
 const editingPlan = ref<Partial<BillingPlan>>({})
 const editingSubscription = ref<Partial<Subscription>>({})
 const selectedInvoice = ref<Invoice | null>(null)
+const selectedContractId = ref<number | null>(null)
+const invoiceFormData = ref<GenerateInvoiceData>({
+  period_start: '',
+  period_end: ''
+})
 const paymentData = ref<ProcessPaymentData>({
   amount: '',
   payment_method: 'bank_transfer',
@@ -1202,6 +1264,13 @@ const planSelectItems = computed(() =>
   }))
 )
 
+const contractSelectItems = computed(() => 
+  availableContracts.value.map(contract => ({
+    title: `${contract.number} - ${contract.title || contract.client_name}`,
+    value: contract.id
+  }))
+)
+
 // Методы загрузки данных
 const loadDashboardData = async () => {
   try {
@@ -1268,6 +1337,18 @@ const fetchContractNumerators = async () => {
   }
 }
 
+const fetchContracts = async () => {
+  loadingContracts.value = true
+  try {
+    const result = await contractsService.getContracts({ limit: 1000 })
+    availableContracts.value = result.contracts
+  } catch (error) {
+    console.error('Ошибка при загрузке договоров:', error)
+  } finally {
+    loadingContracts.value = false
+  }
+}
+
 // Методы для тарифных планов
 const openPlanDialog = (plan?: BillingPlan) => {
   if (plan) {
@@ -1312,8 +1393,10 @@ const savePlan = async () => {
     await fetchPlans()
     await loadDashboardData()
     closePlanDialog()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка при сохранении плана:', error)
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка при сохранении плана'
+    alert(errorMessage)
   } finally {
     savingPlan.value = false
   }
@@ -1326,8 +1409,10 @@ const deletePlan = async (plan: BillingPlan) => {
     await billingService.deleteBillingPlan(plan.id)
     await fetchPlans()
     await loadDashboardData()
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка при удалении плана:', error)
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении плана'
+    alert(errorMessage)
   }
 }
 
@@ -1427,6 +1512,26 @@ const cancelInvoice = async (invoice: Invoice) => {
   }
 }
 
+const generateInvoice = async () => {
+  if (!selectedContractId.value || !invoiceFormData.value.period_start || !invoiceFormData.value.period_end) {
+    alert('Заполните все поля')
+    return
+  }
+
+  try {
+    await billingService.generateInvoice(selectedContractId.value, invoiceFormData.value)
+    await fetchInvoices()
+    await loadDashboardData()
+    generateInvoiceDialog.value = false
+    // Сброс формы
+    selectedContractId.value = null
+    invoiceFormData.value = { period_start: '', period_end: '' }
+  } catch (error) {
+    console.error('Ошибка при генерации счета:', error)
+    alert('Ошибка при генерации счета')
+  }
+}
+
 // Методы для настроек
 const saveSettings = async () => {
   if (!billingSettings.value) return
@@ -1521,6 +1626,12 @@ watch(activeTab, (newTab) => {
     fetchInvoices()
   } else if (newTab === 'settings' && !billingSettings.value) {
     fetchBillingSettings()
+  }
+})
+
+watch(generateInvoiceDialog, (isOpen) => {
+  if (isOpen) {
+    fetchContracts()
   }
 })
 

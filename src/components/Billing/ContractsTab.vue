@@ -224,16 +224,8 @@
         <v-icon icon="mdi-file-document-multiple" size="48" class="mb-3" color="grey" />
         <h3 class="mb-2">Нет договоров</h3>
         <p class="text-grey mb-4">
-          {{ demoMode ? 'Ошибка загрузки демо данных' : 'Включите демо режим для просмотра тестовых данных' }}
+          Создайте первый договор для работы с биллингом
         </p>
-        <v-btn 
-          v-if="!demoMode"
-          color="primary" 
-          prepend-icon="mdi-play-circle"
-          @click="enableDemoMode"
-        >
-          Включить демо режим
-        </v-btn>
       </v-card-text>
     </v-card>
 
@@ -289,7 +281,7 @@ interface Contract {
 
 // Реактивные данные
 const loading = ref(false);
-const demoMode = ref(true); // Включен по умолчанию
+const demoMode = ref(false); // Отключен по умолчанию
 const contracts = ref<Contract[]>([]);
 const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
