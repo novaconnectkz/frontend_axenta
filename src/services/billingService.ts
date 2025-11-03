@@ -464,61 +464,52 @@ class BillingService {
       widgets: {
         total_revenue: {
           title: "Общий доход",
-          value: 50000,
+          value: 0,
           currency: "RUB",
           format: "currency",
-          change: {
-            value: 12.5,
-            period: "за месяц",
-            trend: "up",
-          },
         },
         monthly_revenue: {
           title: "Доход за месяц",
-          value: 15000,
+          value: 0,
           currency: "RUB",
           format: "currency",
         },
         outstanding_amount: {
           title: "К оплате",
-          value: 8000,
+          value: 0,
           currency: "RUB",
           format: "currency",
         },
         overdue_amount: {
           title: "Просрочено",
-          value: 2000,
+          value: 0,
           currency: "RUB",
           format: "currency",
         },
         active_subscriptions: {
           title: "Активные подписки",
-          value: activeSubscriptions || 3,
+          value: activeSubscriptions,
           format: "number",
         },
         overdue_invoices: {
           title: "Просроченные счета",
-          value: 1,
+          value: 0,
           format: "number",
         },
       },
       recent_invoices: [],
       revenue_chart: {
-        labels: ["Янв", "Фев", "Мар", "Апр", "Май"],
+        labels: [],
         datasets: [
           {
             label: "Доходы",
-            data: [10000, 12000, 15000, 13000, 16000],
+            data: [],
             backgroundColor: "rgba(54, 162, 235, 0.2)",
             borderColor: "rgba(54, 162, 235, 1)",
           },
         ],
       },
-      invoices_by_status: [
-        { status: "paid", count: 15, amount: "45000" },
-        { status: "sent", count: 3, amount: "8000" },
-        { status: "overdue", count: 1, amount: "2000" },
-      ],
+      invoices_by_status: [],
     };
   }
 
