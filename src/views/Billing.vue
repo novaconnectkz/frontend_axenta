@@ -1358,13 +1358,19 @@ const deletePlan = async (plan: BillingPlan) => {
   if (!confirm(`Вы уверены, что хотите удалить план "${plan.name}"?`)) return
 
   try {
-    await billingService.deleteBillingPlan(plan.id)
+    console.log('deletePlan: удаление плана', { planId: plan.id, companyId: currentCompanyId.value })
+    await billingService.deleteBillingPlan(plan.id, currentCompanyId.value)
     await fetchPlans()
     await loadDashboardData()
   } catch (error: any) {
     console.error('Ошибка при удалении плана:', error)
-    const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении плана'
-    alert(errorMessage)
+    const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Ошибка при удалении плана'
+    console.error('Детали ошибки:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: errorMessage
+    })
+    alert(`Ошибка: ${errorMessage}\n\nПроверьте консоль для деталей.`)
   }
 }
 

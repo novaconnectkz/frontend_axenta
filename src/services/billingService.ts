@@ -155,8 +155,21 @@ class BillingService {
   /**
    * Удалить тарифный план
    */
-  async deleteBillingPlan(id: number): Promise<void> {
-    await this.apiClient.delete(`/auth/billing/plans/${id}`);
+  async deleteBillingPlan(id: number, companyId?: number): Promise<void> {
+    const params = companyId ? { company_id: companyId } : {};
+    console.log('deleteBillingPlan: удаление плана', { id, companyId, params });
+    try {
+      await this.apiClient.delete(`/auth/billing/plans/${id}`, { params });
+    } catch (error: any) {
+      console.error('deleteBillingPlan: ошибка удаления', {
+        id,
+        companyId,
+        params,
+        error: error.response?.data,
+        status: error.response?.status
+      });
+      throw error;
+    }
   }
 
   // ========== ПОДПИСКИ ==========
