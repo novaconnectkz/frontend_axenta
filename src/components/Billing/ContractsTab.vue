@@ -911,6 +911,110 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
+/* Темная тема для ContractsTab */
+[data-theme="dark"] .filters-card {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .expiring-filter-wrapper {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .expiring-filter-wrapper:hover {
+  border-color: #007AFF !important;
+}
+
+[data-theme="dark"] .v-text-field :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-text-field :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-text-field :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .empty-state {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .empty-state h3 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .empty-state p {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .empty-state .v-icon {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-data-table {
+  background-color: #2c2c2e !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(thead) {
+  background-color: #1a1a1a !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(th) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(td) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(.v-data-table__tr) {
+  background-color: #2c2c2e !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(.v-data-table__tr:hover) {
+  background-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .contract-client {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-card {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-card-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-card-text {
+  color: #ffffff !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .section-header {

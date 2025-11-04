@@ -8,7 +8,8 @@ export type SubscriptionStatus =
   | "active"
   | "expired"
   | "cancelled"
-  | "suspended";
+  | "suspended"
+  | "scheduled";
 export type InvoiceStatus =
   | "draft"
   | "sent"
@@ -257,6 +258,9 @@ export interface CreateSubscriptionData {
   status?: SubscriptionStatus;
   is_auto_renew?: boolean;
   payment_method?: string;
+  contract_id?: number;
+  split_period?: boolean; // Разбить период при смене тарифа в середине месяца
+  transfer_from_subscription_id?: number; // ID подписки для переноса
 }
 
 // Данные для обновления подписки

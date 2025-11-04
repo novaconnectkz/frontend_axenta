@@ -241,8 +241,8 @@
             <v-spacer></v-spacer>
             <v-btn 
               color="primary" 
-              @click="openSubscriptionDialog()"
-              prepend-icon="mdi-plus"
+              @click="openSubscriptionWizard()"
+              prepend-icon="mdi-wizard-hat"
             >
               Создать подписку
             </v-btn>
@@ -673,7 +673,14 @@
       </v-card>
     </v-dialog>
 
-    <!-- Диалог подписки -->
+    <!-- Мастер создания подписки -->
+    <SubscriptionWizard
+      v-model="subscriptionWizardOpen"
+      :company-id="currentCompanyId"
+      @created="onSubscriptionCreated"
+    />
+
+    <!-- Диалог подписки (для редактирования) -->
     <v-dialog v-model="subscriptionDialog" max-width="600px" persistent>
       <v-card>
         <v-card-title>
@@ -935,6 +942,7 @@
 import { AppleButton } from '@/components/Apple'
 import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
+import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import { billingService } from '@/services/billingService'
 import contractsService from '@/services/contractsService'
 import type {
@@ -1074,6 +1082,7 @@ const invoiceDateEnd = ref('')
 // Диалоги
 const planDialog = ref(false)
 const subscriptionDialog = ref(false)
+const subscriptionWizardOpen = ref(false)
 const generateInvoiceDialog = ref(false)
 const paymentDialog = ref(false)
 const invoiceViewDialog = ref(false)
@@ -1119,6 +1128,7 @@ const contractNumberingMethods = [
 
 const subscriptionStatuses = [
   { title: 'Активная', value: 'active' },
+  { title: 'Запланированная', value: 'scheduled' },
   { title: 'Истекшая', value: 'expired' },
   { title: 'Отмененная', value: 'cancelled' },
   { title: 'Приостановленная', value: 'suspended' }
@@ -1372,19 +1382,24 @@ const deletePlan = async (plan: BillingPlan) => {
 }
 
 // Методы для подписок
+const openSubscriptionWizard = () => {
+  subscriptionWizardOpen.value = true
+}
+
 const openSubscriptionDialog = (subscription?: Subscription) => {
   if (subscription) {
     editingSubscription.value = { ...subscription }
+    subscriptionDialog.value = true
   } else {
-    editingSubscription.value = {
-      company_id: currentCompanyId.value,
-      billing_plan_id: 0,
-      start_date: new Date().toISOString().split('T')[0],
-      status: 'active',
-      is_auto_renew: true
-    }
+    // Для создания используем мастер
+    openSubscriptionWizard()
   }
-  subscriptionDialog.value = true
+}
+
+const onSubscriptionCreated = async (subscription: Subscription) => {
+  await fetchSubscriptions()
+  await loadDashboardData()
+  subscriptionWizardOpen.value = false
 }
 
 const closeSubscriptionDialog = () => {
@@ -1597,6 +1612,7 @@ const getBillingPeriodText = (period: string) => {
 const getSubscriptionStatusColor = (status: string) => {
   const colors: Record<string, string> = {
     active: 'green',
+    scheduled: 'blue',
     expired: 'orange',
     cancelled: 'red',
     suspended: 'grey'
@@ -1607,6 +1623,7 @@ const getSubscriptionStatusColor = (status: string) => {
 const getSubscriptionStatusText = (status: string) => {
   const statuses: Record<string, string> = {
     active: 'Активная',
+    scheduled: 'Запланированная',
     expired: 'Истекшая',
     cancelled: 'Отмененная',
     suspended: 'Приостановленная'
@@ -1727,5 +1744,150 @@ watch(generateInvoiceDialog, (isOpen) => {
   text-transform: none;
   letter-spacing: 0;
   margin-top: 4px;
+}
+
+/* Темная тема для страницы биллинга */
+[data-theme="dark"] .stats-card {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .stats-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: #007AFF !important;
+}
+
+[data-theme="dark"] .stats-card .stat-value {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .stats-card .stat-label {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] h1 {
+  color: #007AFF !important;
+}
+
+[data-theme="dark"] .text-h6 {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-tabs {
+  background-color: transparent;
+}
+
+[data-theme="dark"] .v-tab {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-tab--selected {
+  color: #007AFF !important;
+}
+
+[data-theme="dark"] .v-card {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-card-title {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-card-text {
+  color: #ffffff !important;
+}
+
+/* Темная тема для полей поиска и фильтров */
+[data-theme="dark"] .v-text-field :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-text-field :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-text-field :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-select :deep(.v-label) {
+  color: #8e8e93 !important;
+}
+
+/* Темная тема для таблиц */
+[data-theme="dark"] .v-data-table {
+  background-color: #2c2c2e !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(thead) {
+  background-color: #1a1a1a !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(th) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(td) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(.v-data-table__tr) {
+  background-color: #2c2c2e !important;
+}
+
+[data-theme="dark"] .v-data-table :deep(.v-data-table__tr:hover) {
+  background-color: #3a3a3c !important;
+}
+
+/* Темная тема для пустых состояний */
+[data-theme="dark"] .v-empty-state {
+  color: #8e8e93 !important;
+}
+
+/* Темная тема для диалогов */
+[data-theme="dark"] .v-dialog :deep(.v-card) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-dialog :deep(.v-card-title) {
+  color: #ffffff !important;
+  border-bottom-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .v-dialog :deep(.v-card-text) {
+  color: #ffffff !important;
+}
+
+/* Темная тема для чипов */
+[data-theme="dark"] .v-chip {
+  background-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+/* Темная тема для кнопок */
+[data-theme="dark"] .v-btn--variant-text {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .v-btn--variant-outlined {
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
 }
 </style>
