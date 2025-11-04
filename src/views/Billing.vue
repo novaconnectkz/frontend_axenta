@@ -554,6 +554,7 @@
                   <v-select
                     v-model="billingSettings.contract_numbering_method"
                     :items="contractNumberingMethods"
+                    :item-disabled="(item) => item.disabled === true"
                     label="Способ нумерации"
                     prepend-icon="mdi-format-list-numbered"
                     hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
@@ -1113,7 +1114,7 @@ const statusOptions = [
 const contractNumberingMethods = [
   { title: 'Вручную', value: 'manual', icon: 'mdi-hand-pointing-right', description: 'Номер вводится вручную при создании договора' },
   { title: 'Автоматически (нумератор)', value: 'numerator', icon: 'mdi-format-list-numbered', description: 'Номер генерируется автоматически по выбранному нумератору' },
-  { title: 'Из Bitrix24', value: 'bitrix24', icon: 'mdi-cloud-download', description: 'Номер берется из пользовательского поля сделки в Bitrix24' }
+  { title: 'Из Bitrix24 (Скоро)', value: 'bitrix24', icon: 'mdi-cloud-download', description: 'Номер берется из пользовательского поля сделки в Bitrix24', disabled: true }
 ]
 
 const subscriptionStatuses = [
@@ -1266,6 +1267,14 @@ const fetchBillingSettings = async () => {
   loadingSettings.value = true
   try {
     billingSettings.value = await billingService.getBillingSettings(currentCompanyId.value)
+    
+    // Если способ нумерации = 'bitrix24' (отключен), сбрасываем на 'manual'
+    if (billingSettings.value?.contract_numbering_method === 'bitrix24') {
+      billingSettings.value.contract_numbering_method = 'manual'
+      // Автоматически сохраняем исправление
+      await saveSettings()
+    }
+    
     await fetchContractNumerators()
   } catch (error) {
     console.error('Ошибка при загрузке настроек:', error)
@@ -1482,6 +1491,11 @@ const generateInvoice = async () => {
 const saveSettings = async () => {
   if (!billingSettings.value) return
 
+  // Проверяем, что contract_numbering_method не равен 'bitrix24' перед сохранением
+  if (billingSettings.value.contract_numbering_method === 'bitrix24') {
+    billingSettings.value.contract_numbering_method = 'manual'
+  }
+
   savingSettings.value = true
   try {
     await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
@@ -1493,6 +1507,16 @@ const saveSettings = async () => {
   }
 }
 
+// Watch на contract_numbering_method - запрещаем выбор 'bitrix24'
+watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
+  if (newValue === 'bitrix24') {
+    // Если пытаются выбрать 'bitrix24', сбрасываем на 'manual'
+    if (billingSettings.value) {
+      billingSettings.value.contract_numbering_method = 'manual'
+    }
+  }
+})
+
 // Автосохранение настроек при изменении
 watch(() => billingSettings.value, (newSettings) => {
   if (!newSettings || !currentCompanyId.value) return
@@ -1501,6 +1525,11 @@ watch(() => billingSettings.value, (newSettings) => {
   if (isInitialLoad) {
     isInitialLoad = false
     return
+  }
+  
+  // Проверяем, что contract_numbering_method не равен 'bitrix24' перед сохранением
+  if (newSettings.contract_numbering_method === 'bitrix24') {
+    newSettings.contract_numbering_method = 'manual'
   }
   
   // Отменяем предыдущий таймер, если есть
