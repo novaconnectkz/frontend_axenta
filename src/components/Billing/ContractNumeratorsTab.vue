@@ -89,26 +89,28 @@
     </v-card>
 
     <!-- Диалог создания/редактирования нумератора -->
-    <v-dialog v-model="numeratorDialog" max-width="900px" persistent>
+    <v-dialog v-model="numeratorDialog" max-width="600px" persistent>
       <v-card>
-        <v-card-title class="d-flex align-center">
-          <v-icon :icon="isEditing ? 'mdi-pencil' : 'mdi-plus'" class="mr-2"></v-icon>
+        <v-card-title class="d-flex align-center text-subtitle-1 py-2 px-4">
+          <v-icon :icon="isEditing ? 'mdi-pencil' : 'mdi-plus'" size="small" class="mr-2"></v-icon>
           {{ isEditing ? 'Редактирование нумератора' : 'Создание нумератора' }}
           <v-spacer></v-spacer>
-          <v-btn icon="mdi-close" variant="text" @click="closeDialog"></v-btn>
+          <v-btn icon="mdi-close" size="small" variant="text" @click="closeDialog"></v-btn>
         </v-card-title>
 
         <v-divider></v-divider>
 
-        <v-card-text class="pt-6">
+        <v-card-text class="pa-4">
           <v-form ref="formRef" v-model="formValid">
-            <v-row>
+            <v-row dense>
               <v-col cols="12">
                 <v-text-field
                   v-model="form.name"
                   label="Название нумератора"
                   :rules="[v => !!v || 'Название обязательно']"
                   prepend-icon="mdi-text"
+                  density="compact"
+                  variant="outlined"
                   required
                 ></v-text-field>
               </v-col>
@@ -120,6 +122,8 @@
                   :rules="[v => !!v || 'Префикс обязателен']"
                   prepend-icon="mdi-format-text"
                   hint="Например: AX"
+                  density="compact"
+                  variant="outlined"
                   required
                 ></v-text-field>
               </v-col>
@@ -130,11 +134,13 @@
                   label="Шаблон номера"
                   :rules="[v => !!v || 'Шаблон обязателен']"
                   prepend-icon="mdi-code-braces"
-                  hint="Например: {PREFIX}-{DAY}{MONTH}{YEAR}/{CLIENT_ID}"
+                  hint="Например: {PREFIX}-{DAY}{MONTH}{YEAR_SHORT}/{RANDOM}"
+                  density="compact"
+                  variant="outlined"
                   required
                 >
                   <template #append-inner>
-                    <v-icon @click="showPlaceholders = !showPlaceholders">
+                    <v-icon size="small" @click="showPlaceholders = !showPlaceholders">
                       {{ showPlaceholders ? 'mdi-chevron-up' : 'mdi-help-circle-outline' }}
                     </v-icon>
                   </template>
@@ -143,20 +149,20 @@
                 <!-- Список доступных плейсхолдеров -->
                 <v-expand-transition>
                   <v-card v-if="showPlaceholders" variant="outlined" class="mt-2">
-                    <v-card-title class="text-subtitle-1">Доступные плейсхолдеры</v-card-title>
-                    <v-card-text>
-                      <v-chip-group>
+                    <v-card-title class="text-subtitle-2 py-2 px-3">Доступные плейсхолдеры</v-card-title>
+                    <v-card-text class="pa-3">
+                      <div class="d-flex flex-column ga-2">
                         <v-chip
                           v-for="placeholder in CONTRACT_NUMBER_PLACEHOLDERS"
                           :key="placeholder.value"
                           size="small"
                           @click="insertPlaceholder(placeholder.value)"
-                          class="cursor-pointer"
+                          class="cursor-pointer align-self-start"
                         >
                           <v-icon size="small" class="mr-1">mdi-content-copy</v-icon>
                           {{ placeholder.value }} - {{ placeholder.label }}
                         </v-chip>
-                      </v-chip-group>
+                      </div>
                       <div class="mt-2 text-caption text-grey">
                         Нажмите на плейсхолдер, чтобы вставить его в шаблон
                       </div>
@@ -171,11 +177,13 @@
                   label="Описание"
                   rows="2"
                   prepend-icon="mdi-text"
+                  density="compact"
+                  variant="outlined"
                 ></v-textarea>
               </v-col>
 
-              <v-col cols="12">
-                <v-divider class="my-2"></v-divider>
+              <v-col cols="12" class="py-1">
+                <v-divider></v-divider>
               </v-col>
 
               <v-col cols="12" md="6">
@@ -183,6 +191,7 @@
                   v-model="form.is_default"
                   label="Нумератор по умолчанию"
                   color="primary"
+                  density="compact"
                   hint="Будет использоваться при создании новых договоров"
                 ></v-switch>
               </v-col>
@@ -192,14 +201,16 @@
                   v-model="form.is_active"
                   label="Активен"
                   color="success"
+                  density="compact"
                 ></v-switch>
               </v-col>
 
-              <v-col cols="12">
+              <v-col cols="12" md="6">
                 <v-switch
                   v-model="form.auto_reset"
                   label="Автоматически сбрасывать счетчик"
                   color="primary"
+                  density="compact"
                 ></v-switch>
               </v-col>
 
@@ -209,6 +220,8 @@
                   :items="RESET_PERIOD_OPTIONS"
                   label="Период сброса"
                   prepend-icon="mdi-calendar-refresh"
+                  density="compact"
+                  variant="outlined"
                 ></v-select>
               </v-col>
 
@@ -218,6 +231,8 @@
                   label="Примечания"
                   rows="2"
                   prepend-icon="mdi-note-text"
+                  density="compact"
+                  variant="outlined"
                 ></v-textarea>
               </v-col>
             </v-row>
@@ -226,13 +241,14 @@
 
         <v-divider></v-divider>
 
-        <v-card-actions>
+        <v-card-actions class="pa-3">
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="closeDialog">
+          <v-btn variant="text" size="small" @click="closeDialog">
             Отмена
           </v-btn>
           <v-btn
             color="primary"
+            size="small"
             :loading="saving"
             :disabled="!formValid"
             @click="saveNumerator"
