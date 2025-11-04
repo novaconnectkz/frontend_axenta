@@ -31,7 +31,7 @@
                   >
                     <template #append-inner>
                       <v-btn
-                        v-if="!isEdit && selectedNumeratorId"
+                        v-if="!isEdit && showNumeratorSelection && selectedNumeratorId"
                         icon="mdi-reload"
                         size="small"
                         variant="text"
@@ -41,7 +41,7 @@
                       ></v-btn>
                     </template>
                   </AppleInput>
-                  <div v-if="!isEdit" class="mt-2">
+                  <div v-if="!isEdit && showNumeratorSelection" class="mt-2">
                     <v-select
                       v-model="selectedNumeratorId"
                       :items="numeratorOptions"
@@ -52,6 +52,7 @@
                       hint="Выберите нумератор для автоматической генерации номера"
                       persistent-hint
                       clearable
+                      :loading="loadingNumerators"
                     >
                       <template #append-item>
                         <v-list-item 
@@ -450,11 +451,12 @@ import {
   CURRENCY_OPTIONS,
   NOTIFICATION_PERIOD_OPTIONS,
 } from '@/types/contracts';
-import type { BillingPlan } from '@/types/billing';
+import type { BillingPlan, BillingSettings } from '@/types/billing';
 import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import dadataService from '@/services/dadataService';
+import billingService from '@/services/billingService';
 import { AppleButton, AppleInput } from '@/components/Apple';
 
 // Props
@@ -486,6 +488,8 @@ const generatingNumber = ref(false);
 const numerators = ref<ContractNumerator[]>([]);
 const loadingNumerators = ref(false);
 const selectedNumeratorId = ref<number | null>(null);
+const billingSettings = ref<BillingSettings | null>(null);
+const loadingBillingSettings = ref(false);
 const loadingOrganizationData = ref(false);
 const selectedOrganization = ref<any>(null);
 const innSearchQuery = ref<string>('');
@@ -633,6 +637,11 @@ const numeratorOptions = computed(() => {
     subtitle: `${numerator.template} (Счетчик: ${numerator.counter_value})`,
     raw: numerator,
   }));
+});
+
+// Показывать выбор нумератора только если способ нумерации = "numerator"
+const showNumeratorSelection = computed(() => {
+  return billingSettings.value?.contract_numbering_method === 'numerator';
 });
 
 // Validation rules
@@ -829,6 +838,33 @@ const closeDialog = () => {
 
 const formatCurrency = (amount: number, currency = 'RUB'): string => {
   return contractsService.formatCurrency(amount, currency);
+};
+
+// Load billing settings
+const loadBillingSettings = async () => {
+  // Получаем company_id из localStorage
+  const companyData = localStorage.getItem('axenta_company');
+  let companyId: number | undefined;
+  
+  if (companyData) {
+    try {
+      const company = JSON.parse(companyData);
+      companyId = parseInt(company.id, 10);
+    } catch (e) {
+      console.warn('Invalid company data in localStorage');
+    }
+  }
+  
+  if (!companyId) return;
+  
+  loadingBillingSettings.value = true;
+  try {
+    billingSettings.value = await billingService.getBillingSettings(companyId);
+  } catch (error) {
+    console.error('Error loading billing settings:', error);
+  } finally {
+    loadingBillingSettings.value = false;
+  }
 };
 
 // Load numerators
@@ -1120,6 +1156,7 @@ watch(() => props.modelValue, (newValue) => {
     if (!isEdit.value) {
       console.log('🔵 Loading accounts for new contract...');
       loadAccounts();
+      loadBillingSettings();
       loadNumerators();
     }
   }
@@ -1240,6 +1277,7 @@ onMounted(() => {
     }
   });
   
+  loadBillingSettings();
   loadNumerators();
 });
 </script>

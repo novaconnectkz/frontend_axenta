@@ -297,6 +297,7 @@ export interface ContractNumeratorForm {
   prefix: string;
   template: string;
   description?: string;
+  company_id?: number; // ID компании из настроек пользователя
   is_default: boolean;
   is_active: boolean;
   auto_reset: boolean;

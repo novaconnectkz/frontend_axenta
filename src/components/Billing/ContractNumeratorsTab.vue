@@ -279,11 +279,23 @@ const form = ref<ContractNumeratorForm>({
 
 // Methods
 const loadNumerators = async () => {
-  if (!userStore.company?.id) return;
+  // Получаем company_id из localStorage
+  let companyId: number | null = null;
+  const companyStr = localStorage.getItem('axenta_company');
+  if (companyStr) {
+    try {
+      const companyData = JSON.parse(companyStr);
+      companyId = companyData.id || companyData.ID || null;
+    } catch (e) {
+      console.warn('Invalid company data in localStorage:', e);
+    }
+  }
+  
+  if (!companyId || isNaN(companyId)) return;
   
   loading.value = true;
   try {
-    numerators.value = await contractsService.getContractNumerators(userStore.company.id);
+    numerators.value = await contractsService.getContractNumerators(companyId);
   } catch (error) {
     console.error('Error loading numerators:', error);
   } finally {
@@ -333,19 +345,58 @@ const closeDialog = () => {
 
 const saveNumerator = async () => {
   if (!formRef.value || !formValid.value) return;
+  
+  // Получаем company_id из localStorage (как в других сервисах)
+  let companyId: number | null = null;
+  const companyStr = localStorage.getItem('axenta_company');
+  if (companyStr) {
+    try {
+      const companyData = JSON.parse(companyStr);
+      companyId = companyData.id || companyData.ID || null;
+    } catch (e) {
+      console.warn('Invalid company data in localStorage:', e);
+    }
+  }
+  
+  // Если не нашли в localStorage, пробуем из userStore
+  if (!companyId && userStore.userProfile?.companyId) {
+    companyId = parseInt(userStore.userProfile.companyId, 10);
+  }
+  
+  if (!companyId || isNaN(companyId)) {
+    alert('Не удалось определить компанию. Проверьте настройки.');
+    return;
+  }
 
   saving.value = true;
   try {
+    // Добавляем company_id из настроек в данные формы
+    // Убеждаемся, что company_id - это число, а не строка
+    const formData: ContractNumeratorForm & { company_id: number } = {
+      ...form.value,
+      company_id: Number(companyId) // Явно преобразуем в число
+    };
+    
+    console.log('📤 Отправляем данные на сервер:', JSON.stringify(formData, null, 2));
+    console.log('📤 company_id тип:', typeof formData.company_id, 'значение:', formData.company_id);
+    
     if (isEditing.value && editingNumerator.value) {
-      await contractsService.updateContractNumerator(editingNumerator.value.id, form.value);
+      await contractsService.updateContractNumerator(editingNumerator.value.id, formData);
     } else {
-      await contractsService.createContractNumerator(form.value);
+      const result = await contractsService.createContractNumerator(formData);
+      // Проверяем company_id только если он неверный
+      if (result.company_id === 0) {
+        console.warn('⚠️ Numerator created with company_id=0, expected:', companyId);
+      }
     }
     await loadNumerators();
     closeDialog();
   } catch (error: any) {
     console.error('Error saving numerator:', error);
-    alert(error.message || 'Ошибка сохранения нумератора');
+    console.error('Error response:', error.response?.data);
+    console.error('Error status:', error.response?.status);
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка сохранения нумератора';
+    alert(errorMessage);
   } finally {
     saving.value = false;
   }

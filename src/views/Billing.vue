@@ -556,19 +556,8 @@
                     :items="contractNumberingMethods"
                     label="Способ нумерации"
                     prepend-icon="mdi-format-list-numbered"
-                    hint="Выберите способ генерации номеров договоров"
+                    hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
                     persistent-hint
-                  ></v-select>
-                  
-                  <v-select
-                    v-if="billingSettings.contract_numbering_method === 'numerator'"
-                    v-model="billingSettings.contract_default_numerator_id"
-                    :items="numeratorOptions"
-                    label="Нумератор по умолчанию"
-                    prepend-icon="mdi-clock-start"
-                    hint="Нумератор будет автоматически использоваться при создании договоров"
-                    persistent-hint
-                    clearable
                   ></v-select>
                   
                   <v-text-field
@@ -582,18 +571,6 @@
                   ></v-text-field>
                 </v-col>
               </v-row>
-              
-              <v-row class="mt-4">
-                <v-col>
-                  <v-btn
-                    color="primary"
-                    :loading="savingSettings"
-                    @click="saveSettings"
-                  >
-                    Сохранить настройки
-                  </v-btn>
-                </v-col>
-              </v-row>
             </v-form>
             
             <!-- Сообщение об ошибке -->
@@ -605,7 +582,9 @@
         </v-card>
         
         <!-- Нумераторы договоров -->
-        <ContractNumeratorsTab class="mt-6" />
+        <div id="contract-numerators-section" ref="contractNumeratorsSection">
+          <ContractNumeratorsTab class="mt-6" />
+        </div>
       </v-window-item>
     </v-window>
 
@@ -973,10 +952,11 @@ import type {
     UpdateSubscriptionData
 } from '@/types/billing'
 import type { ContractNumerator } from '@/types/contracts'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 
 // Реактивные данные
 const activeTab = ref((route.query.tab as string) || 'contracts') // Начинаем с договоров или из query
@@ -1000,11 +980,18 @@ const currentCompanyId = ref(getCurrentCompanyId())
 // Обновляем company_id при монтировании компонента и при изменении localStorage
 let checkInterval: ReturnType<typeof setInterval> | null = null
 let handleStorageChange: ((e: StorageEvent) => void) | null = null
+let saveSettingsTimeout: ReturnType<typeof setTimeout> | null = null
+let isInitialLoad = true // Флаг для предотвращения сохранения при первоначальной загрузке
 
 // Очищаем ресурсы при размонтировании
 onUnmounted(() => {
   if (handleStorageChange) {
     window.removeEventListener('storage', handleStorageChange)
+  }
+  
+  // Очищаем таймер автосохранения при размонтировании
+  if (saveSettingsTimeout) {
+    clearTimeout(saveSettingsTimeout)
   }
   if (checkInterval) {
     clearInterval(checkInterval)
@@ -1063,6 +1050,7 @@ const contractsStats = ref<{
 } | null>(null)
 const contractNumerators = ref<ContractNumerator[]>([])
 const loadingNumerators = ref(false)
+const contractNumeratorsSection = ref<HTMLElement | null>(null)
 const availableContracts = ref<any[]>([])
 const loadingContracts = ref(false)
 
@@ -1497,13 +1485,44 @@ const saveSettings = async () => {
   savingSettings.value = true
   try {
     await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
-    await fetchBillingSettings()
+    // Не перезагружаем настройки после сохранения, чтобы не сбрасывать изменения
   } catch (error) {
     console.error('Ошибка при сохранении настроек:', error)
   } finally {
     savingSettings.value = false
   }
 }
+
+// Автосохранение настроек при изменении
+watch(() => billingSettings.value, (newSettings) => {
+  if (!newSettings || !currentCompanyId.value) return
+  
+  // Пропускаем сохранение при первоначальной загрузке
+  if (isInitialLoad) {
+    isInitialLoad = false
+    return
+  }
+  
+  // Отменяем предыдущий таймер, если есть
+  if (saveSettingsTimeout) {
+    clearTimeout(saveSettingsTimeout)
+  }
+  
+  // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
+  saveSettingsTimeout = setTimeout(() => {
+    saveSettings()
+  }, 500)
+}, { deep: true })
+
+// Сбрасываем флаг после загрузки настроек
+watch(() => loadingSettings.value, (isLoading) => {
+  if (!isLoading && billingSettings.value) {
+    // Даем небольшую задержку, чтобы убедиться, что все данные загружены
+    setTimeout(() => {
+      isInitialLoad = false
+    }, 100)
+  }
+})
 
 // Вспомогательные функции
 const formatCurrency = (amount: string | number, currency = 'RUB') => {
@@ -1578,14 +1597,47 @@ const isOverdue = (invoice: Invoice) => {
   return new Date() > new Date(invoice.due_date) && invoice.status !== 'paid' && invoice.status !== 'cancelled'
 }
 
+// Функция прокрутки к секции нумераторов
+const scrollToNumerators = () => {
+  nextTick(() => {
+    const element = document.getElementById('contract-numerators-section')
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
+}
+
 // Watchers
 watch(activeTab, (newTab) => {
+  // Синхронизируем активную вкладку с URL
+  if (route.query.tab !== newTab) {
+    router.replace({ query: { ...route.query, tab: newTab } })
+  }
+  
   if (newTab === 'invoices' && invoices.value.length === 0) {
     fetchInvoices()
   } else if (newTab === 'settings' && !billingSettings.value) {
     fetchBillingSettings()
   }
+  
+  // Если переходим на вкладку settings и есть параметр scrollToNumerators, прокручиваем
+  if (newTab === 'settings' && route.query.scrollToNumerators === 'true') {
+    nextTick(() => {
+      setTimeout(() => {
+        scrollToNumerators()
+        // Убираем параметр из URL после прокрутки
+        router.replace({ query: { ...route.query, scrollToNumerators: undefined } })
+      }, 300) // Небольшая задержка для рендеринга вкладки
+    })
+  }
 })
+
+// Синхронизируем activeTab с изменениями route.query.tab
+watch(() => route.query.tab, (newTab) => {
+  if (newTab && typeof newTab === 'string' && newTab !== activeTab.value) {
+    activeTab.value = newTab
+  }
+}, { immediate: true })
 
 watch(generateInvoiceDialog, (isOpen) => {
   if (isOpen) {

@@ -50,10 +50,19 @@ class ContractsService {
       if (company) {
         try {
           const companyData = JSON.parse(company);
-          config.headers["X-Tenant-ID"] = companyData.id;
+          const companyId = companyData.id;
+          console.log("Setting X-Tenant-ID header:", companyId, "Type:", typeof companyId);
+          // Убеждаемся, что это число или строка с числом
+          if (companyId !== undefined && companyId !== null) {
+            config.headers["X-Tenant-ID"] = String(companyId);
+          } else {
+            console.warn("Company ID is undefined or null:", companyData);
+          }
         } catch (e) {
-          console.warn("Invalid company data in localStorage");
+          console.warn("Invalid company data in localStorage:", e);
         }
+      } else {
+        console.warn("No company data in localStorage");
       }
 
       return config;
@@ -1176,6 +1185,10 @@ class ContractsService {
       "/auth/contract-numerators",
       data
     );
+    // Проверяем только если есть проблема
+    if (response.data.data?.company_id === 0) {
+      console.warn('⚠️ createContractNumerator: company_id=0 в ответе, ожидалось:', data.company_id);
+    }
     return response.data.data;
   }
 

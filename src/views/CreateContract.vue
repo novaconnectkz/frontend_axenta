@@ -33,16 +33,116 @@
             </h3>
             
             <v-row>
-              <v-col cols="12" md="6">
+              <v-col cols="12" md="4">
+                <div v-if="showNumeratorSelection">
+                  <label class="apple-input-label">Нумератор</label>
+                  <v-select
+                    v-model="selectedNumeratorId"
+                    :items="numeratorOptions"
+                    variant="outlined"
+                    density="comfortable"
+                    clearable
+                    :loading="loadingNumerators"
+                    hide-details="auto"
+                    class="numerator-select"
+                  >
+                    <template #append-inner>
+                      <v-tooltip location="top" :open-on-hover="true">
+                        <template #activator="{ props }">
+                          <v-icon
+                            v-bind="props"
+                            icon="mdi-information-outline"
+                            color="primary"
+                            size="20"
+                            class="cursor-help"
+                            style="margin-right: 8px;"
+                          />
+                        </template>
+                        <div style="max-width: 320px; padding: 4px;">
+                          <div class="text-body-2 font-weight-medium mb-2">
+                            Автоматическая генерация номера
+                          </div>
+                          <div class="text-caption">
+                            Выберите нумератор для автоматической генерации номера договора согласно настройкам выбранного нумератора.
+                          </div>
+                        </div>
+                      </v-tooltip>
+                    </template>
+                      <template #append-item>
+                        <v-list-item 
+                          class="d-flex justify-center cursor-pointer"
+                          @click="router.push('/billing?tab=settings&scrollToNumerators=true')"
+                        >
+                          <v-icon>mdi-format-list-numbered</v-icon>
+                          <span class="ml-2">Настроить нумераторы</span>
+                        </v-list-item>
+                      </template>
+                  </v-select>
+                </div>
+                <div v-else>
+                  <label class="apple-input-label">Нумератор</label>
+                  <div style="position: relative;">
+                    <v-text-field
+                      value="Вручную"
+                      variant="outlined"
+                      density="comfortable"
+                      readonly
+                      hide-details="auto"
+                      style="pointer-events: none;"
+                    />
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <div
+                          v-bind="props"
+                          style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); z-index: 2; pointer-events: auto; cursor: pointer;"
+                          @click="router.push('/billing?tab=settings&scrollToNumerators=true')"
+                        >
+                          <v-icon
+                            icon="mdi-information-outline"
+                            color="primary"
+                            size="20"
+                          />
+                        </div>
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Нумерация вручную
+                        </div>
+                        <div class="text-caption">
+                          Номер договора будет вводиться вручную. Чтобы изменить способ нумерации, перейдите в настройки биллинга.
+                        </div>
+                        <div class="text-caption mt-2 font-weight-medium">
+                          Нажмите на иконку, чтобы открыть настройки
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </div>
+                </div>
+              </v-col>
+              
+              <v-col cols="12" md="4">
                 <AppleInput
                   v-model="form.number"
                   label="Номер договора"
                   :rules="[rules.required]"
+                  :readonly="!isManualNumbering"
                   required
-                />
+                >
+                  <template #append-inner>
+                    <v-btn
+                      v-if="showNumeratorSelection && selectedNumeratorId"
+                      icon="mdi-reload"
+                      size="small"
+                      variant="text"
+                      @click="generateNumber"
+                      :loading="generatingNumber"
+                      title="Сгенерировать номер"
+                    ></v-btn>
+                  </template>
+                </AppleInput>
               </v-col>
               
-              <v-col cols="12" md="6">
+              <v-col cols="12" md="4">
                 <label class="apple-input-label">Статус</label>
                 <v-select
                   v-model="form.status"
@@ -1074,7 +1174,8 @@ import {
   CLIENT_TYPES,
   type ClientType,
 } from '@/types/contracts';
-import type { BillingPlan } from '@/types/billing';
+import type { BillingPlan, BillingSettings } from '@/types/billing';
+import type { ContractNumerator } from '@/types/contracts';
 import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
@@ -1112,6 +1213,12 @@ const bikAutocompleteRef = ref<any>(null);
 const showBankMenu = ref(false);
 const bankSuggestions = ref<Array<{name: string; bik: string; correspondentAccount?: string; raw: any}>>([]);
 const passportExpanded = ref<number | null>(0); // Индекс панели: 0 = развернуто, null = свернуто
+const numerators = ref<ContractNumerator[]>([]);
+const loadingNumerators = ref(false);
+const selectedNumeratorId = ref<number | null>(null);
+const generatingNumber = ref(false);
+const billingSettings = ref<BillingSettings | null>(null);
+const loadingBillingSettings = ref(false);
 
 // Заголовки таблицы объектов
 const objectsTableHeaders = [
@@ -1237,6 +1344,25 @@ const tariffPlanOptions = computed(() => {
     title: plan.name,
     raw: plan,
   }));
+});
+
+const numeratorOptions = computed(() => {
+  return numerators.value.map(numerator => ({
+    value: numerator.id,
+    title: numerator.name,
+    subtitle: `${numerator.template} (Счетчик: ${numerator.counter_value})`,
+    raw: numerator,
+  }));
+});
+
+// Показывать выбор нумератора только если способ нумерации = "numerator"
+const showNumeratorSelection = computed(() => {
+  return billingSettings.value?.contract_numbering_method === 'numerator';
+});
+
+// Поле "Номер договора" редактируемо только если способ нумерации = "manual"
+const isManualNumbering = computed(() => {
+  return billingSettings.value?.contract_numbering_method === 'manual';
 });
 
 // Computed для поля сайта - удаляем префикс https:// для отображения
@@ -1493,6 +1619,108 @@ const showSnackbarMessage = (text: string, color: string) => {
   snackbarText.value = text;
   snackbarColor.value = color;
   showSnackbar.value = true;
+};
+
+// Load billing settings
+const loadBillingSettings = async () => {
+  const companyData = localStorage.getItem('axenta_company');
+  let companyId: number | undefined;
+  
+  if (companyData) {
+    try {
+      const company = JSON.parse(companyData);
+      companyId = parseInt(company.id, 10);
+    } catch (e) {
+      console.warn('Invalid company data in localStorage');
+    }
+  }
+  
+  if (!companyId) return;
+  
+  loadingBillingSettings.value = true;
+  try {
+    billingSettings.value = await billingService.getBillingSettings(companyId);
+  } catch (error) {
+    console.error('Error loading billing settings:', error);
+  } finally {
+    loadingBillingSettings.value = false;
+  }
+};
+
+// Load numerators
+const loadNumerators = async () => {
+  const companyData = localStorage.getItem('axenta_company');
+  let companyId: number | undefined;
+  
+  if (companyData) {
+    try {
+      const company = JSON.parse(companyData);
+      companyId = parseInt(company.id, 10);
+    } catch (e) {
+      console.warn('Invalid company data in localStorage');
+    }
+  }
+  
+  if (!companyId) return;
+  
+  loadingNumerators.value = true;
+  try {
+    numerators.value = await contractsService.getContractNumerators(companyId);
+    
+    // Auto-select default numerator if exists and numbering method is 'numerator'
+    // Генерация номера будет выполнена через watch после загрузки всех данных
+    if (billingSettings.value?.contract_numbering_method === 'numerator') {
+      const defaultNumerator = numerators.value.find(n => n.is_default);
+      if (defaultNumerator) {
+        selectedNumeratorId.value = defaultNumerator.id;
+      }
+    }
+  } catch (error) {
+    console.error('Error loading numerators:', error);
+  } finally {
+    loadingNumerators.value = false;
+  }
+};
+
+// Generate contract number
+const generateNumber = async (skipConfirmation = false) => {
+  if (!selectedNumeratorId.value) return;
+  
+  // Если номер уже введен вручную, спрашиваем подтверждение (если не пропущено)
+  if (!skipConfirmation && form.value.number && form.value.number.trim() !== '') {
+    const confirmed = confirm('Номер договора уже заполнен. Заменить его автоматически сгенерированным номером?');
+    if (!confirmed) return;
+  }
+  
+  generatingNumber.value = true;
+  try {
+    const companyData = localStorage.getItem('axenta_company');
+    let companyId: number | undefined;
+    
+    if (companyData) {
+      try {
+        const company = JSON.parse(companyData);
+        companyId = parseInt(company.id, 10);
+      } catch (e) {
+        console.warn('Invalid company data in localStorage');
+      }
+    }
+    
+    const result = await contractsService.generateContractNumber(
+      selectedNumeratorId.value,
+      {
+        client_id: form.value.account_id,
+        company_id: companyId,
+      }
+    );
+    
+    form.value.number = result.number;
+  } catch (error: any) {
+    console.error('Error generating number:', error);
+    showSnackbarMessage(error.message || 'Ошибка генерации номера', 'error');
+  } finally {
+    generatingNumber.value = false;
+  }
 };
 
 // Загрузка списка учетных записей (все доступные)
@@ -2359,11 +2587,30 @@ const onOrganizationSelect = (selected: any) => {
   }
 };
 
+// Автоматическая генерация номера при выборе нумератора
+watch(() => selectedNumeratorId.value, async (newId, oldId) => {
+  // Генерируем номер только если:
+  // 1. Выбран новый нумератор (не при первой загрузке, когда oldId === undefined и newId === null)
+  // 2. Поле номера пустое или было очищено
+  // 3. Способ нумерации = 'numerator'
+  if (
+    newId && 
+    billingSettings.value?.contract_numbering_method === 'numerator' &&
+    (!form.value.number || form.value.number.trim() === '')
+  ) {
+    // Небольшая задержка для избежания множественных вызовов
+    await new Promise(resolve => setTimeout(resolve, 100));
+    await generateNumber(true); // skipConfirmation = true для автоматической генерации
+  }
+});
+
 // Lifecycle
 onMounted(async () => {
   await Promise.all([
     loadTariffPlans(),
     loadAccounts(),
+    loadBillingSettings(),
+    loadNumerators(),
   ]);
 });
 </script>
@@ -2461,6 +2708,10 @@ onMounted(async () => {
   justify-content: center;
   width: 24px;
   height: 24px;
+}
+
+.cursor-help {
+  cursor: help;
 }
 
 .website-input-wrapper {
