@@ -973,14 +973,81 @@ import type {
     UpdateSubscriptionData
 } from '@/types/billing'
 import type { ContractNumerator } from '@/types/contracts'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
 // Реактивные данные
 const activeTab = ref((route.query.tab as string) || 'contracts') // Начинаем с договоров или из query
-const currentCompanyId = ref(1) // В реальном приложении получать из контекста
+
+// Получаем company_id из localStorage
+const getCurrentCompanyId = (): number => {
+  try {
+    const companyData = localStorage.getItem('axenta_company')
+    if (companyData) {
+      const company = JSON.parse(companyData)
+      return company.id || company.company_id || 1
+    }
+  } catch (e) {
+    console.error('Ошибка при получении company_id из localStorage:', e)
+  }
+  return 1 // Fallback
+}
+
+const currentCompanyId = ref(getCurrentCompanyId())
+
+// Обновляем company_id при монтировании компонента и при изменении localStorage
+let checkInterval: ReturnType<typeof setInterval> | null = null
+let handleStorageChange: ((e: StorageEvent) => void) | null = null
+
+// Очищаем ресурсы при размонтировании
+onUnmounted(() => {
+  if (handleStorageChange) {
+    window.removeEventListener('storage', handleStorageChange)
+  }
+  if (checkInterval) {
+    clearInterval(checkInterval)
+  }
+})
+
+onMounted(async () => {
+  // Обновляем company_id при монтировании
+  currentCompanyId.value = getCurrentCompanyId()
+  console.log('Billing.vue: currentCompanyId установлен в', currentCompanyId.value)
+  
+  // Загружаем данные при монтировании
+  await loadDashboardData()
+  await fetchPlans()
+  await fetchSubscriptions()
+  await fetchInvoices()
+  await fetchBillingSettings()
+  await fetchContractNumerators()
+  
+  // Слушаем изменения в localStorage (на случай переключения компании)
+  handleStorageChange = (e: StorageEvent) => {
+    if (e.key === 'axenta_company') {
+      const newCompanyId = getCurrentCompanyId()
+      console.log('Billing.vue: company изменилась, новый ID:', newCompanyId)
+      currentCompanyId.value = newCompanyId
+      // Перезагружаем данные при изменении компании
+      loadDashboardData()
+      fetchPlans()
+    }
+  }
+  window.addEventListener('storage', handleStorageChange)
+  
+  // Также проверяем периодически (на случай, если localStorage изменился в том же окне)
+  checkInterval = setInterval(() => {
+    const newCompanyId = getCurrentCompanyId()
+    if (newCompanyId !== currentCompanyId.value) {
+      console.log('Billing.vue: company изменилась (проверка), новый ID:', newCompanyId)
+      currentCompanyId.value = newCompanyId
+      loadDashboardData()
+      fetchPlans()
+    }
+  }, 2000) // Проверяем каждые 2 секунды
+})
 
 // Данные
 const dashboardData = ref<BillingDashboardData | null>(null)
@@ -1520,14 +1587,7 @@ watch(generateInvoiceDialog, (isOpen) => {
   }
 })
 
-// Инициализация
-onMounted(async () => {
-  await Promise.all([
-    loadDashboardData(),
-    fetchPlans(),
-    fetchSubscriptions()
-  ])
-})
+// Инициализация уже выполняется в первом onMounted выше
 </script>
 
 <style scoped>
