@@ -182,6 +182,7 @@
                   loading-text="Загрузка учетных записей..."
                   :menu-props="{ maxHeight: 300 }"
                   @update:model-value="onAccountSelected"
+                  @focus="handleAccountAutocompleteFocus"
                 >
                   <template #item="{ props, item }">
                     <v-list-item v-bind="props" @click="debugAccountItem(item)">
@@ -1161,7 +1162,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import type { 
   ContractForm,
 } from '@/types/contracts';
@@ -1185,6 +1186,7 @@ import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 
 const router = useRouter();
+const route = useRoute();
 
 // Reactive data
 const formRef = ref();
@@ -1782,6 +1784,37 @@ const loadAccounts = async () => {
   }
 };
 
+// Загрузка одной учетной записи по ID (для оптимизации при переходе с предзаполненным account_id)
+const loadSingleAccount = async (accountId: number) => {
+  if (loadingAccounts.value) return;
+  loadingAccounts.value = true;
+  const startTime = performance.now();
+  
+  try {
+    console.log(`📋 Загрузка учетной записи по ID: ${accountId}`);
+    const account = await accountsService.getAccount(accountId);
+    const endTime = performance.now();
+    const duration = (endTime - startTime).toFixed(2);
+    
+    accounts.value = [account];
+    console.log(`✅ Учетная запись загружена за ${duration}ms: ${account.name} (ID: ${account.id})`);
+    
+    // Если загрузка занимает больше 2 секунд, предупреждаем
+    if (endTime - startTime > 2000) {
+      console.warn(`⚠️ Медленная загрузка учетной записи: ${duration}ms`);
+    }
+  } catch (error) {
+    const endTime = performance.now();
+    const duration = (endTime - startTime).toFixed(2);
+    console.error(`❌ Ошибка загрузки учетной записи (${duration}ms):`, error);
+    // В случае ошибки загружаем все записи как fallback
+    console.log('⚠️ Fallback: загружаем все учетные записи');
+    await loadAccounts();
+  } finally {
+    loadingAccounts.value = false;
+  }
+};
+
 // Отладочная функция для проверки структуры item при клике
 const debugAccountItem = (item: any) => {
   console.log('🔍 DEBUG: Структура item в выпадающем списке:', {
@@ -1895,6 +1928,17 @@ const filterAccounts = (_value: string, query: string, item: any) => {
   }
   
   return false;
+};
+
+// Обработчик фокуса на autocomplete учетной записи
+// Если в списке только одна запись (загружена по account_id), загружаем все записи для выбора
+const handleAccountAutocompleteFocus = async () => {
+  // Если в списке только одна запись, значит мы загрузили только одну по account_id
+  // Загружаем все записи, чтобы пользователь мог выбрать другую
+  if (accounts.value.length === 1 && !loadingAccounts.value) {
+    console.log('📋 Загружаем все учетные записи для выбора (в списке только одна запись)');
+    await loadAccounts();
+  }
 };
 
 // Обработчик выбора учетной записи
@@ -2606,12 +2650,54 @@ watch(() => selectedNumeratorId.value, async (newId, oldId) => {
 
 // Lifecycle
 onMounted(async () => {
-  await Promise.all([
-    loadTariffPlans(),
-    loadAccounts(),
-    loadBillingSettings(),
-    loadNumerators(),
-  ]);
+  // Обработка query параметра account_id - если есть, загружаем только эту учетную запись
+  const accountIdParam = route.query.account_id;
+  let accountId: number | null = null;
+  
+  if (accountIdParam) {
+    const parsedId = Number(accountIdParam);
+    if (!isNaN(parsedId) && parsedId > 0) {
+      accountId = parsedId;
+    }
+  }
+  
+  // Если есть account_id в query, загружаем только эту учетную запись
+  // Иначе загружаем все как обычно
+  if (accountId) {
+    // Загружаем параллельно все необходимые данные
+    await Promise.all([
+      loadTariffPlans(),
+      loadSingleAccount(accountId),
+      loadBillingSettings(),
+      loadNumerators(),
+    ]);
+    
+    // Устанавливаем account_id в форму (объекты загрузятся автоматически через watcher)
+    // Это произойдет после загрузки учетной записи, так что watcher сработает
+    form.value.account_id = accountId;
+    console.log('✅ Учетная запись предзаполнена из query параметра, ID:', accountId);
+    
+    // Объекты загрузятся автоматически через watcher на form.account_id
+    // Но можно также загрузить их сразу, чтобы не ждать watcher
+    if (accounts.value.length > 0) {
+      const account = accounts.value.find(acc => acc.id === accountId);
+      if (account) {
+        console.log('📋 Начинаем загрузку объектов для учетной записи:', account.name);
+        // Загружаем объекты асинхронно, не блокируя UI
+        loadAccountObjects(accountId).catch(err => {
+          console.error('Ошибка загрузки объектов:', err);
+        });
+      }
+    }
+  } else {
+    // Обычная загрузка всех учетных записей
+    await Promise.all([
+      loadTariffPlans(),
+      loadAccounts(),
+      loadBillingSettings(),
+      loadNumerators(),
+    ]);
+  }
 });
 </script>
 

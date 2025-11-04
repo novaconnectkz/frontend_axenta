@@ -316,14 +316,18 @@ class AccountsService {
    * Получить учетную запись по ID
    */
   async getAccount(id: number): Promise<Account> {
+    const startTime = performance.now();
     try {
+      console.log(`📡 Запрос к API: GET /api/auth/accounts/${id}`);
       const response = await this.apiClient.get<any>(
         `/api/auth/accounts/${id}` // Используем локальный эндпоинт
       );
+      const endTime = performance.now();
+      const duration = (endTime - startTime).toFixed(2);
       
       // Преобразуем данные аккаунта
       const account = response.data;
-      return {
+      const result = {
         id: account.id,
         name: account.name,
         type: account.type === "partner" ? "partner" : "client",
@@ -352,8 +356,19 @@ class AccountsService {
         maxUsers: account.maxUsers,
         storageQuota: account.storageQuota,
       };
+      
+      console.log(`✅ API ответ получен за ${duration}ms для учетной записи ${id}`);
+      
+      // Предупреждение о медленной загрузке
+      if (endTime - startTime > 2000) {
+        console.warn(`⚠️ Медленный ответ API: ${duration}ms для учетной записи ${id}`);
+      }
+      
+      return result;
     } catch (error) {
-      console.error(`❌ Ошибка получения учетной записи ${id}:`, error);
+      const endTime = performance.now();
+      const duration = (endTime - startTime).toFixed(2);
+      console.error(`❌ Ошибка получения учетной записи ${id} (${duration}ms):`, error);
       throw error;
     }
   }

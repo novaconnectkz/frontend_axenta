@@ -392,6 +392,14 @@
               @click="toggleAccountStatus(item)"
               :title="item.isActive ? 'Деактивировать' : 'Активировать'"
             />
+            <v-btn
+              icon="mdi-file-document-plus"
+              variant="text"
+              size="x-small"
+              color="primary"
+              @click="createContractForAccount(item)"
+              title="Создать договор"
+            />
             <v-menu>
               <template #activator="{ props }">
                 <v-btn
@@ -1661,6 +1669,14 @@ const toggleAccountStatus = async (account: Account) => {
       'error'
     );
   }
+};
+
+// Функция для создания договора с предзаполненной учетной записью
+const createContractForAccount = (account: Account) => {
+  router.push({
+    path: '/contracts/create',
+    query: { account_id: account.id.toString() }
+  });
 };
 
 
