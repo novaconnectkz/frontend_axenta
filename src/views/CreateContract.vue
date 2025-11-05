@@ -3,7 +3,7 @@
     <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
-        <v-icon icon="mdi-file-document-plus" size="32" class="page-icon" />
+        <v-icon icon="mdi-file-document-plus" class="page-icon" />
         <div>
           <h1 class="page-title">Создание договора</h1>
           <p class="page-subtitle">Создание нового договора с привязкой объектов</p>
@@ -40,7 +40,7 @@
                     v-model="selectedNumeratorId"
                     :items="numeratorOptions"
                     variant="outlined"
-                    density="comfortable"
+                    density="compact"
                     clearable
                     :loading="loadingNumerators"
                     hide-details="auto"
@@ -85,7 +85,7 @@
                     <v-text-field
                       value="Вручную"
                       variant="outlined"
-                      density="comfortable"
+                      density="compact"
                       readonly
                       hide-details="auto"
                       style="pointer-events: none;"
@@ -148,7 +148,7 @@
                   v-model="form.status"
                   :items="statusOptions"
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   hide-details
                 />
               </v-col>
@@ -172,7 +172,7 @@
                   item-value="value"
                   placeholder="Начните вводить название учетной записи..."
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   :loading="loadingAccounts"
                   hint="Выберите учетную запись для автоматической привязки её объектов к договору"
                   persistent-hint
@@ -252,7 +252,7 @@
             <v-row v-if="form.account_id">
               <v-col cols="12">
                 <v-card variant="outlined" class="objects-card">
-                  <v-card-title class="text-subtitle-1 pa-3 d-flex align-center justify-space-between">
+                  <v-card-title class="text-subtitle-1 d-flex align-center justify-space-between">
                     <div class="d-flex align-center">
                       <v-icon icon="mdi-package-variant" size="small" class="mr-2" />
                       Объекты для привязки к договору
@@ -277,7 +277,7 @@
                   <v-divider />
                   
                   <!-- Поиск объектов -->
-                  <v-card-text class="pa-3 pb-0">
+                  <v-card-text class="pb-0">
                     <v-text-field
                       v-model="objectsSearchQuery"
                       placeholder="Поиск по названию, IMEI, телефону..."
@@ -290,7 +290,7 @@
                   </v-card-text>
 
                   <!-- Индикатор загрузки -->
-                  <div v-if="loadingAccountObjects" class="pa-4">
+                  <div v-if="loadingAccountObjects" class="pa-3">
                     <v-progress-linear indeterminate color="primary" />
                     <div class="text-caption text-center mt-2">Загрузка объектов...</div>
                   </div>
@@ -303,7 +303,7 @@
                       :items="filteredAccountObjects"
                       item-value="id"
                       show-select
-                      density="comfortable"
+                      density="compact"
                       class="objects-table"
                       hide-default-footer
                       :items-per-page="10"
@@ -344,7 +344,7 @@
                   </div>
 
                   <!-- Сообщение, если объектов нет -->
-                  <v-card-text v-else-if="!loadingAccountObjects" class="pa-4">
+                  <v-card-text v-else-if="!loadingAccountObjects">
                     <v-alert 
                       type="info" 
                       variant="tonal" 
@@ -372,7 +372,7 @@
                   :items="CLIENT_TYPE_OPTIONS"
                   :rules="[rules.required]"
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   required
                   hide-details
                   @update:model-value="onClientTypeChange"
@@ -996,10 +996,13 @@
                   :items="tariffPlanOptions"
                   :rules="[rules.required]"
                   variant="outlined"
-                  density="comfortable"
+                  density="compact"
                   :loading="loadingTariffPlans"
                   required
                   hide-details
+                  :no-data-text="loadingTariffPlans ? 'Загрузка...' : 'Тарифные планы не найдены. Создайте план в разделе Биллинг → Тарифные планы'"
+                  placeholder="Выберите тарифный план"
+                  clearable
                   @update:model-value="onTariffPlanChange"
                 >
                   <template #item="{ props, item }">
@@ -1012,115 +1015,30 @@
                       
                       <v-list-item-title>{{ item.title }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        {{ formatCurrency((item.raw as any)?.price || 0) }}/мес
-                        • До {{ (item.raw as any)?.max_devices || 0 }} устройств
+                        <template v-if="item.raw && item.raw.price !== undefined && item.raw.price !== null">
+                          <!-- Безопасное извлечение price с обработкой разных типов -->
+                          {{ formatCurrency(
+                            typeof item.raw.price === 'string' 
+                              ? parseFloat(item.raw.price.replace(',', '.')) || 0
+                              : Number(item.raw.price) || 0, 
+                            item.raw.currency || 'RUB'
+                          ) }}/{{ getPeriodText(item.raw.billing_period) }}
+                          <template v-if="item.raw.max_devices > 0">
+                            • До {{ item.raw.max_devices }} устройств
+                          </template>
+                          <template v-else>
+                            • Безлимит устройств
+                          </template>
+                        </template>
+                        <template v-else>
+                          <!-- Fallback если данных нет -->
+                          {{ formatCurrency(0) }}/мес
+                          <span v-if="!item.raw" class="text-caption text-error">(данные не загружены)</span>
+                        </template>
                       </v-list-item-subtitle>
                     </v-list-item>
                   </template>
                 </v-select>
-              </v-col>
-              
-              <v-col cols="12" md="3">
-                <AppleInput
-                  v-model="form.total_amount"
-                  label="Общая стоимость"
-                  :rules="[rules.number]"
-                  type="number"
-                  step="0.01"
-                />
-              </v-col>
-              
-              <v-col cols="12" md="3">
-                <label class="apple-input-label">Валюта</label>
-                <v-select
-                  v-model="form.currency"
-                  :items="currencyOptions"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                />
-              </v-col>
-            </v-row>
-          </div>
-
-          <!-- Период действия -->
-          <div class="form-section">
-            <h3 class="section-title">
-              <v-icon icon="mdi-calendar-range" class="mr-2" />
-              Период действия
-            </h3>
-            
-            <v-row>
-              <v-col cols="12" md="4">
-                <AppleInput
-                  v-model="form.start_date"
-                  label="Дата начала"
-                  :rules="[rules.required]"
-                  type="date"
-                  required
-                />
-              </v-col>
-              
-              <v-col cols="12" md="4">
-                <AppleInput
-                  v-model="form.end_date"
-                  label="Дата окончания"
-                  :rules="[rules.required, rules.endDateAfterStart]"
-                  type="date"
-                  required
-                />
-              </v-col>
-              
-              <v-col cols="12" md="4">
-                <label class="apple-input-label">Уведомлять за</label>
-                <v-select
-                  v-model="form.notify_before"
-                  :items="notificationOptions"
-                  variant="outlined"
-                  density="comfortable"
-                  hide-details
-                />
-              </v-col>
-            </v-row>
-          </div>
-
-          <!-- Дополнительные параметры -->
-          <div class="form-section">
-            <h3 class="section-title">
-              <v-icon icon="mdi-cog" class="mr-2" />
-              Дополнительные параметры
-            </h3>
-            
-            <v-row>
-              <v-col cols="12" md="6">
-                <v-switch
-                  v-model="form.is_active"
-                  label="Активный договор"
-                  color="success"
-                  density="comfortable"
-                />
-              </v-col>
-              
-              <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="form.external_id"
-                  label="Внешний ID"
-                  hint="ID в внешних системах (1С, Битрикс24)"
-                  persistent-hint
-                />
-              </v-col>
-            </v-row>
-
-            <v-row>
-              <v-col cols="12">
-                <label class="apple-input-label">Примечания</label>
-                <v-textarea
-                  v-model="form.notes"
-                  variant="outlined"
-                  density="comfortable"
-                  rows="3"
-                  hide-details
-                />
               </v-col>
             </v-row>
           </div>
@@ -1196,6 +1114,7 @@ const loadingTariffPlans = ref(false);
 const loadingAccounts = ref(false);
 const accounts = ref<Account[]>([]);
 const tariffPlans = ref<BillingPlan[]>([]);
+const isTariffPlanInitialized = ref(false); // Флаг для отслеживания инициализации
 const accountObjects = ref<any[]>([]);
 const loadingAccountObjects = ref(false);
 const selectedAccountName = ref('');
@@ -1341,11 +1260,50 @@ const selectedAccount = computed(() => {
 });
 
 const tariffPlanOptions = computed(() => {
-  return tariffPlans.value.map(plan => ({
+  const options = tariffPlans.value.map(plan => {
+    // Логируем для отладки
+    if (tariffPlans.value.indexOf(plan) === 0) {
+      console.log('🔍 tariffPlanOptions: первый план:', {
+        id: plan.id,
+        name: plan.name,
+        price: plan.price,
+        priceType: typeof plan.price,
+        max_devices: plan.max_devices,
+        billing_period: plan.billing_period,
+        fullPlan: plan
+      });
+    }
+    
+    const option = {
     value: plan.id,
     title: plan.name,
-    raw: plan,
-  }));
+      raw: { ...plan }, // Создаем копию объекта для реактивности
+    };
+    
+    // Логируем первый элемент для отладки
+    if (tariffPlans.value.indexOf(plan) === 0) {
+      console.log('🔍 tariffPlanOptions: созданная опция:', {
+        value: option.value,
+        title: option.title,
+        rawPrice: option.raw.price,
+        rawPriceType: typeof option.raw.price,
+        raw: option.raw
+      });
+    }
+    
+    return option;
+  });
+  
+  console.log('📋 tariffPlanOptions создано:', options.length, 'опций');
+  if (options.length > 0) {
+    console.log('📋 Первая опция:', {
+      value: options[0].value,
+      title: options[0].title,
+      raw: options[0].raw,
+      rawPrice: options[0].raw?.price
+    });
+  }
+  return options;
 });
 
 const numeratorOptions = computed(() => {
@@ -1548,10 +1506,6 @@ const rules = {
     const num = parseFloat(value);
     return !isNaN(num) && num >= 0 || 'Должно быть положительное число';
   },
-  endDateAfterStart: (value: string) => {
-    if (!value || !form.value.start_date) return true;
-    return new Date(value) > new Date(form.value.start_date) || 'Дата окончания должна быть после даты начала';
-  },
 };
 
 // Methods
@@ -1559,16 +1513,30 @@ const goBack = () => {
   router.back();
 };
 
-const onTariffPlanChange = (planId: number) => {
-  const selectedPlan = tariffPlans.value.find(plan => plan.id === planId);
-  if (selectedPlan && !form.value.total_amount) {
-    // Автоматически устанавливаем стоимость на основе тарифного плана
-    const monthlyPrice = selectedPlan.price;
-    const startDate = new Date(form.value.start_date);
-    const endDate = new Date(form.value.end_date);
-    const months = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-    form.value.total_amount = (monthlyPrice * Math.max(1, months)).toString();
+const onTariffPlanChange = (planId: number | null) => {
+  // Игнорируем если план не выбран или это очистка значения
+  if (!planId || planId === 0) {
+    console.log('🔍 onTariffPlanChange: план не выбран, пропускаем');
+    return;
   }
+  
+  const selectedPlan = tariffPlans.value.find(plan => plan.id === planId);
+  
+  if (!selectedPlan) {
+    console.log('🔍 onTariffPlanChange: план не найден, planId:', planId);
+    return;
+  }
+  
+  console.log('🔍 onTariffPlanChange: выбран план', {
+    planId,
+    name: selectedPlan.name,
+    price: selectedPlan.price,
+    billing_period: selectedPlan.billing_period,
+    currency: selectedPlan.currency
+  });
+  
+  // Стоимость будет рассчитана автоматически при создании подписки
+  // Здесь просто логируем выбор плана
 };
 
 const saveContract = async () => {
@@ -1576,15 +1544,75 @@ const saveContract = async () => {
 
   saving.value = true;
   try {
+    // Подготавливаем данные для отправки - оставляем только поля, которые есть в модели Contract
+    const contractData: any = {
+      number: form.value.number,
+      title: form.value.title || `Договор с ${form.value.client_name}`,
+      description: form.value.description || '',
+      client_name: form.value.client_name,
+      client_inn: form.value.client_inn || '',
+      client_kpp: form.value.client_kpp || '',
+      client_email: form.value.client_email || '',
+      client_phone: form.value.client_phone || '',
+      client_address: form.value.client_address || '',
+      tariff_plan_id: Number(form.value.tariff_plan_id),
+      status: form.value.status || 'draft',
+      notes: form.value.notes || '',
+    };
+    
+    // Добавляем company_id из localStorage
+    const companyData = localStorage.getItem('axenta_company');
+    if (companyData) {
+      try {
+        const company = JSON.parse(companyData);
+        if (company && company.id) {
+          contractData.company_id = Number(company.id);
+        }
+      } catch (e) {
+        console.warn('Ошибка парсинга company из localStorage:', e);
+      }
+    }
+    
+    // Добавляем значения по умолчанию для дат, если они отсутствуют
+    // Конвертируем в ISO формат (RFC3339) для Go time.Time
+    if (!form.value.start_date) {
+      contractData.start_date = new Date().toISOString();
+    } else {
+      // Если дата в формате YYYY-MM-DD, конвертируем в ISO
+      const startDate = new Date(form.value.start_date + 'T00:00:00Z');
+      contractData.start_date = startDate.toISOString();
+    }
+    
+    if (!form.value.end_date) {
+      // По умолчанию через год
+      const defaultEndDate = new Date();
+      defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+      contractData.end_date = defaultEndDate.toISOString();
+    } else {
+      // Если дата в формате YYYY-MM-DD, конвертируем в ISO
+      const endDate = new Date(form.value.end_date + 'T23:59:59Z');
+      contractData.end_date = endDate.toISOString();
+    }
+    
+    // Добавляем account_id для привязки объектов (если есть) - это отдельное поле в CreateContractRequest
+    if (form.value.account_id) {
+      contractData.account_id = Number(form.value.account_id);
+    }
+    
+    console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
+    
     // Создаем договор
-    const createdContract = await contractsService.createContract(form.value);
+    const createdContract = await contractsService.createContract(contractData);
     
     // Если есть выбранные объекты, привязываем их к договору
     if (selectedObjectsForContract.value.length > 0 && createdContract.id) {
       try {
-        await contractsService.attachObjectsToContract(createdContract.id, {
+        const attachData = {
           object_ids: selectedObjectsForContract.value,
-        });
+          account_id: form.value.account_id ? Number(form.value.account_id) : undefined,
+        };
+        console.log('📤 Отправка данных для привязки объектов:', JSON.stringify(attachData, null, 2));
+        await contractsService.attachObjectsToContract(createdContract.id, attachData);
         console.log(`✅ Привязано ${selectedObjectsForContract.value.length} объектов к договору`);
         showSnackbarMessage(
           `Договор создан и привязано ${selectedObjectsForContract.value.length} объектов`,
@@ -1611,7 +1639,21 @@ const saveContract = async () => {
     }, 1500);
   } catch (error: any) {
     console.error('Error saving contract:', error);
-    showSnackbarMessage(error.message || 'Ошибка сохранения договора', 'error');
+    
+    // Показываем детальную ошибку, если есть
+    let errorMessage = 'Ошибка сохранения договора';
+    if (error.response?.data) {
+      const errorData = error.response.data;
+      if (errorData.details) {
+        errorMessage = `${errorData.error || 'Ошибка'}: ${errorData.details}`;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    showSnackbarMessage(errorMessage, 'error');
   } finally {
     saving.value = false;
   }
@@ -2150,9 +2192,48 @@ const loadAccountObjects = async (accountId: number) => {
 const loadTariffPlans = async () => {
   loadingTariffPlans.value = true;
   try {
-    tariffPlans.value = await billingService.getBillingPlans();
+    // Получаем company_id из localStorage
+    let companyId: number | undefined = undefined;
+    const companyData = localStorage.getItem('axenta_company');
+    if (companyData) {
+      try {
+        const company = JSON.parse(companyData);
+        if (company && company.id) {
+          companyId = Number(company.id);
+          console.log('📋 Загрузка тарифных планов для company_id:', companyId);
+        }
+      } catch (e) {
+        console.warn('Ошибка парсинга company из localStorage:', e);
+      }
+    }
+    
+    if (!companyId) {
+      console.warn('⚠️ company_id не найден, тарифные планы могут быть недоступны');
+    }
+    
+    tariffPlans.value = await billingService.getBillingPlans(companyId);
+    console.log(`✅ Загружено тарифных планов: ${tariffPlans.value.length}`);
+    
+    // Логируем данные первого плана для отладки
+    if (tariffPlans.value.length > 0) {
+      const firstPlan = tariffPlans.value[0];
+      console.log('📊 Первый тарифный план:', {
+        id: firstPlan.id,
+        name: firstPlan.name,
+        price: firstPlan.price,
+        priceType: typeof firstPlan.price,
+        max_devices: firstPlan.max_devices,
+        currency: firstPlan.currency,
+        billing_period: firstPlan.billing_period,
+        fullPlan: firstPlan
+      });
+    }
+    
+    if (tariffPlans.value.length === 0 && companyId) {
+      console.warn('⚠️ Тарифные планы не найдены для company_id:', companyId);
+    }
   } catch (error) {
-    console.error('Error loading tariff plans:', error);
+    console.error('❌ Ошибка загрузки тарифных планов:', error);
     tariffPlans.value = [];
   } finally {
     loadingTariffPlans.value = false;
@@ -2161,6 +2242,17 @@ const loadTariffPlans = async () => {
 
 const formatCurrency = (amount: number, currency = 'RUB'): string => {
   return contractsService.formatCurrency(amount, currency);
+};
+
+// Функция для получения текста периода тарификации
+const getPeriodText = (period: string | undefined): string => {
+  if (!period) return 'мес';
+  const periodMap: Record<string, string> = {
+    'monthly': 'мес',
+    'yearly': 'год',
+    'one-time': 'разово'
+  };
+  return periodMap[period] || 'мес';
 };
 
 // Обработчик изменения типа клиента
@@ -2691,19 +2783,19 @@ onMounted(async () => {
     }
   } else {
     // Обычная загрузка всех учетных записей
-    await Promise.all([
-      loadTariffPlans(),
-      loadAccounts(),
-      loadBillingSettings(),
-      loadNumerators(),
-    ]);
+  await Promise.all([
+    loadTariffPlans(),
+    loadAccounts(),
+    loadBillingSettings(),
+    loadNumerators(),
+  ]);
   }
 });
 </script>
 
 <style scoped>
 .create-contract-page {
-  padding: 24px;
+  padding: 16px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -2712,41 +2804,42 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .page-title-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .page-icon {
   color: rgb(var(--v-theme-primary));
+  font-size: 28px !important;
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
 }
 
 .page-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: rgb(var(--v-theme-on-surface-variant));
-  margin: 4px 0 0 0;
+  margin: 2px 0 0 0;
 }
 
 .form-card {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .form-content {
-  padding: 24px;
+  padding: 16px;
 }
 
 .form-section {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
 }
 
 .form-section:last-child {
@@ -2754,9 +2847,9 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
   color: rgb(var(--v-theme-primary));
@@ -2845,7 +2938,7 @@ onMounted(async () => {
 }
 
 .form-actions {
-  padding: 0 24px 24px;
+  padding: 0 16px 16px;
 }
 
 .actions-buttons {
@@ -2876,7 +2969,16 @@ onMounted(async () => {
 }
 
 .objects-card {
-  margin-top: 16px;
+  margin-top: 12px;
+}
+
+.objects-card :deep(.v-card-title) {
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.objects-card :deep(.v-card-text) {
+  padding: 12px 16px;
 }
 
 .objects-table-container {
@@ -2904,19 +3006,28 @@ onMounted(async () => {
 .form-section .v-col > label.apple-input-label + .v-autocomplete,
 .form-section .v-col > label.apple-input-label + .v-textarea,
 .form-section .v-col > label.apple-input-label + .v-text-field {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* Обеспечиваем одинаковую высоту для полей ввода */
 .form-section :deep(.apple-input-wrapper-base) {
-  height: 56px;
+  height: 48px;
 }
 
 .form-section :deep(.v-select .v-field),
 .form-section :deep(.v-autocomplete .v-field),
 .form-section :deep(.v-textarea .v-field),
 .form-section :deep(.v-text-field .v-field) {
-  height: 56px;
+  height: 48px;
+}
+
+/* Уменьшаем отступы между строками в форме */
+.form-section :deep(.v-row) {
+  margin-bottom: 0;
+}
+
+.form-section :deep(.v-col) {
+  padding-bottom: 8px;
 }
 </style>
 

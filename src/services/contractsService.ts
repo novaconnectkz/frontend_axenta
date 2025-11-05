@@ -78,6 +78,21 @@ class ContractsService {
           message: error.message,
         });
 
+        // Логируем детальную ошибку от сервера
+        if (error.response?.data) {
+          console.error("Server error details:", {
+            error: error.response.data.error,
+            status: error.response.data.status,
+            fullResponse: error.response.data,
+          });
+          // Выводим полный ответ для отладки
+          console.error("Full error response:", JSON.stringify(error.response.data, null, 2));
+        }
+        // Также логируем сам объект ошибки
+        if (error.response) {
+          console.error("Error response object:", error.response);
+        }
+
         if (error.response?.status === 401) {
           console.log("401 error - clearing auth and redirecting to login");
           localStorage.removeItem("axenta_token");
@@ -297,7 +312,7 @@ class ContractsService {
     contractId: number,
     data: ContractObjectsForm
   ): Promise<void> {
-    await this.apiClient.post(`/api/contracts/${contractId}/objects`, data);
+    await this.apiClient.post(`/auth/contracts/${contractId}/objects`, data);
   }
 
   /**
@@ -308,7 +323,7 @@ class ContractsService {
     objectId: number
   ): Promise<void> {
     await this.apiClient.delete(
-      `/api/contracts/${contractId}/objects/${objectId}`
+      `/auth/contracts/${contractId}/objects/${objectId}`
     );
   }
 

@@ -408,7 +408,7 @@ import type { Contract } from '@/types/contracts'
 
 interface Props {
   modelValue: boolean
-  companyId: number
+  companyId: number | string
 }
 
 interface Emits {
@@ -418,6 +418,11 @@ interface Emits {
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Конвертируем companyId в число, если это строка
+const companyId = computed(() => {
+  return typeof props.companyId === 'string' ? parseInt(props.companyId, 10) : props.companyId
+})
 
 const show = computed({
   get: () => props.modelValue,
@@ -437,7 +442,7 @@ const form = ref<CreateSubscriptionData & {
   transfer_from_existing?: boolean
   split_period?: boolean
 }>({
-  company_id: props.companyId,
+  company_id: companyId.value,
   billing_plan_id: 0,
   start_date: new Date().toISOString().split('T')[0],
   is_auto_renew: true,
@@ -592,7 +597,7 @@ const loadContracts = async () => {
 const loadPlans = async () => {
   loadingPlans.value = true
   try {
-    plans.value = await billingService.getBillingPlans(props.companyId)
+    plans.value = await billingService.getBillingPlans(companyId.value)
   } catch (error) {
     console.error('Ошибка загрузки планов:', error)
   } finally {
@@ -602,7 +607,7 @@ const loadPlans = async () => {
 
 const loadBillingSettings = async () => {
   try {
-    billingSettings.value = await billingService.getBillingSettings(props.companyId)
+    billingSettings.value = await billingService.getBillingSettings(companyId.value)
     showVAT.value = billingSettings.value?.tax_included || false
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
@@ -616,11 +621,11 @@ const checkExistingSubscriptions = async () => {
   }
   loadingSubscriptions.value = true
   try {
-    const subscriptions = await billingService.getSubscriptions(props.companyId)
+    const subscriptions = await billingService.getSubscriptions(companyId.value)
     // Проверяем подписки для выбранного договора (если есть связь через contract_id)
     // Пока проверяем все активные подписки компании
     existingSubscriptions.value = subscriptions.filter(
-      s => (s.status === 'active' || s.status === 'scheduled') && s.company_id === props.companyId
+      s => (s.status === 'active' || s.status === 'scheduled') && s.company_id === companyId.value
     )
   } catch (error) {
     console.error('Ошибка проверки подписок:', error)
@@ -721,7 +726,7 @@ const close = () => {
   show.value = false
   currentStep.value = 1
   form.value = {
-    company_id: props.companyId,
+    company_id: companyId.value,
     billing_plan_id: 0,
     start_date: new Date().toISOString().split('T')[0],
     is_auto_renew: true,

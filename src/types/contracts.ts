@@ -208,6 +208,12 @@ export interface ContractAppendix {
   updated_at: string;
 }
 
+// Форма для привязки объектов к договору
+export interface ContractObjectsForm {
+  object_ids: number[];
+  account_id?: number; // ID учетной записи Axenta (дочерняя компания)
+}
+
 // Форма приложения к договору
 export interface ContractAppendixForm {
   number: string;

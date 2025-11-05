@@ -245,6 +245,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { debounce } from 'lodash-es';
 
 const router = useRouter();
 
@@ -398,11 +399,12 @@ const enableDemoMode = async () => {
   showSnackbarMessage('Демо режим договоров включен', 'success');
 };
 
-const disableDemoMode = () => {
+const disableDemoMode = async () => {
   console.log('🔄 Disabling contracts demo mode...');
   demoMode.value = false;
   contracts.value = [];
   showSnackbarMessage('Демо режим договоров выключен', 'info');
+  await loadContracts();
 };
 
 const loadDemoContracts = async () => {
@@ -544,11 +546,14 @@ const loadDemoContracts = async () => {
   }
 };
 
-const clearFilters = () => {
+const clearFilters = async () => {
   searchQuery.value = '';
   statusFilter.value = null;
   activeFilter.value = null;
   expiringFilter.value = false;
+  if (!demoMode.value) {
+    await loadContracts();
+  }
 };
 
 const createContract = () => {
@@ -664,11 +669,49 @@ const getPeriodText = (contract: Contract): string => {
   }
 };
 
+// Загрузка реальных договоров
+const loadContracts = async () => {
+  console.log('📄 Loading real contracts from API...');
+  loading.value = true;
+  try {
+    const contractsService = (await import('@/services/contractsService')).default;
+    const response = await contractsService.getContracts({
+      search: searchQuery.value || undefined,
+      status: statusFilter.value || undefined,
+      is_active: activeFilter.value !== null ? activeFilter.value : undefined,
+      expiring: expiringFilter.value || undefined,
+      page: 1,
+      limit: 100,
+    });
+    contracts.value = response.contracts || [];
+    console.log(`✅ Loaded ${contracts.value.length} contracts from API (total: ${response.total})`);
+  } catch (error) {
+    console.error('❌ Error loading contracts:', error);
+    showSnackbarMessage('Ошибка загрузки договоров', 'error');
+    contracts.value = [];
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Отслеживание изменений фильтров для автоматической перезагрузки
+const debouncedLoadContracts = debounce(async () => {
+  if (!demoMode.value) {
+    await loadContracts();
+  }
+}, 300);
+
+watch([searchQuery, statusFilter, activeFilter, expiringFilter], () => {
+  debouncedLoadContracts();
+});
+
 // Lifecycle
 onMounted(async () => {
   console.log('🚀 Contracts tab mounted in billing');
   if (demoMode.value) {
     await loadDemoContracts();
+  } else {
+    await loadContracts();
   }
 });
 </script>

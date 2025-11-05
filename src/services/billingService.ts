@@ -103,7 +103,42 @@ class BillingService {
       const params = companyId ? { company_id: companyId } : {};
       const response: AxiosResponse<BillingPlansResponse> =
         await this.apiClient.get("/auth/billing/plans", { params });
-      return response.data.data || [];
+      
+      const plans = response.data.data || [];
+      
+      // Логируем для отладки
+      if (plans.length > 0) {
+        console.log('📋 BillingService: загружено планов:', plans.length);
+        console.log('📋 Первый план (сырые данные):', plans[0]);
+      }
+      
+      // Конвертируем price из строки в число, если нужно (decimal.Decimal сериализуется как строка)
+      const normalizedPlans = plans.map(plan => {
+        // decimal.Decimal сериализуется как строка, нужно конвертировать
+        let price: number = 0;
+        if (typeof plan.price === 'string') {
+          price = parseFloat(plan.price.replace(',', '.')) || 0;
+        } else if (typeof plan.price === 'number') {
+          price = plan.price;
+        } else {
+          // Если это объект (редкий случай), пытаемся извлечь значение
+          price = Number(plan.price) || 0;
+        }
+        
+        return {
+          ...plan,
+          price: price,
+          max_devices: Number(plan.max_devices) || 0,
+          max_users: Number(plan.max_users) || 0,
+          max_storage: Number(plan.max_storage) || 0,
+        };
+      });
+      
+      if (normalizedPlans.length > 0) {
+        console.log('📋 Первый план (нормализованные данные):', normalizedPlans[0]);
+      }
+      
+      return normalizedPlans;
     } catch (error) {
       console.error("Ошибка при загрузке планов:", error);
       return [];
