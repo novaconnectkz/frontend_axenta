@@ -7,15 +7,41 @@ function getEnvVar(key: string, defaultValue: string): string {
   return import.meta.env[key] || defaultValue;
 }
 
+function resolveDefaultBackendUrl(): string {
+  if (typeof window !== "undefined") {
+    const { host, protocol } = window.location;
+
+    if (host.endsWith("axenta.glonass-saratov.ru")) {
+      return `${protocol}//api.axenta.glonass-saratov.ru`;
+    }
+  }
+
+  return "http://localhost:8080";
+}
+
+function resolveDefaultWsUrl(httpUrl: string): string {
+  try {
+    const url = new URL(httpUrl);
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    return url.toString();
+  } catch (error) {
+    console.error("Не удалось преобразовать backendUrl в wsBaseUrl", error);
+    return "ws://localhost:8080";
+  }
+}
+
 /**
  * Конфигурация приложения
  */
 export const config = {
   // URL бэкенда - используем локальный сервер для тестирования новых endpoints
-  backendUrl: getEnvVar("VITE_BACKEND_URL", "http://localhost:8080"),
+  backendUrl: getEnvVar("VITE_BACKEND_URL", resolveDefaultBackendUrl()),
 
   // WebSocket URL для реального времени
-  wsBaseUrl: getEnvVar("VITE_WS_BASE_URL", "ws://localhost:8080"),
+  wsBaseUrl: getEnvVar(
+    "VITE_WS_BASE_URL",
+    resolveDefaultWsUrl(getEnvVar("VITE_BACKEND_URL", resolveDefaultBackendUrl()))
+  ),
 
   // Название приложения
   appName: getEnvVar("VITE_APP_NAME", "Axenta CRM"),
