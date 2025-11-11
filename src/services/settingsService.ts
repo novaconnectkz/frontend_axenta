@@ -25,7 +25,7 @@ import {
 } from "@/types/settings";
 
 // API базовый URL
-const API_BASE_URL = config.API_BASE_URL || 'http://localhost:8080';
+const API_BASE_URL = config.backendUrl;
 
 // Получение токена авторизации
 const getAuthToken = (): string | null => {
