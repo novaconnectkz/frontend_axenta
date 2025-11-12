@@ -1197,9 +1197,10 @@ const updateAccountsSmooth = async (newAccounts: Account[]): Promise<void> => {
   });
 };
 
-const loadStats = async (isBackground = false) => {
+const loadStats = async (isBackground = false, forceRefresh = false) => {
   try {
-    const statsData = await accountsService.getAccountsStats();
+    // Используем оптимизированный метод с кешированием
+    const statsData = await accountsService.getAccountsStats(forceRefresh);
     
     // Плавное обновление статистики только если есть изменения
     if (isBackground) {
@@ -1222,20 +1223,14 @@ const loadStats = async (isBackground = false) => {
   }
 };
 
-// Загрузка списка родительских аккаунтов
-const loadParentAccounts = async () => {
+// Загрузка списка родительских аккаунтов с использованием кеширования
+const loadParentAccounts = async (forceRefresh: boolean = false) => {
   try {
-    // Получаем все записи для извлечения уникальных родителей
-    const response = await accountsService.getAccounts({
-      page: 1,
-      per_page: 1000, // Загружаем большое количество для получения полного списка родителей
-    });
-    
-    // Извлекаем уникальных родителей
-    const uniqueParents = [...new Set(response.results.map(account => account.parentAccountName))];
+    // Используем оптимизированный метод с кешированием
+    const uniqueParents = await accountsService.getParentAccounts(forceRefresh);
     
     // Обновляем опции без дублирования
-    const filteredParents = uniqueParents.filter(parent => parent !== 'GLOMOS');
+    const filteredParents = uniqueParents.filter(parent => parent && parent !== 'GLOMOS');
     
     parentAccountOptions.value = [
       { title: 'Все родители', value: '' },
@@ -1416,7 +1411,7 @@ const startAutoRefresh = () => {
     if (!isLoading.value) {
       console.log('🔄 Автоматическое обновление данных...');
       loadAccounts(true); // true = фоновое обновление
-      loadStats(true); // true = фоновое обновление статистики
+      loadStats(true, true); // true = фоновое обновление, true = принудительное обновление (обход кеша)
     }
   }, AUTO_REFRESH_DELAY);
 };
@@ -1766,37 +1761,27 @@ const positionPopupInViewport = (popup: HTMLElement | null) => {
   const popupHeight = rect.height;
   const elementHeight = 50; // Высота строки таблицы
   
-  console.log('Popup positioning (always up):', {
-    originalY: rect.top,
-    popupHeight,
-    elementHeight,
-    viewportHeight,
-    elementCenterX,
-    newX
-  });
-  
   // ВСЕГДА показываем popup сверху элемента
   newY = rect.top - popupHeight - 15; // 15px отступ от элемента
-  
-  console.log('Показываем popup сверху:', newY);
   
   // Если popup выходит за верхнюю границу - сдвигаем вниз, но все равно сверху
   if (newY < margin) {
     newY = margin;
-    console.log('Popup выходит за верхнюю границу, сдвигаем к верху экрана:', newY);
   }
   
   // Проверяем, не выходит ли popup за нижнюю границу
   if (newY + popupHeight > viewportHeight - margin) {
     newY = viewportHeight - popupHeight - margin;
-    console.log('Popup выходит за нижнюю границу, сдвигаем вверх:', newY);
+    // Логируем только при проблемах с позиционированием (для отладки)
+    // console.log('Popup выходит за нижнюю границу, сдвигаем вверх:', newY);
   }
   
   // Применяем позицию
   const deltaX = newX - rect.left;
   const deltaY = newY - rect.top;
   
-  console.log('Final positioning:', { newX, newY, deltaX, deltaY });
+  // Убираем избыточные логи - оставляем только при необходимости отладки
+  // console.log('Final positioning:', { newX, newY, deltaX, deltaY });
   
   popup.style.setProperty('--popup-x', `${deltaX}px`);
   popup.style.setProperty('--popup-y', `${deltaY}px`);

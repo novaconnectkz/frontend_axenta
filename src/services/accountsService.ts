@@ -66,6 +66,46 @@ class AccountsService {
     timeout: 30000,
   });
 
+  // Кеширование статистики
+  private statsCache: {
+    data: {
+      total: number;
+      active: number;
+      blocked: number;
+      clients: number;
+      partners: number;
+    } | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (10 секунд)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 10000, // 10 секунд
+  };
+
+  // Дедупликация запросов статистики
+  private pendingStatsRequest: Promise<{
+    total: number;
+    active: number;
+    blocked: number;
+    clients: number;
+    partners: number;
+  }> | null = null;
+
+  // Кеширование родительских аккаунтов
+  private parentAccountsCache: {
+    data: Account[] | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (5 минут)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 300000, // 5 минут
+  };
+
+  // Дедупликация запросов родительских аккаунтов
+  private pendingParentAccountsRequest: Promise<Account[]> | null = null;
+
 
   constructor() {
     // Добавляем interceptor для автоматического добавления токена авторизации
@@ -687,44 +727,168 @@ class AccountsService {
   /**
    * Получить статистику учетных записей
    */
-  async getAccountsStats(): Promise<{
+  async getAccountsStats(forceRefresh: boolean = false): Promise<{
     total: number;
     active: number;
     blocked: number;
     clients: number;
     partners: number;
   }> {
-    try {
-      // Получаем первую страницу для общей статистики
-      const response = await this.getAccounts({ per_page: 1 });
+    // Проверяем кеш, если не требуется принудительное обновление
+    if (!forceRefresh && this.statsCache.data) {
+      const now = Date.now();
+      const age = now - this.statsCache.timestamp;
       
-      // Для детальной статистики можно сделать дополнительные запросы
-      const activeResponse = await this.getAccounts({ 
-        per_page: 1, 
-        is_active: true 
-      });
-      
-      const clientsResponse = await this.getAccounts({ 
-        per_page: 1, 
-        type: "client" 
-      });
-      
-      const partnersResponse = await this.getAccounts({ 
-        per_page: 1, 
-        type: "partner" 
-      });
-
-      return {
-        total: response.count,
-        active: activeResponse.count,
-        blocked: response.count - activeResponse.count,
-        clients: clientsResponse.count,
-        partners: partnersResponse.count,
-      };
-    } catch (error) {
-      console.error("❌ Ошибка получения статистики учетных записей:", error);
-      throw error;
+      if (age < this.statsCache.ttl) {
+        console.log(`📦 Используем кешированную статистику учетных записей (возраст: ${Math.round(age / 1000)}с)`);
+        return this.statsCache.data;
+      }
     }
+
+    // Если запрос уже выполняется, возвращаем тот же Promise
+    if (this.pendingStatsRequest) {
+      console.log("🔄 Запрос статистики учетных записей уже выполняется, используем существующий Promise");
+      return this.pendingStatsRequest;
+    }
+
+    // Создаем новый Promise для запроса
+    this.pendingStatsRequest = (async () => {
+      try {
+        // Выполняем все запросы параллельно для ускорения
+        const [response, activeResponse, clientsResponse, partnersResponse] = await Promise.all([
+          this.getAccounts({ per_page: 1 }),
+          this.getAccounts({ per_page: 1, is_active: true }),
+          this.getAccounts({ per_page: 1, type: "client" }),
+          this.getAccounts({ per_page: 1, type: "partner" })
+        ]);
+
+        const stats = {
+          total: response.count,
+          active: activeResponse.count,
+          blocked: response.count - activeResponse.count,
+          clients: clientsResponse.count,
+          partners: partnersResponse.count,
+        };
+
+        // Обновляем кеш
+        this.updateStatsCache(stats);
+        
+        return stats;
+      } catch (error) {
+        console.error("❌ Ошибка получения статистики учетных записей:", error);
+        throw error;
+      } finally {
+        // Очищаем pending запрос после завершения
+        this.pendingStatsRequest = null;
+      }
+    })();
+
+    return this.pendingStatsRequest;
+  }
+
+  // Обновление кеша статистики
+  private updateStatsCache(data: {
+    total: number;
+    active: number;
+    blocked: number;
+    clients: number;
+    partners: number;
+  }): void {
+    this.statsCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.statsCache.ttl,
+    };
+  }
+
+  // Очистка кеша статистики (для принудительного обновления)
+  clearStatsCache(): void {
+    this.statsCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.statsCache.ttl,
+    };
+    console.log("🗑️ Кеш статистики учетных записей очищен");
+  }
+
+  // Установка времени жизни кеша статистики
+  setStatsCacheTTL(ttlMs: number): void {
+    this.statsCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша статистики учетных записей установлен: ${ttlMs}мс`);
+  }
+
+  /**
+   * Получить список уникальных родительских аккаунтов с кешированием
+   */
+  async getParentAccounts(forceRefresh: boolean = false): Promise<string[]> {
+    // Проверяем кеш, если не требуется принудительное обновление
+    if (!forceRefresh && this.parentAccountsCache.data) {
+      const now = Date.now();
+      const age = now - this.parentAccountsCache.timestamp;
+      
+      if (age < this.parentAccountsCache.ttl) {
+        console.log(`📦 Используем кешированные родительские аккаунты (возраст: ${Math.round(age / 1000)}с)`);
+        return this.parentAccountsCache.data.map(account => account.parentAccountName).filter(Boolean);
+      }
+    }
+
+    // Если запрос уже выполняется, возвращаем тот же Promise
+    if (this.pendingParentAccountsRequest) {
+      console.log("🔄 Запрос родительских аккаунтов уже выполняется, используем существующий Promise");
+      const cached = await this.pendingParentAccountsRequest;
+      return cached.map(account => account.parentAccountName).filter(Boolean);
+    }
+
+    // Создаем новый Promise для запроса
+    this.pendingParentAccountsRequest = (async () => {
+      try {
+        // Загружаем все записи для извлечения уникальных родителей
+        const response = await this.getAccounts({
+          page: 1,
+          per_page: 1000, // Загружаем большое количество для получения полного списка родителей
+          ordering: "name",
+        });
+
+        // Обновляем кеш
+        this.updateParentAccountsCache(response.results);
+        
+        return response.results;
+      } catch (error) {
+        console.error("❌ Ошибка получения родительских аккаунтов:", error);
+        throw error;
+      } finally {
+        // Очищаем pending запрос после завершения
+        this.pendingParentAccountsRequest = null;
+      }
+    })();
+
+    const result = await this.pendingParentAccountsRequest;
+    return result.map(account => account.parentAccountName).filter(Boolean);
+  }
+
+  // Обновление кеша родительских аккаунтов
+  private updateParentAccountsCache(data: Account[]): void {
+    this.parentAccountsCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.parentAccountsCache.ttl,
+    };
+  }
+
+  // Очистка кеша родительских аккаунтов
+  clearParentAccountsCache(): void {
+    this.parentAccountsCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.parentAccountsCache.ttl,
+    };
+    console.log("🗑️ Кеш родительских аккаунтов очищен");
+  }
+
+  // Установка времени жизни кеша родительских аккаунтов
+  setParentAccountsCacheTTL(ttlMs: number): void {
+    this.parentAccountsCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша родительских аккаунтов установлен: ${ttlMs}мс`);
   }
 
   /**
