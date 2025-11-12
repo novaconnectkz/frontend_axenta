@@ -19,6 +19,36 @@ export class ObjectsService {
     timeout: 30000,
   });
 
+  // Кеширование статистики объектов
+  private statsCache: {
+    data: {
+      total: number;
+      active: number;
+      inactive: number;
+      scheduled_for_delete: number;
+      deleted: number;
+      by_type: Record<string, number>;
+      by_status: Record<string, number>;
+    } | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (10 секунд)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 10000, // 10 секунд
+  };
+
+  // Дедупликация запросов статистики
+  private pendingStatsRequest: Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    scheduled_for_delete: number;
+    deleted: number;
+    by_type: Record<string, number>;
+    by_status: Record<string, number>;
+  }> | null = null;
+
   constructor() {
     console.log("🔧 ObjectsService constructor called");
     
@@ -719,8 +749,8 @@ export class ObjectsService {
 
   // === ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ===
 
-  // Получение статистики объектов
-  async getObjectsStats(): Promise<{
+  // Получение статистики объектов с кешированием и дедупликацией
+  async getObjectsStats(forceRefresh: boolean = false): Promise<{
     total: number;
     active: number;
     inactive: number;
@@ -729,9 +759,28 @@ export class ObjectsService {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
-    try {
-      // Пробуем аутентифицированный эндпоинт для статистики
-      const response = await this.apiClient.get("/auth/cms/objects/stats");
+    // Проверяем кеш, если не требуется принудительное обновление
+    if (!forceRefresh && this.statsCache.data) {
+      const now = Date.now();
+      const age = now - this.statsCache.timestamp;
+      
+      if (age < this.statsCache.ttl) {
+        console.log(`📦 Используем кешированную статистику объектов (возраст: ${Math.round(age / 1000)}с)`);
+        return this.statsCache.data;
+      }
+    }
+
+    // Если запрос уже выполняется, возвращаем тот же Promise
+    if (this.pendingStatsRequest) {
+      console.log("🔄 Запрос статистики объектов уже выполняется, используем существующий Promise");
+      return this.pendingStatsRequest;
+    }
+
+    // Создаем новый Promise для запроса
+    this.pendingStatsRequest = (async () => {
+      try {
+        // Пробуем аутентифицированный эндпоинт для статистики
+        const response = await this.apiClient.get("/auth/cms/objects/stats");
       console.log("✅ Backend objects stats API response:", response.data);
       
       const stats = response.data.data || response.data;
@@ -750,6 +799,8 @@ export class ObjectsService {
         }
       }
       
+      // Обновляем кеш
+      this.updateStatsCache(stats);
       return stats;
     } catch (error: any) {
       console.log("🔍 Error in getObjectsStats (backend):", error.response?.status, error.message);
@@ -795,7 +846,7 @@ export class ObjectsService {
             console.warn("Не удалось получить статистику корзины:", trashError);
           }
           
-          return {
+          const fallbackStats = {
             total: total,
             active: total, // Предполагаем, что большинство активны
             inactive: 0,
@@ -808,12 +859,18 @@ export class ObjectsService {
               active: total
             }
           };
+          
+          // Обновляем кеш
+          this.updateStatsCache(fallbackStats);
+          return fallbackStats;
         } catch (axentaError: any) {
           console.warn("🔄 Fallback to backend /objects/stats endpoint");
           try {
             const response = await this.apiClient.get("/objects/stats");
             console.log("✅ Fallback to backend /objects/stats successful");
-            return response.data.data || response.data;
+            const fallbackStats = response.data.data || response.data;
+            this.updateStatsCache(fallbackStats);
+            return fallbackStats;
           } catch (fallbackError: any) {
             console.error("❌ All fallbacks failed for objects stats:", fallbackError);
             
@@ -829,7 +886,7 @@ export class ObjectsService {
             }
             
             // Возвращаем пустую статистику вместо ошибки
-            return {
+            const emptyStats = {
               total: 0,
               active: 0,
               inactive: 0,
@@ -838,11 +895,52 @@ export class ObjectsService {
               by_type: {},
               by_status: {}
             };
+            this.updateStatsCache(emptyStats);
+            return emptyStats;
           }
         }
       }
       throw error;
+    } finally {
+      // Очищаем pending запрос после завершения
+      this.pendingStatsRequest = null;
     }
+    })();
+
+    return this.pendingStatsRequest;
+  }
+
+  // Обновление кеша статистики
+  private updateStatsCache(data: {
+    total: number;
+    active: number;
+    inactive: number;
+    scheduled_for_delete: number;
+    deleted: number;
+    by_type: Record<string, number>;
+    by_status: Record<string, number>;
+  }): void {
+    this.statsCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.statsCache.ttl,
+    };
+  }
+
+  // Очистка кеша статистики (для принудительного обновления)
+  clearStatsCache(): void {
+    this.statsCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.statsCache.ttl,
+    };
+    console.log("🗑️ Кеш статистики объектов очищен");
+  }
+
+  // Установка времени жизни кеша статистики
+  setStatsCacheTTL(ttlMs: number): void {
+    this.statsCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша статистики объектов установлен: ${ttlMs}мс`);
   }
 
   // Экспорт объектов

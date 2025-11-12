@@ -7,7 +7,7 @@
     :dimensions="dimensions"
     :loading="loading"
     :error="error"
-    @refresh="loadData"
+    @refresh="() => loadData(true)"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
     @resize="$emit('resize', $event)"
@@ -165,12 +165,12 @@ export default defineComponent({
       }
     };
 
-    const loadData = async () => {
+    const loadData = async (forceRefresh: boolean = false) => {
       try {
         // loading.value = true; // Убираем loading, чтобы не было размытия экрана
         error.value = undefined;
-        console.log('🔄 ObjectsOverviewWidget: Loading dashboard stats...');
-        const stats = await dashboardService.getStats();
+        console.log('🔄 ObjectsOverviewWidget: Loading dashboard stats...', forceRefresh ? '(force refresh)' : '');
+        const stats = await dashboardService.getStats(forceRefresh);
         console.log('📊 ObjectsOverviewWidget: Dashboard stats received:', stats);
         console.log('📊 ObjectsOverviewWidget: Objects stats:', stats.objects);
         console.log('🗑️ ObjectsOverviewWidget: Количество удаленных объектов:', stats.objects.deleted);

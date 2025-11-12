@@ -32,6 +32,20 @@ class DashboardService {
   // Флаг для использования реальных данных пользователей
   private useRealUsersData = true;
 
+  // Кеширование статистики
+  private statsCache: {
+    data: DashboardStats | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (10 секунд)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 10000, // 10 секунд
+  };
+
+  // Дедупликация запросов - храним активные Promise'ы
+  private pendingStatsRequest: Promise<DashboardStats> | null = null;
+
   // Простой API клиент без auth зависимостей
   private get apiClient() {
     const token = localStorage.getItem("axenta_token");
@@ -45,73 +59,129 @@ class DashboardService {
     });
   }
 
-  // Получение общей статистики для Dashboard
-  async getStats(): Promise<DashboardStats> {
-    // Если полностью используем mock-данные, возвращаем их
-    if (this.useMockData && !this.useRealObjectsData && !this.useRealUsersData) {
-      await simulateDelay(100); // Небольшая задержка для реалистичности
-      return mockDashboardStats;
+  // Получение общей статистики для Dashboard с кешированием и дедупликацией
+  async getStats(forceRefresh: boolean = false): Promise<DashboardStats> {
+    // Проверяем кеш, если не требуется принудительное обновление
+    if (!forceRefresh && this.statsCache.data) {
+      const now = Date.now();
+      const age = now - this.statsCache.timestamp;
+      
+      if (age < this.statsCache.ttl) {
+        console.log(`📦 Используем кешированные данные статистики (возраст: ${Math.round(age / 1000)}с)`);
+        return this.statsCache.data;
+      }
     }
 
-    try {
-      let objectsStats;
-      let usersStats;
-      
-      // Получаем данные об объектах
-      if (this.useRealObjectsData) {
-        console.log("📊 Loading real objects data...");
-        const objectsService = ObjectsService.getInstance();
-        const realObjectsStats = await objectsService.getObjectsStats();
-        console.log("📊 Real objects stats:", realObjectsStats);
-        console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
-        
-        objectsStats = {
-          total: realObjectsStats.total,
-          active: realObjectsStats.active,
-          inactive: realObjectsStats.inactive,
-          scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
-          deleted: realObjectsStats.deleted
-        };
-        
-        console.log("📊 Objects stats для дашборда:", objectsStats);
-      } else {
-        objectsStats = mockDashboardStats.objects;
-      }
-      
-      // Получаем данные о пользователях
-      if (this.useRealUsersData) {
-        console.log("📊 Loading real users data...");
-        const realUsersStats = await usersService.getUsersStats();
-        console.log("📊 Real users stats:", realUsersStats);
-        
-        usersStats = {
-          total: realUsersStats.total,
-          active: realUsersStats.active,
-          inactive: realUsersStats.inactive,
-          admins: realUsersStats.admins,
-          regular_users: realUsersStats.regular_users
-        };
-      } else {
-        usersStats = mockDashboardStats.users;
-      }
-      
-      // Собираем итоговую статистику
-      const dashboardStats: DashboardStats = {
-        objects: objectsStats,
-        users: usersStats,
-        // Для остальных разделов пока используем mock данные
-        billing: mockDashboardStats.billing,
-        installations: mockDashboardStats.installations,
-        warehouse: mockDashboardStats.warehouse
-      };
-      
-      return dashboardStats;
-    } catch (error) {
-      console.error("Ошибка получения статистики:", error);
-      // В случае ошибки возвращаем mock данные как fallback
-      console.warn("🔄 Fallback to mock data for dashboard stats");
-      return mockDashboardStats;
+    // Если запрос уже выполняется, возвращаем тот же Promise
+    if (this.pendingStatsRequest) {
+      console.log("🔄 Запрос статистики уже выполняется, используем существующий Promise");
+      return this.pendingStatsRequest;
     }
+    // Создаем новый Promise для запроса
+    this.pendingStatsRequest = (async () => {
+      try {
+        // Если полностью используем mock-данные, возвращаем их
+        if (this.useMockData && !this.useRealObjectsData && !this.useRealUsersData) {
+          await simulateDelay(100); // Небольшая задержка для реалистичности
+          const result = mockDashboardStats;
+          this.updateCache(result);
+          return result;
+        }
+
+        let objectsStats;
+        let usersStats;
+        
+        // Получаем данные об объектах
+        if (this.useRealObjectsData) {
+          console.log("📊 Loading real objects data...");
+          const objectsService = ObjectsService.getInstance();
+          const realObjectsStats = await objectsService.getObjectsStats();
+          console.log("📊 Real objects stats:", realObjectsStats);
+          console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
+          
+          objectsStats = {
+            total: realObjectsStats.total,
+            active: realObjectsStats.active,
+            inactive: realObjectsStats.inactive,
+            scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
+            deleted: realObjectsStats.deleted
+          };
+          
+          console.log("📊 Objects stats для дашборда:", objectsStats);
+        } else {
+          objectsStats = mockDashboardStats.objects;
+        }
+        
+        // Получаем данные о пользователях
+        if (this.useRealUsersData) {
+          console.log("📊 Loading real users data...");
+          const realUsersStats = await usersService.getUsersStats();
+          console.log("📊 Real users stats:", realUsersStats);
+          
+          usersStats = {
+            total: realUsersStats.total,
+            active: realUsersStats.active,
+            inactive: realUsersStats.inactive,
+            admins: realUsersStats.admins,
+            regular_users: realUsersStats.regular_users
+          };
+        } else {
+          usersStats = mockDashboardStats.users;
+        }
+        
+        // Собираем итоговую статистику
+        const dashboardStats: DashboardStats = {
+          objects: objectsStats,
+          users: usersStats,
+          // Для остальных разделов пока используем mock данные
+          billing: mockDashboardStats.billing,
+          installations: mockDashboardStats.installations,
+          warehouse: mockDashboardStats.warehouse
+        };
+        
+        // Обновляем кеш
+        this.updateCache(dashboardStats);
+        
+        return dashboardStats;
+      } catch (error) {
+        console.error("Ошибка получения статистики:", error);
+        // В случае ошибки возвращаем mock данные как fallback
+        console.warn("🔄 Fallback to mock data for dashboard stats");
+        const fallbackStats = mockDashboardStats;
+        this.updateCache(fallbackStats);
+        return fallbackStats;
+      } finally {
+        // Очищаем pending запрос после завершения
+        this.pendingStatsRequest = null;
+      }
+    })();
+
+    return this.pendingStatsRequest;
+  }
+
+  // Обновление кеша
+  private updateCache(data: DashboardStats): void {
+    this.statsCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.statsCache.ttl,
+    };
+  }
+
+  // Очистка кеша (для принудительного обновления)
+  clearStatsCache(): void {
+    this.statsCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.statsCache.ttl,
+    };
+    console.log("🗑️ Кеш статистики очищен");
+  }
+
+  // Установка времени жизни кеша
+  setCacheTTL(ttlMs: number): void {
+    this.statsCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша статистики установлен: ${ttlMs}мс`);
   }
 
   // Получение последней активности
