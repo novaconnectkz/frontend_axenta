@@ -27,6 +27,48 @@ export class UsersService {
     timeout: 30000,
   });
 
+  // Кеширование статистики пользователей
+  private statsCache: {
+    data: UserStats | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (10 секунд)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 10000, // 10 секунд
+  };
+
+  // Дедупликация запросов статистики
+  private pendingStatsRequest: Promise<UserStats> | null = null;
+
+  // Кеширование ролей
+  private rolesCache: {
+    data: Role[] | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (5 минут)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 300000, // 5 минут
+  };
+
+  // Дедупликация запросов ролей
+  private pendingRolesRequest: Promise<Role[]> | null = null;
+
+  // Кеширование шаблонов пользователей
+  private templatesCache: {
+    data: UserTemplate[] | null;
+    timestamp: number;
+    ttl: number; // Время жизни кеша в миллисекундах (5 минут)
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 300000, // 5 минут
+  };
+
+  // Дедупликация запросов шаблонов
+  private pendingTemplatesRequest: Promise<UserTemplate[]> | null = null;
+
   constructor() {
     // Настраиваем interceptors для токена
     this.apiClient.interceptors.request.use((config) => {
@@ -352,7 +394,8 @@ export class UsersService {
   async getRoles(
     page = 1,
     limit = 100,
-    filters: { search?: string; active_only?: boolean } = {}
+    filters: { search?: string; active_only?: boolean } = {},
+    forceRefresh: boolean = false
   ): Promise<{
     status: string;
     data: {
@@ -364,6 +407,44 @@ export class UsersService {
     };
     error?: string;
   }> {
+    // Кешируем только для стандартного запроса (active_only: true, без поиска, первая страница)
+    const isStandardRequest = page === 1 && limit === 100 && filters.active_only === true && !filters.search;
+    
+    if (isStandardRequest && !forceRefresh && this.rolesCache.data) {
+      const now = Date.now();
+      const age = now - this.rolesCache.timestamp;
+      
+      if (age < this.rolesCache.ttl) {
+        console.log(`📦 Используем кешированные роли (возраст: ${Math.round(age / 1000)}с)`);
+        return {
+          status: "success",
+          data: {
+            items: this.rolesCache.data,
+            total: this.rolesCache.data.length,
+            page: 1,
+            limit: 100,
+            pages: 1,
+          },
+        };
+      }
+    }
+
+    // Если запрос уже выполняется для стандартного запроса, возвращаем тот же Promise
+    if (isStandardRequest && this.pendingRolesRequest) {
+      console.log("🔄 Запрос ролей уже выполняется, используем существующий Promise");
+      const cached = await this.pendingRolesRequest;
+      return {
+        status: "success",
+        data: {
+          items: cached,
+          total: cached.length,
+          page: 1,
+          limit: 100,
+          pages: 1,
+        },
+      };
+    }
+
     // Если включен режим демо данных, возвращаем mock роли
     if (this.useMockData) {
       let filteredRoles = [...mockRoles];
@@ -381,8 +462,8 @@ export class UsersService {
         );
       }
 
-      return {
-        status: "success",
+      const result = {
+        status: "success" as const,
         data: {
           items: filteredRoles,
           total: filteredRoles.length,
@@ -391,27 +472,43 @@ export class UsersService {
           pages: Math.ceil(filteredRoles.length / limit),
         },
       };
-    }
 
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (filters.search) params.append("search", filters.search);
-      if (filters.active_only !== undefined) {
-        params.append("active_only", filters.active_only.toString());
+      // Кешируем mock данные для стандартного запроса
+      if (isStandardRequest) {
+        this.updateRolesCache(filteredRoles);
       }
 
-      const response = await this.apiClient.get(`/public/roles?${params.toString()}`);
-      return response.data;
-    } catch (error: any) {
-      console.error("❌ Ошибка загрузки ролей с Axenta API:", error);
-      
-      // Возвращаем роли по умолчанию в случае ошибки
-      const defaultRoles = [
-        {
+      return result;
+    }
+
+    // Создаем Promise для стандартного запроса
+    const requestPromise = (async () => {
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: limit.toString(),
+        });
+
+        if (filters.search) params.append("search", filters.search);
+        if (filters.active_only !== undefined) {
+          params.append("active_only", filters.active_only.toString());
+        }
+
+        const response = await this.apiClient.get(`/public/roles?${params.toString()}`);
+        const result = response.data;
+
+        // Кешируем для стандартного запроса
+        if (isStandardRequest && result.status === "success") {
+          this.updateRolesCache(result.data.items);
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error("❌ Ошибка загрузки ролей с Axenta API:", error);
+        
+        // Возвращаем роли по умолчанию в случае ошибки
+        const defaultRoles = [
+          {
           id: 1,
           name: "partner",
           display_name: "Партнер",
@@ -449,19 +546,64 @@ export class UsersService {
         },
       ];
 
-      console.log("🔄 Используем роли по умолчанию из-за ошибки API");
-      
-      return {
-        status: "success", // Возвращаем success с fallback данными
-        data: {
-          items: defaultRoles,
-          total: defaultRoles.length,
-          page,
-          limit,
-          pages: 1,
-        },
-      };
+        console.log("🔄 Используем роли по умолчанию из-за ошибки API");
+        
+        const errorResult = {
+          status: "success" as const, // Возвращаем success с fallback данными
+          data: {
+            items: defaultRoles,
+            total: defaultRoles.length,
+            page,
+            limit,
+            pages: 1,
+          },
+        };
+
+        // Кешируем fallback данные для стандартного запроса
+        if (isStandardRequest) {
+          this.updateRolesCache(defaultRoles);
+        }
+
+        return errorResult;
+      } finally {
+        // Очищаем pending запрос после завершения (только для стандартного запроса)
+        if (isStandardRequest) {
+          this.pendingRolesRequest = null;
+        }
+      }
+    })();
+
+    // Сохраняем Promise для стандартного запроса
+    if (isStandardRequest) {
+      this.pendingRolesRequest = requestPromise.then(result => result.data.items);
     }
+
+    return requestPromise;
+  }
+
+  // Обновление кеша ролей
+  private updateRolesCache(data: Role[]): void {
+    this.rolesCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.rolesCache.ttl,
+    };
+  }
+
+  // Очистка кеша ролей
+  clearRolesCache(): void {
+    this.rolesCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.rolesCache.ttl,
+    };
+    console.log("🗑️ Кеш ролей очищен");
+  }
+
+  // Установка времени жизни кеша ролей
+  setRolesCacheTTL(ttlMs: number): void {
+    this.rolesCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша ролей установлен: ${ttlMs}мс`);
   }
 
   // Получение одной роли
@@ -555,7 +697,8 @@ export class UsersService {
   async getUserTemplates(
     page = 1,
     limit = 100,
-    filters: { search?: string; active_only?: boolean } = {}
+    filters: { search?: string; active_only?: boolean } = {},
+    forceRefresh: boolean = false
   ): Promise<{
     status: string;
     data: {
@@ -567,6 +710,44 @@ export class UsersService {
     };
     error?: string;
   }> {
+    // Кешируем только для стандартного запроса (active_only: true, без поиска, первая страница)
+    const isStandardRequest = page === 1 && limit === 100 && filters.active_only === true && !filters.search;
+    
+    if (isStandardRequest && !forceRefresh && this.templatesCache.data) {
+      const now = Date.now();
+      const age = now - this.templatesCache.timestamp;
+      
+      if (age < this.templatesCache.ttl) {
+        console.log(`📦 Используем кешированные шаблоны пользователей (возраст: ${Math.round(age / 1000)}с)`);
+        return {
+          status: "success",
+          data: {
+            items: this.templatesCache.data,
+            total: this.templatesCache.data.length,
+            page: 1,
+            limit: 100,
+            pages: 1,
+          },
+        };
+      }
+    }
+
+    // Если запрос уже выполняется для стандартного запроса, возвращаем тот же Promise
+    if (isStandardRequest && this.pendingTemplatesRequest) {
+      console.log("🔄 Запрос шаблонов пользователей уже выполняется, используем существующий Promise");
+      const cached = await this.pendingTemplatesRequest;
+      return {
+        status: "success",
+        data: {
+          items: cached,
+          total: cached.length,
+          page: 1,
+          limit: 100,
+          pages: 1,
+        },
+      };
+    }
+
     // Если включен режим демо данных, возвращаем mock шаблоны
     if (this.useMockData) {
       let filteredTemplates = [...mockTemplates];
@@ -587,8 +768,8 @@ export class UsersService {
         );
       }
 
-      return {
-        status: "success",
+      const result = {
+        status: "success" as const,
         data: {
           items: filteredTemplates,
           total: filteredTemplates.length,
@@ -597,37 +778,100 @@ export class UsersService {
           pages: Math.ceil(filteredTemplates.length / limit),
         },
       };
-    }
 
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      if (filters.search) params.append("search", filters.search);
-      if (filters.active_only !== undefined) {
-        params.append("active_only", filters.active_only.toString());
+      // Кешируем mock данные для стандартного запроса
+      if (isStandardRequest) {
+        this.updateTemplatesCache(filteredTemplates);
       }
 
-      const response = await this.apiClient.get(
-        `/public/user-templates?${params.toString()}`
-      );
-      return response.data;
-    } catch (error: any) {
-      console.error("❌ Ошибка загрузки шаблонов пользователей с Axenta API:", error);
-      return {
-        status: "error",
-        data: {
-          items: [],
-          total: 0,
-          page,
-          limit,
-          pages: 0,
-        },
-        error: error.response?.data?.error || error.message || "Ошибка загрузки шаблонов",
-      };
+      return result;
     }
+
+    // Создаем Promise для стандартного запроса
+    const requestPromise = (async () => {
+      try {
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: limit.toString(),
+        });
+
+        if (filters.search) params.append("search", filters.search);
+        if (filters.active_only !== undefined) {
+          params.append("active_only", filters.active_only.toString());
+        }
+
+        const response = await this.apiClient.get(
+          `/public/user-templates?${params.toString()}`
+        );
+        const result = response.data;
+
+        // Кешируем для стандартного запроса
+        if (isStandardRequest && result.status === "success") {
+          this.updateTemplatesCache(result.data.items);
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error("❌ Ошибка загрузки шаблонов пользователей с Axenta API:", error);
+        const errorResult = {
+          status: "error" as const,
+          data: {
+            items: [] as UserTemplate[],
+            total: 0,
+            page,
+            limit,
+            pages: 0,
+          },
+          error: error.response?.data?.error || error.message || "Ошибка загрузки шаблонов",
+        };
+
+        // Кешируем пустой результат для стандартного запроса (чтобы не делать повторные запросы при ошибке)
+        if (isStandardRequest) {
+          this.updateTemplatesCache([]);
+        }
+
+        return errorResult;
+      } finally {
+        // Очищаем pending запрос после завершения (только для стандартного запроса)
+        if (isStandardRequest) {
+          this.pendingTemplatesRequest = null;
+        }
+      }
+    })();
+
+    // Сохраняем Promise для стандартного запроса
+    if (isStandardRequest) {
+      this.pendingTemplatesRequest = requestPromise.then(result => 
+        result.status === "success" ? result.data.items : []
+      );
+    }
+
+    return requestPromise;
+  }
+
+  // Обновление кеша шаблонов
+  private updateTemplatesCache(data: UserTemplate[]): void {
+    this.templatesCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.templatesCache.ttl,
+    };
+  }
+
+  // Очистка кеша шаблонов
+  clearTemplatesCache(): void {
+    this.templatesCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.templatesCache.ttl,
+    };
+    console.log("🗑️ Кеш шаблонов пользователей очищен");
+  }
+
+  // Установка времени жизни кеша шаблонов
+  setTemplatesCacheTTL(ttlMs: number): void {
+    this.templatesCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша шаблонов пользователей установлен: ${ttlMs}мс`);
   }
 
   // Получение одного шаблона
@@ -672,56 +916,78 @@ export class UsersService {
   // === СТАТИСТИКА ===
 
   // Получение статистики пользователей
-  async getUsersStats(): Promise<UserStats> {
-    try {
-      console.log("📊 Загрузка статистики пользователей из API...");
-      const response = await this.apiClient.get("/auth/users/stats");
+  async getUsersStats(forceRefresh: boolean = false): Promise<UserStats> {
+    // Проверяем кеш, если не требуется принудительное обновление
+    if (!forceRefresh && this.statsCache.data) {
+      const now = Date.now();
+      const age = now - this.statsCache.timestamp;
       
-      if (response.data.status === "success") {
-        const stats = response.data.data;
-        console.log("📊 Получена статистика пользователей:", stats);
-        
-        // Преобразуем данные в нужный формат
-        const userStats: UserStats = {
-          total: stats.total || stats.total_users || 0,
-          active: stats.active || stats.active_users || 0,
-          inactive: stats.inactive || stats.inactive_users || 0,
-          admins: stats.admins || 0,
-          regular_users: stats.regular_users || 0,
-          active_users: stats.active_users || stats.active || 0,
-          inactive_users: stats.inactive_users || stats.inactive || 0,
-          total_users: stats.total_users || stats.total || 0,
-          recent_users: stats.recent_users || 0,
-          recent_logins: stats.recent_logins || 0,
-          by_role: stats.by_role || {},
-          by_type: stats.by_type || {},
-          role_stats: stats.role_stats || [],
-          last_updated: stats.last_updated
-        };
-        
-        return userStats;
-      } else {
-        throw new Error(response.data.error || "Неизвестная ошибка API");
+      if (age < this.statsCache.ttl) {
+        console.log(`📦 Используем кешированную статистику пользователей (возраст: ${Math.round(age / 1000)}с)`);
+        return this.statsCache.data;
       }
-    } catch (error: any) {
-      console.error("❌ Ошибка загрузки статистики пользователей:", error);
-      
-      // Если включен режим демо данных, возвращаем mock статистику
-      if (this.useMockData) {
-        console.log("🔄 Используем демо данные для статистики пользователей");
-        return {
-          total: 28,
-          active: 25,
-          inactive: 3,
-          admins: 4,
-          regular_users: 24,
-          active_users: 25,
-          inactive_users: 3,
-          total_users: 28,
-          recent_users: 5,
-          recent_logins: 12,
-          by_role: {
-            "Администратор": 4,
+    }
+
+    // Если запрос уже выполняется, возвращаем тот же Promise
+    if (this.pendingStatsRequest) {
+      console.log("🔄 Запрос статистики пользователей уже выполняется, используем существующий Promise");
+      return this.pendingStatsRequest;
+    }
+
+    // Создаем новый Promise для запроса
+    this.pendingStatsRequest = (async () => {
+      try {
+        console.log("📊 Загрузка статистики пользователей из API...");
+        const response = await this.apiClient.get("/auth/users/stats");
+        
+        if (response.data.status === "success") {
+          const stats = response.data.data;
+          console.log("📊 Получена статистика пользователей:", stats);
+          
+          // Преобразуем данные в нужный формат
+          const userStats: UserStats = {
+            total: stats.total || stats.total_users || 0,
+            active: stats.active || stats.active_users || 0,
+            inactive: stats.inactive || stats.inactive_users || 0,
+            admins: stats.admins || 0,
+            regular_users: stats.regular_users || 0,
+            active_users: stats.active_users || stats.active || 0,
+            inactive_users: stats.inactive_users || stats.inactive || 0,
+            total_users: stats.total_users || stats.total || 0,
+            recent_users: stats.recent_users || 0,
+            recent_logins: stats.recent_logins || 0,
+            by_role: stats.by_role || {},
+            by_type: stats.by_type || {},
+            role_stats: stats.role_stats || [],
+            last_updated: stats.last_updated
+          };
+          
+          // Обновляем кеш
+          this.updateStatsCache(userStats);
+          
+          return userStats;
+        } else {
+          throw new Error(response.data.error || "Неизвестная ошибка API");
+        }
+      } catch (error: any) {
+        console.error("❌ Ошибка загрузки статистики пользователей:", error);
+        
+        // Если включен режим демо данных, возвращаем mock статистику
+        if (this.useMockData) {
+          console.log("🔄 Используем демо данные для статистики пользователей");
+          const mockStats: UserStats = {
+            total: 28,
+            active: 25,
+            inactive: 3,
+            admins: 4,
+            regular_users: 24,
+            active_users: 25,
+            inactive_users: 3,
+            total_users: 28,
+            recent_users: 5,
+            recent_logins: 12,
+            by_role: {
+              "Администратор": 4,
             "Пользователь": 20,
             "Клиент": 4
           },
@@ -738,10 +1004,14 @@ export class UsersService {
           ],
           last_updated: new Date().toISOString()
         };
+        
+        // Обновляем кеш для mock данных
+        this.updateStatsCache(mockStats);
+        return mockStats;
       }
       
       // Возвращаем пустую статистику при ошибке
-      return {
+      const emptyStats: UserStats = {
         total: 0,
         active: 0,
         inactive: 0,
@@ -756,7 +1026,42 @@ export class UsersService {
         by_type: {},
         role_stats: []
       };
+      
+      // Обновляем кеш для пустой статистики
+      this.updateStatsCache(emptyStats);
+      return emptyStats;
+    } finally {
+      // Очищаем pending запрос после завершения
+      this.pendingStatsRequest = null;
     }
+    })();
+
+    return this.pendingStatsRequest;
+  }
+
+  // Обновление кеша статистики
+  private updateStatsCache(data: UserStats): void {
+    this.statsCache = {
+      data,
+      timestamp: Date.now(),
+      ttl: this.statsCache.ttl,
+    };
+  }
+
+  // Очистка кеша статистики (для принудительного обновления)
+  clearStatsCache(): void {
+    this.statsCache = {
+      data: null,
+      timestamp: 0,
+      ttl: this.statsCache.ttl,
+    };
+    console.log("🗑️ Кеш статистики пользователей очищен");
+  }
+
+  // Установка времени жизни кеша статистики
+  setStatsCacheTTL(ttlMs: number): void {
+    this.statsCache.ttl = ttlMs;
+    console.log(`⏱️ TTL кеша статистики пользователей установлен: ${ttlMs}мс`);
   }
 
   // === ЭКСПОРТ ===

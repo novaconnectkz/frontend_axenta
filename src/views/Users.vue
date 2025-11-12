@@ -710,17 +710,17 @@ const loadUsers = async () => {
       console.log('🔍 users.value.length:', users.value.length);
       console.log('🔍 Размер таблицы будет:', parseInt(usersData.value?.total) || 0);
       
-      // Отладка дат для первых нескольких пользователей
-      console.log('📅 Отладка дат создания пользователей:');
-      users.value.slice(0, 5).forEach((user, index) => {
-        console.log(`📅 Пользователь ${index + 1}:`, {
-          username: user.username,
-          creation_datetime: user.creation_datetime,
-          _creation_datetime_sort: user._creation_datetime_sort,
-          type: typeof user.creation_datetime,
-          raw_value: user.creation_datetime
-        });
-      });
+      // Отладка дат отключена для уменьшения логов
+      // console.log('📅 Отладка дат создания пользователей:');
+      // users.value.slice(0, 5).forEach((user, index) => {
+      //   console.log(`📅 Пользователь ${index + 1}:`, {
+      //     username: user.username,
+      //     creation_datetime: user.creation_datetime,
+      //     _creation_datetime_sort: user._creation_datetime_sort,
+      //     type: typeof user.creation_datetime,
+      //     raw_value: user.creation_datetime
+      //   });
+      // });
       
       // Статистика активности пользователей (логирование отключено для продакшена)
       // console.log('👥 Статус активности пользователей:');
@@ -736,9 +736,10 @@ const loadUsers = async () => {
   }
 };
 
-const loadStats = async () => {
+const loadStats = async (forceRefresh: boolean = false) => {
   try {
-    const statsData = await usersService.getUsersStats();
+    // Используем оптимизированный метод с кешированием
+    const statsData = await usersService.getUsersStats(forceRefresh);
     if (statsData && typeof statsData === 'object') {
       stats.value[0].value = statsData.total || 0;
       stats.value[1].value = statsData.active_users || statsData.active || 0;
@@ -754,10 +755,11 @@ const loadStats = async () => {
   }
 };
 
-const loadRoles = async () => {
+const loadRoles = async (forceRefresh: boolean = false) => {
   try {
     loadingRoles.value = true;
-    const response = await usersService.getRoles(1, 100, { active_only: true });
+    // Используем оптимизированный метод с кешированием
+    const response = await usersService.getRoles(1, 100, { active_only: true }, forceRefresh);
     if (response.status === 'success') {
       roleOptions.value = response.data.items.map(role => ({
         title: role.display_name,
@@ -775,10 +777,11 @@ const loadRoles = async () => {
   }
 };
 
-const loadTemplates = async () => {
+const loadTemplates = async (forceRefresh: boolean = false) => {
   try {
     loadingTemplates.value = true;
-    const response = await usersService.getUserTemplates(1, 100, { active_only: true });
+    // Используем оптимизированный метод с кешированием
+    const response = await usersService.getUserTemplates(1, 100, { active_only: true }, forceRefresh);
     if (response.status === 'success') {
       templateOptions.value = response.data.items.map(template => ({
         title: template.name,
@@ -1057,9 +1060,10 @@ const getRoleIcon = (roleName: string): string => {
 
 // Функция форматирования даты (только дата)
 const formatDateOnly = (dateString: string): string => {
-  console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
+  // Логи отключены для уменьшения количества сообщений в консоли
+  // console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
   const date = new Date(dateString);
-  console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
+  // console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
   
   const formatted = date.toLocaleDateString('ru-RU', {
     day: '2-digit',
@@ -1067,7 +1071,7 @@ const formatDateOnly = (dateString: string): string => {
     year: 'numeric',
   });
   
-  console.log('📅 Отформатированная дата:', formatted);
+  // console.log('📅 Отформатированная дата:', formatted);
   return formatted;
 };
 
@@ -1085,9 +1089,10 @@ const formatTimeOnly = (dateString: string): string => {
 
 // Функция форматирования полной даты и времени (для обратной совместимости)
 const formatDate = (dateString: string): string => {
-  console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
+  // Логи отключены для уменьшения количества сообщений в консоли
+  // console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
   const date = new Date(dateString);
-  console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
+  // console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
   
   const formatted = date.toLocaleString('ru-RU', {
     day: '2-digit',
@@ -1097,17 +1102,19 @@ const formatDate = (dateString: string): string => {
     minute: '2-digit',
   });
   
-  console.log('📅 Отформатированная дата:', formatted);
+  // console.log('📅 Отформатированная дата:', formatted);
   return formatted;
 };
 
 // Функция для определения CSS класса строки
 const getRowClass = (item: UserWithRelations): string => {
-  console.log('🔍 Проверяем пользователя:', item.username, 'is_active:', item.is_active);
+  // Логи отключены для уменьшения количества сообщений в консоли
+  // console.log('🔍 Проверяем пользователя:', item.username, 'is_active:', item.is_active);
   const className = item.is_active ? '' : 'inactive-user';
-  if (!item.is_active) {
-    console.log('🔴 Неактивный пользователь:', item.username, 'класс:', className);
-  }
+  // Логи отключены для уменьшения количества сообщений в консоли
+  // if (!item.is_active) {
+  //   console.log('🔴 Неактивный пользователь:', item.username, 'класс:', className);
+  // }
   return className;
 };
 
