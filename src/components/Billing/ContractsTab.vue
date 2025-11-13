@@ -157,9 +157,36 @@
             <div class="amount-value">
               {{ formatCurrency(item.total_amount, item.currency) }}
             </div>
-            <div class="text-caption">
-              {{ item.objects?.length || 0 }} объектов
-            </div>
+            <v-tooltip location="top" :disabled="!item.objects || item.objects.length === 0">
+              <template #activator="{ props }">
+                <div class="text-caption objects-count" v-bind="props" style="cursor: pointer;">
+                  {{ item.objects?.length || 0 }} объектов
+                </div>
+              </template>
+              <template #default>
+                <div class="objects-tooltip">
+                  <div class="objects-tooltip-title">Привязанные объекты:</div>
+                  <div class="objects-tooltip-list">
+                    <div 
+                      v-for="obj in item.objects" 
+                      :key="obj.id"
+                      class="objects-tooltip-item"
+                    >
+                      <span v-if="obj.name && obj.name !== `Объект #${obj.id}`">
+                        <strong>{{ obj.name }}</strong>
+                        <span class="objects-tooltip-id">(ID: {{ obj.id }})</span>
+                      </span>
+                      <span v-else>
+                        Объект #{{ obj.id }}
+                      </span>
+                    </div>
+                    <div v-if="!item.objects || item.objects.length === 0" class="objects-tooltip-empty">
+                      Нет привязанных объектов
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </v-tooltip>
           </div>
         </template>
 
@@ -1056,6 +1083,86 @@ onMounted(async () => {
 
 [data-theme="dark"] .v-card-text {
   color: #ffffff !important;
+}
+
+/* Стили для tooltip с объектами */
+.objects-count {
+  transition: color 0.2s ease;
+}
+
+.objects-count:hover {
+  color: var(--v-primary-base, #1976d2);
+  text-decoration: underline;
+}
+
+.objects-tooltip {
+  max-width: 300px;
+  padding: 8px 0;
+}
+
+.objects-tooltip-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+  padding: 0 12px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.objects-tooltip-list {
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 0 12px;
+}
+
+.objects-tooltip-item {
+  padding: 4px 0;
+  font-size: 0.8125rem;
+  color: rgba(0, 0, 0, 0.7);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  line-height: 1.5;
+}
+
+.objects-tooltip-item:last-child {
+  border-bottom: none;
+}
+
+.objects-tooltip-item strong {
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.objects-tooltip-id {
+  font-size: 0.75rem;
+  color: rgba(0, 0, 0, 0.5);
+  margin-left: 4px;
+}
+
+.objects-tooltip-empty {
+  padding: 4px 0;
+  font-size: 0.8125rem;
+  color: rgba(0, 0, 0, 0.5);
+  font-style: italic;
+}
+
+[data-theme="dark"] .objects-tooltip-title {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+[data-theme="dark"] .objects-tooltip-item {
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .objects-tooltip-item strong {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+[data-theme="dark"] .objects-tooltip-id {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+[data-theme="dark"] .objects-tooltip-empty {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* Responsive */

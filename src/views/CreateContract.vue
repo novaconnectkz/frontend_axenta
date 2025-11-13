@@ -1599,12 +1599,17 @@ const saveContract = async () => {
       contractData.account_id = Number(form.value.account_id);
     }
     
+    // Добавляем object_ids для привязки объектов при создании договора
+    if (selectedObjectsForContract.value.length > 0) {
+      contractData.object_ids = selectedObjectsForContract.value;
+    }
+    
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
     
     // Создаем договор
     const createdContract = await contractsService.createContract(contractData);
     
-    // Если есть выбранные объекты, привязываем их к договору
+    // Если есть выбранные объекты, привязываем их к договору (дополнительная привязка через отдельный endpoint)
     if (selectedObjectsForContract.value.length > 0 && createdContract.id) {
       try {
         const attachData = {
