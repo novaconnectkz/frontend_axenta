@@ -177,12 +177,14 @@
                   hint="Выберите учетную запись для автоматической привязки её объектов к договору"
                   persistent-hint
                   clearable
-                  :custom-filter="filterAccounts"
+                  :search="accountSearchQuery"
+                  @update:search="handleAccountSearch"
                   no-data-text="Учетные записи не найдены"
                   loading-text="Загрузка учетных записей..."
                   :menu-props="{ maxHeight: 300 }"
                   @update:model-value="onAccountSelected"
                   @focus="handleAccountAutocompleteFocus"
+                  @blur="handleAccountAutocompleteBlur"
                 >
                   <template #item="{ props, item }">
                     <v-list-item v-bind="props" @click="debugAccountItem(item)">
@@ -1015,25 +1017,32 @@
                       
                       <v-list-item-title>{{ item.title }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        <template v-if="item.raw && item.raw.price !== undefined && item.raw.price !== null">
+                        <template v-if="item.raw">
                           <!-- Безопасное извлечение price с обработкой разных типов -->
-                          {{ formatCurrency(
-                            typeof item.raw.price === 'string' 
-                              ? parseFloat(item.raw.price.replace(',', '.')) || 0
-                              : Number(item.raw.price) || 0, 
-                            item.raw.currency || 'RUB'
-                          ) }}/{{ getPeriodText(item.raw.billing_period) }}
-                          <template v-if="item.raw.max_devices > 0">
-                            • До {{ item.raw.max_devices }} устройств
+                          <template v-if="(item.raw as any).price !== undefined && (item.raw as any).price !== null">
+                            {{ formatCurrency(
+                              typeof (item.raw as any).price === 'string' 
+                                ? parseFloat((item.raw as any).price.replace(',', '.')) || 0
+                                : Number((item.raw as any).price) || 0, 
+                              (item.raw as any).currency || 'RUB'
+                            ) }}/{{ getPeriodText((item.raw as any).billing_period) }}
+                            <template v-if="(item.raw as any).max_devices > 0">
+                              • До {{ (item.raw as any).max_devices }} устройств
+                            </template>
+                            <template v-else>
+                              • Безлимит устройств
+                            </template>
                           </template>
                           <template v-else>
-                            • Безлимит устройств
+                            <!-- Fallback если данных нет -->
+                            {{ formatCurrency(0) }}/мес
+                            <span class="text-caption text-error">(данные не загружены)</span>
                           </template>
                         </template>
                         <template v-else>
-                          <!-- Fallback если данных нет -->
+                          <!-- Fallback если raw отсутствует -->
                           {{ formatCurrency(0) }}/мес
-                          <span v-if="!item.raw" class="text-caption text-error">(данные не загружены)</span>
+                          <span class="text-caption text-error">(данные не загружены)</span>
                         </template>
                       </v-list-item-subtitle>
                     </v-list-item>
@@ -1087,8 +1096,6 @@ import type {
 import type { DaDataOrganization } from '@/services/dadataService';
 import {
   CONTRACT_STATUS_LABELS,
-  CURRENCY_OPTIONS,
-  NOTIFICATION_PERIOD_OPTIONS,
   CLIENT_TYPE_OPTIONS,
   CLIENT_TYPES,
   type ClientType,
@@ -1114,7 +1121,7 @@ const loadingTariffPlans = ref(false);
 const loadingAccounts = ref(false);
 const accounts = ref<Account[]>([]);
 const tariffPlans = ref<BillingPlan[]>([]);
-const isTariffPlanInitialized = ref(false); // Флаг для отслеживания инициализации
+// Удалено: isTariffPlanInitialized - не используется
 const accountObjects = ref<any[]>([]);
 const loadingAccountObjects = ref(false);
 const selectedAccountName = ref('');
@@ -1227,17 +1234,9 @@ const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]
   title,
 }));
 
-const currencyOptions = CURRENCY_OPTIONS.map(option => ({
-  value: option.value,
-  title: option.title,
-}));
+// Удалено: currencyOptions - не используется
 
-const notificationOptions = computed(() => {
-  return NOTIFICATION_PERIOD_OPTIONS.map(option => ({
-    value: option.value,
-    title: option.title,
-  }));
-});
+// Удалено: notificationOptions - не используется
 
 const accountOptions = computed(() => {
   return accounts.value.map(account => ({
@@ -1772,60 +1771,51 @@ const generateNumber = async (skipConfirmation = false) => {
   }
 };
 
-// Загрузка списка учетных записей (все доступные)
-const loadAccounts = async () => {
+// Поисковый запрос для учетных записей
+const accountSearchQuery = ref('');
+
+// Загрузка списка учетных записей с поиском (оптимизированная версия)
+const loadAccounts = async (searchQuery: string = '') => {
   if (loadingAccounts.value) return;
   loadingAccounts.value = true;
+  
+  // Сохраняем выбранную учетную запись перед обновлением списка
+  const selectedAccountId = form.value.account_id;
+  let selectedAccount: Account | null = null;
+  if (selectedAccountId) {
+    selectedAccount = findAccountById(selectedAccountId);
+  }
+  
   try {
-    let allAccounts: Account[] = [];
-    let page = 1;
-    let hasMore = true;
-    const perPage = 100;
-    const maxPages = 50; // Защита от бесконечных циклов
-
-    // Загружаем все страницы с учетными записями
-    while (hasMore && page <= maxPages) {
-      const response = await accountsService.getAccounts({ 
-        page, 
-        per_page: perPage,
-        ordering: 'name'
-        // Не используем фильтр is_active, чтобы загрузить все записи
-      });
-      
-      if (response.results && response.results.length > 0) {
-        allAccounts = allAccounts.concat(response.results);
-        hasMore = !!response.next;
-        page++;
-        console.log(`📋 Загружено ${allAccounts.length} из ${response.count || 'неизвестно'} учетных записей`);
-        
-        // Логируем структуру первой учетной записи для проверки полей
-        if (page === 2 && response.results.length > 0) {
-          const firstAccount = response.results[0];
-          console.log('📊 Структура учетной записи:', {
-            id: firstAccount.id,
-            name: firstAccount.name,
-            objectsTotal: firstAccount.objectsTotal,
-            objectsActive: firstAccount.objectsActive,
-            allFields: Object.keys(firstAccount)
-          });
-        }
-      } else {
-        hasMore = false;
+    // Загружаем только первую страницу (100 записей) или результаты поиска
+    // Это значительно ускоряет загрузку, так как не нужно загружать все страницы
+    const response = await accountsService.getAccounts({ 
+      page: 1, 
+      per_page: 100,
+      ordering: 'name',
+      search: searchQuery || undefined
+    });
+    
+    accounts.value = response.results || [];
+    
+    // Если была выбранная учетная запись и её нет в новом списке, добавляем её
+    if (selectedAccount && selectedAccountId) {
+      const existsInNewList = accounts.value.some(acc => acc.id === selectedAccountId);
+      if (!existsInNewList) {
+        accounts.value.unshift(selectedAccount);
+        console.log('✅ Выбранная учетная запись сохранена в списке:', selectedAccount.name);
       }
     }
-
-    accounts.value = allAccounts;
-    console.log(`✅ Всего загружено ${accounts.value.length} учетных записей`);
     
-    // Проверяем количество объектов для первых нескольких учетных записей
-    if (accounts.value.length > 0) {
-      console.log('📊 Проверка количества объектов в первых 3 учетных записях:');
-      accounts.value.slice(0, 3).forEach(acc => {
-        console.log(`  - ${acc.name}: objectsTotal=${acc.objectsTotal}, objectsActive=${acc.objectsActive}`);
-      });
-    }
+    console.log(`✅ Загружено ${accounts.value.length} учетных записей${searchQuery ? ` (поиск: "${searchQuery}")` : ''}`);
   } catch (error) {
     console.error('Ошибка загрузки учетных записей:', error);
+    accounts.value = [];
+    
+    // В случае ошибки, если была выбранная учетная запись, добавляем её обратно
+    if (selectedAccount) {
+      accounts.value = [selectedAccount];
+    }
   } finally {
     loadingAccounts.value = false;
   }
@@ -1934,57 +1924,75 @@ const getObjectsActive = (account: any): number => {
   return typeof active === 'number' ? active : parseInt(String(active), 10) || 0;
 };
 
-// Функция фильтрации учетных записей для поиска
-const filterAccounts = (_value: string, query: string, item: any) => {
-  if (!query) return true;
+// Удалено: filterAccounts - не используется, поиск выполняется на сервере
+
+// Обработчик поиска учетных записей (с debounce для оптимизации)
+let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null;
+const handleAccountSearch = async (query: string | null) => {
+  // Обрабатываем случай, когда query может быть null или undefined
+  const searchQuery = query ?? '';
+  accountSearchQuery.value = searchQuery;
   
-  const searchTerm = query.toLowerCase().trim();
-  if (!searchTerm) return true;
-  
-  const account = item?.raw || item;
-  if (!account) return false;
-  
-  // Поиск по названию учетной записи
-  if (account.name && account.name.toLowerCase().includes(searchTerm)) {
-    return true;
+  // Очищаем предыдущий таймаут
+  if (accountSearchTimeout) {
+    clearTimeout(accountSearchTimeout);
   }
   
-  // Поиск по ID учетной записи
-  if (account.id && account.id.toString().includes(searchTerm)) {
-    return true;
+  // Если поле очищено (null, undefined или пустая строка), сразу загружаем первую страницу
+  if (!searchQuery || searchQuery.trim().length === 0) {
+    await loadAccounts('');
+    return;
   }
   
-  // Поиск по Admin ID
-  if (account.adminId && account.adminId.toString().includes(searchTerm)) {
-    return true;
-  }
-  
-  // Поиск по типу учетной записи
-  if (account.type) {
-    const typeText = account.type === 'client' ? 'клиент' : 
-                    account.type === 'partner' ? 'партнер' : 
-                    account.type.toLowerCase();
-    if (typeText.includes(searchTerm)) {
-      return true;
+  // Debounce: ждем 300ms после последнего ввода перед поиском
+  accountSearchTimeout = setTimeout(async () => {
+    const trimmedQuery = searchQuery.trim();
+    if (trimmedQuery.length >= 2) {
+      // Ищем только если введено 2+ символа
+      await loadAccounts(trimmedQuery);
     }
-  }
-  
-  // Поиск по title (отображаемому тексту)
-  if (item?.title && item.title.toLowerCase().includes(searchTerm)) {
-    return true;
-  }
-  
-  return false;
+  }, 300);
 };
 
 // Обработчик фокуса на autocomplete учетной записи
-// Если в списке только одна запись (загружена по account_id), загружаем все записи для выбора
 const handleAccountAutocompleteFocus = async () => {
-  // Если в списке только одна запись, значит мы загрузили только одну по account_id
-  // Загружаем все записи, чтобы пользователь мог выбрать другую
-  if (accounts.value.length === 1 && !loadingAccounts.value) {
-    console.log('📋 Загружаем все учетные записи для выбора (в списке только одна запись)');
+  // Если есть выбранная учетная запись, убеждаемся что она в списке
+  if (form.value.account_id) {
+    const account = findAccountById(form.value.account_id);
+    if (!account) {
+      // Если выбранной учетной записи нет в списке, загружаем её
+      console.log('📋 Выбранная учетная запись не найдена в списке, загружаем...');
+      try {
+        const selectedAccount = await accountsService.getAccount(form.value.account_id);
+        const existingIndex = accounts.value.findIndex(acc => acc.id === form.value.account_id);
+        if (existingIndex === -1) {
+          accounts.value.unshift(selectedAccount);
+          console.log('✅ Выбранная учетная запись добавлена в список:', selectedAccount.name);
+        }
+      } catch (error) {
+        console.error('❌ Ошибка загрузки выбранной учетной записи:', error);
+      }
+    }
+  }
+  
+  // Если список пустой или содержит только одну запись, загружаем первую страницу
+  if ((accounts.value.length === 0 || accounts.value.length === 1) && !loadingAccounts.value && !accountSearchQuery.value) {
+    console.log('📋 Загружаем первую страницу учетных записей для выбора');
     await loadAccounts();
+  }
+};
+
+// Обработчик потери фокуса на autocomplete учетной записи
+const handleAccountAutocompleteBlur = () => {
+  // При потере фокуса очищаем поисковый запрос, если есть выбранная учетная запись
+  // Это нужно для корректного отображения выбранной записи
+  if (form.value.account_id && accountSearchQuery.value) {
+    // Небольшая задержка, чтобы не конфликтовать с выбором из списка
+    setTimeout(() => {
+      if (form.value.account_id) {
+        accountSearchQuery.value = '';
+      }
+    }, 200);
   }
 };
 
@@ -1997,15 +2005,37 @@ const onAccountSelected = async (accountId: number | undefined) => {
     selectedAccountName.value = '';
     selectedObjectsForContract.value = [];
     objectsSearchQuery.value = '';
+    accountSearchQuery.value = ''; // Очищаем поисковый запрос
     return;
   }
 
-  const account = findAccountById(accountId);
+  let account = findAccountById(accountId);
+  
+  // Если учетная запись не найдена в текущем списке, загружаем её отдельно
+  if (!account) {
+    console.log('📋 Учетная запись не найдена в списке, загружаем отдельно...');
+    try {
+      account = await accountsService.getAccount(accountId);
+      // Добавляем загруженную учетную запись в список, если её там еще нет
+      const existingIndex = accounts.value.findIndex(acc => acc.id === accountId);
+      if (existingIndex === -1) {
+        accounts.value.unshift(account); // Добавляем в начало списка
+        console.log('✅ Учетная запись добавлена в список:', account.name);
+      }
+    } catch (error) {
+      console.error('❌ Ошибка загрузки учетной записи:', error);
+      // В случае ошибки очищаем выбор
+      form.value.account_id = undefined;
+      return;
+    }
+  }
+
   if (account) {
     selectedAccountName.value = account.name;
     console.log('🔵 Selected account:', account.name);
-  } else {
-    console.warn('⚠️ Account not found for ID:', accountId);
+    
+    // Очищаем поисковый запрос после выбора, чтобы выбранная запись отображалась корректно
+    accountSearchQuery.value = '';
   }
 
   // Очищаем предыдущий выбор объектов
@@ -2729,9 +2759,9 @@ const onOrganizationSelect = (selected: any) => {
 };
 
 // Автоматическая генерация номера при выборе нумератора
-watch(() => selectedNumeratorId.value, async (newId, oldId) => {
+watch(() => selectedNumeratorId.value, async (newId) => {
   // Генерируем номер только если:
-  // 1. Выбран новый нумератор (не при первой загрузке, когда oldId === undefined и newId === null)
+  // 1. Выбран новый нумератор (не при первой загрузке)
   // 2. Поле номера пустое или было очищено
   // 3. Способ нумерации = 'numerator'
   if (
@@ -2787,13 +2817,14 @@ onMounted(async () => {
       }
     }
   } else {
-    // Обычная загрузка всех учетных записей
-  await Promise.all([
-    loadTariffPlans(),
-    loadAccounts(),
-    loadBillingSettings(),
-    loadNumerators(),
-  ]);
+    // Обычная загрузка - НЕ загружаем все учетные записи сразу для оптимизации
+    // Загрузим их только при фокусе на поле или при поиске
+    await Promise.all([
+      loadTariffPlans(),
+      // loadAccounts() - убрано для оптимизации, загрузится при фокусе на поле
+      loadBillingSettings(),
+      loadNumerators(),
+    ]);
   }
 });
 </script>
