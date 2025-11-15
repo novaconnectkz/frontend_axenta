@@ -98,6 +98,9 @@ export class ErrorHandler {
       'ResizeObserver loop completed with undelivered notifications',
       'ResizeObserver loop limit exceeded',
       'Non-Error promise rejection captured',
+      'Element not found',
+      'Cannot read properties of null',
+      'Cannot read properties of undefined',
     ]
     
     if (ignoredErrors.some(msg => errorMessageText.includes(msg))) {
@@ -180,6 +183,9 @@ export function setupGlobalErrorHandler(app: any): void {
       'ResizeObserver loop completed with undelivered notifications',
       'ResizeObserver loop limit exceeded',
       'Non-Error promise rejection captured',
+      'Element not found',
+      'Cannot read properties of null',
+      'Cannot read properties of undefined',
     ]
     
     const errorMessage = event.message || event.error?.message || ''

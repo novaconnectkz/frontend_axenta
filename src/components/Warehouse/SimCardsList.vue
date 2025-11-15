@@ -98,34 +98,34 @@
 
         <v-row class="align-center">
           <!-- Основная статистика -->
-          <v-col cols="12" md="6">
-            <div class="d-flex align-center justify-space-around flex-wrap ga-4">
+          <v-col cols="12" md="6" lg="6">
+            <div class="stats-main-grid">
               <div class="stat-item">
-                <div class="d-flex align-center mb-1">
-                  <v-icon icon="mdi-sim" size="32" color="primary" class="mr-2" />
-                  <div>
-                    <div class="text-h4 font-weight-bold">{{ stats.total }}</div>
-                    <div class="text-caption text-medium-emphasis">Всего SIM-карт</div>
+                <div class="d-flex align-center">
+                  <v-icon icon="mdi-sim" color="primary" class="stat-icon" />
+                  <div class="stat-content">
+                    <div class="stat-value">{{ stats.total }}</div>
+                    <div class="stat-label">Всего SIM-карт</div>
                   </div>
                 </div>
               </div>
               
               <div class="stat-item">
-                <div class="d-flex align-center mb-1">
-                  <v-icon icon="mdi-check-circle" size="32" color="success" class="mr-2" />
-                  <div>
-                    <div class="text-h4 font-weight-bold text-success">{{ stats.active }}</div>
-                    <div class="text-caption text-medium-emphasis">Активных</div>
+                <div class="d-flex align-center">
+                  <v-icon icon="mdi-check-circle" color="success" class="stat-icon" />
+                  <div class="stat-content">
+                    <div class="stat-value text-success">{{ stats.active }}</div>
+                    <div class="stat-label">Активных</div>
                   </div>
                 </div>
               </div>
               
               <div class="stat-item">
-                <div class="d-flex align-center mb-1">
-                  <v-icon icon="mdi-cancel" size="32" color="error" class="mr-2" />
-                  <div>
-                    <div class="text-h4 font-weight-bold text-error">{{ stats.blocked }}</div>
-                    <div class="text-caption text-medium-emphasis">Заблокированных</div>
+                <div class="d-flex align-center">
+                  <v-icon icon="mdi-cancel" color="error" class="stat-icon" />
+                  <div class="stat-content">
+                    <div class="stat-value text-error">{{ stats.blocked }}</div>
+                    <div class="stat-label">Заблокированных</div>
                   </div>
                 </div>
               </div>
@@ -133,10 +133,10 @@
           </v-col>
           
           <!-- Профили -->
-          <v-col cols="12" md="6">
-            <v-divider vertical class="mx-4 d-none d-md-block" />
+          <v-col cols="12" md="6" lg="6">
+            <v-divider vertical class="stats-divider d-none d-md-block" />
             <div class="profiles-section">
-              <v-icon icon="mdi-sim-off" size="32" color="info" class="mr-3" />
+              <v-icon icon="mdi-sim-off" color="info" class="profiles-icon d-none d-sm-inline-flex" />
               <div class="profiles-grid">
                 <div
                   v-for="(count, profile) in stats.profiles"
@@ -919,32 +919,77 @@ onUnmounted(() => {
   border-left: 4px solid rgb(var(--v-theme-primary));
 }
 
+/* Основная статистика - адаптивная сетка */
+.stats-main-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
 .stat-item {
-  min-width: 140px;
+  min-width: 0; /* Позволяет элементам сжиматься */
+}
+
+.stat-icon {
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+
+.stat-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  line-height: 1.2;
+}
+
+.stats-divider {
+  margin: 0 16px;
+  height: 100%;
 }
 
 .profiles-section {
-  padding-left: 16px;
+  padding-left: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profiles-icon {
+  flex-shrink: 0;
+  margin-bottom: 8px;
 }
 
 .profiles-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-  gap: 12px;
-  flex: 1;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  width: 100%;
 }
 
 .profile-badge {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px;
+  justify-content: center;
+  padding: 10px 8px;
   background: rgba(var(--v-theme-surface-variant), 0.5);
   border-radius: 8px;
   transition: all 0.2s;
+  min-height: 70px;
 }
 
 .profile-badge:hover {
@@ -954,17 +999,18 @@ onUnmounted(() => {
 }
 
 .profile-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: rgba(var(--v-theme-on-surface), 0.6);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-top: 4px;
+  text-align: center;
 }
 
 .profile-value {
-  font-size: 2.125rem;
-  font-weight: 500;
+  font-size: 1.5rem;
+  font-weight: 600;
   line-height: 1.2;
   color: rgba(var(--v-theme-on-surface), 1);
 }
@@ -983,14 +1029,198 @@ onUnmounted(() => {
   }
 }
 
-@media (max-width: 960px) {
+/* Планшеты (md) */
+@media (min-width: 960px) and (max-width: 1264px) {
+  .stats-main-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  .stat-icon {
+    font-size: 28px !important;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+  }
+  
   .profiles-section {
-    padding-left: 0;
+    padding-left: 16px;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .profiles-icon {
+    margin-bottom: 0;
+    margin-right: 12px;
+  }
+  
+  .profiles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 10px;
+  }
+  
+  .profile-value {
+    font-size: 1.75rem;
+  }
+}
+
+/* Мобильные устройства (xs, sm) */
+@media (max-width: 959px) {
+  .stats-banner {
+    border-left: none;
+    border-top: 4px solid rgb(var(--v-theme-primary));
+  }
+  
+  .stats-banner .v-card-text {
+    padding: 16px 12px;
+  }
+  
+  .stats-main-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .stat-item {
+    width: 100%;
+  }
+  
+  .stat-icon {
+    font-size: 24px !important;
+    margin-right: 10px;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.7rem;
+  }
+  
+  .profiles-section {
     margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  }
+  
+  .profiles-icon {
+    font-size: 24px !important;
+    margin-bottom: 8px;
+  }
+  
+  .profiles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+  }
+  
+  .profile-badge {
+    padding: 8px 6px;
+    min-height: 60px;
+  }
+  
+  .profile-value {
+    font-size: 1.25rem;
+  }
+  
+  .profile-label {
+    font-size: 10px;
   }
   
   .stats-banner .v-divider {
     display: none !important;
+  }
+}
+
+/* Очень маленькие экраны (xs) */
+@media (max-width: 600px) {
+  .stats-banner .v-card-text {
+    padding: 12px 8px;
+  }
+  
+  .stats-main-grid {
+    gap: 10px;
+  }
+  
+  .stat-icon {
+    font-size: 20px !important;
+    margin-right: 8px;
+  }
+  
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  
+  .stat-label {
+    font-size: 0.65rem;
+  }
+  
+  .profiles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 6px;
+  }
+  
+  .profile-badge {
+    padding: 6px 4px;
+    min-height: 55px;
+  }
+  
+  .profile-value {
+    font-size: 1.1rem;
+  }
+  
+  .profile-label {
+    font-size: 9px;
+  }
+}
+
+/* Большие экраны (lg, xl) */
+@media (min-width: 1265px) {
+  .stats-main-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  
+  .stat-icon {
+    font-size: 36px !important;
+    margin-right: 16px;
+  }
+  
+  .stat-value {
+    font-size: 2.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.875rem;
+  }
+  
+  .profiles-section {
+    padding-left: 24px;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .profiles-icon {
+    font-size: 36px !important;
+    margin-right: 16px;
+  }
+  
+  .profiles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 12px;
+  }
+  
+  .profile-badge {
+    padding: 14px 12px;
+    min-height: 80px;
+  }
+  
+  .profile-value {
+    font-size: 2rem;
+  }
+  
+  .profile-label {
+    font-size: 12px;
   }
 }
 
