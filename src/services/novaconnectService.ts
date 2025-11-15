@@ -61,36 +61,65 @@ class NovaConnectService {
   private apiUrl: string = 'https://api.novaconnect.kz/api';
   private token: string | null = null;
   private language: string = 'ru';
+  private currentCompanyId: number | null = null;
 
   constructor() {
-    // Загружаем настройки синхронно из localStorage при инициализации
-    // Асинхронная загрузка из БД будет выполнена при первом использовании
-    const settings = localStorage.getItem('novaconnect_settings');
-    const token = localStorage.getItem('novaconnect_token');
-    
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      this.apiUrl = parsed.api_url || this.apiUrl;
-      this.language = parsed.language || this.language;
-    }
-    
-    if (token) {
-      this.token = token;
-    }
-    
-    // Загружаем актуальные настройки из БД в фоне
+    // Загружаем настройки из БД при инициализации
+    // НЕ используем localStorage для токена - он должен быть привязан к компании
     this.loadSettings().catch(err => {
       console.warn('Не удалось загрузить настройки NovaConnect из БД:', err);
     });
   }
 
-  private async loadSettings() {
-    // Сначала пытаемся загрузить из БД через API
+  private getCurrentCompanyId(): number | null {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/novaconnect/config`, {
+      const companyStr = localStorage.getItem('axenta_company');
+      if (!companyStr) return null;
+      const company = JSON.parse(companyStr);
+      return company?.id || null;
+    } catch {
+      return null;
+    }
+  }
+
+  private getTokenStorageKey(): string {
+    const companyId = this.getCurrentCompanyId();
+    return companyId ? `novaconnect_token_${companyId}` : 'novaconnect_token';
+  }
+
+  private async loadSettings() {
+    const companyId = this.getCurrentCompanyId();
+    
+    // Если компания не определена, не загружаем настройки
+    if (!companyId) {
+      console.warn('Компания не определена, не загружаем настройки NovaConnect');
+      this.token = null;
+      return;
+    }
+
+    // Если компания изменилась, очищаем старый токен
+    if (this.currentCompanyId !== null && this.currentCompanyId !== companyId) {
+      console.log('Компания изменилась, очищаем старый токен NovaConnect');
+      this.token = null;
+    }
+    this.currentCompanyId = companyId;
+
+    // Всегда загружаем настройки из БД через API (который учитывает текущую компанию)
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const token = localStorage.getItem('axenta_token');
+      
+      if (!token) {
+        console.warn('Токен авторизации не найден');
+        this.token = null;
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/novaconnect/config`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('axenta_token') || ''}`,
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
         },
       });
 
@@ -99,31 +128,39 @@ class NovaConnectService {
         this.apiUrl = config.api_url || this.apiUrl;
         this.language = config.language || this.language;
         
-        // Токен из БД
+        // Токен из БД (уже привязан к текущей компании через middleware)
         if (config.token) {
           this.token = config.token;
-          // Сохраняем в localStorage для кэширования
-          localStorage.setItem('novaconnect_token', config.token);
+          // Сохраняем в localStorage с привязкой к company_id для кэширования
+          const storageKey = this.getTokenStorageKey();
+          localStorage.setItem(storageKey, config.token);
+        } else {
+          this.token = null;
+          // Очищаем кэш, если токена нет
+          const storageKey = this.getTokenStorageKey();
+          localStorage.removeItem(storageKey);
         }
         return;
+      } else if (response.status === 404) {
+        // Интеграция не настроена для этой компании
+        console.log('Интеграция NovaConnect не настроена для текущей компании');
+        this.token = null;
+        const storageKey = this.getTokenStorageKey();
+        localStorage.removeItem(storageKey);
+        return;
+      } else {
+        console.warn('Ошибка загрузки настроек NovaConnect:', response.status, response.statusText);
+        this.token = null;
       }
     } catch (error) {
-      console.warn('Не удалось загрузить настройки NovaConnect из БД, используем localStorage:', error);
+      console.warn('Не удалось загрузить настройки NovaConnect из БД:', error);
+      this.token = null;
     }
+  }
 
-    // Fallback на localStorage для обратной совместимости
-    const settings = localStorage.getItem('novaconnect_settings');
-    const token = localStorage.getItem('novaconnect_token');
-    
-    if (settings) {
-      const parsed = JSON.parse(settings);
-      this.apiUrl = parsed.api_url || this.apiUrl;
-      this.language = parsed.language || this.language;
-    }
-    
-    if (token) {
-      this.token = token;
-    }
+  // Метод для принудительной перезагрузки настроек (например, при смене компании)
+  async reloadSettings() {
+    await this.loadSettings();
   }
 
   private getHeaders() {
@@ -137,6 +174,12 @@ class NovaConnectService {
    * Получить список SIM-карт
    */
   async getSimCards(params?: NovaConnectSimListParams): Promise<NovaConnectSimListResponse> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
     if (!this.token) {
       throw new Error('Токен NovaConnect не настроен. Настройте интеграцию в разделе "Настройки" → "Интеграции"');
     }
@@ -171,6 +214,12 @@ class NovaConnectService {
    * Получить информацию о SIM-карте по ID
    */
   async getSimCard(id: number): Promise<NovaConnectSimCard> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
     if (!this.token) {
       throw new Error('Токен NovaConnect не настроен');
     }
@@ -202,6 +251,12 @@ class NovaConnectService {
    * Блокировка SIM-карты
    */
   async blockSimCard(items: number[]): Promise<any> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
     if (!this.token) {
       throw new Error('Токен NovaConnect не настроен');
     }
@@ -231,6 +286,12 @@ class NovaConnectService {
    * Разблокировка SIM-карты
    */
   async unblockSimCard(items: number[]): Promise<any> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
     if (!this.token) {
       throw new Error('Токен NovaConnect не настроен');
     }
@@ -260,6 +321,12 @@ class NovaConnectService {
    * Проверка подключения к API
    */
   async testConnection(): Promise<boolean> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
     if (!this.token) {
       throw new Error('Токен NovaConnect не настроен');
     }

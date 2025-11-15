@@ -410,7 +410,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { novaconnectService, type NovaConnectSimCard } from '@/services/novaconnectService';
 
 // Реактивные данные
@@ -463,8 +463,25 @@ const headers = [
 
 // Вычисляемые свойства
 const isConfigured = computed(() => {
-  const token = localStorage.getItem('novaconnect_token');
-  return !!token;
+  // Проверяем токен через сервис, который учитывает текущую компанию
+  // Сервис сам загружает настройки из БД с учетом текущей компании
+  // Для проверки просто пытаемся получить токен из сервиса
+  // Но так как это computed, мы не можем вызывать async методы
+  // Поэтому проверяем наличие токена в localStorage с привязкой к компании
+  try {
+    const companyStr = localStorage.getItem('axenta_company');
+    if (!companyStr) return false;
+    const company = JSON.parse(companyStr);
+    const companyId = company?.id;
+    if (!companyId) return false;
+    
+    // Проверяем токен с привязкой к компании
+    const tokenKey = `novaconnect_token_${companyId}`;
+    const token = localStorage.getItem(tokenKey);
+    return !!token;
+  } catch {
+    return false;
+  }
 });
 
 const stats = computed(() => {
@@ -736,10 +753,71 @@ watch([simCards], () => {
   console.log('🔄 Watch: обновлен tableKey:', tableKey.value);
 }, { deep: true });
 
+// Отслеживаем изменения компании и перезагружаем настройки
+const getCurrentCompanyId = (): number | null => {
+  try {
+    const companyStr = localStorage.getItem('axenta_company');
+    if (!companyStr) return null;
+    const company = JSON.parse(companyStr);
+    return company?.id || null;
+  } catch {
+    return null;
+  }
+};
+
+let currentCompanyId = ref<number | null>(getCurrentCompanyId());
+let checkInterval: ReturnType<typeof setInterval> | null = null;
+
+// Слушаем изменения localStorage для отслеживания смены компании
+const handleStorageChange = (e: StorageEvent) => {
+  if (e.key === 'axenta_company') {
+    const newCompanyId = getCurrentCompanyId();
+    if (newCompanyId !== currentCompanyId.value) {
+      console.log('🔄 Компания изменилась, перезагружаем настройки NovaConnect');
+      currentCompanyId.value = newCompanyId;
+      novaconnectService.reloadSettings().then(() => {
+        if (isConfigured.value) {
+          loadSimCards();
+        }
+      });
+    }
+  }
+};
+
 // Lifecycle
 onMounted(() => {
+  currentCompanyId.value = getCurrentCompanyId();
+  
+  // Слушаем изменения localStorage
+  window.addEventListener('storage', handleStorageChange);
+  
+  // Также проверяем периодически (на случай, если localStorage изменился в том же окне)
+  checkInterval = setInterval(() => {
+    const newCompanyId = getCurrentCompanyId();
+    if (newCompanyId !== currentCompanyId.value) {
+      console.log('🔄 Компания изменилась (проверка), перезагружаем настройки NovaConnect');
+      currentCompanyId.value = newCompanyId;
+      novaconnectService.reloadSettings().then(() => {
+        if (isConfigured.value) {
+          loadSimCards();
+        }
+      });
+    }
+  }, 2000); // Проверяем каждые 2 секунды
+  
   if (isConfigured.value) {
     loadSimCards();
+  }
+});
+
+onUnmounted(() => {
+  // Очищаем слушатель событий
+  window.removeEventListener('storage', handleStorageChange);
+  
+  // Очищаем интервал
+  if (checkInterval) {
+    clearInterval(checkInterval);
+    checkInterval = null;
   }
 });
 </script>
