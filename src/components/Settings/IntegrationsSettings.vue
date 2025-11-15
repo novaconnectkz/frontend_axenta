@@ -514,7 +514,6 @@
               v-model="editDialog.form.settings.webhook_enabled"
               label="Включить webhook уведомления"
               color="primary"
-              :disabled="!editDialog.form.settings.webhook_url"
               hide-details
               class="mb-3"
             />
@@ -721,7 +720,8 @@ const loadIntegrations = async () => {
     try {
       axentaIntegration = await settingsService.getAxentaIntegrationConfig();
     } catch (error) {
-      console.log('Axenta интеграция не настроена или нет авторизации');
+      // Игнорируем ошибки - интеграция просто не настроена
+      // Не логируем, чтобы не засорять консоль
     }
     
     // Axenta Cloud API (реальная интеграция)
@@ -751,34 +751,107 @@ const loadIntegrations = async () => {
       });
     }
     
-    // NovaConnect интеграция
-    const savedNovaConnectSettings = localStorage.getItem('novaconnect_settings');
-    const savedNovaConnectToken = localStorage.getItem('novaconnect_token');
-    const novaConnectSettings = savedNovaConnectSettings ? JSON.parse(savedNovaConnectSettings) : {
-      api_url: 'https://api.novaconnect.kz/api',
-      language: 'ru',
-      enabled: false,
-      webhook_url: '',
-      webhook_enabled: false,
-      sync_interval: 15,
-      auto_sync_enabled: false,
-    };
-    
-    allIntegrations.push({
-      id: 'novaconnect',
-      type: 'novaconnect',
-      name: 'NovaConnect',
-      description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
-      status: savedNovaConnectToken && novaConnectSettings.enabled ? 'active' : 'inactive',
-      enabled: novaConnectSettings.enabled || false,
-      lastSync: null,
-      created_at: new Date(),
-      updated_at: new Date(),
-      settings: {
-        ...novaConnectSettings,
-        token: savedNovaConnectToken || '',
-      },
-    });
+      // NovaConnect интеграция - загружаем из БД
+      try {
+        const novaConnectConfig = await settingsService.getNovaConnectConfig();
+        
+        if (novaConnectConfig) {
+          // Настройки найдены в БД
+          allIntegrations.push({
+            id: 'novaconnect',
+            type: 'novaconnect',
+            name: 'NovaConnect',
+            description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
+            // Статус активен только если есть токен И интеграция включена
+            status: (novaConnectConfig.token && novaConnectConfig.enabled) ? 'active' : 'inactive',
+            enabled: novaConnectConfig.enabled || false,
+            lastSync: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            settings: {
+              api_url: novaConnectConfig.api_url || 'https://api.novaconnect.kz/api',
+              language: novaConnectConfig.language || 'ru',
+              enabled: novaConnectConfig.enabled || false,
+              webhook_url: novaConnectConfig.webhook_url || '',
+              webhook_enabled: novaConnectConfig.webhook_enabled || false,
+              sync_interval: novaConnectConfig.sync_interval || 15,
+              auto_sync_enabled: novaConnectConfig.auto_sync_enabled || false,
+              token: (novaConnectConfig as any).token || '', // Токен из БД
+            },
+          });
+          
+          // Синхронизируем с localStorage для обратной совместимости
+          const { token: tokenValue, ...settingsWithoutToken } = allIntegrations[allIntegrations.length - 1].settings;
+          localStorage.setItem('novaconnect_settings', JSON.stringify(settingsWithoutToken));
+          // Сохраняем токен отдельно для проверки статуса
+          if (tokenValue) {
+            localStorage.setItem('novaconnect_token', tokenValue);
+          }
+        } else {
+          // Настройки не найдены в БД, проверяем localStorage для обратной совместимости
+          const savedNovaConnectSettings = localStorage.getItem('novaconnect_settings');
+          const savedNovaConnectToken = localStorage.getItem('novaconnect_token');
+          const novaConnectSettings = savedNovaConnectSettings ? JSON.parse(savedNovaConnectSettings) : {
+            api_url: 'https://api.novaconnect.kz/api',
+            language: 'ru',
+            enabled: false,
+            webhook_url: '',
+            webhook_enabled: false,
+            sync_interval: 15,
+            auto_sync_enabled: false,
+          };
+
+          allIntegrations.push({
+            id: 'novaconnect',
+            type: 'novaconnect',
+            name: 'NovaConnect',
+            description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
+            // Статус активен только если есть токен И интеграция включена
+            status: (savedNovaConnectToken && novaConnectSettings.enabled) ? 'active' : 'inactive',
+            // Если токена нет, интеграция не может быть включена
+            enabled: (savedNovaConnectToken && novaConnectSettings.enabled) || false,
+            lastSync: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            settings: {
+              ...novaConnectSettings,
+              token: savedNovaConnectToken || '',
+            },
+          });
+        }
+      } catch (error) {
+        console.error('Ошибка загрузки настроек NovaConnect из БД:', error);
+        // Fallback на localStorage
+        const savedNovaConnectSettings = localStorage.getItem('novaconnect_settings');
+        const savedNovaConnectToken = localStorage.getItem('novaconnect_token');
+        const novaConnectSettings = savedNovaConnectSettings ? JSON.parse(savedNovaConnectSettings) : {
+          api_url: 'https://api.novaconnect.kz/api',
+          language: 'ru',
+          enabled: false,
+          webhook_url: '',
+          webhook_enabled: false,
+          sync_interval: 15,
+          auto_sync_enabled: false,
+        };
+
+        allIntegrations.push({
+          id: 'novaconnect',
+          type: 'novaconnect',
+          name: 'NovaConnect',
+          description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
+          // Статус активен только если есть токен И интеграция включена
+          status: (savedNovaConnectToken && novaConnectSettings.enabled) ? 'active' : 'inactive',
+          // Если токена нет, интеграция не может быть включена
+          enabled: (savedNovaConnectToken && novaConnectSettings.enabled) || false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            ...novaConnectSettings,
+            token: savedNovaConnectToken || '',
+          },
+        });
+      }
     
     // Демо интеграции (в разработке)
     allIntegrations.push({
@@ -911,14 +984,39 @@ const toggleIntegration = async (integration: IntegrationWithSettings) => {
   
   try {
     if (integration.type === 'novaconnect') {
-      // Для NovaConnect сохраняем в localStorage
-      const savedSettings = localStorage.getItem('novaconnect_settings');
-      const settings = savedSettings ? JSON.parse(savedSettings) : {};
-      settings.enabled = integration.enabled;
-      localStorage.setItem('novaconnect_settings', JSON.stringify(settings));
-      
-      // Обновляем статус в списке
-      integration.status = integration.enabled ? 'active' : 'inactive';
+      // Для NovaConnect сохраняем в БД
+      const config = await settingsService.getNovaConnectConfig();
+      if (config) {
+        // Обновляем только поле enabled
+        const result = await settingsService.updateNovaConnectIntegration({
+          ...config,
+          enabled: integration.enabled,
+        });
+        
+        if (result.success) {
+          // Также обновляем localStorage для обратной совместимости
+          const savedSettings = localStorage.getItem('novaconnect_settings');
+          const settings = savedSettings ? JSON.parse(savedSettings) : {};
+          settings.enabled = integration.enabled;
+          localStorage.setItem('novaconnect_settings', JSON.stringify(settings));
+          
+          // Обновляем статус в списке (проверяем токен)
+          const token = localStorage.getItem('novaconnect_token');
+          integration.status = (token && integration.enabled) ? 'active' : 'inactive';
+        } else {
+          throw new Error(result.message || 'Ошибка обновления статуса');
+        }
+      } else {
+        // Если настройки не найдены в БД, сохраняем только в localStorage
+        const savedSettings = localStorage.getItem('novaconnect_settings');
+        const settings = savedSettings ? JSON.parse(savedSettings) : {};
+        settings.enabled = integration.enabled;
+        localStorage.setItem('novaconnect_settings', JSON.stringify(settings));
+        
+        // Обновляем статус в списке (проверяем токен)
+        const token = localStorage.getItem('novaconnect_token');
+        integration.status = (token && integration.enabled) ? 'active' : 'inactive';
+      }
     } else {
       await settingsService.updateIntegration(integration.id, {
         enabled: integration.enabled
@@ -954,12 +1052,32 @@ const testConnection = async (integration: IntegrationWithSettings) => {
     } else if (integration.type === 'novaconnect') {
       // Тестируем подключение к API NovaConnect
       const axios = (await import('axios')).default;
-      const apiUrl = integration.settings.api_url || 'https://api.novaconnect.kz/api';
-      const token = integration.settings.token || localStorage.getItem('novaconnect_token');
-      const language = integration.settings.language || 'ru';
+      
+      // Пытаемся получить токен из БД, если доступен
+      let token = integration.settings.token;
+      let apiUrl = integration.settings.api_url || 'https://api.novaconnect.kz/api';
+      let language = integration.settings.language || 'ru';
       
       if (!token) {
-        throw new Error('Токен не указан');
+        // Пытаемся загрузить из БД
+        try {
+          const config = await settingsService.getNovaConnectConfig();
+          if (config && config.token) {
+            token = config.token;
+            apiUrl = config.api_url || apiUrl;
+            language = config.language || language;
+          } else {
+            // Fallback на localStorage
+            token = localStorage.getItem('novaconnect_token');
+          }
+        } catch (error) {
+          // Fallback на localStorage
+          token = localStorage.getItem('novaconnect_token');
+        }
+      }
+      
+      if (!token) {
+        throw new Error('Токен не указан. Настройте интеграцию и укажите токен.');
       }
       
       const response = await axios.post(
@@ -973,7 +1091,7 @@ const testConnection = async (integration: IntegrationWithSettings) => {
           timeout: 10000,
         }
       );
-      
+
       if (response.data && response.data.code === 200) {
         result = { success: true, message: 'Подключение к API успешно установлено' };
       } else {
@@ -1003,7 +1121,7 @@ const testConnection = async (integration: IntegrationWithSettings) => {
   }
 };
 
-const editIntegration = (integration: IntegrationWithSettings) => {
+const editIntegration = async (integration: IntegrationWithSettings) => {
   // Игнорируем демо интеграции
   if (isDemoIntegration(integration.id)) {
     showSnackbar('Эта интеграция находится в разработке', 'warning');
@@ -1024,25 +1142,67 @@ const editIntegration = (integration: IntegrationWithSettings) => {
       description: integration.description,
       settings: { ...integration.settings }
     };
-  } else if (integration.type === 'novaconnect') {
-    const token = localStorage.getItem('novaconnect_token');
-    currentToken.value = token || '';
-    // Для NovaConnect убеждаемся, что все поля настроек присутствуют
-    editDialog.value.form = {
-      name: integration.name,
-      description: integration.description,
-      settings: {
-        api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
-        token: integration.settings.token || token || '',
-        language: integration.settings.language || 'ru',
-        enabled: integration.settings.enabled || false,
-        webhook_url: integration.settings.webhook_url || '',
-        webhook_enabled: integration.settings.webhook_enabled || false,
-        sync_interval: integration.settings.sync_interval || 15,
-        auto_sync_enabled: integration.settings.auto_sync_enabled || false,
-      }
-    };
-  } else {
+        } else if (integration.type === 'novaconnect') {
+          // Загружаем актуальные настройки из БД
+          try {
+            const config = await settingsService.getNovaConnectConfig();
+            if (config) {
+              // Используем настройки из БД
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  api_url: config.api_url || 'https://api.novaconnect.kz/api',
+                  token: config.token || '',
+                  language: config.language || 'ru',
+                  enabled: config.enabled || false,
+                  webhook_url: config.webhook_url || '',
+                  webhook_enabled: config.webhook_enabled || false,
+                  sync_interval: config.sync_interval || 15,
+                  auto_sync_enabled: config.auto_sync_enabled || false,
+                }
+              };
+              currentToken.value = config.token || '';
+            } else {
+              // Fallback на настройки из интеграции или localStorage
+              const token = localStorage.getItem('novaconnect_token');
+              currentToken.value = token || '';
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
+                  token: integration.settings.token || token || '',
+                  language: integration.settings.language || 'ru',
+                  enabled: integration.settings.enabled || false,
+                  webhook_url: integration.settings.webhook_url || '',
+                  webhook_enabled: integration.settings.webhook_enabled || false,
+                  sync_interval: integration.settings.sync_interval || 15,
+                  auto_sync_enabled: integration.settings.auto_sync_enabled || false,
+                }
+              };
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки настроек NovaConnect из БД:', error);
+            // Fallback на настройки из интеграции или localStorage
+            const token = localStorage.getItem('novaconnect_token');
+            currentToken.value = token || '';
+            editDialog.value.form = {
+              name: integration.name,
+              description: integration.description,
+              settings: {
+                api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
+                token: integration.settings.token || token || '',
+                language: integration.settings.language || 'ru',
+                enabled: integration.settings.enabled || false,
+                webhook_url: integration.settings.webhook_url || '',
+                webhook_enabled: integration.settings.webhook_enabled || false,
+                sync_interval: integration.settings.sync_interval || 15,
+                auto_sync_enabled: integration.settings.auto_sync_enabled || false,
+              }
+            };
+          }
+        } else {
     currentToken.value = '';
     editDialog.value.form = {
       name: integration.name,
@@ -1072,28 +1232,49 @@ const saveIntegration = async () => {
         result = await settingsService.updateAxentaIntegration(editDialog.value.form.settings);
       }
     } else if (editDialog.value.integration.type === 'novaconnect') {
-      // Сохраняем настройки NovaConnect в localStorage
+      // Сохраняем настройки NovaConnect в БД через API
       const settingsToSave = { ...editDialog.value.form.settings };
-      const { token, ...settingsWithoutToken } = settingsToSave;
       
-      localStorage.setItem('novaconnect_settings', JSON.stringify(settingsWithoutToken));
-      if (token) {
-        localStorage.setItem('novaconnect_token', token);
+      // Определяем, создаем новую интеграцию или обновляем существующую
+      // Проверяем, есть ли интеграция в БД
+      const existingConfig = await settingsService.getNovaConnectConfig();
+      const isNew = !existingConfig;
+      
+      let result;
+      if (isNew) {
+        result = await settingsService.setupNovaConnectIntegration(settingsToSave);
+      } else {
+        result = await settingsService.updateNovaConnectIntegration(settingsToSave);
       }
       
-      // Обновляем статус интеграции в списке
-      const index = integrations.value.findIndex(i => i.id === 'novaconnect');
-      if (index !== -1) {
-        integrations.value[index] = {
-          ...integrations.value[index],
-          enabled: settingsWithoutToken.enabled || false,
-          status: token && settingsWithoutToken.enabled ? 'active' : 'inactive',
-          settings: settingsToSave,
-        };
+      if (result.success) {
+        // Сохраняем токен в localStorage для работы сервиса
+        if (settingsToSave.token) {
+          localStorage.setItem('novaconnect_token', settingsToSave.token);
+        }
+        
+        // Также сохраняем остальные настройки в localStorage для обратной совместимости
+        const { token, ...settingsWithoutToken } = settingsToSave;
+        localStorage.setItem('novaconnect_settings', JSON.stringify(settingsWithoutToken));
+        
+        // Обновляем статус интеграции в списке
+        const index = integrations.value.findIndex(i => i.id === 'novaconnect');
+        if (index !== -1) {
+          integrations.value[index] = {
+            ...integrations.value[index],
+            enabled: settingsToSave.enabled || false,
+            status: settingsToSave.token && settingsToSave.enabled ? 'active' : 'inactive',
+            settings: settingsToSave,
+          };
+        }
+        
+        editDialog.value.show = false;
+        showSnackbar(result.message || 'Настройки NovaConnect успешно сохранены в БД', 'success');
+        // Перезагружаем список интеграций для получения актуальных данных из БД
+        await loadIntegrations();
+      } else {
+        showSnackbar(result.message || 'Ошибка сохранения настроек NovaConnect', 'error');
       }
-      
-      editDialog.value.show = false;
-      showSnackbar('Настройки NovaConnect успешно сохранены', 'success');
       return;
     } else {
       // Для других интеграций используем общий метод

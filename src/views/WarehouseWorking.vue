@@ -23,59 +23,6 @@
       </div>
     </div>
 
-    <!-- Уведомление о демо режиме -->
-    <v-alert type="info" variant="tonal" class="mb-4" closable @click:close="hideDemoAlert = true"
-      v-show="!hideDemoAlert">
-      <template #prepend>
-        <v-icon>mdi-information</v-icon>
-      </template>
-      <div>
-        <strong>Демо режим активен</strong>
-        <p class="mb-0">Отображаются демонстрационные данные для ознакомления с интерфейсом управления складом.</p>
-      </div>
-    </v-alert>
-
-    <!-- Статистика -->
-    <v-row class="mb-6">
-      <v-col cols="12" sm="6" md="3">
-        <v-card color="success" variant="tonal">
-          <v-card-text class="text-center">
-            <v-icon icon="mdi-package-variant" size="40" class="mb-2" />
-            <div class="text-h4 font-weight-bold">{{ stats.total_equipment }}</div>
-            <div class="text-subtitle-2">Всего оборудования</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card color="info" variant="tonal">
-          <v-card-text class="text-center">
-            <v-icon icon="mdi-check-circle" size="40" class="mb-2" />
-            <div class="text-h4 font-weight-bold">{{ stats.available_equipment }}</div>
-            <div class="text-subtitle-2">Доступно</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card color="warning" variant="tonal">
-          <v-card-text class="text-center">
-            <v-icon icon="mdi-bookmark" size="40" class="mb-2" />
-            <div class="text-h4 font-weight-bold">{{ stats.reserved_equipment }}</div>
-            <div class="text-subtitle-2">Зарезервировано</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      <v-col cols="12" sm="6" md="3">
-        <v-card :color="stats.low_stock_alerts > 0 ? 'error' : 'success'" variant="tonal">
-          <v-card-text class="text-center">
-            <v-icon :icon="stats.low_stock_alerts > 0 ? 'mdi-alert-circle' : 'mdi-shield-check'" size="40"
-              class="mb-2" />
-            <div class="text-h4 font-weight-bold">{{ stats.low_stock_alerts }}</div>
-            <div class="text-subtitle-2">Уведомлений</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
     <!-- Вкладки -->
     <v-card>
       <v-tabs v-model="activeTab" bg-color="primary" show-arrows>
@@ -95,6 +42,10 @@
         <v-tab value="categories">
           <v-icon start icon="mdi-tag-multiple" />
           Категории
+        </v-tab>
+        <v-tab value="sim-cards">
+          <v-icon start icon="mdi-sim" />
+          SIM-карты
         </v-tab>
       </v-tabs>
 
@@ -416,6 +367,11 @@
               </v-col>
             </v-row>
           </v-window-item>
+
+          <!-- Вкладка: SIM-карты -->
+          <v-window-item value="sim-cards">
+            <SimCardsList />
+          </v-window-item>
         </v-window>
       </v-card-text>
     </v-card>
@@ -528,12 +484,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import SimCardsList from '@/components/Warehouse/SimCardsList.vue';
 
 // Состояние
 const activeTab = ref('equipment');
 const showCreateDialog = ref(false);
 const showQRDialog = ref(false);
-const hideDemoAlert = ref(false);
 const searchQuery = ref('');
 const qrCode = ref('');
 const viewMode = ref(localStorage.getItem('warehouse-view-mode') || 'list'); // 'list' или 'grid'
@@ -547,15 +503,6 @@ const bulkTransferData = ref({
   from_location: '',
   to_location: '',
   notes: '',
-});
-
-// Простые mock данные
-const stats = ref({
-  total_equipment: 1247,
-  available_equipment: 856,
-  installed_equipment: 312,
-  reserved_equipment: 79,
-  low_stock_alerts: 4,
 });
 
 const equipment = ref([
