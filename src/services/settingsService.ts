@@ -1057,19 +1057,13 @@ class SettingsService {
       // Проверяем тип ответа перед парсингом JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        if (response.status === 404) {
-          return null;
-        }
-        const text = await response.text();
-        console.warn('Неожиданный формат ответа от /api/axenta/config:', text);
+        // Тихо игнорируем неожиданный формат ответа
         return null;
       }
 
       if (!response.ok) {
         // Не логируем 404, так как это ожидаемое поведение
-        if (response.status !== 404) {
-          console.warn(`Ошибка получения конфигурации Axenta: ${response.status}`);
-        }
+        // Для других ошибок также не логируем, чтобы не засорять консоль
         return null;
       }
 
@@ -1097,8 +1091,9 @@ class SettingsService {
         },
       };
     } catch (error) {
-      console.error('Ошибка получения конфигурации Axenta:', error);
-      throw error;
+      // Тихо обрабатываем ошибки сети - не логируем и не пробрасываем
+      // Это нормальное поведение, если интеграция не настроена или сервер недоступен
+      return null;
     }
   }
 

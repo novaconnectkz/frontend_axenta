@@ -186,7 +186,8 @@ class NovaConnectService {
 
     try {
       // Для больших запросов (статистика) увеличиваем таймаут
-      const requestTimeout = (params?.size && params.size > 1000) ? 60000 : 10000;
+      // Для size >= 1000 используем 60 секунд, для остальных - 30 секунд
+      const requestTimeout = (params?.size && params.size >= 1000) ? 60000 : 30000;
       
       const response = await axios.post<NovaConnectSimListResponse>(
         `${this.apiUrl}/sim/list?lang=${this.language}`,

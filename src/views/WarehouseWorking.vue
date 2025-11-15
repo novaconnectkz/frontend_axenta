@@ -30,6 +30,10 @@
           <v-icon start icon="mdi-package-variant" />
           Оборудование
         </v-tab>
+        <v-tab value="sim-cards">
+          <v-icon start icon="mdi-sim" />
+          SIM-карты
+        </v-tab>
         <v-tab value="operations">
           <v-icon start icon="mdi-swap-horizontal" />
           Операции
@@ -42,10 +46,6 @@
         <v-tab value="categories">
           <v-icon start icon="mdi-tag-multiple" />
           Категории
-        </v-tab>
-        <v-tab value="sim-cards">
-          <v-icon start icon="mdi-sim" />
-          SIM-карты
         </v-tab>
       </v-tabs>
 
@@ -268,6 +268,11 @@
             </div>
           </v-window-item>
 
+          <!-- Вкладка: SIM-карты -->
+          <v-window-item value="sim-cards">
+            <SimCardsList ref="simCardsListRef" />
+          </v-window-item>
+
           <!-- Вкладка: Операции -->
           <v-window-item value="operations">
             <v-timeline side="end" density="compact">
@@ -366,11 +371,6 @@
                 </v-card>
               </v-col>
             </v-row>
-          </v-window-item>
-
-          <!-- Вкладка: SIM-карты -->
-          <v-window-item value="sim-cards">
-            <SimCardsList />
           </v-window-item>
         </v-window>
       </v-card-text>
@@ -483,11 +483,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import SimCardsList from '@/components/Warehouse/SimCardsList.vue';
+import type { ComponentPublicInstance } from 'vue';
 
 // Состояние
-const activeTab = ref('equipment');
+const activeTab = ref(localStorage.getItem('warehouse-active-tab') || 'equipment');
+const simCardsListRef = ref<ComponentPublicInstance & { loadSimCards?: () => Promise<void> } | null>(null);
 const showCreateDialog = ref(false);
 const showQRDialog = ref(false);
 const searchQuery = ref('');
@@ -1065,10 +1067,32 @@ watch(viewMode, (newMode) => {
   localStorage.setItem('warehouse-view-mode', newMode);
 });
 
+watch(activeTab, async (newTab) => {
+  localStorage.setItem('warehouse-active-tab', newTab);
+  
+  // Загружаем данные SIM-карт при переключении на вкладку
+  if (newTab === 'sim-cards') {
+    // Ждем, пока компонент отрендерится
+    await nextTick();
+    setTimeout(() => {
+      simCardsListRef.value?.loadSimCards?.();
+    }, 100);
+  }
+});
+
 // Инициализация
-onMounted(() => {
+onMounted(async () => {
   console.log('Страница склада загружена успешно');
   console.log('Режим просмотра:', viewMode.value);
+  
+  // Если активная вкладка - SIM-карты, загружаем данные после монтирования
+  if (activeTab.value === 'sim-cards') {
+    // Ждем, пока компонент отрендерится
+    await nextTick();
+    setTimeout(() => {
+      simCardsListRef.value?.loadSimCards?.();
+    }, 200);
+  }
 });
 </script>
 

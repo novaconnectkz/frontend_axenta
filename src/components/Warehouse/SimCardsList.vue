@@ -588,6 +588,15 @@ const loadSimCards = async () => {
 
   loading.value = true;
   try {
+    // Убеждаемся, что настройки NovaConnect загружены перед загрузкой данных
+    // Это важно при обновлении страницы, когда настройки еще не загружены
+    try {
+      await novaconnectService.reloadSettings();
+    } catch (error) {
+      console.warn('Не удалось перезагрузить настройки NovaConnect:', error);
+      // Продолжаем попытку загрузки, возможно настройки уже загружены
+    }
+    
     // Формируем фильтры, исключая undefined значения
     const filters: any = {};
     if (filterProfile.value) {
@@ -642,7 +651,7 @@ const loadSimCards = async () => {
       // Загружаем данные порциями, чтобы избежать таймаутов
       const loadAllStatsData = async () => {
         const allCards: NovaConnectSimCard[] = [];
-        const pageSize = 1000; // Загружаем по 1000 карт за раз
+        const pageSize = 500; // Уменьшаем размер страницы для более стабильной загрузки
         const totalPages = Math.ceil((totalCount.value || 0) / pageSize);
         
         loadingStats.value = true;
@@ -650,26 +659,43 @@ const loadSimCards = async () => {
         
         try {
           for (let page = 0; page < totalPages; page++) {
-            const response = await novaconnectService.getSimCards({
-              page: page,
-              size: pageSize,
-              filter: undefined,
-            });
-            
-            if (response && Array.isArray(response.items)) {
-              allCards.push(...response.items);
-              statsLoadedCount.value = allCards.length;
-              console.log(`📊 Загружено для статистики: ${allCards.length} из ${totalCount.value}`);
+            try {
+              const response = await novaconnectService.getSimCards({
+                page: page,
+                size: pageSize,
+                filter: undefined,
+              });
               
-              // Обновляем статистику по мере загрузки
-              statsData.value = allCards.map(item => ({ ...item }));
+              if (response && Array.isArray(response.items)) {
+                allCards.push(...response.items);
+                statsLoadedCount.value = allCards.length;
+                console.log(`📊 Загружено для статистики: ${allCards.length} из ${totalCount.value}`);
+                
+                // Обновляем статистику по мере загрузки
+                statsData.value = allCards.map(item => ({ ...item }));
+              }
+            } catch (pageError: any) {
+              // Если ошибка таймаута на конкретной странице, пропускаем её и продолжаем
+              if (pageError.code === 'ECONNABORTED' || pageError.message?.includes('timeout')) {
+                console.warn(`⚠️ Таймаут при загрузке страницы ${page + 1}/${totalPages}, пропускаем...`);
+                // Продолжаем загрузку следующих страниц
+                continue;
+              } else {
+                // Для других ошибок логируем, но продолжаем
+                console.warn(`⚠️ Ошибка при загрузке страницы ${page + 1}/${totalPages}:`, pageError.message);
+                continue;
+              }
             }
           }
           
-          // Помечаем статистику как полностью загруженную
+          // Помечаем статистику как полностью загруженную (даже если не все страницы загружены)
           statsFullyLoaded.value = true;
-          console.log('✅ Загружены все данные для статистики:', statsData.value.length);
-        } catch (err) {
+          console.log('✅ Загружены данные для статистики:', {
+            загружено: statsData.value.length,
+            всего: totalCount.value,
+            процент: totalCount.value > 0 ? Math.round((statsData.value.length / totalCount.value) * 100) : 0
+          });
+        } catch (err: any) {
           console.warn('Не удалось загрузить все данные для статистики:', err);
           // Используем уже загруженные данные
         } finally {
@@ -703,7 +729,16 @@ const loadSimCards = async () => {
     });
   } catch (error: any) {
     console.error('❌ Ошибка загрузки SIM-карт:', error);
-    showSnackbar(error.message || 'Ошибка загрузки SIM-карт', 'error');
+    
+    // Не показываем ошибку, если интеграция просто не настроена
+    // (это нормальная ситуация, пользователь увидит предупреждение в UI)
+    if (error.message && error.message.includes('Токен NovaConnect не настроен')) {
+      console.log('ℹ️ Интеграция NovaConnect не настроена');
+      // Не показываем snackbar для этой ошибки, т.к. есть предупреждение в UI
+    } else {
+      showSnackbar(error.message || 'Ошибка загрузки SIM-карт', 'error');
+    }
+    
     // Сбрасываем состояние при ошибке
     simCards.value = [];
     totalCount.value = 0;
@@ -859,6 +894,11 @@ const handleStorageChange = (e: StorageEvent) => {
     }
   }
 };
+
+// Expose метод для загрузки данных (для вызова из родительского компонента)
+defineExpose({
+  loadSimCards,
+});
 
 // Lifecycle
 onMounted(() => {
