@@ -75,6 +75,27 @@
     <!-- Единый баннер со статистикой -->
     <v-card v-if="stats" class="mb-4 stats-banner" elevation="2">
       <v-card-text class="pa-4">
+        <!-- Прогресс-бар загрузки статистики -->
+        <div v-if="loadingStats" class="mb-4">
+          <div class="d-flex align-center mb-2">
+            <v-icon icon="mdi-refresh" size="20" color="primary" class="mr-2 loading-icon" />
+            <span class="text-body-2 font-weight-medium">Загрузка статистики...</span>
+            <v-spacer />
+            <span class="text-body-2 text-medium-emphasis">{{ statsProgress }}%</span>
+          </div>
+          <v-progress-linear
+            :model-value="statsProgress"
+            color="primary"
+            height="8"
+            rounded
+            striped
+            class="mb-2"
+          />
+          <div class="text-caption text-medium-emphasis text-center">
+            Загружено {{ statsLoadedCount }} из {{ totalCount }} SIM-карт
+          </div>
+        </div>
+
         <v-row class="align-center">
           <!-- Основная статистика -->
           <v-col cols="12" md="6">
@@ -144,8 +165,6 @@
       :key="`sim-table-${tableKey}`"
       :headers="headers"
       :items="paginatedSimCards"
-      :items-per-page="itemsPerPage"
-      :page="currentPage"
       item-value="id"
       class="elevation-1"
       no-data-text="Отсутствуют данные"
@@ -417,7 +436,15 @@ import { novaconnectService, type NovaConnectSimCard } from '@/services/novaconn
 const loading = ref(false);
 const simCards = ref<NovaConnectSimCard[]>([]); // Только текущая страница
 const statsData = ref<NovaConnectSimCard[]>([]); // Данные для статистики (первая страница)
+const allProfilesData = ref<NovaConnectSimCard[]>([]); // Данные для получения всех профилей
 const totalCount = ref(0);
+const loadingStats = ref(false); // Загрузка статистики
+const statsLoadedCount = ref(0); // Количество загруженных карт для статистики
+const statsFullyLoaded = ref(false); // Флаг полной загрузки статистики
+const statsProgress = computed(() => {
+  if (totalCount.value === 0) return 0;
+  return Math.round((statsLoadedCount.value / totalCount.value) * 100);
+});
 const searchQuery = ref('');
 const filterProfile = ref<string | null>(null);
 const filterBlocked = ref<boolean | null>(null);
@@ -437,11 +464,22 @@ const snackbar = ref({
   timeout: 5000,
 });
 
-// Опции фильтров
-const profileOptions = [
-  { title: 'TD', value: 'TD' },
-  { title: 'TC', value: 'TC' },
-];
+// Опции фильтров - динамически собираем все уникальные профили из загруженных данных
+const profileOptions = computed(() => {
+  const profiles = new Set<string>();
+  
+  // Собираем профили из всех загруженных данных (приоритет - allProfilesData для получения всех профилей)
+  [...allProfilesData.value, ...simCards.value, ...statsData.value].forEach(card => {
+    if (card.profile) {
+      profiles.add(card.profile);
+    }
+  });
+  
+  // Преобразуем в массив и сортируем
+  return Array.from(profiles)
+    .sort()
+    .map(profile => ({ title: profile, value: profile }));
+});
 
 const blockedOptions = [
   { title: 'Разблокированные', value: false },
@@ -487,31 +525,35 @@ const isConfigured = computed(() => {
 const stats = computed(() => {
   if (totalCount.value === 0 && statsData.value.length === 0) return null;
 
-  // Используем данные для статистики (первая страница или текущая страница при фильтрах)
+  // Используем данные для статистики
+  // Если нет фильтров - используем все загруженные данные для статистики (statsData содержит все карты)
+  // Если есть фильтры - используем только текущую страницу
   const cardsForStats = hasFilters.value ? simCards.value : statsData.value;
   const totalForStats = totalCount.value;
+  
+  // Проверяем, загружены ли все данные (для точной статистики)
+  const allDataLoaded = !hasFilters.value && statsData.value.length === totalForStats && totalForStats > 0;
 
-  // Подсчитываем статистику по профилям из доступных данных
-  // Примечание: при фильтрах статистика может быть неточной, так как мы видим только текущую страницу
+  // Подсчитываем статистику по профилям из ВСЕХ загруженных данных
   const profiles: Record<string, number> = {};
   cardsForStats.forEach(card => {
     const profile = card.profile || 'Unknown';
     profiles[profile] = (profiles[profile] || 0) + 1;
   });
 
-  // Если нет фильтров, используем общее количество из API
-  // Если есть фильтры, показываем статистику по текущей странице (приблизительно)
+  // Точный подсчет активных и заблокированных из всех загруженных данных
+  const activeCount = cardsForStats.filter(card => card.block === 'n').length;
+  const blockedCount = cardsForStats.filter(card => card.block !== 'n').length;
+  
   return {
     total: totalForStats,
-    active: hasFilters.value 
-      ? cardsForStats.filter(card => card.block === 'n').length 
-      : (totalForStats - cardsForStats.filter(card => card.block !== 'n').length), // Приблизительно
-    blocked: hasFilters.value
-      ? cardsForStats.filter(card => card.block !== 'n').length
-      : cardsForStats.filter(card => card.block !== 'n').length, // Приблизительно
+    // Всегда используем точный подсчет из загруженных данных
+    // Когда все данные загружены - статистика будет точной
+    active: activeCount,
+    blocked: blockedCount,
     td: cardsForStats.filter(card => card.profile === 'TD').length,
     tc: cardsForStats.filter(card => card.profile === 'TC').length,
-    profiles, // Все профили с количеством из доступных данных
+    profiles, // Все профили с количеством из всех загруженных данных
   };
 });
 
@@ -587,12 +629,71 @@ const loadSimCards = async () => {
     // Устанавливаем загруженные карты (только текущая страница)
     simCards.value = response.items.map(item => ({ ...item }));
     totalCount.value = response.all_count ?? response.count ?? 0;
+    
+    // Принудительно обновляем таблицу
+    tableKey.value++;
 
-    // Для статистики используем только данные первой страницы (если нет фильтров)
-    // Не загружаем дополнительные данные - используем то, что уже есть
-    if (!hasFilters.value && currentPage.value === 1) {
-      // Используем текущие данные для статистики (25 карт достаточно для примерной статистики)
+    // Для статистики загружаем все данные асинхронно (если нет фильтров и статистика еще не загружена)
+    if (!hasFilters.value && currentPage.value === 1 && !statsFullyLoaded.value) {
+      // Используем текущие данные для быстрого отображения
       statsData.value = response.items.map(item => ({ ...item }));
+      
+      // Загружаем ВСЕ данные для точной статистики асинхронно (не блокирует UI)
+      // Загружаем данные порциями, чтобы избежать таймаутов
+      const loadAllStatsData = async () => {
+        const allCards: NovaConnectSimCard[] = [];
+        const pageSize = 1000; // Загружаем по 1000 карт за раз
+        const totalPages = Math.ceil((totalCount.value || 0) / pageSize);
+        
+        loadingStats.value = true;
+        statsLoadedCount.value = response.items.length; // Уже загружено 10 карт
+        
+        try {
+          for (let page = 0; page < totalPages; page++) {
+            const response = await novaconnectService.getSimCards({
+              page: page,
+              size: pageSize,
+              filter: undefined,
+            });
+            
+            if (response && Array.isArray(response.items)) {
+              allCards.push(...response.items);
+              statsLoadedCount.value = allCards.length;
+              console.log(`📊 Загружено для статистики: ${allCards.length} из ${totalCount.value}`);
+              
+              // Обновляем статистику по мере загрузки
+              statsData.value = allCards.map(item => ({ ...item }));
+            }
+          }
+          
+          // Помечаем статистику как полностью загруженную
+          statsFullyLoaded.value = true;
+          console.log('✅ Загружены все данные для статистики:', statsData.value.length);
+        } catch (err) {
+          console.warn('Не удалось загрузить все данные для статистики:', err);
+          // Используем уже загруженные данные
+        } finally {
+          loadingStats.value = false;
+        }
+      };
+      
+      // Запускаем загрузку в фоне
+      loadAllStatsData();
+      
+      // Загружаем данные для получения всех уникальных профилей (если еще не загружены)
+      if (allProfilesData.value.length === 0) {
+        novaconnectService.getSimCards({
+          page: 0,
+          size: 200, // Загружаем 200 карт для получения всех профилей
+          filter: undefined,
+        }).then(profilesResponse => {
+          if (profilesResponse && Array.isArray(profilesResponse.items)) {
+            allProfilesData.value = profilesResponse.items.map(item => ({ ...item }));
+          }
+        }).catch(err => {
+          console.warn('Не удалось загрузить данные для получения всех профилей:', err);
+        });
+      }
     }
 
     console.log('✅ Загружена страница SIM-карт:', {
@@ -618,6 +719,9 @@ const handleSearch = () => {
 
 const handleFilterChange = () => {
   statsData.value = []; // Очищаем данные для статистики при изменении фильтров
+  statsFullyLoaded.value = false; // Сбрасываем флаг загрузки статистики при изменении фильтров
+  statsLoadedCount.value = 0; // Сбрасываем счетчик загруженных карт
+  // Не очищаем allProfilesData - оставляем для отображения всех профилей в фильтре
   currentPage.value = 1; // Сбрасываем на первую страницу при изменении фильтров
   loadSimCards();
 };
@@ -863,6 +967,20 @@ onUnmounted(() => {
   font-weight: 500;
   line-height: 1.2;
   color: rgba(var(--v-theme-on-surface), 1);
+}
+
+/* Анимация загрузки */
+.loading-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (max-width: 960px) {
