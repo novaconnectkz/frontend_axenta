@@ -415,8 +415,8 @@ import { novaconnectService, type NovaConnectSimCard } from '@/services/novaconn
 
 // Реактивные данные
 const loading = ref(false);
-const simCards = ref<NovaConnectSimCard[]>([]);
-const allSimCards = ref<NovaConnectSimCard[]>([]); // Все SIM-карты для статистики
+const simCards = ref<NovaConnectSimCard[]>([]); // Только текущая страница
+const statsData = ref<NovaConnectSimCard[]>([]); // Данные для статистики (первая страница)
 const totalCount = ref(0);
 const searchQuery = ref('');
 const filterProfile = ref<string | null>(null);
@@ -427,7 +427,7 @@ const tableKey = ref(0); // Ключ для принудительного об�
 
 // Пагинация
 const currentPage = ref(1);
-const itemsPerPage = ref(25);
+const itemsPerPage = ref(10);
 const itemsPerPageOptions = [10, 25, 50, 75, 100, 150];
 
 const snackbar = ref({
@@ -485,26 +485,33 @@ const isConfigured = computed(() => {
 });
 
 const stats = computed(() => {
-  if (totalCount.value === 0 && allSimCards.value.length === 0) return null;
+  if (totalCount.value === 0 && statsData.value.length === 0) return null;
 
-  // Используем все SIM-карты для статистики, если нет фильтров
-  const cardsForStats = hasFilters.value ? simCards.value : allSimCards.value;
-  const totalForStats = hasFilters.value ? (totalCount.value || simCards.value.length) : totalCount.value;
+  // Используем данные для статистики (первая страница или текущая страница при фильтрах)
+  const cardsForStats = hasFilters.value ? simCards.value : statsData.value;
+  const totalForStats = totalCount.value;
 
-  // Подсчитываем статистику по профилям
+  // Подсчитываем статистику по профилям из доступных данных
+  // Примечание: при фильтрах статистика может быть неточной, так как мы видим только текущую страницу
   const profiles: Record<string, number> = {};
   cardsForStats.forEach(card => {
     const profile = card.profile || 'Unknown';
     profiles[profile] = (profiles[profile] || 0) + 1;
   });
 
+  // Если нет фильтров, используем общее количество из API
+  // Если есть фильтры, показываем статистику по текущей странице (приблизительно)
   return {
     total: totalForStats,
-    active: cardsForStats.filter(card => card.block === 'n').length,
-    blocked: cardsForStats.filter(card => card.block !== 'n').length,
+    active: hasFilters.value 
+      ? cardsForStats.filter(card => card.block === 'n').length 
+      : (totalForStats - cardsForStats.filter(card => card.block !== 'n').length), // Приблизительно
+    blocked: hasFilters.value
+      ? cardsForStats.filter(card => card.block !== 'n').length
+      : cardsForStats.filter(card => card.block !== 'n').length, // Приблизительно
     td: cardsForStats.filter(card => card.profile === 'TD').length,
     tc: cardsForStats.filter(card => card.profile === 'TC').length,
-    profiles, // Все профили с количеством
+    profiles, // Все профили с количеством из доступных данных
   };
 });
 
@@ -513,8 +520,8 @@ const hasFilters = computed(() => {
   return !!(searchQuery.value || filterProfile.value || filterBlocked.value !== null);
 });
 
-// Пагинация
-const totalItems = computed(() => simCards.value.length);
+// Пагинация (серверная)
+const totalItems = computed(() => totalCount.value);
 const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value));
 const startRange = computed(() => {
   if (totalItems.value === 0) return 0;
@@ -524,11 +531,8 @@ const endRange = computed(() => {
   const end = currentPage.value * itemsPerPage.value;
   return Math.min(end, totalItems.value);
 });
-const paginatedSimCards = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return simCards.value.slice(start, end);
-});
+// Теперь simCards уже содержит только текущую страницу
+const paginatedSimCards = computed(() => simCards.value);
 
 // Методы
 const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
@@ -542,14 +546,6 @@ const loadSimCards = async () => {
 
   loading.value = true;
   try {
-    console.log('🔄 Загрузка всех SIM-карт (без пагинации):', {
-      filters: {
-        profile: filterProfile.value,
-        blocked: filterBlocked.value,
-        query: searchQuery.value,
-      },
-    });
-    
     // Формируем фильтры, исключая undefined значения
     const filters: any = {};
     if (filterProfile.value) {
@@ -557,79 +553,52 @@ const loadSimCards = async () => {
     }
     if (filterBlocked.value !== null) {
       // API NovaConnect ожидает msu_block для блокировки
-      // blocked: true означает заблокированные, false - разблокированные
       filters.msu_block = filterBlocked.value;
     }
     if (searchQuery.value) {
       filters.query = searchQuery.value;
     }
     
-    // Загружаем все SIM-карты с параллельной загрузкой (оптимизация)
-    const allCards: NovaConnectSimCard[] = [];
-    const pageSize = 100;
-    let totalCountFromAPI = 0;
+    // Серверная пагинация: загружаем только текущую страницу
+    // API использует 0-based индексацию, а мы используем 1-based для UI
+    const apiPage = currentPage.value - 1;
+    
+    console.log('🔄 Загрузка SIM-карт (серверная пагинация):', {
+      page: currentPage.value,
+      itemsPerPage: itemsPerPage.value,
+      filters: {
+        profile: filterProfile.value,
+        blocked: filterBlocked.value,
+        query: searchQuery.value,
+      },
+    });
 
-    // Сначала получаем первую страницу для определения общего количества
-    const firstPageResponse = await novaconnectService.getSimCards({
-      page: 0,
-      size: pageSize,
+    const response = await novaconnectService.getSimCards({
+      page: apiPage,
+      size: itemsPerPage.value,
       filter: Object.keys(filters).length > 0 ? filters : undefined,
     });
 
-    if (!firstPageResponse || !Array.isArray(firstPageResponse.items)) {
+    if (!response || !Array.isArray(response.items)) {
       console.error('❌ Неверный формат ответа от API');
       throw new Error('Неверный формат ответа от API');
     }
 
-    totalCountFromAPI = firstPageResponse.all_count ?? firstPageResponse.count ?? 0;
-    allCards.push(...firstPageResponse.items);
+    // Устанавливаем загруженные карты (только текущая страница)
+    simCards.value = response.items.map(item => ({ ...item }));
+    totalCount.value = response.all_count ?? response.count ?? 0;
 
-    // Вычисляем количество страниц
-    const totalPages = Math.ceil(totalCountFromAPI / pageSize);
-    
-    // Параллельная загрузка остальных страниц (батчами по 10 для оптимизации)
-    const batchSize = 10;
-    const remainingPages = totalPages - 1;
-    
-    console.log(`📄 Загружено ${allCards.length} из ${totalCountFromAPI} SIM-карт, загружаем остальные ${remainingPages} страниц параллельно...`);
-
-    for (let batchStart = 1; batchStart < totalPages; batchStart += batchSize) {
-      const batchEnd = Math.min(batchStart + batchSize, totalPages);
-      const batchPromises: Promise<any>[] = [];
-
-      // Создаем промисы для батча страниц
-      for (let page = batchStart; page < batchEnd; page++) {
-        batchPromises.push(
-          novaconnectService.getSimCards({
-            page: page,
-            size: pageSize,
-            filter: Object.keys(filters).length > 0 ? filters : undefined,
-          })
-        );
-      }
-
-      // Загружаем батч параллельно
-      const batchResponses = await Promise.all(batchPromises);
-      
-      // Добавляем результаты в общий массив
-      batchResponses.forEach(response => {
-        if (response && Array.isArray(response.items)) {
-          allCards.push(...response.items);
-        }
-      });
-
-      console.log(`📄 Загружено ${allCards.length} из ${totalCountFromAPI} SIM-карт (${Math.round((allCards.length / totalCountFromAPI) * 100)}%)...`);
+    // Для статистики используем только данные первой страницы (если нет фильтров)
+    // Не загружаем дополнительные данные - используем то, что уже есть
+    if (!hasFilters.value && currentPage.value === 1) {
+      // Используем текущие данные для статистики (25 карт достаточно для примерной статистики)
+      statsData.value = response.items.map(item => ({ ...item }));
     }
 
-    // Устанавливаем все загруженные карты
-    simCards.value = allCards.map(item => ({ ...item }));
-    totalCount.value = totalCountFromAPI;
-    allSimCards.value = allCards;
-
-    console.log('✅ Загружено всех SIM-карт:', {
-      всего: totalCountFromAPI,
+    console.log('✅ Загружена страница SIM-карт:', {
+      страница: currentPage.value,
       загружено: simCards.value.length,
-      страниц: totalPages,
+      всего: totalCount.value,
     });
   } catch (error: any) {
     console.error('❌ Ошибка загрузки SIM-карт:', error);
@@ -648,19 +617,22 @@ const handleSearch = () => {
 };
 
 const handleFilterChange = () => {
-  allSimCards.value = []; // Очищаем кэш всех карт при изменении фильтров
+  statsData.value = []; // Очищаем данные для статистики при изменении фильтров
   currentPage.value = 1; // Сбрасываем на первую страницу при изменении фильтров
   loadSimCards();
 };
 
 const handlePageChange = () => {
+  // Загружаем новую страницу при смене страницы
+  loadSimCards();
   // Прокручиваем вверх при смене страницы
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// Отслеживаем изменение itemsPerPage и сбрасываем страницу
+// Отслеживаем изменение itemsPerPage и перезагружаем данные
 watch(itemsPerPage, () => {
   currentPage.value = 1;
+  loadSimCards();
 });
 
 
