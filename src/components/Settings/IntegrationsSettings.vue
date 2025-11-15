@@ -421,6 +421,125 @@
               </v-row>
             </div>
           </div>
+
+          <div v-if="editDialog.integration.type === 'novaconnect'">
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information"
+            >
+              <div class="text-body-2">
+                <strong>Документация API:</strong>
+                <a
+                  href="https://kb.novaconnect.kz/books/rukovodstvo-razrabotcika"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="ml-1"
+                >
+                  Руководство разработчика NovaConnect
+                </a>
+              </div>
+            </v-alert>
+
+            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки NovaConnect API</h4>
+            
+            <v-text-field
+              v-model="editDialog.form.settings.api_url"
+              label="URL API"
+              variant="outlined"
+              hint="Базовый URL API NovaConnect"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-text-field
+              v-model="editDialog.form.settings.token"
+              label="Токен авторизации"
+              :type="showToken ? 'text' : 'password'"
+              variant="outlined"
+              hint="Bearer токен для авторизации в API. Получить можно в личном кабинете NovaConnect в разделе 'Мой профиль' → 'Токены доступа'"
+              persistent-hint
+              class="mb-3"
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="copyToken"
+                  :disabled="!editDialog.form.settings.token"
+                >
+                  <v-icon>mdi-content-copy</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+            
+            <v-select
+              v-model="editDialog.form.settings.language"
+              label="Язык ответов API"
+              :items="[
+                { title: 'Русский', value: 'ru' },
+                { title: 'English', value: 'en' }
+              ]"
+              variant="outlined"
+              hint="Язык для ответов API (ru или en)"
+              persistent-hint
+              class="mb-3"
+            />
+
+            <v-divider class="my-4" />
+
+            <h5 class="text-subtitle-2 font-weight-bold mb-3">Webhook настройки</h5>
+            
+            <v-text-field
+              v-model="editDialog.form.settings.webhook_url"
+              label="URL для получения webhook уведомлений"
+              variant="outlined"
+              hint="URL, на который будут приходить уведомления о событиях (опционально)"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.webhook_enabled"
+              label="Включить webhook уведомления"
+              color="primary"
+              :disabled="!editDialog.form.settings.webhook_url"
+              hide-details
+              class="mb-3"
+            />
+
+            <v-divider class="my-4" />
+
+            <h5 class="text-subtitle-2 font-weight-bold mb-3">Настройки синхронизации</h5>
+            
+            <v-text-field
+              v-model.number="editDialog.form.settings.sync_interval"
+              label="Интервал синхронизации (минуты)"
+              type="number"
+              variant="outlined"
+              hint="Как часто синхронизировать данные с NovaConnect"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.auto_sync_enabled"
+              label="Автоматическая синхронизация"
+              color="primary"
+              hide-details
+            />
+          </div>
         </v-card-text>
 
         <v-divider />
@@ -517,6 +636,7 @@ const formatDate = (date: Date) => {
 const getIntegrationIcon = (type: string) => {
   const icons = {
     axenta: 'mdi-cloud',
+    novaconnect: 'mdi-sim',
     bitrix24: 'mdi-briefcase',
     '1c': 'mdi-database',
     telegram: 'mdi-telegram',
@@ -529,6 +649,7 @@ const getIntegrationIcon = (type: string) => {
 const getIntegrationColor = (type: string) => {
   const colors = {
     axenta: 'blue',
+    novaconnect: 'indigo',
     bitrix24: 'orange',
     '1c': 'green',
     telegram: 'cyan',
@@ -541,6 +662,7 @@ const getIntegrationColor = (type: string) => {
 const getIntegrationTypeLabel = (type: string) => {
   const labels = {
     axenta: 'Axenta Cloud',
+    novaconnect: 'NovaConnect API',
     bitrix24: 'Битрикс24',
     '1c': '1С:Предприятие',
     telegram: 'Telegram Bot',
@@ -628,6 +750,35 @@ const loadIntegrations = async () => {
         },
       });
     }
+    
+    // NovaConnect интеграция
+    const savedNovaConnectSettings = localStorage.getItem('novaconnect_settings');
+    const savedNovaConnectToken = localStorage.getItem('novaconnect_token');
+    const novaConnectSettings = savedNovaConnectSettings ? JSON.parse(savedNovaConnectSettings) : {
+      api_url: 'https://api.novaconnect.kz/api',
+      language: 'ru',
+      enabled: false,
+      webhook_url: '',
+      webhook_enabled: false,
+      sync_interval: 15,
+      auto_sync_enabled: false,
+    };
+    
+    allIntegrations.push({
+      id: 'novaconnect',
+      type: 'novaconnect',
+      name: 'NovaConnect',
+      description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
+      status: savedNovaConnectToken && novaConnectSettings.enabled ? 'active' : 'inactive',
+      enabled: novaConnectSettings.enabled || false,
+      lastSync: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      settings: {
+        ...novaConnectSettings,
+        token: savedNovaConnectToken || '',
+      },
+    });
     
     // Демо интеграции (в разработке)
     allIntegrations.push({
@@ -759,9 +910,20 @@ const toggleIntegration = async (integration: IntegrationWithSettings) => {
   }
   
   try {
-    await settingsService.updateIntegration(integration.id, {
-      enabled: integration.enabled
-    });
+    if (integration.type === 'novaconnect') {
+      // Для NovaConnect сохраняем в localStorage
+      const savedSettings = localStorage.getItem('novaconnect_settings');
+      const settings = savedSettings ? JSON.parse(savedSettings) : {};
+      settings.enabled = integration.enabled;
+      localStorage.setItem('novaconnect_settings', JSON.stringify(settings));
+      
+      // Обновляем статус в списке
+      integration.status = integration.enabled ? 'active' : 'inactive';
+    } else {
+      await settingsService.updateIntegration(integration.id, {
+        enabled: integration.enabled
+      });
+    }
     
     showSnackbar(
       `Интеграция ${integration.enabled ? 'включена' : 'отключена'}`,
@@ -789,6 +951,34 @@ const testConnection = async (integration: IntegrationWithSettings) => {
     
     if (integration.type === 'axenta') {
       result = await settingsService.testAxentaConnection(integration.settings as AxentaIntegrationSettings);
+    } else if (integration.type === 'novaconnect') {
+      // Тестируем подключение к API NovaConnect
+      const axios = (await import('axios')).default;
+      const apiUrl = integration.settings.api_url || 'https://api.novaconnect.kz/api';
+      const token = integration.settings.token || localStorage.getItem('novaconnect_token');
+      const language = integration.settings.language || 'ru';
+      
+      if (!token) {
+        throw new Error('Токен не указан');
+      }
+      
+      const response = await axios.post(
+        `${apiUrl}/user/get?lang=${language}`,
+        {},
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          timeout: 10000,
+        }
+      );
+      
+      if (response.data && response.data.code === 200) {
+        result = { success: true, message: 'Подключение к API успешно установлено' };
+      } else {
+        throw new Error('Неверный ответ от API');
+      }
     } else {
       // Для других интеграций используем общий метод
       result = await settingsService.testIntegrationConnection(integration.id);
@@ -802,9 +992,12 @@ const testConnection = async (integration: IntegrationWithSettings) => {
     } else {
       showSnackbar(result.message, 'error');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка тестирования подключения:', error);
-    showSnackbar('Ошибка тестирования подключения', 'error');
+    showSnackbar(
+      error.response?.data?.message || error.message || 'Ошибка подключения к API',
+      'error'
+    );
   } finally {
     testingConnections.value[integration.id] = false;
   }
@@ -820,20 +1013,44 @@ const editIntegration = (integration: IntegrationWithSettings) => {
   // Сбрасываем состояние показа токена
   showToken.value = false;
   
-  // Загружаем токен для Axenta интеграции
+  editDialog.value.integration = integration;
+  
+  // Загружаем токен и инициализируем форму
   if (integration.type === 'axenta') {
     const token = localStorage.getItem('axenta_token');
     currentToken.value = token || '';
+    editDialog.value.form = {
+      name: integration.name,
+      description: integration.description,
+      settings: { ...integration.settings }
+    };
+  } else if (integration.type === 'novaconnect') {
+    const token = localStorage.getItem('novaconnect_token');
+    currentToken.value = token || '';
+    // Для NovaConnect убеждаемся, что все поля настроек присутствуют
+    editDialog.value.form = {
+      name: integration.name,
+      description: integration.description,
+      settings: {
+        api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
+        token: integration.settings.token || token || '',
+        language: integration.settings.language || 'ru',
+        enabled: integration.settings.enabled || false,
+        webhook_url: integration.settings.webhook_url || '',
+        webhook_enabled: integration.settings.webhook_enabled || false,
+        sync_interval: integration.settings.sync_interval || 15,
+        auto_sync_enabled: integration.settings.auto_sync_enabled || false,
+      }
+    };
   } else {
     currentToken.value = '';
+    editDialog.value.form = {
+      name: integration.name,
+      description: integration.description,
+      settings: { ...integration.settings }
+    };
   }
   
-  editDialog.value.integration = integration;
-  editDialog.value.form = {
-    name: integration.name,
-    description: integration.description,
-    settings: { ...integration.settings }
-  };
   editDialog.value.show = true;
 };
 
@@ -854,6 +1071,30 @@ const saveIntegration = async () => {
         // Обновляем существующую интеграцию
         result = await settingsService.updateAxentaIntegration(editDialog.value.form.settings);
       }
+    } else if (editDialog.value.integration.type === 'novaconnect') {
+      // Сохраняем настройки NovaConnect в localStorage
+      const settingsToSave = { ...editDialog.value.form.settings };
+      const { token, ...settingsWithoutToken } = settingsToSave;
+      
+      localStorage.setItem('novaconnect_settings', JSON.stringify(settingsWithoutToken));
+      if (token) {
+        localStorage.setItem('novaconnect_token', token);
+      }
+      
+      // Обновляем статус интеграции в списке
+      const index = integrations.value.findIndex(i => i.id === 'novaconnect');
+      if (index !== -1) {
+        integrations.value[index] = {
+          ...integrations.value[index],
+          enabled: settingsWithoutToken.enabled || false,
+          status: token && settingsWithoutToken.enabled ? 'active' : 'inactive',
+          settings: settingsToSave,
+        };
+      }
+      
+      editDialog.value.show = false;
+      showSnackbar('Настройки NovaConnect успешно сохранены', 'success');
+      return;
     } else {
       // Для других интеграций используем общий метод
       const updated = await settingsService.updateIntegration(
@@ -891,13 +1132,18 @@ const saveIntegration = async () => {
 // Метод для копирования токена
 const copyToken = async () => {
   try {
-    if (!currentToken.value) {
+    // Для NovaConnect используем токен из формы, для других - из currentToken
+    const tokenToCopy = editDialog.value.integration?.type === 'novaconnect' 
+      ? editDialog.value.form.settings.token 
+      : currentToken.value;
+    
+    if (!tokenToCopy) {
       showSnackbar('Токен не найден. Сначала войдите в систему.', 'warning');
       return;
     }
     
     // Копируем токен в буфер обмена
-    await navigator.clipboard.writeText(currentToken.value);
+    await navigator.clipboard.writeText(tokenToCopy);
     showSnackbar('Токен скопирован в буфер обмена', 'success');
   } catch (error) {
     console.error('Ошибка копирования токена:', error);
