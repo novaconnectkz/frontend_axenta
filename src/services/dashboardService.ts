@@ -25,6 +25,55 @@ class DashboardService {
 
   // Флаг для использования mock-данных (временно включен)
   private useMockData = true;
+  // Ключ и TTL для персистентного кэша в localStorage
+  private persistentCacheTTL = 5 * 60 * 1000; // 5 минут
+  private getPersistentKey(): string {
+    // Пытаемся привязать к компании, если она сохранена в auth-хранилище
+    try {
+      const companyRaw = localStorage.getItem("axenta_company");
+      if (companyRaw) {
+        const company = JSON.parse(companyRaw);
+        if (company && (company.id || company.company_id)) {
+          const id = company.id ?? company.company_id;
+          return `axenta_dashboard_stats_${id}`;
+        }
+      }
+    } catch {
+      // noop — если парсинг не удался, падаем на общий ключ
+    }
+    return "axenta_dashboard_stats";
+  }
+  private readPersistentCache():
+    | { data: DashboardStats; timestamp: number }
+    | null {
+    try {
+      const raw = localStorage.getItem(this.getPersistentKey());
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        parsed.data &&
+        typeof parsed.timestamp === "number"
+      ) {
+        return parsed;
+      }
+    } catch {
+      // игнорируем битые данные
+    }
+    return null;
+  }
+  private writePersistentCache(data: DashboardStats): void {
+    try {
+      const payload = JSON.stringify({
+        data,
+        timestamp: Date.now(),
+      });
+      localStorage.setItem(this.getPersistentKey(), payload);
+    } catch {
+      // Если localStorage недоступен/переполнен — безопасно игнорируем
+    }
+  }
   
   // Флаг для использования реальных данных объектов
   private useRealObjectsData = true;
@@ -61,7 +110,7 @@ class DashboardService {
 
   // Получение общей статистики для Dashboard с кешированием и дедупликацией
   async getStats(forceRefresh: boolean = false): Promise<DashboardStats> {
-    // Проверяем кеш, если не требуется принудительное обновление
+    // 1) Проверяем in-memory кеш, если не требуется принудительное обновление
     if (!forceRefresh && this.statsCache.data) {
       const now = Date.now();
       const age = now - this.statsCache.timestamp;
@@ -69,6 +118,31 @@ class DashboardService {
       if (age < this.statsCache.ttl) {
         console.log(`📦 Используем кешированные данные статистики (возраст: ${Math.round(age / 1000)}с)`);
         return this.statsCache.data;
+      }
+    }
+
+    // 2) Если нет актуального in-memory кэша — пробуем persistent (localStorage)
+    if (!forceRefresh) {
+      const persisted = this.readPersistentCache();
+      if (persisted) {
+        const now = Date.now();
+        const age = now - persisted.timestamp;
+        // Возвращаем сохранённые данные сразу (даже если устарели), а обновление запустим в фоне
+        if (!this.statsCache.data) {
+          // Синхронизируем быстрый in-memory, чтобы компоненты имели реактивные данные
+          this.statsCache.data = persisted.data;
+          this.statsCache.timestamp = persisted.timestamp;
+        }
+        // Стартуем фоновое обновление, если данные старше TTL персистентного кэша
+        if (age >= this.persistentCacheTTL) {
+          // Не ждём результата — обновление в фоне с дедупликацией
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.getStats(true);
+        }
+        console.log(
+          `💾 Возвращаем данные из persistent-кэша (возраст: ${Math.round(age / 1000)}с)`
+        );
+        return persisted.data;
       }
     }
 
@@ -166,6 +240,8 @@ class DashboardService {
       timestamp: Date.now(),
       ttl: this.statsCache.ttl,
     };
+    // Так же обновляем persistent-кэш
+    this.writePersistentCache(data);
   }
 
   // Очистка кеша (для принудительного обновления)

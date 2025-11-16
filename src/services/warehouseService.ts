@@ -31,6 +31,66 @@ import {
 class WarehouseService {
   private apiUrl = `${API_BASE_URL}/api`;
   private useMockData = true; // Переключатель для использования mock данных
+  // In-memory кэш статистики склада
+  private statsCache: {
+    data: WarehouseStats | null;
+    timestamp: number;
+    ttl: number;
+  } = {
+    data: null,
+    timestamp: 0,
+    ttl: 10_000, // 10 секунд для оперативного обновления в памяти
+  };
+  // Персистентный TTL и ключ
+  private persistentCacheTTL = 5 * 60 * 1000; // 5 минут
+  private getPersistentKey(): string {
+    // Привязываем к компании/тенанту, если доступны
+    try {
+      const companyRaw = localStorage.getItem("axenta_company");
+      if (companyRaw) {
+        const company = JSON.parse(companyRaw);
+        const companyId = company?.id ?? company?.company_id;
+        if (companyId) return `axenta_warehouse_stats_${companyId}`;
+      }
+    } catch {
+      // ignore
+    }
+    const tenantId = localStorage.getItem("tenantId");
+    if (tenantId) return `axenta_warehouse_stats_tenant_${tenantId}`;
+    return "axenta_warehouse_stats";
+  }
+  private readPersistentCache():
+    | { data: WarehouseStats; timestamp: number }
+    | null {
+    try {
+      const raw = localStorage.getItem(this.getPersistentKey());
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        parsed.data &&
+        typeof parsed.timestamp === "number"
+      ) {
+        return parsed;
+      }
+    } catch {
+      // ignore broken storage
+    }
+    return null;
+  }
+  private writePersistentCache(data: WarehouseStats): void {
+    try {
+      localStorage.setItem(
+        this.getPersistentKey(),
+        JSON.stringify({ data, timestamp: Date.now() })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  }
+  // Дедупликация запроса статистики
+  private pendingStatsRequest: Promise<WarehouseStats> | null = null;
 
   // === ОБОРУДОВАНИЕ ===
 
@@ -781,11 +841,56 @@ class WarehouseService {
   // === СТАТИСТИКА ===
 
   // Получить статистику склада
-  async getWarehouseStats(): Promise<WarehouseStats> {
-    if (this.useMockData) {
-      await simulateDelay();
-      return { ...mockWarehouseStats };
+  async getWarehouseStats(forceRefresh: boolean = false): Promise<WarehouseStats> {
+    // 1) In-memory кэш
+    if (!forceRefresh && this.statsCache.data) {
+      const age = Date.now() - this.statsCache.timestamp;
+      if (age < this.statsCache.ttl) {
+        console.log(
+          `📦 Warehouse: используем in-memory кэш (возраст: ${Math.round(age / 1000)}с)`
+        );
+        return this.statsCache.data;
+      }
     }
+
+    // 2) Persistent кэш
+    if (!forceRefresh) {
+      const persisted = this.readPersistentCache();
+      if (persisted) {
+        const age = Date.now() - persisted.timestamp;
+        if (!this.statsCache.data) {
+          this.statsCache.data = persisted.data;
+          this.statsCache.timestamp = persisted.timestamp;
+        }
+        if (age >= this.persistentCacheTTL) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.getWarehouseStats(true);
+        }
+        console.log(
+          `💾 Warehouse: возвращаем из persistent-кэша (возраст: ${Math.round(age / 1000)}с)`
+        );
+        return persisted.data;
+      }
+    }
+
+    // 3) Дедупликация
+    if (this.pendingStatsRequest) {
+      return this.pendingStatsRequest;
+    }
+
+    this.pendingStatsRequest = (async () => {
+      if (this.useMockData) {
+        await simulateDelay();
+        const data = { ...mockWarehouseStats };
+        // обновим кэши
+        this.statsCache = {
+          data,
+          timestamp: Date.now(),
+          ttl: this.statsCache.ttl,
+        };
+        this.writePersistentCache(data);
+        return data;
+      }
 
     const response = await fetch(`${this.apiUrl}/warehouse/statistics`, {
       headers: {
@@ -799,7 +904,20 @@ class WarehouseService {
     }
 
     const result = await response.json();
-    return result.data;
+      const data: WarehouseStats = result.data;
+      // обновим кэши
+      this.statsCache = {
+        data,
+        timestamp: Date.now(),
+        ttl: this.statsCache.ttl,
+      };
+      this.writePersistentCache(data);
+      return data;
+    })().finally(() => {
+      this.pendingStatsRequest = null;
+    });
+
+    return this.pendingStatsRequest;
   }
 
   // === УТИЛИТЫ ===

@@ -445,6 +445,56 @@ const statsProgress = computed(() => {
   if (totalCount.value === 0) return 0;
   return Math.round((statsLoadedCount.value / totalCount.value) * 100);
 });
+
+// Кэширование статистики SIM-карт
+const getCacheKey = (): string => {
+  try {
+    const companyStr = localStorage.getItem('axenta_company');
+    if (companyStr) {
+      const company = JSON.parse(companyStr);
+      const companyId = company?.id ?? company?.company_id;
+      if (companyId) return `axenta_sim_stats_${companyId}`;
+    }
+  } catch {
+    // ignore
+  }
+  const tenantId = localStorage.getItem('tenantId');
+  if (tenantId) return `axenta_sim_stats_tenant_${tenantId}`;
+  return 'axenta_sim_stats';
+};
+
+const persistentCacheTTL = 5 * 60 * 1000; // 5 минут
+
+const readStatsCache = (): { data: NovaConnectSimCard[]; totalCount: number; timestamp: number } | null => {
+  try {
+    const raw = localStorage.getItem(getCacheKey());
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray(parsed.data) &&
+      typeof parsed.totalCount === 'number' &&
+      typeof parsed.timestamp === 'number'
+    ) {
+      return parsed;
+    }
+  } catch {
+    // ignore broken storage
+  }
+  return null;
+};
+
+const writeStatsCache = (data: NovaConnectSimCard[], totalCount: number): void => {
+  try {
+    localStorage.setItem(
+      getCacheKey(),
+      JSON.stringify({ data, totalCount, timestamp: Date.now() })
+    );
+  } catch {
+    // ignore storage errors
+  }
+};
 const searchQuery = ref('');
 const filterProfile = ref<string | null>(null);
 const filterBlocked = ref<boolean | null>(null);
@@ -644,67 +694,123 @@ const loadSimCards = async () => {
 
     // Для статистики загружаем все данные асинхронно (если нет фильтров и статистика еще не загружена)
     if (!hasFilters.value && currentPage.value === 1 && !statsFullyLoaded.value) {
-      // Используем текущие данные для быстрого отображения
-      statsData.value = response.items.map(item => ({ ...item }));
+      // Проверяем кэш перед загрузкой
+      const cached = readStatsCache();
       
-      // Загружаем ВСЕ данные для точной статистики асинхронно (не блокирует UI)
-      // Загружаем данные порциями, чтобы избежать таймаутов
-      const loadAllStatsData = async () => {
+      if (cached) {
+        const age = Date.now() - cached.timestamp;
+        if (age < persistentCacheTTL) {
+          // Используем данные из кэша для мгновенного отображения
+          statsData.value = cached.data;
+          // Используем totalCount из API (уже установлен выше), но показываем данные из кэша
+          console.log(`💾 SIM-карты: используем кэш (возраст: ${Math.round(age / 1000)}с), обновление в фоне`);
+          
+          // Запускаем обновление в фоне БЕЗ показа индикатора загрузки
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          loadAllStatsDataInBackground(true);
+        } else {
+          // Кэш устарел, но используем его для быстрого отображения, затем обновляем
+          statsData.value = cached.data;
+          console.log(`💾 SIM-карты: используем устаревший кэш, обновление в фоне`);
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          loadAllStatsDataInBackground(true);
+        }
+      } else {
+        // Нет кэша, используем текущие данные и загружаем все с индикатором загрузки
+        statsData.value = response.items.map(item => ({ ...item }));
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        loadAllStatsDataInBackground(false);
+      }
+      
+      // Функция для загрузки всех данных для статистики в фоне
+      async function loadAllStatsDataInBackground(silent: boolean = false) {
         const allCards: NovaConnectSimCard[] = [];
         const pageSize = 500; // Уменьшаем размер страницы для более стабильной загрузки
-        const totalPages = Math.ceil((totalCount.value || 0) / pageSize);
         
-        loadingStats.value = true;
-        statsLoadedCount.value = response.items.length; // Уже загружено 10 карт
+        // Показываем индикатор загрузки только если нет кэша (silent = false)
+        if (!silent) {
+          loadingStats.value = true;
+          statsLoadedCount.value = statsData.value.length; // Уже загружено из первой страницы
+        }
         
         try {
-          for (let page = 0; page < totalPages; page++) {
-            try {
-              const response = await novaconnectService.getSimCards({
-                page: page,
-                size: pageSize,
-                filter: undefined,
-              });
-              
-              if (response && Array.isArray(response.items)) {
-                allCards.push(...response.items);
-                statsLoadedCount.value = allCards.length;
-                console.log(`📊 Загружено для статистики: ${allCards.length} из ${totalCount.value}`);
+          // Сначала получаем первую страницу, чтобы узнать актуальное totalCount
+          const firstPageResponse = await novaconnectService.getSimCards({
+            page: 0,
+            size: pageSize,
+            filter: undefined,
+          });
+          
+          if (firstPageResponse && Array.isArray(firstPageResponse.items)) {
+            // Обновляем totalCount из API
+            const apiTotalCount = firstPageResponse.all_count ?? firstPageResponse.count ?? 0;
+            if (apiTotalCount !== totalCount.value) {
+              totalCount.value = apiTotalCount;
+            }
+            
+            allCards.push(...firstPageResponse.items);
+            if (!silent) {
+              statsLoadedCount.value = allCards.length;
+            }
+            
+            // Обновляем статистику по мере загрузки (тихо, без индикатора)
+            statsData.value = allCards.map(item => ({ ...item }));
+            
+            // Загружаем остальные страницы
+            const totalPages = Math.ceil((totalCount.value || 0) / pageSize);
+            for (let page = 1; page < totalPages; page++) {
+              try {
+                const response = await novaconnectService.getSimCards({
+                  page: page,
+                  size: pageSize,
+                  filter: undefined,
+                });
                 
-                // Обновляем статистику по мере загрузки
-                statsData.value = allCards.map(item => ({ ...item }));
-              }
-            } catch (pageError: any) {
-              // Если ошибка таймаута на конкретной странице, пропускаем её и продолжаем
-              if (pageError.code === 'ECONNABORTED' || pageError.message?.includes('timeout')) {
-                console.warn(`⚠️ Таймаут при загрузке страницы ${page + 1}/${totalPages}, пропускаем...`);
-                // Продолжаем загрузку следующих страниц
-                continue;
-              } else {
-                // Для других ошибок логируем, но продолжаем
-                console.warn(`⚠️ Ошибка при загрузке страницы ${page + 1}/${totalPages}:`, pageError.message);
-                continue;
+                if (response && Array.isArray(response.items)) {
+                  allCards.push(...response.items);
+                  if (!silent) {
+                    statsLoadedCount.value = allCards.length;
+                  }
+                  
+                  // Обновляем статистику по мере загрузки (тихо, без индикатора)
+                  statsData.value = allCards.map(item => ({ ...item }));
+                }
+              } catch (pageError: any) {
+                // Если ошибка таймаута на конкретной странице, пропускаем её и продолжаем
+                if (pageError.code === 'ECONNABORTED' || pageError.message?.includes('timeout')) {
+                  // Продолжаем загрузку следующих страниц
+                  continue;
+                } else {
+                  // Для других ошибок логируем, но продолжаем
+                  continue;
+                }
               }
             }
           }
           
+          // Сохраняем в кэш
+          if (allCards.length > 0) {
+            writeStatsCache(allCards, totalCount.value);
+          }
+          
           // Помечаем статистику как полностью загруженную (даже если не все страницы загружены)
           statsFullyLoaded.value = true;
-          console.log('✅ Загружены данные для статистики:', {
-            загружено: statsData.value.length,
-            всего: totalCount.value,
-            процент: totalCount.value > 0 ? Math.round((statsData.value.length / totalCount.value) * 100) : 0
-          });
+          if (!silent) {
+            console.log('✅ Загружены данные для статистики:', {
+              загружено: statsData.value.length,
+              всего: totalCount.value,
+              процент: totalCount.value > 0 ? Math.round((statsData.value.length / totalCount.value) * 100) : 0
+            });
+          }
         } catch (err: any) {
           console.warn('Не удалось загрузить все данные для статистики:', err);
           // Используем уже загруженные данные
         } finally {
-          loadingStats.value = false;
+          if (!silent) {
+            loadingStats.value = false;
+          }
         }
-      };
-      
-      // Запускаем загрузку в фоне
-      loadAllStatsData();
+      }
       
       // Загружаем данные для получения всех уникальных профилей (если еще не загружены)
       if (allProfilesData.value.length === 0) {
