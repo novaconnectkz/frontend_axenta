@@ -224,11 +224,11 @@
       </template>
 
       <template #item.limit="{ item }">
-        <div v-if="item.limit.type !== 'off'">
+        <div v-if="item.limit && item.limit.type !== 'off'">
           <div class="font-weight-medium">
             {{ formatLimit(item.limit) }}
           </div>
-          <div v-if="item.limit.used !== null" class="text-caption text-medium-emphasis">
+          <div v-if="item.limit && item.limit.used !== null" class="text-caption text-medium-emphasis">
             Использовано: {{ formatBytes(item.limit.used) }}
           </div>
         </div>
@@ -237,8 +237,8 @@
 
       <template #item.tariff="{ item }">
         <div>
-          <div class="font-weight-medium">{{ item.tariff.name }}</div>
-          <div v-if="item.tariff.package_auto" class="text-caption text-success">
+          <div class="font-weight-medium">{{ item.tariff?.name || '—' }}</div>
+          <div v-if="item.tariff && item.tariff.package_auto" class="text-caption text-success">
             Автопродление
           </div>
         </div>
@@ -370,15 +370,15 @@
               </div>
               <div class="info-item mb-3">
                 <div class="text-caption text-medium-emphasis">Тариф</div>
-                <div class="text-body-1 font-weight-medium">{{ selectedSimCard.tariff.name }}</div>
-                <div v-if="selectedSimCard.tariff.package_auto" class="text-caption text-success mt-1">
+              <div class="text-body-1 font-weight-medium">{{ selectedSimCard.tariff?.name || '—' }}</div>
+              <div v-if="selectedSimCard.tariff && selectedSimCard.tariff.package_auto" class="text-caption text-success mt-1">
                   Автопродление включено
                 </div>
               </div>
-              <div v-if="selectedSimCard.limit.type !== 'off'" class="info-item mb-3">
+            <div v-if="selectedSimCard.limit && selectedSimCard.limit.type !== 'off'" class="info-item mb-3">
                 <div class="text-caption text-medium-emphasis">Лимит</div>
                 <div class="text-body-1 font-weight-medium">{{ formatLimit(selectedSimCard.limit) }}</div>
-                <div v-if="selectedSimCard.limit.used !== null" class="text-caption text-medium-emphasis mt-1">
+              <div v-if="selectedSimCard.limit && selectedSimCard.limit.used !== null" class="text-caption text-medium-emphasis mt-1">
                   Использовано: {{ formatBytes(selectedSimCard.limit.used) }}
                 </div>
               </div>
@@ -843,11 +843,12 @@ const formatBytes = (bytes: number) => {
 };
 
 const formatLimit = (limit: any) => {
+  if (!limit || !limit.type) return 'Нет лимита';
   if (limit.type === 'off') return 'Нет лимита';
   if (limit.type === 'month1') return 'Календарный месяц';
   if (limit.type === 'p_lim') return 'Пакет без автопродления';
   if (limit.type === 'p_unlim') return 'Пакет с автопродлением';
-  if (limit.value !== null) {
+  if (limit.value !== null && limit.value !== undefined) {
     return `${formatBytes(limit.value)}`;
   }
   return limit.type;
