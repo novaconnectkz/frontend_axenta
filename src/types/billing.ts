@@ -363,6 +363,72 @@ export interface BillingCalculationResponse
 export interface BillingStatisticsResponse
   extends ApiResponse<BillingStatistics> {}
 
+// ------- Дополнительные типы для улучшений вкладки «Настройки» -------
+
+// Dry-run генерации счетов
+export interface DryRunInvoicesRequest {
+  from: string; // ISO date
+  to: string;   // ISO date
+  filters?: {
+    accountId?: string | number;
+    subscriptionId?: string | number;
+    status?: "active" | "paused";
+    objectId?: string | number;
+  };
+  limit?: number;
+}
+
+export interface DryRunItem {
+  accountId: string | number;
+  subscriptionId?: string | number;
+  amount: { value: number; currency: string };
+  reason?: string;
+  blockedBy?: string[];
+}
+
+export interface DryRunInvoicesResponse {
+  summary: {
+    candidates: number;
+    willCreate: number;
+    totalAmount: { value: number; currency: string };
+  };
+  items: DryRunItem[];
+}
+
+// Тест уведомлений
+export type TestNotificationChannel = "email" | "system" | "slack";
+export type TestNotificationTemplate =
+  | "invoice_due"
+  | "invoice_created"
+  | "subscription_expiring";
+
+export interface TestNotificationRequest {
+  channel: TestNotificationChannel;
+  template: TestNotificationTemplate;
+  to?: string;
+  sampleData?: Record<string, unknown>;
+}
+
+export interface TestNotificationResponse {
+  status: "ok";
+  deliveryId?: string;
+  previewUrl?: string;
+}
+
+// Превью нумератора
+export type NumeratorContext = "contracts" | "invoices";
+export interface PreviewNumeratorQuery {
+  template?: string;
+  prefix?: string;
+  seq?: number;
+  date?: string; // ISO date
+}
+
+export interface PreviewNumeratorResponse {
+  preview: string;
+  nextSeq: number;
+}
+
 // Виджеты для дашборда
 export interface BillingWidget {
   title: string;

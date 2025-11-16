@@ -458,6 +458,7 @@
                     v-model="billingSettings.auto_generate_invoices"
                     label="Автоматическая генерация счетов"
                     color="primary"
+                    :title="'По расписанию создаёт счета. Требует нумератора и реквизитов.'"
                   ></v-switch>
                   
                   <v-text-field
@@ -475,6 +476,17 @@
                     type="number"
                     min="1"
                   ></v-text-field>
+
+                  <div class="d-flex ga-2 mt-2">
+                    <v-btn
+                      color="primary"
+                      variant="outlined"
+                      prepend-icon="mdi-flask"
+                      @click="openDryRunDialog"
+                    >
+                      Тестовая генерация
+                    </v-btn>
+                  </div>
                 </v-col>
                 
                 <v-col cols="12" md="6">
@@ -490,12 +502,14 @@
                     v-model="billingSettings.tax_included"
                     label="НДС включен в цену"
                     color="primary"
+                    :title="'Итоговая цена указывается с НДС. Влияет на отображение и расчёты.'"
                   ></v-switch>
                   
                   <v-select
                     v-model="billingSettings.currency"
                     :items="currencies"
                     label="Валюта по умолчанию"
+                    :title="'Используется при создании новых тарифов и счетов. Существующие суммы не меняет.'"
                   ></v-select>
                 </v-col>
                 
@@ -521,6 +535,17 @@
                     type="number"
                     min="0"
                   ></v-text-field>
+
+                  <div class="d-flex ga-2 mt-2">
+                    <v-btn
+                      color="primary"
+                      variant="outlined"
+                      prepend-icon="mdi-email-send"
+                      @click="openTestNotificationDialog"
+                    >
+                      Отправить тест
+                    </v-btn>
+                  </div>
                 </v-col>
                 
                 <v-col cols="12" md="6">
@@ -546,6 +571,7 @@
                     v-model="billingSettings.allow_partial_payments"
                     label="Разрешить частичные платежи"
                     color="primary"
+                    :title="'Счета можно закрывать частично. Требует совместимости тарифов/подписок.'"
                   ></v-switch>
                 </v-col>
 
@@ -570,8 +596,35 @@
                     persistent-hint
                     placeholder="UF_CRM_CONTRACT_NUMBER"
                   ></v-text-field>
+
+                  <div class="d-flex ga-2 mt-2">
+                    <v-btn
+                      color="primary"
+                      variant="outlined"
+                      prepend-icon="mdi-eye"
+                      @click="openNumeratorPreview"
+                    >
+                      Предпросмотр номера счета
+                    </v-btn>
+                    <v-btn
+                      variant="text"
+                      color="secondary"
+                      prepend-icon="mdi-arrow-down"
+                      @click="scrollToNumerators"
+                    >
+                      К нумераторам договоров
+                    </v-btn>
+                  </div>
                 </v-col>
               </v-row>
+
+              <!-- Панель сохранения -->
+              <v-divider class="my-4"></v-divider>
+              <div v-if="settingsDirty" class="d-flex align-center justify-end ga-2">
+                <span class="text-grey">Изменения не сохранены</span>
+                <v-btn variant="text" @click="resetSettingsToInitial">Отменить</v-btn>
+                <v-btn color="primary" :loading="savingSettings" @click="saveSettings">Сохранить</v-btn>
+              </div>
             </v-form>
             
             <!-- Сообщение об ошибке -->
@@ -585,6 +638,11 @@
         <!-- Нумераторы договоров -->
         <div id="contract-numerators-section" ref="contractNumeratorsSection">
           <ContractNumeratorsTab class="mt-6" />
+        </div>
+
+        <!-- Нумераторы счетов -->
+        <div id="invoice-numerators-section" class="mt-6">
+          <InvoiceNumeratorsTab />
         </div>
       </v-window-item>
     </v-window>
@@ -859,6 +917,159 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог: Тестовая генерация счетов (dry-run) -->
+    <v-dialog v-model="dryRunDialog" max-width="640px" persistent>
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Тестовая генерация счетов</span>
+        </v-card-title>
+        <v-card-text>
+          <v-form>
+            <v-row>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="dryRunForm.from"
+                  label="Период с"
+                  type="date"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model="dryRunForm.to"
+                  label="Период по"
+                  type="date"
+                  required
+                />
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-text-field
+                  v-model.number="dryRunForm.limit"
+                  label="Ограничение результатов"
+                  type="number"
+                  min="1"
+                />
+              </v-col>
+            </v-row>
+          </v-form>
+          <v-alert
+            v-if="dryRunResult?.summary"
+            type="info"
+            class="mt-4"
+            border="start"
+          >
+            Кандидатов: {{ dryRunResult?.summary?.candidates }},
+            Будет создано: {{ dryRunResult?.summary?.willCreate }},
+            Сумма: {{
+              formatCurrency(
+                dryRunResult?.summary?.totalAmount?.value || 0,
+                dryRunResult?.summary?.totalAmount?.currency || 'RUB'
+              )
+            }}
+          </v-alert>
+          <v-data-table
+            v-if="dryRunResult?.items?.length"
+            class="mt-3"
+            :items="dryRunResult?.items"
+            :headers="[
+              { title: 'Компания/аккаунт', key: 'accountId' },
+              { title: 'Подписка', key: 'subscriptionId' },
+              { title: 'Сумма', key: 'amount' }
+            ]"
+            :items-per-page="5"
+            hide-default-footer
+          >
+            <template #item.amount="{ item }">
+              {{ formatCurrency(item.amount?.value || 0, item.amount?.currency || 'RUB') }}
+            </template>
+          </v-data-table>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="dryRunDialog = false">Закрыть</v-btn>
+          <v-btn color="primary" :loading="dryRunLoading" @click="runDryRun">
+            Выполнить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог: Тест уведомления -->
+    <v-dialog v-model="testNotifDialog" max-width="520px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Тест уведомления</span>
+        </v-card-title>
+        <v-card-text>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="testNotifForm.channel"
+                :items="[
+                  { title: 'Система', value: 'system' },
+                  { title: 'Email', value: 'email' },
+                  { title: 'Slack', value: 'slack' }
+                ]"
+                label="Канал"
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-select
+                v-model="testNotifForm.template"
+                :items="[
+                  { title: 'Создан счёт', value: 'invoice_created' },
+                  { title: 'Срок оплаты', value: 'invoice_due' },
+                  { title: 'Истекает подписка', value: 'subscription_expiring' }
+                ]"
+                label="Шаблон"
+              />
+            </v-col>
+            <v-col cols="12" v-if="testNotifForm.channel === 'email'">
+              <v-text-field
+                v-model="testNotifForm.to"
+                label="Email получателя"
+                type="email"
+                required
+              />
+            </v-col>
+          </v-row>
+          <v-alert v-if="testNotifResult" type="info" class="mt-2" border="start">
+            {{ testNotifResult }}
+          </v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="testNotifDialog = false">Закрыть</v-btn>
+          <v-btn color="primary" :loading="testNotifLoading" @click="sendTestNotification">
+            Отправить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог: Предпросмотр нумератора -->
+    <v-dialog v-model="numeratorPreviewDialog" max-width="520px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Предпросмотр номера счёта</span>
+        </v-card-title>
+        <v-card-text>
+          <div class="d-flex align-center ga-2">
+            <v-progress-circular
+              v-if="numeratorPreviewLoading"
+              indeterminate
+              color="primary"
+              size="20"
+            />
+            <span v-else>{{ numeratorPreviewValue || 'Нет данных' }}</span>
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="numeratorPreviewDialog = false">Закрыть</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
     <!-- Диалог просмотра счета -->
     <v-dialog v-model="invoiceViewDialog" max-width="800px">
       <v-card v-if="selectedInvoice">
@@ -942,8 +1153,10 @@
 import { AppleButton } from '@/components/Apple'
 import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
+import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import { billingService } from '@/services/billingService'
+import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
 import type {
     BillingDashboardData,
@@ -1051,6 +1264,7 @@ const plans = ref<BillingPlan[]>([])
 const subscriptions = ref<Subscription[]>([])
 const invoices = ref<Invoice[]>([])
 const billingSettings = ref<BillingSettings | null>(null)
+const initialSettingsSnapshot = ref<string>('') // JSON снапшот для dirty-check
 const contractsStats = ref<{
   total: number
   active: number
@@ -1286,6 +1500,8 @@ const fetchBillingSettings = async () => {
     }
     
     await fetchContractNumerators()
+    // Фиксируем исходный снапшот для dirty-check
+    initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
   } catch (error) {
     console.error('Ошибка при загрузке настроек:', error)
   } finally {
@@ -1515,10 +1731,21 @@ const saveSettings = async () => {
   try {
     await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
     // Не перезагружаем настройки после сохранения, чтобы не сбрасывать изменения
+    initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
   } catch (error) {
     console.error('Ошибка при сохранении настроек:', error)
   } finally {
     savingSettings.value = false
+  }
+}
+
+// Явный сброс к исходным настройкам
+const resetSettingsToInitial = () => {
+  if (!initialSettingsSnapshot.value) return
+  try {
+    billingSettings.value = JSON.parse(initialSettingsSnapshot.value)
+  } catch (e) {
+    console.error('Не удалось восстановить исходные настройки', e)
   }
 }
 
@@ -1532,7 +1759,7 @@ watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
   }
 })
 
-// Автосохранение настроек при изменении
+// Автосохранение настроек при изменении (оставляем, но с задержкой)
 watch(() => billingSettings.value, (newSettings) => {
   if (!newSettings || !currentCompanyId.value) return
   
@@ -1651,6 +1878,129 @@ const scrollToNumerators = () => {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   })
+}
+
+// ----------- Доп. UI/действия для «Настроек» -----------
+
+// Признак несохраненных изменений
+const settingsDirty = computed(() => {
+  if (!billingSettings.value) return false
+  try {
+    return JSON.stringify(billingSettings.value) !== initialSettingsSnapshot.value
+  } catch {
+    return false
+  }
+})
+
+// Тестовая генерация (dry run)
+const dryRunDialog = ref(false)
+const dryRunForm = ref<{ from: string; to: string; limit?: number }>({
+  from: '',
+  to: '',
+  limit: 20
+})
+const dryRunLoading = ref(false)
+const dryRunResult = ref<{
+  summary?: { candidates: number; willCreate: number; totalAmount: { value: number; currency: string } }
+  items?: any[]
+} | null>(null)
+
+const openDryRunDialog = () => {
+  dryRunDialog.value = true
+  dryRunResult.value = null
+}
+
+const runDryRun = async () => {
+  if (!dryRunForm.value.from || !dryRunForm.value.to) return
+  dryRunLoading.value = true
+  try {
+    const result = await billingService.dryRunInvoices({
+      from: dryRunForm.value.from,
+      to: dryRunForm.value.to,
+      limit: dryRunForm.value.limit || 20
+    } as any)
+    dryRunResult.value = result
+  } catch (e) {
+    console.error('Dry-run ошибка', e)
+    alert('Не удалось выполнить тестовую генерацию')
+  } finally {
+    dryRunLoading.value = false
+  }
+}
+
+// Тест уведомлений
+const testNotifDialog = ref(false)
+const testNotifForm = ref<{ channel: 'email'|'system'|'slack'; template: 'invoice_due'|'invoice_created'|'subscription_expiring'; to?: string }>({
+  channel: 'system',
+  template: 'invoice_created',
+  to: ''
+})
+const testNotifLoading = ref(false)
+const testNotifResult = ref<string>('')
+
+const openTestNotificationDialog = () => {
+  testNotifDialog.value = true
+  testNotifResult.value = ''
+}
+
+const sendTestNotification = async () => {
+  testNotifLoading.value = true
+  try {
+    const res = await billingService.testNotification({
+      channel: testNotifForm.value.channel,
+      template: testNotifForm.value.template,
+      to: testNotifForm.value.channel === 'email' ? (testNotifForm.value.to || '') : undefined
+    } as any)
+    testNotifResult.value = res?.previewUrl ? `Отправлено. Preview: ${res.previewUrl}` : 'Отправлено.'
+  } catch (e) {
+    console.error('Тест уведомления: ошибка', e)
+    testNotifResult.value = 'Ошибка отправки'
+  } finally {
+    testNotifLoading.value = false
+  }
+}
+
+// Предпросмотр нумератора (счета)
+const numeratorPreviewDialog = ref(false)
+const numeratorPreviewLoading = ref(false)
+const numeratorPreviewValue = ref<string>('')
+
+const openNumeratorPreview = async () => {
+  numeratorPreviewDialog.value = true
+  numeratorPreviewValue.value = ''
+  numeratorPreviewLoading.value = true
+  try {
+    // 1) Пытаемся использовать активный/дефолтный нумератор счетов
+    let template: string | undefined
+    let prefix: string | undefined
+    try {
+      const nums = await invoiceNumeratorsService.getInvoiceNumerators(currentCompanyId.value)
+      const chosen =
+        nums.find(n => n.is_default) ||
+        nums.find(n => n.is_active) ||
+        nums[0]
+      if (chosen) {
+        template = chosen.template
+        prefix = chosen.prefix
+      }
+    } catch (e) {
+      console.warn('Не удалось загрузить нумераторы счетов, используем настройки', e)
+    }
+
+    // 2) Если нумераторов нет — fallback к настройкам (как было)
+    if (!template && billingSettings.value) {
+      template = billingSettings.value.invoice_number_format
+      prefix = billingSettings.value.invoice_number_prefix
+    }
+
+    const res = await billingService.previewNumerator('invoices', { template, prefix } as any)
+    numeratorPreviewValue.value = res?.preview || ''
+  } catch (e) {
+    console.error('Предпросмотр нумератора: ошибка', e)
+    numeratorPreviewValue.value = 'Не удалось получить предпросмотр'
+  } finally {
+    numeratorPreviewLoading.value = false
+  }
 }
 
 // Watchers

@@ -618,6 +618,118 @@ class BillingService {
 
   // ========== УТИЛИТЫ ==========
 
+  // ========== ДОП. МЕТОДЫ ДЛЯ «НАСТРОЕК» ==========
+
+  /**
+   * Dry-run генерации счетов (без фактического создания)
+   */
+  async dryRunInvoices(payload: import("@/types/billing").DryRunInvoicesRequest) {
+    const response = await this.apiClient.post(
+      "/auth/billing/invoices/dry-run",
+      payload
+    );
+    return response.data
+      .data as import("@/types/billing").DryRunInvoicesResponse;
+  }
+
+  /**
+   * Отправить тестовое уведомление по выбранному каналу
+   */
+  async testNotification(payload: import("@/types/billing").TestNotificationRequest) {
+    const response = await this.apiClient.post(
+      "/auth/billing/notifications/test",
+      payload
+    );
+    return response.data
+      .data as import("@/types/billing").TestNotificationResponse;
+  }
+
+  /**
+   * Предпросмотр номера по шаблону нумератора
+   */
+  async previewNumerator(
+    context: import("@/types/billing").NumeratorContext,
+    query: import("@/types/billing").PreviewNumeratorQuery
+  ) {
+    try {
+      const response = await this.apiClient.get(
+        `/auth/billing/numerators/${context}/preview`,
+        {
+          params: query,
+        }
+      );
+      return response.data
+        .data as import("@/types/billing").PreviewNumeratorResponse;
+    } catch (e) {
+      // Fallback: локальный предпросмотр по шаблону
+      const date = new Date();
+      const year = String(date.getFullYear());
+      const yearShort = year.slice(-2);
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const seq = "001"; // Для предпросмотра фиксированное значение
+      const random2 = String(Math.floor(Math.random() * 100)).padStart(2, "0");
+
+      // 1) Обрабатываем плейсхолдеры в префиксе формата {YEAR} и т.п.
+      let prefix = (query.prefix || "")
+        .replace("{YEAR}", year)
+        .replace("{YEAR_SHORT}", yearShort)
+        .replace("{MONTH}", month)
+        .replace("{DAY}", day)
+        .replace("{SEQ}", seq)
+        .replace("{RANDOM}", random2);
+
+      // Также поддержим printf/strftime-подобные токены в префиксе
+      // %Y, %y, %m, %d; а также экранированный процент %%
+      prefix = prefix
+        .replace(/%%/g, "%")
+        .replace(/%Y/g, year)
+        .replace(/%y/g, yearShort)
+        .replace(/%m/g, month)
+        .replace(/%d/g, day);
+
+      // 2) Формируем предпросмотр по шаблону
+      let template = query.template || "{PREFIX}{SEQ}";
+
+      // Сначала поддержим формат с фигурными скобками
+      let preview = template
+        .replace("{PREFIX}", prefix)
+        .replace("{SEQ}", seq)
+        .replace("{YEAR}", year)
+        .replace("{YEAR_SHORT}", yearShort)
+        .replace("{MONTH}", month)
+        .replace("{DAY}", day)
+        .replace("{RANDOM}", random2);
+
+      // 3) Если остались printf-плейсхолдеры — обработаем их:
+      // - %%  -> %
+      // - %s  -> prefix
+      // - %0Nd -> seq с N нулями (например, %04d)
+      // - %d  -> seq без дополнения
+      // - %Y, %y, %m, %d (в контексте даты) — как выше
+      // Выполним аккуратно, чтобы не разрушить уже подставленные значения
+      const padSeq = (n: number) => String(parseInt(seq, 10)).padStart(n, "0");
+      // %0Nd
+      preview = preview.replace(/%0(\d+)d/g, (_m, p1) => padSeq(Number(p1) || 1));
+      // %d
+      preview = preview.replace(/%d/g, String(parseInt(seq, 10)));
+      // %s
+      preview = preview.replace(/%s/g, prefix);
+      // Датовые токены (на случай, если остались)
+      preview = preview
+        .replace(/%Y/g, year)
+        .replace(/%y/g, yearShort)
+        .replace(/%m/g, month)
+        .replace(/%d/g, day);
+      // Экранированный процент в самом конце
+      preview = preview.replace(/%%/g, "%");
+
+      return { preview } as import("@/types/billing").PreviewNumeratorResponse;
+    }
+  }
+
+  // -----------------------------
+
   /**
    * Форматировать денежную сумму
    */
