@@ -371,20 +371,63 @@
           </div>
 
           <div v-if="editDialog.integration.type === 'telegram'">
-            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки Telegram Bot</h4>
+            <div class="d-flex align-center justify-space-between mb-3">
+              <h4 class="text-subtitle-1 font-weight-bold mb-0">Настройки Telegram Bot</h4>
+              <v-btn
+                variant="text"
+                size="small"
+                :href="`${config.backendUrl}/api/docs/telegram`"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <v-icon start size="16">mdi-help-circle-outline</v-icon>
+                Инструкция
+              </v-btn>
+            </div>
+            
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information"
+            >
+              <div class="text-body-2">
+                <strong>Как получить токен:</strong> Создайте бота через <a href="https://t.me/botfather" target="_blank" rel="noopener noreferrer">@BotFather</a> в Telegram и получите токен.
+                <br>
+                <a :href="`${config.backendUrl}/api/docs/telegram`" target="_blank" rel="noopener noreferrer" class="mt-1 d-inline-block">
+                  Подробная инструкция по настройке →
+                </a>
+              </div>
+            </v-alert>
             
             <v-text-field
               v-model="editDialog.form.settings.bot_token"
               label="Bot Token"
-              type="password"
+              :type="showToken ? 'text' : 'password'"
               variant="outlined"
+              hint="Токен бота, полученный от @BotFather в Telegram"
+              persistent-hint
               class="mb-3"
-            />
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
             
             <v-text-field
-              v-model="editDialog.form.settings.chat_id"
-              label="Chat ID"
+              v-model="editDialog.form.settings.default_chat_id"
+              label="Chat ID (по умолчанию)"
               variant="outlined"
+              hint="ID чата или канала для отправки уведомлений (опционально)"
+              persistent-hint
               class="mb-3"
             />
             
@@ -393,9 +436,17 @@
               label="Режим парсинга"
               :items="[
                 { value: 'HTML', title: 'HTML' },
-                { value: 'Markdown', title: 'Markdown' }
+                { value: 'Markdown', title: 'Markdown' },
+                { value: 'MarkdownV2', title: 'MarkdownV2' }
               ]"
               variant="outlined"
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.disable_notifications"
+              label="Отключить уведомления"
+              color="primary"
               class="mb-3"
             />
             
@@ -576,6 +627,7 @@
 
 <script setup lang="ts">
 import { settingsService } from '@/services/settingsService';
+import { config } from '@/config/env';
 import type {
     IntegrationWithSettings,
     AxentaIntegrationSettings
@@ -706,6 +758,10 @@ const getStatusLabel = (status: string) => {
 
 // Проверка, является ли интеграция демо (в разработке)
 const isDemoIntegration = (integrationId: string) => {
+  // Telegram больше не является демо интеграцией
+  if (integrationId === 'telegram' || integrationId === 'telegram-new') {
+    return false;
+  }
   return integrationId.includes('-demo');
 };
 
@@ -901,26 +957,80 @@ const loadIntegrations = async () => {
       },
     });
     
-    allIntegrations.push({
-      id: 'telegram-demo',
-      type: 'telegram',
-      name: 'Telegram Bot',
-      description: 'Интеграция с Telegram для отправки уведомлений пользователям',
-      status: 'inactive',
-      enabled: false,
-      lastSync: null,
-      created_at: new Date('2024-01-01T10:00:00'),
-      updated_at: new Date('2024-01-15T14:30:00'),
-      settings: {
-        bot_token: '*********************',
-        webhook_url: 'https://webhook.example.com/telegram',
-        chat_id: '@company_channel',
-        quiet_hours_enabled: true,
-        quiet_hours_start: '22:00',
-        quiet_hours_end: '08:00',
-        message_format: 'markdown',
-      },
-    });
+    // Telegram интеграция - загружаем из БД
+    try {
+      const telegramConfig = await settingsService.getTelegramConfig();
+      
+      if (telegramConfig) {
+        // Настройки найдены в БД
+        allIntegrations.push({
+          id: 'telegram',
+          type: 'telegram',
+          name: 'Telegram Bot',
+          description: 'Интеграция с Telegram для отправки уведомлений пользователям',
+          // Статус активен только если есть токен И интеграция включена
+          status: (telegramConfig.bot_token && telegramConfig.is_active) ? 'active' : 'inactive',
+          enabled: telegramConfig.is_active || false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            bot_token: telegramConfig.bot_token || '',
+            default_chat_id: telegramConfig.default_chat_id || '',
+            parse_mode: telegramConfig.parse_mode || 'HTML',
+            disable_notifications: telegramConfig.disable_notifications || false,
+            quiet_hours_start: telegramConfig.quiet_hours_start || '',
+            quiet_hours_end: telegramConfig.quiet_hours_end || '',
+            quiet_hours_enabled: telegramConfig.quiet_hours_enabled || false,
+          },
+        });
+      } else {
+        // Настройки не найдены в БД, добавляем заглушку для настройки
+        allIntegrations.push({
+          id: 'telegram-new',
+          type: 'telegram',
+          name: 'Telegram Bot',
+          description: 'Интеграция с Telegram для отправки уведомлений пользователям',
+          status: 'inactive',
+          enabled: false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            bot_token: '',
+            default_chat_id: '',
+            parse_mode: 'HTML',
+            disable_notifications: false,
+            quiet_hours_start: '22:00',
+            quiet_hours_end: '08:00',
+            quiet_hours_enabled: false,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек Telegram из БД:', error);
+      // Fallback - добавляем заглушку для настройки
+      allIntegrations.push({
+        id: 'telegram-new',
+        type: 'telegram',
+        name: 'Telegram Bot',
+        description: 'Интеграция с Telegram для отправки уведомлений пользователям',
+        status: 'inactive',
+        enabled: false,
+        lastSync: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        settings: {
+          bot_token: '',
+          default_chat_id: '',
+          parse_mode: 'HTML',
+          disable_notifications: false,
+          quiet_hours_start: '22:00',
+          quiet_hours_end: '08:00',
+          quiet_hours_enabled: false,
+        },
+      });
+    }
     
     allIntegrations.push({
       id: 'email-demo',
@@ -983,7 +1093,21 @@ const toggleIntegration = async (integration: IntegrationWithSettings) => {
   }
   
   try {
-    if (integration.type === 'novaconnect') {
+    if (integration.type === 'telegram') {
+      // Для Telegram используем общий метод обновления интеграции
+      // enabled управляется через IsActive в модели Integration
+      await settingsService.updateIntegration(integration.id, {
+        enabled: integration.enabled
+      });
+      
+      // Обновляем статус в списке
+      const config = await settingsService.getTelegramConfig();
+      if (config) {
+        integration.status = (config.bot_token && integration.enabled) ? 'active' : 'inactive';
+      } else {
+        integration.status = 'inactive';
+      }
+    } else if (integration.type === 'novaconnect') {
       // Для NovaConnect сохраняем в БД
       const config = await settingsService.getNovaConnectConfig();
       if (config) {
@@ -1049,6 +1173,18 @@ const testConnection = async (integration: IntegrationWithSettings) => {
     
     if (integration.type === 'axenta') {
       result = await settingsService.testAxentaConnection(integration.settings as AxentaIntegrationSettings);
+    } else if (integration.type === 'telegram') {
+      // Тестируем подключение к Telegram Bot API
+      result = await settingsService.testTelegramConnection();
+      
+      if (result.success) {
+        showSnackbar(
+          `Подключение успешно`,
+          'success'
+        );
+      } else {
+        showSnackbar(result.message, 'error');
+      }
     } else if (integration.type === 'novaconnect') {
       // Тестируем подключение к API NovaConnect
       const axios = (await import('axios')).default;
@@ -1142,6 +1278,58 @@ const editIntegration = async (integration: IntegrationWithSettings) => {
       description: integration.description,
       settings: { ...integration.settings }
     };
+        } else if (integration.type === 'telegram') {
+          // Загружаем актуальные настройки из БД
+          try {
+            const config = await settingsService.getTelegramConfig();
+            if (config) {
+              // Используем настройки из БД
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  bot_token: config.bot_token || '',
+                  default_chat_id: config.default_chat_id || '',
+                  parse_mode: config.parse_mode || 'HTML',
+                  disable_notifications: config.disable_notifications || false,
+                  quiet_hours_start: config.quiet_hours_start || '22:00',
+                  quiet_hours_end: config.quiet_hours_end || '08:00',
+                  quiet_hours_enabled: config.quiet_hours_enabled || false,
+                }
+              };
+            } else {
+              // Fallback на настройки из интеграции
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  bot_token: integration.settings.bot_token || '',
+                  default_chat_id: integration.settings.default_chat_id || '',
+                  parse_mode: integration.settings.parse_mode || 'HTML',
+                  disable_notifications: integration.settings.disable_notifications || false,
+                  quiet_hours_start: integration.settings.quiet_hours_start || '22:00',
+                  quiet_hours_end: integration.settings.quiet_hours_end || '08:00',
+                  quiet_hours_enabled: integration.settings.quiet_hours_enabled || false,
+                }
+              };
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки настроек Telegram из БД:', error);
+            // Fallback на настройки из интеграции
+            editDialog.value.form = {
+              name: integration.name,
+              description: integration.description,
+              settings: {
+                bot_token: integration.settings.bot_token || '',
+                default_chat_id: integration.settings.default_chat_id || '',
+                parse_mode: integration.settings.parse_mode || 'HTML',
+                disable_notifications: integration.settings.disable_notifications || false,
+                quiet_hours_start: integration.settings.quiet_hours_start || '22:00',
+                quiet_hours_end: integration.settings.quiet_hours_end || '08:00',
+                quiet_hours_enabled: integration.settings.quiet_hours_enabled || false,
+              }
+            };
+          }
         } else if (integration.type === 'novaconnect') {
           // Загружаем актуальные настройки из БД
           try {
@@ -1231,6 +1419,43 @@ const saveIntegration = async () => {
         // Обновляем существующую интеграцию
         result = await settingsService.updateAxentaIntegration(editDialog.value.form.settings);
       }
+    } else if (editDialog.value.integration.type === 'telegram') {
+      // Сохраняем настройки Telegram в БД через API
+      const settingsToSave = { ...editDialog.value.form.settings };
+      
+      // Определяем, создаем новую интеграцию или обновляем существующую
+      // Проверяем, есть ли интеграция в БД
+      const existingConfig = await settingsService.getTelegramConfig();
+      const isNew = !existingConfig;
+      
+      let result;
+      if (isNew) {
+        result = await settingsService.setupTelegramIntegration(settingsToSave);
+      } else {
+        result = await settingsService.updateTelegramIntegration(settingsToSave);
+      }
+      
+      if (result.success) {
+        // Обновляем статус интеграции в списке
+        const index = integrations.value.findIndex(i => i.id === 'telegram' || i.id === 'telegram-new');
+        if (index !== -1) {
+          integrations.value[index] = {
+            ...integrations.value[index],
+            id: 'telegram',
+            enabled: settingsToSave.enabled || false,
+            status: settingsToSave.bot_token && (settingsToSave.enabled || false) ? 'active' : 'inactive',
+            settings: settingsToSave,
+          };
+        }
+        
+        editDialog.value.show = false;
+        showSnackbar(result.message || 'Настройки Telegram успешно сохранены в БД', 'success');
+        // Перезагружаем список интеграций для получения актуальных данных из БД
+        await loadIntegrations();
+      } else {
+        showSnackbar(result.message || 'Ошибка сохранения настроек Telegram', 'error');
+      }
+      return;
     } else if (editDialog.value.integration.type === 'novaconnect') {
       // Сохраняем настройки NovaConnect в БД через API
       const settingsToSave = { ...editDialog.value.form.settings };
