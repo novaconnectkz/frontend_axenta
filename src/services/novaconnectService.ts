@@ -1,5 +1,6 @@
 // Сервис для работы с API NovaConnect
 import axios from 'axios';
+import { config } from '@/config/env';
 
 // Типы данных NovaConnect API
 export interface NovaConnectSimCard {
@@ -106,7 +107,8 @@ class NovaConnectService {
 
     // Всегда загружаем настройки из БД через API (который учитывает текущую компанию)
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      // Используем единый конфиг бэкенда (в проде будет https)
+      const apiBaseUrl = config.apiBaseUrl;
       const token = localStorage.getItem('axenta_token');
       
       if (!token) {
@@ -115,7 +117,7 @@ class NovaConnectService {
         return;
       }
 
-      const response = await fetch(`${apiBaseUrl}/api/novaconnect/config`, {
+      const response = await fetch(`${apiBaseUrl}/novaconnect/config`, {
         method: 'GET',
         headers: {
           'Authorization': `Token ${token}`,
@@ -125,7 +127,20 @@ class NovaConnectService {
 
       if (response.ok) {
         const config = await response.json();
-        this.apiUrl = config.api_url || this.apiUrl;
+        // Принудительно используем https, если фронтенд открыт по https
+        const resolveApiUrl = (url: string): string => {
+          try {
+            const u = new URL(url);
+            if (typeof window !== 'undefined' && window.location.protocol === 'https:' && u.protocol === 'http:') {
+              u.protocol = 'https:';
+            }
+            return u.toString().replace(/\/+$/, '');
+          } catch {
+            return url;
+          }
+        };
+
+        this.apiUrl = resolveApiUrl(config.api_url || this.apiUrl);
         this.language = config.language || this.language;
         
         // Токен из БД (уже привязан к текущей компании через middleware)
