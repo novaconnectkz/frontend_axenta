@@ -753,9 +753,6 @@ const loadSimCards = async () => {
               statsLoadedCount.value = allCards.length;
             }
             
-            // Обновляем статистику по мере загрузки (тихо, без индикатора)
-            statsData.value = allCards.map(item => ({ ...item }));
-            
             // Загружаем остальные страницы
             const totalPages = Math.ceil((totalCount.value || 0) / pageSize);
             for (let page = 1; page < totalPages; page++) {
@@ -772,8 +769,13 @@ const loadSimCards = async () => {
                     statsLoadedCount.value = allCards.length;
                   }
                   
-                  // Обновляем статистику по мере загрузки (тихо, без индикатора)
-                  statsData.value = allCards.map(item => ({ ...item }));
+                  // В тихом режиме (есть кэш) обновляем только в конце, чтобы не было видно процесса
+                  // В обычном режиме обновляем по мере загрузки для отображения прогресса
+                  if (!silent) {
+                    // Обновляем статистику по мере загрузки (с индикатором прогресса)
+                    statsData.value = allCards.map(item => ({ ...item }));
+                  }
+                  // В тихом режиме обновление произойдет только в конце (после цикла)
                 }
               } catch (pageError: any) {
                 // Если ошибка таймаута на конкретной странице, пропускаем её и продолжаем
@@ -786,6 +788,9 @@ const loadSimCards = async () => {
                 }
               }
             }
+            
+            // Финальное обновление статистики (всегда обновляем в конце)
+            statsData.value = allCards.map(item => ({ ...item }));
           }
           
           // Сохраняем в кэш
