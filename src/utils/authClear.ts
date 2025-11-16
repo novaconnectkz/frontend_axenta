@@ -37,6 +37,9 @@ export function clearAllAuthData(): void {
     'current_user',
     'jwt_token',
     'bearer_token',
+    // Устаревшие ключи NovaConnect (раньше сохранялись в браузере)
+    'novaconnect_token',
+    'novaconnect_settings',
   ];
   
   const allKeys = [...axentaKeys, ...localKeys, ...demoKeys, ...otherKeys];
@@ -57,6 +60,15 @@ export function clearAllAuthData(): void {
     if (sessionStorage.getItem(key)) {
       sessionStorage.removeItem(key);
       console.log(`  ❌ Removed from session: ${key}`);
+    }
+  });
+
+  // Удаляем все ключи вида novaconnect_token_<companyId> на случай кэширования по компаниям
+  const allLocalKeys = Object.keys(localStorage);
+  allLocalKeys.forEach(k => {
+    if (k.startsWith('novaconnect_token_')) {
+      localStorage.removeItem(k);
+      console.log(`  ❌ Removed: ${k}`);
     }
   });
 }
