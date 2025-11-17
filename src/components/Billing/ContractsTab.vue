@@ -119,24 +119,39 @@
           </v-chip>
         </template>
 
-        <!-- Название и клиент -->
+        <!-- Клиент -->
         <template #item.title="{ item }">
-          <div>
-            <div class="contract-title">{{ item.title }}</div>
-            <div class="contract-client">{{ item.client_name }}</div>
-          </div>
+          <div class="contract-client">{{ item.client_name }}</div>
         </template>
 
         <!-- Тарифный план -->
         <template #item.tariff_plan="{ item }">
-          <div>
-            <v-chip size="small" color="primary" variant="tonal">
-              {{ item.tariff_plan?.name || 'Не указан' }}
-            </v-chip>
-            <div class="text-caption">
-              {{ formatCurrency(item.tariff_plan?.price || 0) }}/мес
-            </div>
-          </div>
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <div v-bind="props" style="cursor: help;">
+                <v-chip size="small" color="primary" variant="tonal">
+                  {{ item.tariff_plan?.name || 'Не указан' }}
+                </v-chip>
+                <div class="text-caption">
+                  {{ formatCurrency(item.tariff_plan?.price || 0) }}/мес
+                </div>
+              </div>
+            </template>
+            <template #default>
+              <div class="tariff-tooltip">
+                <div class="tariff-tooltip-title">Информация о тарифе:</div>
+                <div class="tariff-tooltip-content">
+                  <div v-if="item.tariff_plan">
+                    <strong>{{ item.tariff_plan.name }}</strong>
+                    <div class="mt-1">Стоимость: {{ formatCurrency(item.tariff_plan.price) }}/мес</div>
+                  </div>
+                  <div v-else>
+                    Тарифный план не установлен. Он будет установлен при создании подписки.
+                  </div>
+                </div>
+              </div>
+            </template>
+          </v-tooltip>
         </template>
 
         <!-- Период -->
@@ -144,11 +159,23 @@
           <v-tooltip location="top">
             <template #activator="{ props }">
               <div v-bind="props" style="cursor: help;">
-                <div class="text-body-2">
-                  {{ formatDate(item.start_date) }} - {{ formatDate(item.end_date) }}
+                <!-- Если период не установлен, показываем чип -->
+                <div v-if="!item.start_date && !item.end_date">
+                  <v-chip size="small" color="info" variant="tonal">
+                    Не указан
+                  </v-chip>
+                  <div class="text-caption text-grey">
+                    Период не установлен
+                  </div>
                 </div>
-                <div class="text-caption" :class="getPeriodClass(item)">
-                  {{ getPeriodText(item) }}
+                <!-- Если период установлен, показываем даты -->
+                <div v-else>
+                  <div class="text-body-2">
+                    {{ formatPeriod(item.start_date, item.end_date) }}
+                  </div>
+                  <div class="text-caption" :class="getPeriodClass(item)">
+                    {{ getPeriodText(item) }}
+                  </div>
                 </div>
               </div>
             </template>
@@ -252,6 +279,19 @@
                 />
               </template>
             </v-tooltip>
+            
+            <v-tooltip text="Удалить">
+              <template #activator="{ props }">
+                <v-btn 
+                  v-bind="props"
+                  icon="mdi-delete" 
+                  size="small" 
+                  variant="text" 
+                  color="error"
+                  @click="deleteContract(item)"
+                />
+              </template>
+            </v-tooltip>
           </div>
         </template>
       </v-data-table>
@@ -336,7 +376,7 @@ const snackbarColor = ref('success');
 // Заголовки таблицы (компактные для вкладки)
 const headers = [
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
-  { title: 'Название / Клиент', key: 'title', sortable: true },
+  { title: 'Клиент', key: 'title', sortable: true },
   { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '140px' },
   { title: 'Период', key: 'period', sortable: false, width: '180px' },
   { title: 'Сумма', key: 'total_amount', sortable: true, width: '120px' },
@@ -619,6 +659,22 @@ const calculateCost = (contract: Contract) => {
   showSnackbarMessage(message, 'info');
 };
 
+const deleteContract = async (contract: Contract) => {
+  if (!confirm(`Вы уверены, что хотите удалить договор ${contract.number}?`)) {
+    return;
+  }
+
+  try {
+    const contractsService = (await import('@/services/contractsService')).default;
+    await contractsService.deleteContract(contract.id);
+    await loadContracts();
+    showSnackbarMessage('Договор успешно удален', 'success');
+  } catch (error) {
+    console.error('Error deleting contract:', error);
+    showSnackbarMessage('Ошибка удаления договора', 'error');
+  }
+};
+
 const showSnackbarMessage = (text: string, color: string) => {
   snackbarText.value = text;
   snackbarColor.value = color;
@@ -645,8 +701,39 @@ const formatCurrencyShort = (amount: string | number): string => {
   }
 };
 
-const formatDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('ru-RU');
+const formatDate = (date: string | null | undefined): string => {
+  if (!date) {
+    return 'Не указан';
+  }
+  const dateObj = new Date(date);
+  // Проверяем, является ли дата валидной и не является ли она "эпохой Unix" (01.01.1970)
+  if (isNaN(dateObj.getTime()) || dateObj.getFullYear() === 1970) {
+    return 'Не указан';
+  }
+  return dateObj.toLocaleDateString('ru-RU');
+};
+
+// Функция для форматирования периода (начало - конец)
+const formatPeriod = (startDate: string | null | undefined, endDate: string | null | undefined): string => {
+  const start = formatDate(startDate);
+  const end = formatDate(endDate);
+  
+  // Если обе даты не указаны, показываем просто "Не указан"
+  if (start === 'Не указан' && end === 'Не указан') {
+    return 'Не указан';
+  }
+  
+  // Если указаны обе даты, показываем период
+  if (start !== 'Не указан' && end !== 'Не указан') {
+    return `${start} - ${end}`;
+  }
+  
+  // Если указана только одна дата
+  if (start !== 'Не указан') {
+    return `${start} - Не указан`;
+  }
+  
+  return `Не указан - ${end}`;
 };
 
 const getStatusColor = (status: string): string => {
@@ -681,8 +768,19 @@ const isExpiringSoon = (contract: Contract): boolean => {
 };
 
 const getPeriodClass = (contract: Contract): string => {
-  const now = new Date();
+  // Если дата окончания не указана или невалидна, не применяем стиль
+  if (!contract.end_date) {
+    return 'text-grey';
+  }
+  
   const endDate = new Date(contract.end_date);
+  
+  // Проверяем, что дата валидна и не является эпохой Unix
+  if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
+    return 'text-grey';
+  }
+  
+  const now = new Date();
   
   if (now > endDate) {
     return 'text-error';
@@ -694,8 +792,19 @@ const getPeriodClass = (contract: Contract): string => {
 };
 
 const getPeriodText = (contract: Contract): string => {
-  const now = new Date();
+  // Если дата окончания не указана или невалидна, показываем "Не указан"
+  if (!contract.end_date) {
+    return 'Период не установлен';
+  }
+  
   const endDate = new Date(contract.end_date);
+  
+  // Проверяем, что дата валидна и не является эпохой Unix
+  if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
+    return 'Период не установлен';
+  }
+  
+  const now = new Date();
   
   if (now > endDate) {
     return 'Истек';
@@ -709,8 +818,19 @@ const getPeriodText = (contract: Contract): string => {
 };
 
 const getPeriodTooltipText = (contract: Contract): string => {
-  const now = new Date();
+  // Если дата окончания не указана или невалидна
+  if (!contract.end_date) {
+    return 'Период действия договора не установлен. Он будет установлен при создании подписки.';
+  }
+  
   const endDate = new Date(contract.end_date);
+  
+  // Проверяем, что дата валидна и не является эпохой Unix
+  if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
+    return 'Период действия договора не установлен. Он будет установлен при создании подписки.';
+  }
+  
+  const now = new Date();
   
   if (now > endDate) {
     const days = Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -990,8 +1110,10 @@ onMounted(async () => {
 }
 
 .contract-client {
-  font-size: 11px;
-  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--v-theme-on-surface));
+  line-height: 1.4;
 }
 
 .amount-value {
@@ -1217,6 +1339,33 @@ onMounted(async () => {
 }
 
 [data-theme="dark"] .period-tooltip-content {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Стили для tooltip тарифа */
+.tariff-tooltip {
+  max-width: 280px;
+  padding: 4px 0;
+}
+
+.tariff-tooltip-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.tariff-tooltip-content {
+  font-size: 0.8125rem;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .tariff-tooltip-title {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+[data-theme="dark"] .tariff-tooltip-content {
   color: rgba(255, 255, 255, 0.7);
 }
 

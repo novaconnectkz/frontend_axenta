@@ -910,8 +910,8 @@ const defaultForm: ContractForm = {
   client_bank_correspondent_account: '',
   client_bank_account: '',
   client_bank_recipient: '',
-  start_date: new Date().toISOString().split('T')[0],
-  end_date: '', // Будет установлено автоматически (по умолчанию 1 год)
+  start_date: undefined, // Будет установлено через подписку
+  end_date: undefined, // Будет установлено через подписку
   total_amount: '',
   currency: 'RUB',
   status: 'draft', // По умолчанию черновик, после привязки подписки станет "active"
@@ -1176,29 +1176,21 @@ const saveContract = async () => {
       }
     }
     
-    // Добавляем значения по умолчанию для дат, если они отсутствуют
-    // Конвертируем в ISO формат (RFC3339) для Go time.Time
-    if (!form.value.start_date) {
-      contractData.start_date = new Date().toISOString();
-    } else {
+    // start_date и end_date опциональны - будут установлены через подписку
+    // Отправляем только если они явно указаны
+    if (form.value.start_date) {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
       const startDate = new Date(form.value.start_date + 'T00:00:00Z');
       contractData.start_date = startDate.toISOString();
     }
+    // Если start_date не указан, не отправляем его (будет null в базе)
     
-    if (!form.value.end_date) {
-      // Устанавливаем период по умолчанию (1 год)
-      const startDate = form.value.start_date 
-        ? new Date(form.value.start_date + 'T00:00:00Z')
-        : new Date();
-      const defaultEndDate = new Date(startDate);
-      defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
-      contractData.end_date = defaultEndDate.toISOString();
-    } else {
+    if (form.value.end_date) {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
       const endDate = new Date(form.value.end_date + 'T23:59:59Z');
       contractData.end_date = endDate.toISOString();
     }
+    // Если end_date не указан, не отправляем его (будет null в базе)
     
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
     

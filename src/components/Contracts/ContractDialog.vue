@@ -329,8 +329,8 @@
               </v-row>
             </div>
 
-            <!-- Период действия -->
-            <div class="form-section">
+            <!-- Период действия (только при редактировании) -->
+            <div v-if="isEdit" class="form-section">
               <h3 class="section-title">
                 <v-icon icon="mdi-calendar-range" class="mr-2" />
                 Период действия
@@ -341,10 +341,8 @@
                   <AppleInput
                     v-model="form.start_date"
                     label="Дата начала"
-                    :rules="[rules.required]"
                     prepend-icon="mdi-calendar-start"
                     type="date"
-                    required
                   />
                 </v-col>
                 
@@ -352,10 +350,8 @@
                   <AppleInput
                     v-model="form.end_date"
                     label="Дата окончания"
-                    :rules="[rules.required, rules.endDateAfterStart]"
                     prepend-icon="mdi-calendar-end"
                     type="date"
-                    required
                   />
                 </v-col>
                 
@@ -538,8 +534,8 @@ const defaultForm: ContractForm = {
   client_email: '',
   client_phone: '',
   client_address: '',
-  start_date: new Date().toISOString().split('T')[0],
-  end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +1 год
+  start_date: undefined, // Будет установлено через подписку
+  end_date: undefined, // Будет установлено через подписку
   tariff_plan_id: 0,
   total_amount: '',
   currency: 'RUB',
@@ -666,10 +662,6 @@ const rules = {
     if (!value) return true;
     const num = parseFloat(value);
     return !isNaN(num) && num >= 0 || 'Должно быть положительное число';
-  },
-  endDateAfterStart: (value: string) => {
-    if (!value || !form.value.start_date) return true;
-    return new Date(value) > new Date(form.value.start_date) || 'Дата окончания должна быть после даты начала';
   },
 };
 
@@ -799,12 +791,9 @@ const filterAccounts = (_value: string, query: string, item: any) => {
 const onTariffPlanChange = (planId: number) => {
   const selectedPlan = props.tariffPlans.find(plan => plan.id === planId);
   if (selectedPlan && !form.value.total_amount) {
-    // Автоматически устанавливаем стоимость на основе тарифного плана
-    const monthlyPrice = selectedPlan.price;
-    const startDate = new Date(form.value.start_date);
-    const endDate = new Date(form.value.end_date);
-    const months = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
-    form.value.total_amount = (monthlyPrice * Math.max(1, months)).toString();
+    // Период договора будет установлен через подписку
+    // Поэтому пока просто устанавливаем месячную стоимость
+    form.value.total_amount = selectedPlan.price.toString();
   }
 };
 

@@ -143,8 +143,8 @@ export interface ContractForm {
   client_bank_account?: string; // Расчётный счёт
   client_bank_recipient?: string; // Получатель
   
-  start_date: string;
-  end_date: string;
+  start_date?: string; // Опционально, будет установлено через подписку
+  end_date?: string; // Опционально, будет установлено через подписку
   tariff_plan_id?: number; // Опционально, будет привязан через подписку
   total_amount: string;
   currency: string;
