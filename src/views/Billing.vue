@@ -1223,15 +1223,14 @@ onUnmounted(() => {
 onMounted(async () => {
   // Обновляем company_id при монтировании
   currentCompanyId.value = getCurrentCompanyId()
-  console.log('Billing.vue: currentCompanyId установлен в', currentCompanyId.value)
   
   // Загружаем данные при монтировании
-  await loadDashboardData()
-  await fetchPlans()
-  await fetchSubscriptions()
-  await fetchInvoices()
-  await fetchBillingSettings()
-  await fetchContractNumerators()
+  // loadDashboardData уже загружает plans и subscriptions, поэтому вызываем их отдельно только если нужно
+  await Promise.all([
+    loadDashboardData(), // Загружает plans и subscriptions внутри
+    fetchInvoices(),
+    fetchBillingSettings() // Загружает contractNumerators внутри
+  ])
   
   // Слушаем изменения в localStorage (на случай переключения компании)
   handleStorageChange = (e: StorageEvent) => {
@@ -1447,7 +1446,22 @@ const contractSelectItems = computed(() =>
 // Методы загрузки данных
 const loadDashboardData = async () => {
   try {
-    dashboardData.value = await billingService.getBillingDashboardData(currentCompanyId.value)
+    // Загружаем планы и подписки один раз
+    const [plansData, subscriptionsData] = await Promise.all([
+      billingService.getBillingPlans(currentCompanyId.value),
+      billingService.getSubscriptions(currentCompanyId.value)
+    ])
+    
+    // Сохраняем в состояние компонента
+    plans.value = plansData
+    subscriptions.value = subscriptionsData
+    
+    // Передаем уже загруженные данные в getBillingDashboardData, чтобы избежать дублирования
+    dashboardData.value = await billingService.getBillingDashboardData(
+      currentCompanyId.value,
+      plansData,
+      subscriptionsData
+    )
   } catch (error) {
     console.error('Ошибка при загрузке данных дашборда:', error)
   }

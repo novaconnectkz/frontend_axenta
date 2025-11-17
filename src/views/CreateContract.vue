@@ -1218,7 +1218,7 @@ const defaultForm: ContractForm = {
   tariff_plan_id: 0,
   total_amount: '',
   currency: 'RUB',
-  status: 'draft',
+  status: 'active',
   is_active: true,
   notify_before: 30,
   notes: '',
@@ -1555,7 +1555,7 @@ const saveContract = async () => {
       client_phone: form.value.client_phone || '',
       client_address: form.value.client_address || '',
       tariff_plan_id: Number(form.value.tariff_plan_id),
-      status: form.value.status || 'draft',
+      status: form.value.status || 'active',
       notes: form.value.notes || '',
     };
     

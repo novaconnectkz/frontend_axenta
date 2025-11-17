@@ -47,11 +47,14 @@ class BillingService {
       const token = localStorage.getItem("axenta_token");
       const company = localStorage.getItem("axenta_company");
 
-      console.log("BillingService API request:", {
-        url: config.url,
-        token: token ? "EXISTS" : "MISSING",
-        company: company ? "EXISTS" : "MISSING",
-      });
+      // Логирование только в режиме разработки
+      if (import.meta.env.DEV) {
+        console.debug("BillingService API request:", {
+          url: config.url,
+          method: config.method,
+          token: token ? "EXISTS" : "MISSING",
+        });
+      }
 
       if (token) {
         config.headers["authorization"] = `Token ${token}`;
@@ -106,12 +109,6 @@ class BillingService {
       
       const plans = response.data.data || [];
       
-      // Логируем для отладки
-      if (plans.length > 0) {
-        console.log('📋 BillingService: загружено планов:', plans.length);
-        console.log('📋 Первый план (сырые данные):', plans[0]);
-      }
-      
       // Конвертируем price из строки в число, если нужно (decimal.Decimal сериализуется как строка)
       const normalizedPlans = plans.map(plan => {
         // decimal.Decimal сериализуется как строка, нужно конвертировать
@@ -133,10 +130,6 @@ class BillingService {
           max_storage: Number(plan.max_storage) || 0,
         };
       });
-      
-      if (normalizedPlans.length > 0) {
-        console.log('📋 Первый план (нормализованные данные):', normalizedPlans[0]);
-      }
       
       return normalizedPlans;
     } catch (error) {
@@ -469,26 +462,24 @@ class BillingService {
 
   /**
    * Получить данные для дашборда биллинга
+   * @param companyId - ID компании
+   * @param plans - Опционально: уже загруженные планы (чтобы избежать дублирования запросов)
+   * @param subscriptions - Опционально: уже загруженные подписки (чтобы избежать дублирования запросов)
    */
   async getBillingDashboardData(
-    companyId: number
+    companyId: number,
+    plans?: BillingPlan[],
+    subscriptions?: Subscription[]
   ): Promise<BillingDashboardData> {
-    // Временно возвращаем заглушку для отладки
-    console.log("Loading billing dashboard data for company:", companyId);
-
     try {
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth() + 1;
-
-      // Пробуем получить простые данные
-      const [plans, subscriptions] = await Promise.all([
-        this.getBillingPlans(companyId),
-        this.getSubscriptions(companyId),
+      // Если данные не переданы, загружаем их
+      const [loadedPlans, loadedSubscriptions] = await Promise.all([
+        plans ? Promise.resolve(plans) : this.getBillingPlans(companyId),
+        subscriptions ? Promise.resolve(subscriptions) : this.getSubscriptions(companyId),
       ]);
 
       // Создаем заглушку для дашборда
-      return this.createMockDashboardData(plans, subscriptions);
+      return this.createMockDashboardData(loadedPlans, loadedSubscriptions);
     } catch (error) {
       console.warn("Failed to load real dashboard data, using mock:", error);
       return this.createMockDashboardData([], []);

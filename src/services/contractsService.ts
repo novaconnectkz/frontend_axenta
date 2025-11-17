@@ -37,11 +37,14 @@ class ContractsService {
       const token = localStorage.getItem("axenta_token");
       const company = localStorage.getItem("axenta_company");
 
-      console.log("ContractsService API request:", {
-        url: config.url,
-        token: token ? "EXISTS" : "MISSING",
-        company: company ? "EXISTS" : "MISSING",
-      });
+      // Логирование только в режиме разработки
+      if (import.meta.env.DEV) {
+        console.debug("ContractsService API request:", {
+          url: config.url,
+          method: config.method,
+          token: token ? "EXISTS" : "MISSING",
+        });
+      }
 
       if (token) {
         config.headers["authorization"] = `Token ${token}`;
@@ -51,7 +54,10 @@ class ContractsService {
         try {
           const companyData = JSON.parse(company);
           const companyId = companyData.id;
-          console.log("Setting X-Tenant-ID header:", companyId, "Type:", typeof companyId);
+          // Логирование только в режиме разработки
+          if (import.meta.env.DEV) {
+            console.debug("Setting X-Tenant-ID header:", companyId);
+          }
           // Убеждаемся, что это число или строка с числом
           if (companyId !== undefined && companyId !== null) {
             config.headers["X-Tenant-ID"] = String(companyId);
