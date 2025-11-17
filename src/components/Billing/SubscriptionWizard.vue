@@ -32,7 +32,7 @@
             <v-stepper-item
               :complete="currentStep > 3"
               :title="'Шаг 3'"
-              subtitle="Период"
+              subtitle="Учетная запись"
               :disabled="currentStep < 2"
               value="3"
             ></v-stepper-item>
@@ -40,9 +40,17 @@
             <v-stepper-item
               :complete="currentStep > 4"
               :title="'Шаг 4'"
-              subtitle="Превью"
+              subtitle="Период"
               :disabled="currentStep < 3"
               value="4"
+            ></v-stepper-item>
+            <v-divider></v-divider>
+            <v-stepper-item
+              :complete="currentStep > 5"
+              :title="'Шаг 5'"
+              subtitle="Превью"
+              :disabled="currentStep < 4"
+              value="5"
             ></v-stepper-item>
           </v-stepper-header>
 
@@ -192,8 +200,188 @@
               </div>
             </v-stepper-window-item>
 
-            <!-- Шаг 3: Период -->
+            <!-- Шаг 3: Учетная запись и объекты -->
             <v-stepper-window-item value="3">
+              <div class="pa-4">
+                <h3 class="mb-4">Учетная запись и объекты</h3>
+                
+                <v-autocomplete
+                  v-model="form.account_id"
+                  :items="accountOptions"
+                  item-title="title"
+                  item-value="value"
+                  label="Учетная запись"
+                  placeholder="Начните вводить название учетной записи..."
+                  variant="outlined"
+                  :loading="loadingAccounts"
+                  hint="Выберите учетную запись для автоматической привязки её объектов к подписке"
+                  persistent-hint
+                  clearable
+                  :search="accountSearchQuery"
+                  @update:search="handleAccountSearch"
+                  no-data-text="Учетные записи не найдены"
+                  loading-text="Загрузка учетных записей..."
+                  :menu-props="{ maxHeight: 300 }"
+                  @update:model-value="onAccountSelected"
+                  @focus="handleAccountAutocompleteFocus"
+                >
+                  <template v-slot:item="{ props, item }">
+                    <v-list-item v-bind="props">
+                      <template v-slot:prepend>
+                        <v-avatar size="small" :color="(item.raw as any)?.isActive ? 'success' : 'error'">
+                          <v-icon :icon="(item.raw as any)?.isActive ? 'mdi-check' : 'mdi-close'" />
+                        </v-avatar>
+                      </template>
+                      
+                      <v-list-item-title>{{ (item.raw as any)?.name || item.title }}</v-list-item-title>
+                      <v-list-item-subtitle>
+                        <div class="d-flex align-center flex-wrap ga-2">
+                          <v-chip
+                            :color="getObjectsTotal(item.raw) > 0 ? 'primary' : 'grey'"
+                            size="small"
+                            variant="flat"
+                            class="font-weight-medium"
+                          >
+                            <v-icon start size="small">mdi-package-variant</v-icon>
+                            {{ getObjectsTotal(item.raw) }} объектов
+                          </v-chip>
+                          <v-chip
+                            v-if="getObjectsActive(item.raw) > 0"
+                            color="success"
+                            size="small"
+                            variant="flat"
+                          >
+                            <v-icon start size="small">mdi-check-circle</v-icon>
+                            {{ getObjectsActive(item.raw) }} активных
+                          </v-chip>
+                          <span v-if="(item.raw as any)?.type" class="text-caption text-grey-600">
+                            • {{ (item.raw as any)?.type === 'client' ? 'Клиент' : (item.raw as any)?.type === 'partner' ? 'Партнер' : (item.raw as any)?.type }}
+                          </span>
+                        </div>
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                  </template>
+                  <template v-slot:selection="{ item }">
+                    <div class="d-flex align-center ga-2">
+                      <span v-if="item && typeof item === 'object' && (item as any).raw" class="font-weight-medium">
+                        {{ (item as any).raw?.name || (item as any).raw?.title }}
+                      </span>
+                      <span v-else-if="selectedAccount" class="font-weight-medium">
+                        {{ selectedAccount.name }}
+                      </span>
+                      <v-chip
+                        v-if="selectedAccount && selectedAccount.objectsTotal !== undefined"
+                        :color="selectedAccount.objectsTotal > 0 ? 'primary' : 'grey'"
+                        size="small"
+                        variant="flat"
+                        class="ml-2"
+                      >
+                        {{ selectedAccount.objectsTotal || 0 }} объектов
+                      </v-chip>
+                    </div>
+                  </template>
+                </v-autocomplete>
+
+                <!-- Список объектов учетной записи -->
+                <v-card v-if="form.account_id" variant="outlined" class="mt-4">
+                  <v-card-title class="text-subtitle-1 d-flex align-center justify-space-between">
+                    <div class="d-flex align-center">
+                      <v-icon icon="mdi-package-variant" size="small" class="mr-2" />
+                      Объекты для привязки к подписке
+                      <v-chip size="small" variant="tonal" color="primary" class="ml-2">
+                        {{ accountObjects.length }}
+                      </v-chip>
+                    </div>
+                    <div v-if="selectedObjects.length > 0" class="d-flex align-center">
+                      <v-chip size="small" variant="outlined" color="primary" class="mr-2">
+                        Выбрано: {{ selectedObjects.length }}
+                      </v-chip>
+                      <v-btn
+                        variant="text"
+                        size="small"
+                        prepend-icon="mdi-close"
+                        @click="selectedObjects = []"
+                      >
+                        Сбросить
+                      </v-btn>
+                    </div>
+                  </v-card-title>
+                  <v-divider />
+                  
+                  <!-- Поиск объектов -->
+                  <v-card-text class="pb-0">
+                    <v-text-field
+                      v-model="objectsSearchQuery"
+                      placeholder="Поиск по названию, IMEI, телефону..."
+                      prepend-inner-icon="mdi-magnify"
+                      variant="outlined"
+                      density="compact"
+                      clearable
+                      hide-details
+                    />
+                  </v-card-text>
+
+                  <!-- Индикатор загрузки -->
+                  <div v-if="loadingAccountObjects" class="pa-3">
+                    <v-progress-linear indeterminate color="primary" />
+                    <div class="text-caption text-center mt-2">Загрузка объектов...</div>
+                  </div>
+
+                  <!-- Таблица объектов -->
+                  <div v-else-if="filteredAccountObjects.length > 0" class="pa-3">
+                    <v-data-table
+                      v-model="selectedObjects"
+                      :headers="objectsTableHeaders"
+                      :items="filteredAccountObjects"
+                      item-value="id"
+                      show-select
+                      density="compact"
+                      hide-default-footer
+                      :items-per-page="10"
+                    >
+                      <template #item.name="{ item }">
+                        <div>
+                          <div class="font-weight-medium">{{ item.name }}</div>
+                          <div v-if="item.description" class="text-caption text-grey-600">
+                            {{ item.description }}
+                          </div>
+                        </div>
+                      </template>
+                      <template #item.imei="{ item }">
+                        <span v-if="item.imei">{{ item.imei }}</span>
+                        <span v-else class="text-grey-400">—</span>
+                      </template>
+                      <template #item.phone_number="{ item }">
+                        <span v-if="item.phone_number">{{ item.phone_number }}</span>
+                        <span v-else class="text-grey-400">—</span>
+                      </template>
+                      <template #item.status="{ item }">
+                        <v-chip
+                          :color="item.is_active ? 'success' : 'grey'"
+                          size="small"
+                          variant="tonal"
+                        >
+                          {{ item.is_active ? 'Активный' : 'Неактивный' }}
+                        </v-chip>
+                      </template>
+                    </v-data-table>
+                  </div>
+
+                  <!-- Сообщение, если объектов нет -->
+                  <v-card-text v-else-if="!loadingAccountObjects">
+                    <v-alert 
+                      type="info" 
+                      variant="tonal" 
+                      density="compact"
+                      text="У этой учетной записи нет объектов"
+                    />
+                  </v-card-text>
+                </v-card>
+              </div>
+            </v-stepper-window-item>
+
+            <!-- Шаг 4: Период -->
+            <v-stepper-window-item value="4">
               <div class="pa-4">
                 <h3 class="mb-4">Настройка периода</h3>
                 
@@ -282,8 +470,8 @@
               </div>
             </v-stepper-window-item>
 
-            <!-- Шаг 4: Превью -->
-            <v-stepper-window-item value="4">
+            <!-- Шаг 5: Превью -->
+            <v-stepper-window-item value="5">
               <div class="pa-4">
                 <h3 class="mb-4">Превью подписки</h3>
                 
@@ -418,6 +606,8 @@
 import { computed, ref, watch } from 'vue'
 import { billingService } from '@/services/billingService'
 import contractsService from '@/services/contractsService'
+import { accountsService, type Account } from '@/services/accountsService'
+import { getObjectsService } from '@/services/objectsService'
 import type { BillingPlan, CreateSubscriptionData, Subscription } from '@/types/billing'
 import type { Contract } from '@/types/contracts'
 
@@ -457,6 +647,7 @@ const form = ref<CreateSubscriptionData & {
   transfer_from_existing?: boolean
   split_period?: boolean
   contract_period_months?: number | null
+  account_id?: number
 }>({
   company_id: companyId.value,
   billing_plan_id: 0,
@@ -466,7 +657,8 @@ const form = ref<CreateSubscriptionData & {
   contract_id: undefined,
   transfer_from_existing: false,
   split_period: false,
-  contract_period_months: null
+  contract_period_months: null,
+  account_id: undefined
 })
 
 // Данные
@@ -474,6 +666,13 @@ const contracts = ref<Contract[]>([])
 const plans = ref<BillingPlan[]>([])
 const existingSubscriptions = ref<Subscription[]>([])
 const billingSettings = ref<any>(null)
+const accounts = ref<Account[]>([])
+const loadingAccounts = ref(false)
+const accountSearchQuery = ref('')
+const accountObjects = ref<any[]>([])
+const loadingAccountObjects = ref(false)
+const selectedObjects = ref<number[]>([])
+const objectsSearchQuery = ref('')
 
 // Ошибки
 const errors = ref<Record<string, string>>({})
@@ -532,6 +731,8 @@ const canProceed = computed(() => {
     case 2:
       return form.value.billing_plan_id > 0
     case 3:
+      return true // Учетная запись не обязательна
+    case 4:
       return !!form.value.start_date
     default:
       return true
@@ -710,7 +911,11 @@ const createSubscription = async () => {
   errors.value = {}
   
   try {
-    const subscriptionData: CreateSubscriptionData = {
+    const subscriptionData: CreateSubscriptionData & {
+      account_id?: number
+      object_ids?: number[]
+      contract_period_months?: number | null
+    } = {
       company_id: form.value.company_id,
       billing_plan_id: form.value.billing_plan_id!,
       start_date: form.value.start_date,
@@ -718,6 +923,16 @@ const createSubscription = async () => {
       is_auto_renew: form.value.is_auto_renew,
       contract_id: form.value.contract_id,
       split_period: form.value.split_period,
+      contract_period_months: form.value.contract_period_months,
+    }
+    
+    // Добавляем account_id и object_ids, если они выбраны
+    if (form.value.account_id) {
+      subscriptionData.account_id = form.value.account_id
+    }
+    
+    if (selectedObjects.value.length > 0) {
+      subscriptionData.object_ids = selectedObjects.value
     }
     
     if (form.value.transfer_from_existing && existingSubscriptions.value.length > 0) {
@@ -750,10 +965,16 @@ const close = () => {
     status: 'active',
     contract_id: undefined,
     transfer_from_existing: false,
-    split_period: false
+    split_period: false,
+    contract_period_months: null,
+    account_id: undefined
   }
   errors.value = {}
   existingSubscriptions.value = []
+  accountObjects.value = []
+  selectedObjects.value = []
+  objectsSearchQuery.value = ''
+  accountSearchQuery.value = ''
 }
 
 const formatDate = (date?: string) => {
@@ -774,12 +995,130 @@ const getPeriodText = (period: string) => {
   return periods[period] || period
 }
 
+// Заголовки таблицы объектов
+const objectsTableHeaders = [
+  { title: 'Название', key: 'name', sortable: true },
+  { title: 'IMEI', key: 'imei', sortable: true },
+  { title: 'Телефон', key: 'phone_number', sortable: true },
+  { title: 'Статус', key: 'status', sortable: true },
+]
+
+// Отфильтрованные объекты
+const filteredAccountObjects = computed(() => {
+  if (!objectsSearchQuery.value.trim()) {
+    return accountObjects.value
+  }
+  const query = objectsSearchQuery.value.toLowerCase().trim()
+  return accountObjects.value.filter(obj => {
+    return (
+      (obj.name && obj.name.toLowerCase().includes(query)) ||
+      (obj.imei && obj.imei.toLowerCase().includes(query)) ||
+      (obj.phone_number && obj.phone_number.toLowerCase().includes(query)) ||
+      (obj.description && obj.description.toLowerCase().includes(query))
+    )
+  })
+})
+
+// Опции учетных записей
+const accountOptions = computed(() => {
+  return accounts.value.map(account => ({
+    value: account.id,
+    title: account.name,
+    raw: account,
+  }))
+})
+
+// Выбранная учетная запись
+const selectedAccount = computed(() => {
+  if (!form.value.account_id) return null
+  return accounts.value.find(acc => acc.id === form.value.account_id) || null
+})
+
+// Функции для работы с объектами
+const getObjectsTotal = (account: any) => {
+  return account?.objectsTotal || account?.objects_total || 0
+}
+
+const getObjectsActive = (account: any) => {
+  return account?.objectsActive || account?.objects_active || 0
+}
+
+// Загрузка учетных записей
+const loadAccounts = async (search = '') => {
+  if (loadingAccounts.value) return
+  
+  loadingAccounts.value = true
+  try {
+    const response = await accountsService.getAccounts(1, 50, { search })
+    accounts.value = response.results || []
+  } catch (error) {
+    console.error('Ошибка загрузки учетных записей:', error)
+    accounts.value = []
+  } finally {
+    loadingAccounts.value = false
+  }
+}
+
+// Загрузка объектов учетной записи
+const loadAccountObjects = async (accountId: number) => {
+  loadingAccountObjects.value = true
+  try {
+    const account = accounts.value.find(acc => acc.id === accountId)
+    if (!account) {
+      console.warn('Учетная запись не найдена:', accountId)
+      accountObjects.value = []
+      return
+    }
+    
+    // Загружаем объекты через getObjects с фильтром по accountId
+    const objectsService = getObjectsService()
+    const response = await objectsService.getObjects(1, 100, {
+      accountId: account.id,
+      accountName: account.name
+    })
+    
+    // Фильтруем только объекты без договоров
+    accountObjects.value = (response.data?.items || []).filter((obj: any) => !obj.contract_id)
+  } catch (error) {
+    console.error('Ошибка загрузки объектов:', error)
+    accountObjects.value = []
+  } finally {
+    loadingAccountObjects.value = false
+  }
+}
+
+// Обработчики
+const handleAccountSearch = (query: string) => {
+  accountSearchQuery.value = query
+  if (query.length >= 2) {
+    loadAccounts(query)
+  } else if (query.length === 0) {
+    loadAccounts()
+  }
+}
+
+const handleAccountAutocompleteFocus = () => {
+  if (accounts.value.length === 0) {
+    loadAccounts()
+  }
+}
+
+const onAccountSelected = (accountId: number | undefined) => {
+  if (accountId) {
+    loadAccountObjects(accountId)
+  } else {
+    accountObjects.value = []
+    selectedObjects.value = []
+  }
+}
+
 // Загрузка данных при открытии
 watch(show, (isOpen) => {
   if (isOpen) {
     loadContracts()
     loadPlans()
     loadBillingSettings()
+    loadAccounts()
   }
 })
 </script>
