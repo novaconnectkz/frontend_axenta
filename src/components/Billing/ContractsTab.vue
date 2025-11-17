@@ -141,14 +141,26 @@
 
         <!-- Период -->
         <template #item.period="{ item }">
-          <div>
-            <div class="text-body-2">
-              {{ formatDate(item.start_date) }} - {{ formatDate(item.end_date) }}
-            </div>
-            <div class="text-caption" :class="getPeriodClass(item)">
-              {{ getPeriodText(item) }}
-            </div>
-          </div>
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <div v-bind="props" style="cursor: help;">
+                <div class="text-body-2">
+                  {{ formatDate(item.start_date) }} - {{ formatDate(item.end_date) }}
+                </div>
+                <div class="text-caption" :class="getPeriodClass(item)">
+                  {{ getPeriodText(item) }}
+                </div>
+              </div>
+            </template>
+            <template #default>
+              <div class="period-tooltip">
+                <div class="period-tooltip-title">Статус договора:</div>
+                <div class="period-tooltip-content">
+                  {{ getPeriodTooltipText(item) }}
+                </div>
+              </div>
+            </template>
+          </v-tooltip>
         </template>
 
         <!-- Стоимость -->
@@ -696,6 +708,22 @@ const getPeriodText = (contract: Contract): string => {
   }
 };
 
+const getPeriodTooltipText = (contract: Contract): string => {
+  const now = new Date();
+  const endDate = new Date(contract.end_date);
+  
+  if (now > endDate) {
+    const days = Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24));
+    return `Договор истек ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'} назад`;
+  } else if (isExpiringSoon(contract)) {
+    const days = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `Договор истекает через ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}. Требуется продление.`;
+  } else {
+    const days = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return `Договор активен. До истечения осталось ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}`;
+  }
+};
+
 // Загрузка реальных договоров
 const loadContracts = async () => {
   console.log('📄 Loading real contracts from API...');
@@ -1163,6 +1191,33 @@ onMounted(async () => {
 
 [data-theme="dark"] .objects-tooltip-empty {
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* Стили для tooltip периода */
+.period-tooltip {
+  max-width: 250px;
+  padding: 4px 0;
+}
+
+.period-tooltip-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+.period-tooltip-content {
+  font-size: 0.8125rem;
+  color: rgba(0, 0, 0, 0.7);
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .period-tooltip-title {
+  color: rgba(255, 255, 255, 0.87);
+}
+
+[data-theme="dark"] .period-tooltip-content {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* Responsive */

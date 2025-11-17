@@ -1049,6 +1049,31 @@
                   </template>
                 </v-select>
               </v-col>
+              
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Период договора (месяцев)</label>
+                <v-text-field
+                  v-model.number="form.contract_period_months"
+                  type="number"
+                  min="1"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  placeholder="Пусто = период из тарифа"
+                  class="contract-period-input"
+                />
+              </v-col>
+              
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Автоматическая пролонгация</label>
+                <v-switch
+                  v-model="form.is_auto_renew"
+                  color="primary"
+                  hide-details
+                  density="compact"
+                  :label="form.is_auto_renew ? 'Включена' : 'Отключена'"
+                />
+              </v-col>
             </v-row>
           </div>
         </div>
@@ -1220,6 +1245,8 @@ const defaultForm: ContractForm = {
   currency: 'RUB',
   status: 'active',
   is_active: true,
+  is_auto_renew: true, // По умолчанию включена автоматическая пролонгация
+  contract_period_months: null, // По умолчанию используется период из тарифа
   notify_before: 30,
   notes: '',
   external_id: '',
@@ -1534,27 +1561,34 @@ const onTariffPlanChange = (planId: number | null) => {
     currency: selectedPlan.currency
   });
   
-  // Автоматически устанавливаем период действия договора на основе billing_period тарифа
+  // Автоматически устанавливаем период действия договора
   if (form.value.start_date) {
     const startDate = new Date(form.value.start_date + 'T00:00:00');
     const endDate = new Date(startDate);
     
-    if (selectedPlan.billing_period === 'monthly') {
-      // Для месячного тарифа устанавливаем период 1 месяц
-      endDate.setMonth(endDate.getMonth() + 1);
-    } else if (selectedPlan.billing_period === 'yearly') {
-      // Для годового тарифа устанавливаем период 1 год
-      endDate.setFullYear(endDate.getFullYear() + 1);
+    // Если задан contract_period_months, используем его
+    if (form.value.contract_period_months && form.value.contract_period_months > 0) {
+      endDate.setMonth(endDate.getMonth() + form.value.contract_period_months);
     } else {
-      // Для one-time или других типов устанавливаем период 1 год по умолчанию
-      endDate.setFullYear(endDate.getFullYear() + 1);
+      // Иначе используем период из тарифа
+      if (selectedPlan.billing_period === 'monthly') {
+        // Для месячного тарифа устанавливаем период 1 месяц
+        endDate.setMonth(endDate.getMonth() + 1);
+      } else if (selectedPlan.billing_period === 'yearly') {
+        // Для годового тарифа устанавливаем период 1 год
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      } else {
+        // Для one-time или других типов устанавливаем период 1 год по умолчанию
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      }
     }
     
     form.value.end_date = endDate.toISOString().split('T')[0];
     console.log('📅 Период договора установлен:', {
       start_date: form.value.start_date,
       end_date: form.value.end_date,
-      billing_period: selectedPlan.billing_period
+      billing_period: selectedPlan.billing_period,
+      contract_period_months: form.value.contract_period_months
     });
   }
   
@@ -1579,6 +1613,8 @@ const saveContract = async () => {
       client_address: form.value.client_address || '',
       tariff_plan_id: Number(form.value.tariff_plan_id),
       status: form.value.status || 'active',
+      is_auto_renew: form.value.is_auto_renew !== undefined ? form.value.is_auto_renew : true,
+      contract_period_months: form.value.contract_period_months && form.value.contract_period_months > 0 ? form.value.contract_period_months : null,
       notes: form.value.notes || '',
     };
     
@@ -1614,7 +1650,12 @@ const saveContract = async () => {
       
       // Пытаемся найти выбранный тарифный план
       const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
-      if (selectedPlan) {
+      
+      // Если задан contract_period_months, используем его
+      if (form.value.contract_period_months && form.value.contract_period_months > 0) {
+        defaultEndDate.setMonth(defaultEndDate.getMonth() + form.value.contract_period_months);
+      } else if (selectedPlan) {
+        // Иначе используем период из тарифа
         if (selectedPlan.billing_period === 'monthly') {
           defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
         } else if (selectedPlan.billing_period === 'yearly') {
@@ -2822,23 +2863,38 @@ watch(() => form.value.start_date, (newStartDate) => {
   // Обновляем end_date только если:
   // 1. start_date установлена
   // 2. Тарифный план выбран
-  // 3. end_date еще не установлена вручную (или была установлена автоматически)
   if (newStartDate && form.value.tariff_plan_id) {
     const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
     if (selectedPlan) {
       const startDate = new Date(newStartDate + 'T00:00:00');
       const endDate = new Date(startDate);
       
-      if (selectedPlan.billing_period === 'monthly') {
-        endDate.setMonth(endDate.getMonth() + 1);
-      } else if (selectedPlan.billing_period === 'yearly') {
-        endDate.setFullYear(endDate.getFullYear() + 1);
+      // Если задан contract_period_months, используем его
+      if (form.value.contract_period_months && form.value.contract_period_months > 0) {
+        endDate.setMonth(endDate.getMonth() + form.value.contract_period_months);
       } else {
-        endDate.setFullYear(endDate.getFullYear() + 1);
+        // Иначе используем период из тарифа
+        if (selectedPlan.billing_period === 'monthly') {
+          endDate.setMonth(endDate.getMonth() + 1);
+        } else if (selectedPlan.billing_period === 'yearly') {
+          endDate.setFullYear(endDate.getFullYear() + 1);
+        } else {
+          endDate.setFullYear(endDate.getFullYear() + 1);
+        }
       }
       
       form.value.end_date = endDate.toISOString().split('T')[0];
     }
+  }
+});
+
+// Автоматическое обновление end_date при изменении contract_period_months
+watch(() => form.value.contract_period_months, (newPeriod) => {
+  if (newPeriod && newPeriod > 0 && form.value.start_date && form.value.tariff_plan_id) {
+    const startDate = new Date(form.value.start_date + 'T00:00:00');
+    const endDate = new Date(startDate);
+    endDate.setMonth(endDate.getMonth() + newPeriod);
+    form.value.end_date = endDate.toISOString().split('T')[0];
   }
 });
 
@@ -3087,6 +3143,11 @@ onMounted(async () => {
 .objects-table-container {
   max-height: 500px;
   overflow-y: auto;
+}
+
+.contract-period-input :deep(input::placeholder) {
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
 
 .objects-table {

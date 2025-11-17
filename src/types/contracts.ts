@@ -150,6 +150,8 @@ export interface ContractForm {
   currency: string;
   status: ContractStatus;
   is_active: boolean;
+  is_auto_renew?: boolean; // Автоматическая пролонгация договора
+  contract_period_months?: number | null; // Период договора в месяцах (если null, используется период из тарифа)
   notify_before?: number;
   notes?: string;
   external_id?: string;
