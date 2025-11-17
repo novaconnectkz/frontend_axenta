@@ -18,7 +18,7 @@
               :complete="currentStep > 1"
               :title="'Шаг 1'"
               subtitle="Договор"
-              value="1"
+              :value="1"
             ></v-stepper-item>
             <v-divider></v-divider>
             <v-stepper-item
@@ -26,7 +26,7 @@
               :title="'Шаг 2'"
               subtitle="Тариф"
               :disabled="!canProceedToStep2"
-              value="2"
+              :value="2"
             ></v-stepper-item>
             <v-divider></v-divider>
             <v-stepper-item
@@ -34,7 +34,7 @@
               :title="'Шаг 3'"
               subtitle="Учетная запись"
               :disabled="currentStep < 2"
-              value="3"
+              :value="3"
             ></v-stepper-item>
             <v-divider></v-divider>
             <v-stepper-item
@@ -42,7 +42,7 @@
               :title="'Шаг 4'"
               subtitle="Период"
               :disabled="currentStep < 3"
-              value="4"
+              :value="4"
             ></v-stepper-item>
             <v-divider></v-divider>
             <v-stepper-item
@@ -50,17 +50,17 @@
               :title="'Шаг 5'"
               subtitle="Превью"
               :disabled="currentStep < 4"
-              value="5"
+              :value="5"
             ></v-stepper-item>
           </v-stepper-header>
 
           <v-stepper-window>
             <!-- Шаг 1: Выбор договора -->
-            <v-stepper-window-item value="1">
+            <v-stepper-window-item :value="1">
               <div class="pa-4">
                 <h3 class="mb-4">Выберите договор</h3>
                 
-                <v-select
+                <v-autocomplete
                   v-model="form.contract_id"
                   :items="contractOptions"
                   item-title="title"
@@ -70,20 +70,40 @@
                   :loading="loadingContracts"
                   :error="!!errors.contract_id"
                   :error-messages="errors.contract_id"
-                  @update:model-value="onContractSelected"
+                  placeholder="Начните вводить номер договора, название или клиента..."
+                  :search="contractSearchQuery"
+                  @update:search="handleContractSearch"
+                  @update:model-value="(value) => { form.contract_id = value; onContractSelected(value); }"
+                  no-data-text="Договоры не найдены"
+                  loading-text="Загрузка договоров..."
+                  :menu-props="{ maxHeight: 400 }"
+                  :custom-filter="contractFilter"
                 >
                   <template v-slot:item="{ props, item }">
-                    <v-list-item v-bind="props">
+                    <v-list-item v-bind="props" :title="item.raw.title" :subtitle="getStatusLabel(item.raw.status)">
                       <template v-slot:prepend>
                         <v-icon>mdi-file-document</v-icon>
                       </template>
-                      <v-list-item-title>{{ item.raw.title }}</v-list-item-title>
-                      <v-list-item-subtitle>
-                        {{ item.raw.client_name }} • {{ item.raw.status }}
-                      </v-list-item-subtitle>
                     </v-list-item>
                   </template>
-                </v-select>
+                  <template v-slot:selection="{ item }">
+                    <span>{{ item.raw.title }}</span>
+                  </template>
+                </v-autocomplete>
+
+                <!-- Сообщение, если договоры не загружены -->
+                <v-alert
+                  v-if="!loadingContracts && contracts.length === 0"
+                  type="info"
+                  class="mt-4"
+                  variant="tonal"
+                >
+                  <v-icon class="mr-2">mdi-information</v-icon>
+                  <strong>Нет доступных договоров</strong>
+                  <div class="text-caption mt-1">
+                    Создайте договор на вкладке "Договоры" перед созданием подписки
+                  </div>
+                </v-alert>
 
                 <!-- Предупреждение о существующих подписках -->
                 <v-alert
@@ -135,8 +155,8 @@
               </div>
             </v-stepper-window-item>
 
-            <!-- Шаг 2: Выбор тарифа -->
-            <v-stepper-window-item value="2">
+            <!-- Шаг 2: Выбор тарифа и параметров подписки -->
+            <v-stepper-window-item :value="2">
               <div class="pa-4">
                 <h3 class="mb-4">Выберите тарифный план</h3>
                 
@@ -150,7 +170,7 @@
                   :loading="loadingPlans"
                   :error="!!errors.billing_plan_id"
                   :error-messages="errors.billing_plan_id"
-                  @update:model-value="onPlanSelected"
+                  @update:model-value="(value) => { form.billing_plan_id = value; onPlanSelected(value); }"
                 >
                   <template v-slot:item="{ props, item }">
                     <v-list-item v-bind="props">
@@ -172,28 +192,88 @@
                   </template>
                 </v-select>
 
-                <!-- Описание тарифа -->
-                <v-card v-if="selectedPlan" variant="outlined" class="mt-4">
+                <!-- Параметры подписки -->
+                <v-card v-if="form.billing_plan_id" variant="outlined" class="mt-4">
+                  <v-card-title class="text-subtitle-1">
+                    <v-icon icon="mdi-cog" size="small" class="mr-2" />
+                    Параметры подписки
+                  </v-card-title>
+                  <v-divider />
                   <v-card-text>
-                    <div class="text-body-2">{{ selectedPlan.description }}</div>
-                    <v-divider class="my-2"></v-divider>
-                    <div class="d-flex flex-wrap gap-2">
-                      <v-chip size="small" v-if="selectedPlan.max_devices > 0">
-                        <v-icon start size="small">mdi-devices</v-icon>
-                        {{ selectedPlan.max_devices }} устройств
-                      </v-chip>
-                      <v-chip size="small" v-if="selectedPlan.max_users > 0">
-                        <v-icon start size="small">mdi-account-multiple</v-icon>
-                        {{ selectedPlan.max_users }} пользователей
-                      </v-chip>
-                      <v-chip size="small" v-if="selectedPlan.has_analytics">
-                        <v-icon start size="small">mdi-chart-line</v-icon>
-                        Аналитика
-                      </v-chip>
-                      <v-chip size="small" v-if="selectedPlan.has_api">
-                        <v-icon start size="small">mdi-api</v-icon>
-                        API
-                      </v-chip>
+                    <v-row>
+                      <!-- Период подписки -->
+                      <v-col cols="12" md="6">
+                        <v-select
+                          v-model="subscriptionMonths"
+                          :items="subscriptionPeriodOptions"
+                          label="Период подписки"
+                          variant="outlined"
+                          prepend-icon="mdi-calendar-clock"
+                          @update:model-value="calculateEndDate"
+                        />
+                      </v-col>
+
+                      <!-- Автопродление -->
+                      <v-col cols="12" md="6">
+                        <v-switch
+                          v-model="form.is_auto_renew"
+                          label="Автоматическое продление"
+                          color="primary"
+                          hide-details
+                        >
+                          <template v-slot:prepend>
+                            <v-icon :icon="form.is_auto_renew ? 'mdi-autorenew' : 'mdi-reload-alert'" />
+                          </template>
+                        </v-switch>
+                        <div class="text-caption text-grey mt-1 ml-12">
+                          {{ form.is_auto_renew ? 'Подписка будет автоматически продлеваться' : 'Подписка не будет продлеваться автоматически' }}
+                        </div>
+                      </v-col>
+
+                      <!-- Дата начала -->
+                      <v-col cols="12" md="6">
+                        <v-text-field
+                          v-model="form.start_date"
+                          label="Дата начала"
+                          type="date"
+                          variant="outlined"
+                          prepend-icon="mdi-calendar-start"
+                          :min="minStartDate"
+                          @update:model-value="calculateEndDate"
+                        />
+                      </v-col>
+
+                      <!-- Дата окончания (расчетная) -->
+                      <v-col cols="12" md="6">
+                        <v-text-field
+                          :model-value="calculatedEndDate"
+                          label="Дата окончания"
+                          type="date"
+                          variant="outlined"
+                          prepend-icon="mdi-calendar-end"
+                          readonly
+                          hint="Рассчитывается автоматически"
+                          persistent-hint
+                        />
+                      </v-col>
+                    </v-row>
+
+                    <!-- Сводка по стоимости -->
+                    <v-divider class="my-3" />
+                    <div class="d-flex justify-space-between align-center">
+                      <div>
+                        <div class="text-body-2 text-grey">Стоимость за период (за 1 объект):</div>
+                        <div class="text-h6 font-weight-bold">
+                          {{ formatPrice(calculatedTotalPrice, selectedPlan?.currency || 'RUB') }}
+                        </div>
+                      </div>
+                      <div class="text-right">
+                        <div class="text-caption text-grey">{{ subscriptionMonths }} {{ getMonthsWord(subscriptionMonths) }}</div>
+                        <div class="text-caption text-grey" v-if="form.is_auto_renew">
+                          <v-icon size="small" color="success">mdi-autorenew</v-icon>
+                          С автопродлением
+                        </div>
+                      </div>
                     </div>
                   </v-card-text>
                 </v-card>
@@ -201,7 +281,7 @@
             </v-stepper-window-item>
 
             <!-- Шаг 3: Учетная запись и объекты -->
-            <v-stepper-window-item value="3">
+            <v-stepper-window-item :value="3">
               <div class="pa-4">
                 <h3 class="mb-4">Учетная запись и объекты</h3>
                 
@@ -381,7 +461,7 @@
             </v-stepper-window-item>
 
             <!-- Шаг 4: Период -->
-            <v-stepper-window-item value="4">
+            <v-stepper-window-item :value="4">
               <div class="pa-4">
                 <h3 class="mb-4">Настройка периода</h3>
                 
@@ -471,7 +551,7 @@
             </v-stepper-window-item>
 
             <!-- Шаг 5: Превью -->
-            <v-stepper-window-item value="5">
+            <v-stepper-window-item :value="5">
               <div class="pa-4">
                 <h3 class="mb-4">Превью подписки</h3>
                 
@@ -673,6 +753,38 @@ const accountObjects = ref<any[]>([])
 const loadingAccountObjects = ref(false)
 const selectedObjects = ref<number[]>([])
 const objectsSearchQuery = ref('')
+const contractSearchQuery = ref('')
+
+// Параметры подписки
+const subscriptionMonths = ref(1) // По умолчанию 1 месяц
+const calculatedEndDate = ref('')
+const calculatedTotalPrice = ref(0)
+
+// Минимальная дата начала - 1 число текущего месяца
+const minStartDate = computed(() => {
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = String(today.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}-01`
+})
+
+// Опции для выбора периода подписки
+const subscriptionPeriodOptions = [
+  { title: '1 месяц', value: 1 },
+  { title: '2 месяца', value: 2 },
+  { title: '3 месяца', value: 3 },
+  { title: '4 месяца', value: 4 },
+  { title: '5 месяцев', value: 5 },
+  { title: '6 месяцев', value: 6 },
+  { title: '7 месяцев', value: 7 },
+  { title: '8 месяцев', value: 8 },
+  { title: '9 месяцев', value: 9 },
+  { title: '10 месяцев', value: 10 },
+  { title: '11 месяцев', value: 11 },
+  { title: '12 месяцев', value: 12 },
+  { title: '24 месяца', value: 24 },
+  { title: '36 месяцев', value: 36 }
+]
 
 // Ошибки
 const errors = ref<Record<string, string>>({})
@@ -692,12 +804,41 @@ const requiresESF = computed(() => {
 
 // Вычисляемые свойства
 const contractOptions = computed(() => {
-  return contracts.value.map(contract => ({
-    id: contract.id,
-    title: `${contract.number} - ${contract.title || contract.client_name}`,
-    client_name: contract.client_name,
-    status: contract.status
-  }))
+  // Убираем дубликаты по ID и по номеру договора
+  const seenIds = new Set<number>()
+  const seenNumbers = new Set<string>()
+  const uniqueContracts = contracts.value.filter(contract => {
+    // Проверяем по ID
+    if (seenIds.has(contract.id)) {
+      return false
+    }
+    // Проверяем по номеру договора (если номер уже встречался, пропускаем)
+    if (contract.number && seenNumbers.has(contract.number)) {
+      return false
+    }
+    seenIds.add(contract.id)
+    if (contract.number) {
+      seenNumbers.add(contract.number)
+    }
+    return true
+  })
+  
+  return uniqueContracts.map(contract => {
+    // Показываем только номер договора и клиента (без дублирования title)
+    const title = contract.client_name 
+      ? `${contract.number} - ${contract.client_name}`
+      : contract.number
+    
+    return {
+      id: contract.id,
+      title,
+      client_name: contract.client_name,
+      status: contract.status,
+      number: contract.number,
+      // Добавляем все поля для поиска (номер, название, клиент, статус)
+      searchText: `${contract.number} ${contract.title || ''} ${contract.client_name || ''} ${contract.status || ''}`.toLowerCase()
+    }
+  })
 })
 
 const selectedContract = computed(() => {
@@ -727,7 +868,9 @@ const canProceedToStep2 = computed(() => {
 const canProceed = computed(() => {
   switch (currentStep.value) {
     case 1:
-      return form.value.contract_id && hasTariffAccess.value
+      // Проверяем, что договор выбран и есть доступ к тарифам
+      const canProceedStep1 = !!(form.value.contract_id && hasTariffAccess.value)
+      return canProceedStep1
     case 2:
       return form.value.billing_plan_id > 0
     case 3:
@@ -743,10 +886,6 @@ const canCreate = computed(() => {
   return form.value.billing_plan_id > 0 && 
          form.value.start_date && 
          !creating.value
-})
-
-const minStartDate = computed(() => {
-  return new Date().toISOString().split('T')[0]
 })
 
 const isScheduledStart = computed(() => {
@@ -802,11 +941,38 @@ const totalPrice = computed(() => {
 // Методы
 const loadContracts = async () => {
   loadingContracts.value = true
+  errors.value.contract_id = ''
   try {
     const result = await contractsService.getContracts({ limit: 1000 })
-    contracts.value = result.contracts.filter(c => c.status === 'active')
-  } catch (error) {
+    // Показываем активные договоры и черновики (для создания подписки)
+    let loadedContracts = result.contracts.filter(c => c.status === 'active' || c.status === 'draft')
+    
+    // Убираем дубликаты сразу при загрузке (по ID и по номеру)
+    const seenIds = new Set<number>()
+    const seenNumbers = new Set<string>()
+    contracts.value = loadedContracts.filter(contract => {
+      // Проверяем по ID
+      if (seenIds.has(contract.id)) {
+        console.warn(`Дубликат договора по ID ${contract.id} пропущен`)
+        return false
+      }
+      // Проверяем по номеру договора
+      if (contract.number && seenNumbers.has(contract.number)) {
+        console.warn(`Дубликат договора по номеру ${contract.number} пропущен`)
+        return false
+      }
+      seenIds.add(contract.id)
+      if (contract.number) {
+        seenNumbers.add(contract.number)
+      }
+      return true
+    })
+    
+    console.log(`✅ Загружено ${contracts.value.length} уникальных договоров для создания подписки`)
+  } catch (error: any) {
     console.error('Ошибка загрузки договоров:', error)
+    errors.value.contract_id = 'Не удалось загрузить список договоров. Попробуйте обновить страницу.'
+    contracts.value = []
   } finally {
     loadingContracts.value = false
   }
@@ -816,8 +982,10 @@ const loadPlans = async () => {
   loadingPlans.value = true
   try {
     plans.value = await billingService.getBillingPlans(companyId.value)
+    console.log('✅ Загружено тарифов:', plans.value.length)
+    console.log('📋 Доступные тарифы:', availablePlans.value)
   } catch (error) {
-    console.error('Ошибка загрузки планов:', error)
+    console.error('❌ Ошибка загрузки планов:', error)
   } finally {
     loadingPlans.value = false
   }
@@ -858,26 +1026,95 @@ const checkTariffAccess = async () => {
     return
   }
   
-  // Проверяем права на тарифы для договора
-  // Пока заглушка - всегда true, но можно добавить проверку через API
-  try {
-    const contract = contracts.value.find(c => c.id === form.value.contract_id)
-    // Если у договора есть tariff_plan_id, значит есть доступ
-    hasTariffAccess.value = !!contract?.tariff_plan_id
-  } catch (error) {
-    hasTariffAccess.value = false
+  // Для создания подписки тарифный план выбирается на шаге 2,
+  // поэтому не требуется, чтобы у договора уже был установлен тарифный план
+  // Это позволяет создавать подписки для черновиков договоров
+  hasTariffAccess.value = true
+}
+
+const onContractSelected = async (contractId?: number) => {
+  console.log('📝 onContractSelected вызван, contractId:', contractId)
+  console.log('📝 form.contract_id до обновления:', form.value.contract_id)
+  
+  // Обновляем form.value.contract_id, если contractId передан
+  if (contractId !== undefined) {
+    form.value.contract_id = contractId
+    console.log('✅ form.contract_id обновлен на:', form.value.contract_id)
+  } else {
+    // Если contractId не передан, используем текущее значение из v-model
+    console.log('⚠️ contractId не передан, используем текущее значение:', form.value.contract_id)
+  }
+  
+  errors.value.contract_id = ''
+  
+  // Гарантируем, что hasTariffAccess обновлен
+  await checkTariffAccess()
+  await checkExistingSubscriptions()
+  
+  console.log('✅ После выбора договора: hasTariffAccess =', hasTariffAccess.value)
+  console.log('✅ canProceed для шага 1:', form.value.contract_id && hasTariffAccess.value)
+  
+  // Принудительно обновляем реактивность
+  if (form.value.contract_id && hasTariffAccess.value) {
+    console.log('✅ Условия для перехода на шаг 2 выполнены')
   }
 }
 
-const onContractSelected = async () => {
-  errors.value.contract_id = ''
-  await checkTariffAccess()
-  await checkExistingSubscriptions()
+const onPlanSelected = (planId?: number) => {
+  console.log('📝 onPlanSelected вызван, planId:', planId)
+  console.log('📝 form.billing_plan_id до обновления:', form.value.billing_plan_id)
+  
+  // Обновляем form.value.billing_plan_id, если planId передан
+  if (planId !== undefined) {
+    form.value.billing_plan_id = planId
+    console.log('✅ form.billing_plan_id обновлен на:', form.value.billing_plan_id)
+  } else {
+    // Если planId не передан, используем текущее значение из v-model
+    console.log('⚠️ planId не передан, используем текущее значение:', form.value.billing_plan_id)
+  }
+  
+  errors.value.billing_plan_id = ''
+  calculateEndDate()
+  calculateTotalPrice()
 }
 
-const onPlanSelected = () => {
-  errors.value.billing_plan_id = ''
-  recalculatePrice()
+// Расчет даты окончания на основе даты начала и периода
+const calculateEndDate = () => {
+  if (!form.value.start_date || !subscriptionMonths.value) {
+    calculatedEndDate.value = ''
+    return
+  }
+  
+  const startDate = new Date(form.value.start_date)
+  const endDate = new Date(startDate)
+  endDate.setMonth(endDate.getMonth() + subscriptionMonths.value)
+  // Вычитаем 1 день, чтобы получить последний день периода
+  endDate.setDate(endDate.getDate() - 1)
+  
+  calculatedEndDate.value = endDate.toISOString().split('T')[0]
+  console.log(`📅 Рассчитана дата окончания: ${calculatedEndDate.value} (${subscriptionMonths.value} мес.)`)
+  
+  // Обновляем общую стоимость при изменении периода
+  calculateTotalPrice()
+}
+
+// Расчет общей стоимости на основе тарифа и периода
+const calculateTotalPrice = () => {
+  if (!selectedPlan.value || !subscriptionMonths.value) {
+    calculatedTotalPrice.value = 0
+    return
+  }
+  
+  // Стоимость = цена за месяц * количество месяцев
+  calculatedTotalPrice.value = selectedPlan.value.price * subscriptionMonths.value
+  console.log(`💰 Рассчитана стоимость: ${calculatedTotalPrice.value} (${selectedPlan.value.price} * ${subscriptionMonths.value})`)
+}
+
+// Вспомогательная функция для склонения слова "месяц"
+const getMonthsWord = (count: number): string => {
+  const cases = [2, 0, 1, 1, 1, 2]
+  const titles = ['месяц', 'месяца', 'месяцев']
+  return titles[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[Math.min(count % 10, 5)]]
 }
 
 const onStartDateChanged = () => {
@@ -895,8 +1132,20 @@ const recalculatePrice = () => {
 }
 
 const nextStep = () => {
+  console.log('🔄 nextStep вызван, currentStep:', currentStep.value)
+  console.log('📋 canProceed:', canProceed.value)
+  console.log('📝 form.contract_id:', form.value.contract_id)
+  console.log('🔓 hasTariffAccess:', hasTariffAccess.value)
+  
   if (canProceed.value) {
     currentStep.value++
+    console.log('✅ Переход на шаг:', currentStep.value)
+  } else {
+    console.warn('⚠️ Переход заблокирован. canProceed = false')
+    // Показываем ошибку, если договор не выбран
+    if (!form.value.contract_id) {
+      errors.value.contract_id = 'Выберите договор для продолжения'
+    }
   }
 }
 
@@ -975,6 +1224,13 @@ const close = () => {
   selectedObjects.value = []
   objectsSearchQuery.value = ''
   accountSearchQuery.value = ''
+  contractSearchQuery.value = ''
+  hasTariffAccess.value = true // Сбрасываем доступ к тарифам
+  
+  // Сбрасываем параметры подписки
+  subscriptionMonths.value = 1
+  calculatedEndDate.value = ''
+  calculatedTotalPrice.value = 0
 }
 
 const formatDate = (date?: string) => {
@@ -993,6 +1249,17 @@ const getPeriodText = (period: string) => {
     'one-time': 'разово'
   }
   return periods[period] || period
+}
+
+const getStatusLabel = (status: string) => {
+  const labels: Record<string, string> = {
+    draft: 'Черновик',
+    active: 'Активный',
+    expired: 'Истекший',
+    cancelled: 'Отмененный',
+    suspended: 'Приостановленный'
+  }
+  return labels[status] || status
 }
 
 // Заголовки таблицы объектов
@@ -1087,6 +1354,29 @@ const loadAccountObjects = async (accountId: number) => {
   }
 }
 
+// Обработчики поиска договоров
+const handleContractSearch = (query: string) => {
+  contractSearchQuery.value = query
+}
+
+// Фильтр для поиска договоров (поиск по любым совпадениям: цифры, символы, буквы, целиком или частично)
+const contractFilter = (item: any, queryText: string, itemText: string) => {
+  if (!queryText || !queryText.trim()) return true
+  
+  // Проверяем, что item.raw существует
+  if (!item || !item.raw) return false
+  
+  const query = queryText.toLowerCase().trim()
+  
+  // Если searchText не определен, формируем его из доступных полей
+  const searchText = item.raw.searchText || 
+    `${item.raw.number || ''} ${item.raw.title || ''} ${item.raw.client_name || ''} ${item.raw.status || ''}`.toLowerCase()
+  
+  // Поиск по всем полям: номер, название, клиент, статус
+  // Поддерживает частичные совпадения (цифры, символы, буквы)
+  return searchText.includes(query)
+}
+
 // Обработчики
 const handleAccountSearch = (query: string) => {
   accountSearchQuery.value = query
@@ -1112,6 +1402,19 @@ const onAccountSelected = (accountId: number | undefined) => {
   }
 }
 
+// Автоматическая проверка доступа к тарифам при выборе договора
+watch(() => form.value.contract_id, async (newContractId) => {
+  if (newContractId) {
+    console.log('👀 Watch: contract_id изменился на:', newContractId)
+    await checkTariffAccess()
+    await checkExistingSubscriptions()
+    console.log('✅ Watch: hasTariffAccess =', hasTariffAccess.value)
+  } else {
+    hasTariffAccess.value = true
+    existingSubscriptions.value = []
+  }
+})
+
 // Загрузка данных при открытии
 watch(show, (isOpen) => {
   if (isOpen) {
@@ -1119,7 +1422,30 @@ watch(show, (isOpen) => {
     loadPlans()
     loadBillingSettings()
     loadAccounts()
+    // Инициализируем расчет дат при открытии
+    calculateEndDate()
   }
+})
+
+// Загрузка тарифов при переходе на шаг 2
+watch(currentStep, (step) => {
+  console.log('🔄 currentStep изменился на:', step)
+  if (step === 2) {
+    console.log('📋 Загружаем тарифы для шага 2...')
+    loadPlans()
+    // Инициализируем расчет при входе на шаг 2
+    calculateEndDate()
+  }
+})
+
+// Автоматический пересчет при изменении даты начала
+watch(() => form.value.start_date, () => {
+  calculateEndDate()
+})
+
+// Автоматический пересчет при изменении периода подписки
+watch(subscriptionMonths, () => {
+  calculateEndDate()
 })
 </script>
 
