@@ -159,6 +159,112 @@
       <p class="mt-4 text-body-2">Загрузка SIM-карт...</p>
     </div>
 
+    <!-- Панель массовых действий -->
+    <v-card
+      v-if="selectedItems.length > 0"
+      class="mb-4 bulk-actions-panel"
+      elevation="2"
+    >
+      <v-card-text class="pa-3">
+        <div class="d-flex align-center justify-space-between flex-wrap ga-2">
+          <div class="d-flex align-center ga-2">
+            <v-icon icon="mdi-check-circle" color="primary" />
+            <span class="text-body-1 font-weight-medium">
+              Выбрано: {{ selectedItems.length }} {{ getSelectedItemsText(selectedItems.length) }}
+            </span>
+          </div>
+          <div class="d-flex align-center ga-2 flex-wrap">
+            <v-btn
+              color="error"
+              variant="outlined"
+              size="small"
+              prepend-icon="mdi-block"
+              :loading="bulkActionLoading"
+              @click="handleBulkBlock"
+            >
+              Заблокировать
+            </v-btn>
+            <v-btn
+              color="success"
+              variant="outlined"
+              size="small"
+              prepend-icon="mdi-check-circle"
+              :loading="bulkActionLoading"
+              @click="handleBulkUnblock"
+            >
+              Разблокировать
+            </v-btn>
+            <v-btn
+              color="warning"
+              variant="outlined"
+              size="small"
+              prepend-icon="mdi-power-off"
+              :loading="bulkActionLoading"
+              @click="handleBulkDisconnect"
+            >
+              Отключить
+            </v-btn>
+            <v-menu>
+              <template #activator="{ props }">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+                  prepend-icon="mdi-dots-vertical"
+                  v-bind="props"
+                >
+                  Еще
+                </v-btn>
+              </template>
+              <v-list>
+                <v-list-item
+                  prepend-icon="mdi-network"
+                  title="Пинг (TD)"
+                  :disabled="!canPerformTDAction"
+                  @click="handleBulkPing"
+                />
+                <v-list-item
+                  prepend-icon="mdi-message-text"
+                  title="Отправить SMS (TD)"
+                  :disabled="!canPerformTDAction"
+                  @click="showSmsDialog = true"
+                />
+                <v-list-item
+                  prepend-icon="mdi-credit-card"
+                  title="Изменить тариф (TD)"
+                  :disabled="!canPerformTDAction"
+                  @click="showTariffDialog = true"
+                />
+                <v-list-item
+                  prepend-icon="mdi-refresh"
+                  title="Переподключить пакет (TD)"
+                  :disabled="!canPerformTDAction"
+                  @click="handleBulkReconnect"
+                />
+                <v-list-item
+                  prepend-icon="mdi-rename-box"
+                  title="Переименовать"
+                  @click="showRenameDialog = true"
+                />
+                <v-list-item
+                  prepend-icon="mdi-account-group"
+                  title="Изменить группы"
+                  @click="showGroupDialog = true"
+                />
+              </v-list>
+            </v-menu>
+            <v-btn
+              variant="text"
+              size="small"
+              icon="mdi-close"
+              @click="selectedItems = []"
+              title="Снять выделение"
+            />
+          </div>
+        </div>
+      </v-card-text>
+    </v-card>
+
     <!-- Таблица SIM-карт -->
     <v-data-table
       v-if="!loading"
@@ -166,6 +272,8 @@
       :headers="headers"
       :items="paginatedSimCards"
       item-value="id"
+      v-model="selectedItems"
+      show-select
       class="elevation-1"
       no-data-text="Отсутствуют данные"
       :loading="false"
@@ -212,15 +320,7 @@
       </template>
 
       <template #item.balance="{ item }">
-        <div v-if="item.profile === 'TC'">
-          <div class="font-weight-medium">
-            {{ formatBalance(item.balance) }} {{ item.currency }}
-          </div>
-          <div v-if="item.msu_value !== null" class="text-caption text-medium-emphasis">
-            MSU: {{ item.msu_value }}
-          </div>
-        </div>
-        <span v-else class="text-medium-emphasis">—</span>
+        <span class="text-medium-emphasis">—</span>
       </template>
 
       <template #item.limit="{ item }">
@@ -359,15 +459,6 @@
                   {{ getBlockLabel(selectedSimCard.block) }}
                 </v-chip>
               </div>
-              <div v-if="selectedSimCard.profile === 'TC'" class="info-item mb-3">
-                <div class="text-caption text-medium-emphasis">Баланс</div>
-                <div class="text-body-1 font-weight-medium">
-                  {{ formatBalance(selectedSimCard.balance) }} {{ selectedSimCard.currency }}
-                </div>
-                <div v-if="selectedSimCard.msu_value !== null" class="text-caption text-medium-emphasis mt-1">
-                  MSU: {{ selectedSimCard.msu_value }}
-                </div>
-              </div>
               <div class="info-item mb-3">
                 <div class="text-caption text-medium-emphasis">Тариф</div>
               <div class="text-body-1 font-weight-medium">{{ selectedSimCard.tariff?.name || '—' }}</div>
@@ -413,6 +504,196 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог изменения групп -->
+    <v-dialog v-model="showGroupDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-account-group" class="mr-2" />
+            Изменить группы
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="showGroupDialog = false" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pt-4">
+          <div class="text-body-2 mb-4">
+            Выбрано SIM-карт: <strong>{{ selectedItems.length }}</strong>
+          </div>
+          <v-select
+            v-model="selectedGroups"
+            :items="availableGroups"
+            item-title="name"
+            item-value="id"
+            label="Группы"
+            multiple
+            chips
+            variant="outlined"
+            :loading="loadingGroups"
+            :disabled="loadingGroups"
+          >
+            <template #selection="{ item, index }">
+              <v-chip
+                v-if="index < 2"
+                size="small"
+                closable
+                @click:close="removeGroup(item.value)"
+              >
+                {{ item.title }}
+              </v-chip>
+              <span
+                v-else-if="index === 2"
+                class="text-grey text-caption align-self-center"
+              >
+                (+{{ selectedGroups.length - 2 }} других)
+              </span>
+            </template>
+          </v-select>
+          <div class="text-caption text-medium-emphasis mt-2">
+            Выберите группы для выбранных SIM-карт. Можно выбрать несколько групп.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="showGroupDialog = false">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            :loading="bulkActionLoading"
+            :disabled="selectedGroups.length === 0"
+            @click="handleBulkChangeGroups"
+          >
+            Применить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог отправки SMS -->
+    <v-dialog v-model="showSmsDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-message-text" class="mr-2" />
+            Отправить SMS
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="showSmsDialog = false" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pt-4">
+          <div class="text-body-2 mb-4">
+            Выбрано SIM-карт (TD): <strong>{{ selectedItems.length }}</strong>
+          </div>
+          <v-textarea
+            v-model="smsText"
+            label="Текст сообщения"
+            variant="outlined"
+            rows="4"
+            counter
+            maxlength="160"
+            :rules="[v => !!v || 'Введите текст сообщения', v => (v && v.length <= 160) || 'Максимум 160 символов']"
+          />
+          <div class="text-caption text-medium-emphasis mt-2">
+            Сообщение будет отправлено на все выбранные SIM-карты профиля TD.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="showSmsDialog = false">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            :loading="bulkActionLoading"
+            :disabled="!smsText || smsText.length === 0"
+            @click="handleBulkSendSms"
+          >
+            Отправить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог изменения тарифа -->
+    <v-dialog v-model="showTariffDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-credit-card" class="mr-2" />
+            Изменить тариф
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="showTariffDialog = false" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pt-4">
+          <div class="text-body-2 mb-4">
+            Выбрано SIM-карт (TD): <strong>{{ selectedItems.length }}</strong>
+          </div>
+          <v-select
+            v-model="selectedTariffId"
+            :items="availableTariffs"
+            item-title="name"
+            item-value="id"
+            label="Тариф"
+            variant="outlined"
+            :loading="loadingTariffs"
+            :disabled="loadingTariffs"
+          />
+          <div class="text-caption text-medium-emphasis mt-2">
+            Тариф будет изменен для всех выбранных SIM-карт профиля TD.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="showTariffDialog = false">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            :loading="bulkActionLoading"
+            :disabled="!selectedTariffId"
+            @click="handleBulkChangeTariff"
+          >
+            Применить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог переименования -->
+    <v-dialog v-model="showRenameDialog" max-width="500px">
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-rename-box" class="mr-2" />
+            Переименовать
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="showRenameDialog = false" />
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pt-4">
+          <div class="text-body-2 mb-4">
+            Выбрано SIM-карт: <strong>{{ selectedItems.length }}</strong>
+          </div>
+          <v-text-field
+            v-model="newName"
+            label="Новое название"
+            variant="outlined"
+            :rules="[v => !!v || 'Введите название']"
+          />
+          <div class="text-caption text-medium-emphasis mt-2">
+            Все выбранные SIM-карты будут переименованы.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="showRenameDialog = false">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            :loading="bulkActionLoading"
+            :disabled="!newName || newName.length === 0"
+            @click="handleBulkRename"
+          >
+            Применить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar для уведомлений -->
     <v-snackbar
       v-model="snackbar.show"
@@ -430,7 +711,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { novaconnectService, type NovaConnectSimCard } from '@/services/novaconnectService';
+import { novaconnectService, type NovaConnectSimCard, type NovaConnectGroup } from '@/services/novaconnectService';
 
 // Реактивные данные
 const loading = ref(false);
@@ -444,6 +725,34 @@ const statsFullyLoaded = ref(false); // Флаг полной загрузки �
 const statsProgress = computed(() => {
   if (totalCount.value === 0) return 0;
   return Math.round((statsLoadedCount.value / totalCount.value) * 100);
+});
+
+// Массовый выбор
+const selectedItems = ref<number[]>([]);
+const bulkActionLoading = ref(false);
+const showGroupDialog = ref(false);
+const availableGroups = ref<NovaConnectGroup[]>([]);
+const selectedGroups = ref<number[]>([]);
+const loadingGroups = ref(false);
+
+// Новые диалоги
+const showSmsDialog = ref(false);
+const smsText = ref('');
+const showTariffDialog = ref(false);
+const selectedTariffId = ref<number | null>(null);
+const availableTariffs = ref<Array<{ id: number; name: string }>>([]);
+const loadingTariffs = ref(false);
+const showRenameDialog = ref(false);
+const newName = ref('');
+
+// Проверка профилей выбранных SIM-карт
+const selectedSimCardsData = computed(() => {
+  return simCards.value.filter(card => selectedItems.value.includes(card.id));
+});
+
+const canPerformTDAction = computed(() => {
+  if (selectedItems.value.length === 0) return false;
+  return selectedSimCardsData.value.every(card => card.profile === 'TD');
 });
 
 // Кэширование статистики SIM-карт
@@ -602,7 +911,6 @@ const stats = computed(() => {
     active: activeCount,
     blocked: blockedCount,
     td: cardsForStats.filter(card => card.profile === 'TD').length,
-    tc: cardsForStats.filter(card => card.profile === 'TC').length,
     profiles, // Все профили с количеством из всех загруженных данных
   };
 });
@@ -864,6 +1172,8 @@ const handleSearch = () => {
 };
 
 const handleFilterChange = () => {
+  // Сбрасываем выделение при изменении фильтров
+  selectedItems.value = [];
   statsData.value = []; // Очищаем данные для статистики при изменении фильтров
   statsFullyLoaded.value = false; // Сбрасываем флаг загрузки статистики при изменении фильтров
   statsLoadedCount.value = 0; // Сбрасываем счетчик загруженных карт
@@ -873,6 +1183,8 @@ const handleFilterChange = () => {
 };
 
 const handlePageChange = () => {
+  // Сбрасываем выделение при смене страницы
+  selectedItems.value = [];
   // Загружаем новую страницу при смене страницы
   loadSimCards();
   // Прокручиваем вверх при смене страницы
@@ -881,6 +1193,8 @@ const handlePageChange = () => {
 
 // Отслеживаем изменение itemsPerPage и перезагружаем данные
 watch(itemsPerPage, () => {
+  // Сбрасываем выделение при изменении количества элементов на странице
+  selectedItems.value = [];
   currentPage.value = 1;
   loadSimCards();
 });
@@ -910,6 +1224,266 @@ const unblockSimCard = async (simCard: NovaConnectSimCard) => {
   } catch (error: any) {
     console.error('Ошибка разблокировки SIM-карты:', error);
     showSnackbar(error.message || 'Ошибка разблокировки SIM-карты', 'error');
+  }
+};
+
+// Массовые действия
+const getSelectedItemsText = (count: number): string => {
+  const lastDigit = count % 10;
+  const lastTwoDigits = count % 100;
+  
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 19) {
+    return 'SIM-карт';
+  }
+  
+  if (lastDigit === 1) {
+    return 'SIM-карта';
+  }
+  
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'SIM-карты';
+  }
+  
+  return 'SIM-карт';
+};
+
+const handleBulkBlock = async () => {
+  if (selectedItems.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.blockSimCard(selectedItems.value);
+    showSnackbar(`Заблокировано ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка массовой блокировки:', error);
+    showSnackbar(error.message || 'Ошибка блокировки SIM-карт', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkUnblock = async () => {
+  if (selectedItems.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.unblockSimCard(selectedItems.value);
+    showSnackbar(`Разблокировано ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка массовой разблокировки:', error);
+    showSnackbar(error.message || 'Ошибка разблокировки SIM-карт', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkDisconnect = async () => {
+  if (selectedItems.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.disconnectSimCard(selectedItems.value);
+    showSnackbar(`Отключено ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка массового отключения:', error);
+    showSnackbar(error.message || 'Ошибка отключения SIM-карт', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const loadGroups = async () => {
+  if (loadingGroups.value) return;
+  
+  loadingGroups.value = true;
+  try {
+    const groups = await novaconnectService.getGroups();
+    availableGroups.value = groups;
+  } catch (error: any) {
+    console.error('Ошибка загрузки групп:', error);
+    showSnackbar(error.message || 'Ошибка загрузки групп', 'error');
+  } finally {
+    loadingGroups.value = false;
+  }
+};
+
+const handleBulkChangeGroups = async () => {
+  if (selectedItems.value.length === 0 || selectedGroups.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.changeSimGroups(selectedItems.value, selectedGroups.value);
+    showSnackbar(`Группы изменены для ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    selectedGroups.value = [];
+    showGroupDialog.value = false;
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка изменения групп:', error);
+    showSnackbar(error.message || 'Ошибка изменения групп', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const removeGroup = (groupId: number) => {
+  selectedGroups.value = selectedGroups.value.filter(id => id !== groupId);
+};
+
+// Загружаем группы при открытии диалога
+watch(showGroupDialog, (newValue) => {
+  if (newValue && availableGroups.value.length === 0) {
+    loadGroups();
+  }
+  if (!newValue) {
+    selectedGroups.value = [];
+  }
+});
+
+// Загружаем тарифы при открытии диалога
+watch(showTariffDialog, (newValue) => {
+  if (newValue && availableTariffs.value.length === 0) {
+    loadTariffs();
+  }
+  if (!newValue) {
+    selectedTariffId.value = null;
+  }
+});
+
+// Сброс данных при закрытии диалогов
+watch(showSmsDialog, (newValue) => {
+  if (!newValue) {
+    smsText.value = '';
+  }
+});
+
+watch(showRenameDialog, (newValue) => {
+  if (!newValue) {
+    newName.value = '';
+  }
+});
+
+// Новые методы массовых действий
+const handleBulkPing = async () => {
+  if (selectedItems.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.pingSimCard(selectedItems.value);
+    showSnackbar(`Пинг отправлен на ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка пинга:', error);
+    showSnackbar(error.message || 'Ошибка пинга SIM-карт', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkSendSms = async () => {
+  if (selectedItems.value.length === 0 || !smsText.value) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.sendSmsToSimCards(selectedItems.value, smsText.value);
+    showSnackbar(`SMS отправлено на ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    showSmsDialog.value = false;
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка отправки SMS:', error);
+    showSnackbar(error.message || 'Ошибка отправки SMS', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkChangeTariff = async () => {
+  if (selectedItems.value.length === 0 || !selectedTariffId.value) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.changeSimTariff(selectedItems.value, selectedTariffId.value);
+    showSnackbar(`Тариф изменен для ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    showTariffDialog.value = false;
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка изменения тарифа:', error);
+    showSnackbar(error.message || 'Ошибка изменения тарифа', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkReconnect = async () => {
+  if (selectedItems.value.length === 0) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.reconnectSimPackage(selectedItems.value);
+    showSnackbar(`Пакет переподключен для ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка переподключения пакета:', error);
+    showSnackbar(error.message || 'Ошибка переподключения пакета', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const handleBulkRename = async () => {
+  if (selectedItems.value.length === 0 || !newName.value) return;
+  
+  bulkActionLoading.value = true;
+  try {
+    await novaconnectService.renameSimCards(selectedItems.value, newName.value);
+    showSnackbar(`Переименовано ${selectedItems.value.length} ${getSelectedItemsText(selectedItems.value.length)}`, 'success');
+    selectedItems.value = [];
+    showRenameDialog.value = false;
+    await loadSimCards();
+  } catch (error: any) {
+    console.error('Ошибка переименования:', error);
+    showSnackbar(error.message || 'Ошибка переименования SIM-карт', 'error');
+  } finally {
+    bulkActionLoading.value = false;
+  }
+};
+
+const loadTariffs = async () => {
+  if (loadingTariffs.value) return;
+  
+  loadingTariffs.value = true;
+  try {
+    // Получаем уникальные тарифы из загруженных SIM-карт
+    const tariffsMap = new Map<number, string>();
+    simCards.value.forEach(card => {
+      if (card.tariff && card.tariff.id) {
+        tariffsMap.set(card.tariff.id, card.tariff.name);
+      }
+    });
+    
+    // Также проверяем все загруженные данные
+    [...statsData.value, ...allProfilesData.value].forEach(card => {
+      if (card.tariff && card.tariff.id) {
+        tariffsMap.set(card.tariff.id, card.tariff.name);
+      }
+    });
+    
+    availableTariffs.value = Array.from(tariffsMap.entries()).map(([id, name]) => ({ id, name }));
+  } catch (error: any) {
+    console.error('Ошибка загрузки тарифов:', error);
+    showSnackbar(error.message || 'Ошибка загрузки тарифов', 'error');
+  } finally {
+    loadingTariffs.value = false;
   }
 };
 
@@ -1441,6 +2015,31 @@ onUnmounted(() => {
   .nav-controls {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* Панель массовых действий */
+.bulk-actions-panel {
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.08) 0%, rgba(var(--v-theme-surface), 1) 100%);
+  border-left: 4px solid rgb(var(--v-theme-primary));
+}
+
+.bulk-actions-panel .v-card-text {
+  padding: 12px 16px;
+}
+
+@media (max-width: 600px) {
+  .bulk-actions-panel .v-card-text {
+    padding: 10px 12px;
+  }
+  
+  .bulk-actions-panel .d-flex {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+  
+  .bulk-actions-panel .d-flex > div:first-child {
+    margin-bottom: 8px;
   }
 }
 </style>

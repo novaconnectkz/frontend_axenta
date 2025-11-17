@@ -337,6 +337,284 @@ class NovaConnectService {
   }
 
   /**
+   * Отключение SIM-карты (disconnect)
+   */
+  async disconnectSimCard(items: number[]): Promise<any> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/disconnect?lang=${this.language}`,
+        { items },
+        {
+          headers: this.getHeaders(),
+          timeout: 10000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка отключения SIM-карты:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка отключения SIM-карты'
+      );
+    }
+  }
+
+  /**
+   * Получить список групп
+   */
+  async getGroups(): Promise<NovaConnectGroup[]> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/group/list?lang=${this.language}`,
+        {},
+        {
+          headers: this.getHeaders(),
+          timeout: 10000,
+        }
+      );
+
+      if (response.data?.code === 200 && Array.isArray(response.data.items)) {
+        return response.data.items;
+      }
+      return [];
+    } catch (error: any) {
+      console.error('Ошибка получения списка групп:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка получения списка групп'
+      );
+    }
+  }
+
+  /**
+   * Изменение групп SIM-карт
+   */
+  async changeSimGroups(items: number[], groups: number[]): Promise<any> {
+    // Проверяем, что компания не изменилась, и перезагружаем настройки если нужно
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/group?lang=${this.language}`,
+        { items, groups },
+        {
+          headers: this.getHeaders(),
+          timeout: 10000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка изменения групп SIM-карт:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка изменения групп SIM-карт'
+      );
+    }
+  }
+
+  /**
+   * Пинг SIM-карт (только для профиля TD)
+   */
+  async pingSimCard(items: number[]): Promise<any> {
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/ping?lang=${this.language}`,
+        { items },
+        {
+          headers: this.getHeaders(),
+          timeout: 15000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка пинга SIM-карт:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка пинга SIM-карт'
+      );
+    }
+  }
+
+  /**
+   * Отправка SMS на SIM-карты (только для профиля TD)
+   */
+  async sendSmsToSimCards(items: number[], text: string): Promise<any> {
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/sms?lang=${this.language}`,
+        { items, text },
+        {
+          headers: this.getHeaders(),
+          timeout: 15000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка отправки SMS:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка отправки SMS'
+      );
+    }
+  }
+
+  /**
+   * Изменение тарификации SIM-карт (только для профиля TD)
+   */
+  async changeSimTariff(items: number[], tariffId: number): Promise<any> {
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/tariff?lang=${this.language}`,
+        { items, tariff: tariffId },
+        {
+          headers: this.getHeaders(),
+          timeout: 10000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка изменения тарификации:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка изменения тарификации'
+      );
+    }
+  }
+
+  /**
+   * Переподключение пакета (только для профиля TD)
+   */
+  async reconnectSimPackage(items: number[]): Promise<any> {
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/reconnect?lang=${this.language}`,
+        { items },
+        {
+          headers: this.getHeaders(),
+          timeout: 15000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка переподключения пакета:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка переподключения пакета'
+      );
+    }
+  }
+
+  /**
+   * Переименование SIM-карт
+   */
+  async renameSimCards(items: number[], name: string): Promise<any> {
+    const currentCompanyId = this.getCurrentCompanyId();
+    if (this.currentCompanyId !== currentCompanyId) {
+      await this.loadSettings();
+    }
+
+    if (!this.token) {
+      throw new Error('Токен NovaConnect не настроен');
+    }
+
+    try {
+      const response = await axios.post(
+        `${this.apiUrl}/sim/edit?lang=${this.language}`,
+        { items, name },
+        {
+          headers: this.getHeaders(),
+          timeout: 10000,
+        }
+      );
+
+      return response.data;
+    } catch (error: any) {
+      console.error('Ошибка переименования SIM-карт:', error);
+      throw new Error(
+        error.response?.data?.message || 
+        error.message || 
+        'Ошибка переименования SIM-карт'
+      );
+    }
+  }
+
+  /**
    * Проверка подключения к API
    */
   async testConnection(): Promise<boolean> {
