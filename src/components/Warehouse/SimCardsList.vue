@@ -376,32 +376,55 @@
     </v-data-table>
 
     <!-- Кастомный футер с пагинацией -->
-    <div v-if="!loading" class="compact-pagination mt-2">
-      <div class="d-flex align-center justify-space-between flex-wrap ga-2">
-        <div class="d-flex align-center ga-2">
-          <span class="text-body-2 text-medium-emphasis">Элементов на странице:</span>
-          <v-select
-            v-model="itemsPerPage"
-            :items="itemsPerPageOptions"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="items-select"
-            style="max-width: 100px"
-          />
-        </div>
-        <div class="d-flex align-center ga-2">
-          <span class="range-info">
-            Показано {{ startRange }}-{{ endRange }} из {{ totalItems }}
-          </span>
-          <v-pagination
-            v-model="currentPage"
-            :length="totalPages"
-            :total-visible="7"
-            density="comfortable"
-            @update:model-value="handlePageChange"
-          />
-        </div>
+    <div v-if="!loading" class="compact-pagination">
+      <v-select
+        v-model="itemsPerPageForSelect"
+        :items="perPageOptions"
+        variant="outlined"
+        density="compact"
+        class="items-select"
+        @update:model-value="handlePerPageChange"
+        hide-details
+      />
+      <span class="range-info">
+        {{ itemsPerPage > 0 && itemsPerPage < 100000 
+          ? `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, totalItems)} из ${totalItems}` 
+          : `Все ${totalItems} записей` }}
+      </span>
+      <div class="nav-controls">
+        <v-btn
+          icon="mdi-page-first"
+          variant="text"
+          size="x-small"
+          :disabled="currentPage === 1"
+          @click="handlePageChange(1)"
+          title="Первая"
+        />
+        <v-btn
+          icon="mdi-chevron-left"
+          variant="text"
+          size="x-small"
+          :disabled="currentPage === 1"
+          @click="handlePageChange(currentPage - 1)"
+          title="Предыдущая"
+        />
+        <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+        <v-btn
+          icon="mdi-chevron-right"
+          variant="text"
+          size="x-small"
+          :disabled="currentPage >= totalPages"
+          @click="handlePageChange(currentPage + 1)"
+          title="Следующая"
+        />
+        <v-btn
+          icon="mdi-page-last"
+          variant="text"
+          size="x-small"
+          :disabled="currentPage >= totalPages"
+          @click="handlePageChange(totalPages)"
+          title="Последняя"
+        />
       </div>
     </div>
 
@@ -814,7 +837,20 @@ const tableKey = ref(0); // Ключ для принудительного об�
 // Пагинация
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
-const itemsPerPageOptions = [10, 25, 50, 75, 100, 150];
+const perPageOptions = [
+  { title: '5', value: 5 },
+  { title: '10', value: 10 },
+  { title: '25', value: 25 },
+  { title: '50', value: 50 },
+  { title: '75', value: 75 },
+  { title: '100', value: 100 },
+  { title: '150', value: 150 },
+];
+
+const itemsPerPageForSelect = computed({
+  get: () => itemsPerPage.value === 100000 ? -1 : itemsPerPage.value,
+  set: (value) => handlePerPageChange(value)
+});
 
 const snackbar = ref({
   show: false,
@@ -923,14 +959,6 @@ const hasFilters = computed(() => {
 // Пагинация (серверная)
 const totalItems = computed(() => totalCount.value);
 const totalPages = computed(() => Math.ceil(totalItems.value / itemsPerPage.value));
-const startRange = computed(() => {
-  if (totalItems.value === 0) return 0;
-  return (currentPage.value - 1) * itemsPerPage.value + 1;
-});
-const endRange = computed(() => {
-  const end = currentPage.value * itemsPerPage.value;
-  return Math.min(end, totalItems.value);
-});
 // Теперь simCards уже содержит только текущую страницу
 const paginatedSimCards = computed(() => simCards.value);
 
@@ -1182,22 +1210,29 @@ const handleFilterChange = () => {
   loadSimCards();
 };
 
-const handlePageChange = () => {
+const handlePageChange = (page: number) => {
   // Сбрасываем выделение при смене страницы
   selectedItems.value = [];
+  currentPage.value = page;
   // Загружаем новую страницу при смене страницы
   loadSimCards();
   // Прокручиваем вверх при смене страницы
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// Отслеживаем изменение itemsPerPage и перезагружаем данные
-watch(itemsPerPage, () => {
+const handlePerPageChange = (limit: number) => {
+  // Обрабатываем значение -1 как "Все"
+  if (limit === -1) {
+    // Устанавливаем очень большое значение для загрузки всех записей
+    itemsPerPage.value = 100000; // Без ограничений для вывода всех
+  } else {
+    itemsPerPage.value = limit;
+  }
   // Сбрасываем выделение при изменении количества элементов на странице
   selectedItems.value = [];
   currentPage.value = 1;
   loadSimCards();
-});
+};
 
 
 const viewSimCard = (simCard: NovaConnectSimCard) => {
@@ -1950,53 +1985,78 @@ onUnmounted(() => {
   }
 }
 
-/* Кастомная пагинация */
+/* Компактная пагинация в стиле Accounts */
 .compact-pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 16px;
-  padding: 12px 16px;
-  flex-wrap: wrap;
-  background-color: rgba(var(--v-theme-surface-variant), 0.3);
+  padding: 20px 24px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-height: 40px;
+  background-color: #f8f9fa;
   border-radius: 8px;
-  margin-top: 8px;
+  margin: 0 16px;
 }
 
 .items-select {
-  min-width: 80px !important;
+  min-width: 60px !important;
+  width: fit-content !important;
   max-width: 120px !important;
   flex-shrink: 0;
+  height: 40px;
+}
+
+.items-select :deep(.v-field) {
+  min-width: 50px !important;
+  width: auto !important;
+}
+
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.items-select :deep(.v-field__append-inner) {
+  padding-left: 4px !important;
+}
+
+.items-select :deep(.v-select__selection) {
+  max-width: none !important;
+  min-width: 0 !important;
 }
 
 .range-info {
   font-size: 0.9rem;
-  color: rgba(var(--v-theme-on-surface), 0.7);
+  color: #555;
   flex-shrink: 0;
   min-width: 120px;
   text-align: center;
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px 12px;
-  background-color: rgba(var(--v-theme-surface-variant), 0.5);
+  background-color: #f0f0f0;
   border-radius: 6px;
 }
 
 .page-info {
   font-size: 0.9rem;
-  color: rgba(var(--v-theme-on-surface), 0.8);
-  font-weight: 600;
-  padding: 4px 12px;
-  min-width: 60px;
+  color: #555;
+  font-weight: 700;
+  padding: 4px 8px;
+  min-width: 50px;
   text-align: center;
 }
 
 .nav-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
   padding: 4px;
-  background-color: rgba(var(--v-theme-surface-variant), 0.5);
+  background-color: #f0f0f0;
   border-radius: 6px;
 }
 
@@ -2005,17 +2065,35 @@ onUnmounted(() => {
   height: 32px;
 }
 
-@media (max-width: 600px) {
-  .compact-pagination {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .range-info,
-  .nav-controls {
-    width: 100%;
-    justify-content: center;
-  }
+/* Темная тема */
+[data-theme="dark"] .compact-pagination {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+[data-theme="dark"] .range-info {
+  color: #8e8e93;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .page-info {
+  color: #ffffff;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls {
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .nav-controls .v-btn:hover {
+  background-color: #3a3a3c;
+  border-color: #007AFF;
 }
 
 /* Панель массовых действий */
