@@ -198,7 +198,7 @@
                 <h3 class="mb-4">Настройка периода</h3>
                 
                 <v-row>
-                  <v-col cols="12" md="6">
+                  <v-col cols="12" md="4">
                     <v-text-field
                       v-model="form.start_date"
                       label="Дата начала"
@@ -214,12 +214,27 @@
                       </template>
                     </v-text-field>
                   </v-col>
-                  <v-col cols="12" md="6">
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model.number="form.contract_period_months"
+                      label="Период договора (месяцев)"
+                      type="number"
+                      min="1"
+                      variant="outlined"
+                      hide-details
+                      placeholder="Пусто = период из тарифа"
+                      class="contract-period-input"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="4">
                     <v-switch
                       v-model="form.is_auto_renew"
-                      label="Автопродление"
                       color="primary"
                       hide-details
+                    >
+                      <template #label>
+                        <span>Автоматическая пролонгация: {{ form.is_auto_renew ? 'Включена' : 'Отключена' }}</span>
+                      </template>
                     ></v-switch>
                   </v-col>
                 </v-row>
@@ -441,6 +456,7 @@ const form = ref<CreateSubscriptionData & {
   contract_id?: number
   transfer_from_existing?: boolean
   split_period?: boolean
+  contract_period_months?: number | null
 }>({
   company_id: companyId.value,
   billing_plan_id: 0,
@@ -449,7 +465,8 @@ const form = ref<CreateSubscriptionData & {
   status: 'active',
   contract_id: undefined,
   transfer_from_existing: false,
-  split_period: false
+  split_period: false,
+  contract_period_months: null
 })
 
 // Данные
@@ -766,4 +783,11 @@ watch(show, (isOpen) => {
   }
 })
 </script>
+
+<style scoped>
+.contract-period-input :deep(input::placeholder) {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+</style>
 

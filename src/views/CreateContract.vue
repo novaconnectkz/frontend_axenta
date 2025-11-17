@@ -983,99 +983,6 @@
             </template>
           </div>
 
-          <!-- Тарификация и стоимость -->
-          <div class="form-section">
-            <h3 class="section-title">
-              <v-icon icon="mdi-currency-rub" class="mr-2" />
-              Тарификация и стоимость
-            </h3>
-            
-            <v-row>
-              <v-col cols="12" md="6">
-                <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
-                <v-select
-                  v-model="form.tariff_plan_id"
-                  :items="tariffPlanOptions"
-                  :rules="[rules.required]"
-                  variant="outlined"
-                  density="compact"
-                  :loading="loadingTariffPlans"
-                  required
-                  hide-details
-                  :no-data-text="loadingTariffPlans ? 'Загрузка...' : 'Тарифные планы не найдены. Создайте план в разделе Биллинг → Тарифные планы'"
-                  placeholder="Выберите тарифный план"
-                  clearable
-                  @update:model-value="onTariffPlanChange"
-                >
-                  <template #item="{ props, item }">
-                    <v-list-item v-bind="props">
-                      <template #prepend>
-                        <v-avatar size="small" color="primary">
-                          <v-icon icon="mdi-package-variant" />
-                        </v-avatar>
-                      </template>
-                      
-                      <v-list-item-title>{{ item.title }}</v-list-item-title>
-                      <v-list-item-subtitle>
-                        <template v-if="item.raw">
-                          <!-- Безопасное извлечение price с обработкой разных типов -->
-                          <template v-if="(item.raw as any).price !== undefined && (item.raw as any).price !== null">
-                            {{ formatCurrency(
-                              typeof (item.raw as any).price === 'string' 
-                                ? parseFloat((item.raw as any).price.replace(',', '.')) || 0
-                                : Number((item.raw as any).price) || 0, 
-                              (item.raw as any).currency || 'RUB'
-                            ) }}/{{ getPeriodText((item.raw as any).billing_period) }}
-                            <template v-if="(item.raw as any).max_devices > 0">
-                              • До {{ (item.raw as any).max_devices }} устройств
-                            </template>
-                            <template v-else>
-                              • Безлимит устройств
-                            </template>
-                          </template>
-                          <template v-else>
-                            <!-- Fallback если данных нет -->
-                            {{ formatCurrency(0) }}/мес
-                            <span class="text-caption text-error">(данные не загружены)</span>
-                          </template>
-                        </template>
-                        <template v-else>
-                          <!-- Fallback если raw отсутствует -->
-                          {{ formatCurrency(0) }}/мес
-                          <span class="text-caption text-error">(данные не загружены)</span>
-                        </template>
-                      </v-list-item-subtitle>
-                    </v-list-item>
-                  </template>
-                </v-select>
-              </v-col>
-              
-              <v-col cols="12" md="3">
-                <label class="apple-input-label">Период договора (месяцев)</label>
-                <v-text-field
-                  v-model.number="form.contract_period_months"
-                  type="number"
-                  min="1"
-                  variant="outlined"
-                  density="compact"
-                  hide-details
-                  placeholder="Пусто = период из тарифа"
-                  class="contract-period-input"
-                />
-              </v-col>
-              
-              <v-col cols="12" md="3">
-                <label class="apple-input-label">Автоматическая пролонгация</label>
-                <v-switch
-                  v-model="form.is_auto_renew"
-                  color="primary"
-                  hide-details
-                  density="compact"
-                  :label="form.is_auto_renew ? 'Включена' : 'Отключена'"
-                />
-              </v-col>
-            </v-row>
-          </div>
         </div>
 
         <!-- Действия формы -->
@@ -1142,10 +1049,8 @@ const route = useRoute();
 const formRef = ref();
 const formValid = ref(false);
 const saving = ref(false);
-const loadingTariffPlans = ref(false);
 const loadingAccounts = ref(false);
 const accounts = ref<Account[]>([]);
-const tariffPlans = ref<BillingPlan[]>([]);
 // Удалено: isTariffPlanInitialized - не используется
 const accountObjects = ref<any[]>([]);
 const loadingAccountObjects = ref(false);
@@ -1239,14 +1144,11 @@ const defaultForm: ContractForm = {
   client_bank_account: '',
   client_bank_recipient: '',
   start_date: new Date().toISOString().split('T')[0],
-  end_date: '', // Будет установлено автоматически при выборе тарифного плана
-  tariff_plan_id: 0,
+  end_date: '', // Будет установлено автоматически (по умолчанию 1 год)
   total_amount: '',
   currency: 'RUB',
   status: 'active',
   is_active: true,
-  is_auto_renew: true, // По умолчанию включена автоматическая пролонгация
-  contract_period_months: null, // По умолчанию используется период из тарифа
   notify_before: 30,
   notes: '',
   external_id: '',
@@ -1285,52 +1187,6 @@ const selectedAccount = computed(() => {
   return findAccountById(form.value.account_id);
 });
 
-const tariffPlanOptions = computed(() => {
-  const options = tariffPlans.value.map(plan => {
-    // Логируем для отладки
-    if (tariffPlans.value.indexOf(plan) === 0) {
-      console.log('🔍 tariffPlanOptions: первый план:', {
-        id: plan.id,
-        name: plan.name,
-        price: plan.price,
-        priceType: typeof plan.price,
-        max_devices: plan.max_devices,
-        billing_period: plan.billing_period,
-        fullPlan: plan
-      });
-    }
-    
-    const option = {
-    value: plan.id,
-    title: plan.name,
-      raw: { ...plan }, // Создаем копию объекта для реактивности
-    };
-    
-    // Логируем первый элемент для отладки
-    if (tariffPlans.value.indexOf(plan) === 0) {
-      console.log('🔍 tariffPlanOptions: созданная опция:', {
-        value: option.value,
-        title: option.title,
-        rawPrice: option.raw.price,
-        rawPriceType: typeof option.raw.price,
-        raw: option.raw
-      });
-    }
-    
-    return option;
-  });
-  
-  console.log('📋 tariffPlanOptions создано:', options.length, 'опций');
-  if (options.length > 0) {
-    console.log('📋 Первая опция:', {
-      value: options[0].value,
-      title: options[0].title,
-      raw: options[0].raw,
-      rawPrice: options[0].raw?.price
-    });
-  }
-  return options;
-});
 
 const numeratorOptions = computed(() => {
   return numerators.value.map(numerator => ({
@@ -1539,61 +1395,6 @@ const goBack = () => {
   router.back();
 };
 
-const onTariffPlanChange = (planId: number | null) => {
-  // Игнорируем если план не выбран или это очистка значения
-  if (!planId || planId === 0) {
-    console.log('🔍 onTariffPlanChange: план не выбран, пропускаем');
-    return;
-  }
-  
-  const selectedPlan = tariffPlans.value.find(plan => plan.id === planId);
-  
-  if (!selectedPlan) {
-    console.log('🔍 onTariffPlanChange: план не найден, planId:', planId);
-    return;
-  }
-  
-  console.log('🔍 onTariffPlanChange: выбран план', {
-    planId,
-    name: selectedPlan.name,
-    price: selectedPlan.price,
-    billing_period: selectedPlan.billing_period,
-    currency: selectedPlan.currency
-  });
-  
-  // Автоматически устанавливаем период действия договора
-  if (form.value.start_date) {
-    const startDate = new Date(form.value.start_date + 'T00:00:00');
-    const endDate = new Date(startDate);
-    
-    // Если задан contract_period_months, используем его
-    if (form.value.contract_period_months && form.value.contract_period_months > 0) {
-      endDate.setMonth(endDate.getMonth() + form.value.contract_period_months);
-    } else {
-      // Иначе используем период из тарифа
-      if (selectedPlan.billing_period === 'monthly') {
-        // Для месячного тарифа устанавливаем период 1 месяц
-        endDate.setMonth(endDate.getMonth() + 1);
-      } else if (selectedPlan.billing_period === 'yearly') {
-        // Для годового тарифа устанавливаем период 1 год
-        endDate.setFullYear(endDate.getFullYear() + 1);
-      } else {
-        // Для one-time или других типов устанавливаем период 1 год по умолчанию
-        endDate.setFullYear(endDate.getFullYear() + 1);
-      }
-    }
-    
-    form.value.end_date = endDate.toISOString().split('T')[0];
-    console.log('📅 Период договора установлен:', {
-      start_date: form.value.start_date,
-      end_date: form.value.end_date,
-      billing_period: selectedPlan.billing_period,
-      contract_period_months: form.value.contract_period_months
-    });
-  }
-  
-  // Стоимость будет рассчитана автоматически при создании подписки
-};
 
 const saveContract = async () => {
   if (!formRef.value || !formValid.value) return;
@@ -1611,10 +1412,7 @@ const saveContract = async () => {
       client_email: form.value.client_email || '',
       client_phone: form.value.client_phone || '',
       client_address: form.value.client_address || '',
-      tariff_plan_id: Number(form.value.tariff_plan_id),
       status: form.value.status || 'active',
-      is_auto_renew: form.value.is_auto_renew !== undefined ? form.value.is_auto_renew : true,
-      contract_period_months: form.value.contract_period_months && form.value.contract_period_months > 0 ? form.value.contract_period_months : null,
       notes: form.value.notes || '',
     };
     
@@ -1642,33 +1440,12 @@ const saveContract = async () => {
     }
     
     if (!form.value.end_date) {
-      // Устанавливаем период на основе выбранного тарифного плана
+      // Устанавливаем период по умолчанию (1 год)
       const startDate = form.value.start_date 
         ? new Date(form.value.start_date + 'T00:00:00Z')
         : new Date();
       const defaultEndDate = new Date(startDate);
-      
-      // Пытаемся найти выбранный тарифный план
-      const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
-      
-      // Если задан contract_period_months, используем его
-      if (form.value.contract_period_months && form.value.contract_period_months > 0) {
-        defaultEndDate.setMonth(defaultEndDate.getMonth() + form.value.contract_period_months);
-      } else if (selectedPlan) {
-        // Иначе используем период из тарифа
-        if (selectedPlan.billing_period === 'monthly') {
-          defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
-        } else if (selectedPlan.billing_period === 'yearly') {
-          defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
-        } else {
-          // Для one-time или других типов устанавливаем период 1 год по умолчанию
-          defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
-        }
-      } else {
-        // Если тариф не выбран, устанавливаем период 1 год по умолчанию
-        defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
-      }
-      
+      defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
       contractData.end_date = defaultEndDate.toISOString();
     } else {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
@@ -2306,72 +2083,11 @@ const loadAccountObjects = async (accountId: number) => {
   }
 };
 
-// Загрузка тарифных планов
-const loadTariffPlans = async () => {
-  loadingTariffPlans.value = true;
-  try {
-    // Получаем company_id из localStorage
-    let companyId: number | undefined = undefined;
-    const companyData = localStorage.getItem('axenta_company');
-    if (companyData) {
-      try {
-        const company = JSON.parse(companyData);
-        if (company && company.id) {
-          companyId = Number(company.id);
-          console.log('📋 Загрузка тарифных планов для company_id:', companyId);
-        }
-      } catch (e) {
-        console.warn('Ошибка парсинга company из localStorage:', e);
-      }
-    }
-    
-    if (!companyId) {
-      console.warn('⚠️ company_id не найден, тарифные планы могут быть недоступны');
-    }
-    
-    tariffPlans.value = await billingService.getBillingPlans(companyId);
-    console.log(`✅ Загружено тарифных планов: ${tariffPlans.value.length}`);
-    
-    // Логируем данные первого плана для отладки
-    if (tariffPlans.value.length > 0) {
-      const firstPlan = tariffPlans.value[0];
-      console.log('📊 Первый тарифный план:', {
-        id: firstPlan.id,
-        name: firstPlan.name,
-        price: firstPlan.price,
-        priceType: typeof firstPlan.price,
-        max_devices: firstPlan.max_devices,
-        currency: firstPlan.currency,
-        billing_period: firstPlan.billing_period,
-        fullPlan: firstPlan
-      });
-    }
-    
-    if (tariffPlans.value.length === 0 && companyId) {
-      console.warn('⚠️ Тарифные планы не найдены для company_id:', companyId);
-    }
-  } catch (error) {
-    console.error('❌ Ошибка загрузки тарифных планов:', error);
-    tariffPlans.value = [];
-  } finally {
-    loadingTariffPlans.value = false;
-  }
-};
 
 const formatCurrency = (amount: number, currency = 'RUB'): string => {
   return contractsService.formatCurrency(amount, currency);
 };
 
-// Функция для получения текста периода тарификации
-const getPeriodText = (period: string | undefined): string => {
-  if (!period) return 'мес';
-  const periodMap: Record<string, string> = {
-    'monthly': 'мес',
-    'yearly': 'год',
-    'one-time': 'разово'
-  };
-  return periodMap[period] || 'мес';
-};
 
 // Обработчик изменения типа клиента
 const onClientTypeChange = (clientType: ClientType) => {
@@ -2858,45 +2574,6 @@ watch(() => selectedNumeratorId.value, async (newId) => {
   }
 });
 
-// Автоматическое обновление end_date при изменении start_date, если тариф уже выбран
-watch(() => form.value.start_date, (newStartDate) => {
-  // Обновляем end_date только если:
-  // 1. start_date установлена
-  // 2. Тарифный план выбран
-  if (newStartDate && form.value.tariff_plan_id) {
-    const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
-    if (selectedPlan) {
-      const startDate = new Date(newStartDate + 'T00:00:00');
-      const endDate = new Date(startDate);
-      
-      // Если задан contract_period_months, используем его
-      if (form.value.contract_period_months && form.value.contract_period_months > 0) {
-        endDate.setMonth(endDate.getMonth() + form.value.contract_period_months);
-      } else {
-        // Иначе используем период из тарифа
-        if (selectedPlan.billing_period === 'monthly') {
-          endDate.setMonth(endDate.getMonth() + 1);
-        } else if (selectedPlan.billing_period === 'yearly') {
-          endDate.setFullYear(endDate.getFullYear() + 1);
-        } else {
-          endDate.setFullYear(endDate.getFullYear() + 1);
-        }
-      }
-      
-      form.value.end_date = endDate.toISOString().split('T')[0];
-    }
-  }
-});
-
-// Автоматическое обновление end_date при изменении contract_period_months
-watch(() => form.value.contract_period_months, (newPeriod) => {
-  if (newPeriod && newPeriod > 0 && form.value.start_date && form.value.tariff_plan_id) {
-    const startDate = new Date(form.value.start_date + 'T00:00:00');
-    const endDate = new Date(startDate);
-    endDate.setMonth(endDate.getMonth() + newPeriod);
-    form.value.end_date = endDate.toISOString().split('T')[0];
-  }
-});
 
 // Lifecycle
 onMounted(async () => {
@@ -2916,7 +2593,6 @@ onMounted(async () => {
   if (accountId) {
     // Загружаем параллельно все необходимые данные
     await Promise.all([
-      loadTariffPlans(),
       loadSingleAccount(accountId),
       loadBillingSettings(),
       loadNumerators(),
@@ -2943,7 +2619,6 @@ onMounted(async () => {
     // Обычная загрузка - НЕ загружаем все учетные записи сразу для оптимизации
     // Загрузим их только при фокусе на поле или при поиске
     await Promise.all([
-      loadTariffPlans(),
       // loadAccounts() - убрано для оптимизации, загрузится при фокусе на поле
       loadBillingSettings(),
       loadNumerators(),

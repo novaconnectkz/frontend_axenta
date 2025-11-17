@@ -101,10 +101,6 @@
         <v-icon left>mdi-file-document-multiple</v-icon>
         Договоры
       </v-tab>
-      <v-tab value="plans">
-        <v-icon left>mdi-package-variant</v-icon>
-        Тарифные планы
-      </v-tab>
       <v-tab value="subscriptions">
         <v-icon left>mdi-credit-card</v-icon>
         Подписки
@@ -124,113 +120,6 @@
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
         <ContractsTab @stats-updated="handleContractsStatsUpdate" />
-      </v-window-item>
-
-      <!-- Тарифные планы -->
-      <v-window-item value="plans">
-        <!-- Панель управления планами -->
-        <v-card class="mb-6">
-          <v-card-title>
-            <span>Тарифные планы</span>
-          </v-card-title>
-          
-          <v-card-text>
-            <!-- Фильтры -->
-            <v-row class="mb-4">
-              <v-col cols="12" md="6" lg="4">
-                <v-text-field
-                  v-model="planSearchQuery"
-                  label="Поиск по названию"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="6" lg="4">
-                <v-select
-                  v-model="planStatusFilter"
-                  :items="statusOptions"
-                  label="Статус"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="6" lg="4">
-                <v-btn
-                  icon="mdi-plus"
-                  variant="flat"
-                  color="primary"
-                  size="small"
-                  @click="openPlanDialog()"
-                  title="Добавить план"
-                />
-              </v-col>
-            </v-row>
-
-            <!-- Таблица планов -->
-            <v-data-table
-              :headers="planHeaders"
-              :items="filteredPlans"
-              :loading="loadingPlans"
-              class="elevation-1"
-              item-value="id"
-              :items-per-page="10"
-            >
-              <!-- Название с популярным значком -->
-              <template v-slot:item.name="{ item }">
-                <div class="d-flex align-center">
-                  <span class="font-weight-medium">{{ item.name }}</span>
-                  <v-chip
-                    v-if="item.is_popular"
-                    color="orange"
-                    size="x-small"
-                    class="ml-2"
-                  >
-                    Популярный
-                  </v-chip>
-                </div>
-              </template>
-
-              <!-- Цена -->
-              <template v-slot:item.price="{ item }">
-                <span class="font-weight-bold text-primary">
-                  {{ formatPrice(item.price, item.currency) }}
-                </span>
-                <span class="text-caption text-grey ml-1">
-                  / {{ getBillingPeriodText(item.billing_period) }}
-                </span>
-              </template>
-
-              <!-- Статус -->
-              <template v-slot:item.is_active="{ item }">
-                <v-chip
-                  :color="item.is_active ? 'green' : 'red'"
-                  size="small"
-                >
-                  {{ item.is_active ? 'Активен' : 'Неактивен' }}
-                </v-chip>
-              </template>
-
-              <!-- Действия -->
-              <template v-slot:item.actions="{ item }">
-                <v-btn
-                  icon="mdi-pencil"
-                  size="small"
-                  variant="text"
-                  @click="openPlanDialog(item)"
-                ></v-btn>
-                <v-btn
-                  icon="mdi-delete"
-                  size="small"
-                  variant="text"
-                  color="error"
-                  @click="deletePlan(item)"
-                ></v-btn>
-              </template>
-            </v-data-table>
-          </v-card-text>
-        </v-card>
       </v-window-item>
 
       <!-- Подписки -->
@@ -575,47 +464,6 @@
                   ></v-switch>
                 </v-col>
 
-                <v-col cols="12" md="6">
-                  <h4 class="mb-4">Нумерация договоров</h4>
-                  <v-select
-                    v-model="billingSettings.contract_numbering_method"
-                    :items="contractNumberingMethods"
-                    :item-disabled="(item) => item.disabled === true"
-                    label="Способ нумерации"
-                    prepend-icon="mdi-format-list-numbered"
-                    hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
-                    persistent-hint
-                  ></v-select>
-                  
-                  <v-text-field
-                    v-if="billingSettings.contract_numbering_method === 'bitrix24'"
-                    v-model="billingSettings.bitrix24_deal_number_field"
-                    label="Поле номера в Bitrix24"
-                    prepend-icon="mdi-pound"
-                    hint="Код пользовательского поля в Bitrix24 (например, UF_CRM_CONTRACT_NUMBER)"
-                    persistent-hint
-                    placeholder="UF_CRM_CONTRACT_NUMBER"
-                  ></v-text-field>
-
-                  <div class="d-flex ga-2 mt-2">
-                    <v-btn
-                      color="primary"
-                      variant="outlined"
-                      prepend-icon="mdi-eye"
-                      @click="openNumeratorPreview"
-                    >
-                      Предпросмотр номера счета
-                    </v-btn>
-                    <v-btn
-                      variant="text"
-                      color="secondary"
-                      prepend-icon="mdi-arrow-down"
-                      @click="scrollToNumerators"
-                    >
-                      К нумераторам договоров
-                    </v-btn>
-                  </div>
-                </v-col>
               </v-row>
 
               <!-- Панель сохранения -->
@@ -635,17 +483,260 @@
           </v-card-text>
         </v-card>
         
-        <!-- Нумераторы договоров -->
-        <div id="contract-numerators-section" ref="contractNumeratorsSection">
-          <ContractNumeratorsTab class="mt-6" />
-        </div>
+        <!-- Дополнительные настройки - плитки -->
+        <v-card class="mt-6">
+          <v-card-title>
+            <span>Дополнительные настройки</span>
+          </v-card-title>
+          <v-card-text>
+            <v-row>
+              <!-- Нумераторы договоров -->
+              <v-col cols="12" md="4">
+                <v-card
+                  variant="outlined"
+                  class="settings-tile"
+                  @click="contractNumeratorsDialog = true"
+                >
+                  <v-card-text class="text-center pa-6">
+                    <v-icon size="48" color="primary" class="mb-3">mdi-format-list-numbered</v-icon>
+                    <div class="text-h6 mb-2">Нумераторы договоров</div>
+                    <div class="text-caption text-grey">
+                      Настройка форматов номеров договоров
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
 
-        <!-- Нумераторы счетов -->
-        <div id="invoice-numerators-section" class="mt-6">
-          <InvoiceNumeratorsTab />
-        </div>
+              <!-- Нумераторы счетов -->
+              <v-col cols="12" md="4">
+                <v-card
+                  variant="outlined"
+                  class="settings-tile"
+                  @click="invoiceNumeratorsDialog = true"
+                >
+                  <v-card-text class="text-center pa-6">
+                    <v-icon size="48" color="primary" class="mb-3">mdi-file-document-edit</v-icon>
+                    <div class="text-h6 mb-2">Нумераторы счетов</div>
+                    <div class="text-caption text-grey">
+                      Настройка форматов номеров счетов
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+
+              <!-- Тарифные планы -->
+              <v-col cols="12" md="4">
+                <v-card
+                  variant="outlined"
+                  class="settings-tile"
+                  @click="tariffPlansDialog = true"
+                >
+                  <v-card-text class="text-center pa-6">
+                    <v-icon size="48" color="primary" class="mb-3">mdi-package-variant</v-icon>
+                    <div class="text-h6 mb-2">Тарифные планы</div>
+                    <div class="text-caption text-grey">
+                      Управление тарифными планами
+                    </div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
       </v-window-item>
     </v-window>
+
+    <!-- Диалог нумераторов договоров -->
+    <v-dialog v-model="contractNumeratorsDialog" max-width="900px" persistent scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-format-list-numbered</v-icon>
+          <span>Нумераторы договоров</span>
+          <v-spacer></v-spacer>
+          <v-btn icon variant="text" @click="contractNumeratorsDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <!-- Настройка способа нумерации -->
+          <v-card variant="outlined" class="mb-6">
+            <v-card-title class="text-subtitle-1">
+              <v-icon class="mr-2" size="small">mdi-cog</v-icon>
+              Нумерация договоров
+            </v-card-title>
+            <v-card-text>
+              <v-select
+                v-if="billingSettings"
+                v-model="billingSettings.contract_numbering_method"
+                :items="contractNumberingMethods"
+                :item-disabled="(item) => item.disabled === true"
+                label="Способ нумерации"
+                prepend-icon="mdi-format-list-numbered"
+                hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
+                persistent-hint
+                variant="outlined"
+                density="compact"
+              ></v-select>
+              
+              <v-text-field
+                v-if="billingSettings && billingSettings.contract_numbering_method === 'bitrix24'"
+                v-model="billingSettings.bitrix24_deal_number_field"
+                label="Поле номера в Bitrix24"
+                prepend-icon="mdi-pound"
+                hint="Код пользовательского поля в Bitrix24 (например, UF_CRM_CONTRACT_NUMBER)"
+                persistent-hint
+                placeholder="UF_CRM_CONTRACT_NUMBER"
+                variant="outlined"
+                density="compact"
+                class="mt-4"
+              ></v-text-field>
+
+              <div class="d-flex ga-2 mt-4">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-eye"
+                  size="small"
+                  @click="openNumeratorPreview"
+                >
+                  Предпросмотр номера договора
+                </v-btn>
+              </div>
+            </v-card-text>
+          </v-card>
+
+          <!-- Список нумераторов -->
+          <ContractNumeratorsTab />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог нумераторов счетов -->
+    <v-dialog v-model="invoiceNumeratorsDialog" max-width="900px" persistent scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-file-document-edit</v-icon>
+          <span>Нумераторы счетов</span>
+          <v-spacer></v-spacer>
+          <v-btn icon variant="text" @click="invoiceNumeratorsDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <InvoiceNumeratorsTab />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог тарифных планов -->
+    <v-dialog v-model="tariffPlansDialog" max-width="1200px" persistent scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-package-variant</v-icon>
+          <span>Тарифные планы</span>
+          <v-spacer></v-spacer>
+          <v-btn icon variant="text" @click="tariffPlansDialog = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <!-- Фильтры -->
+          <v-row class="mb-4">
+            <v-col cols="12" md="6" lg="4">
+              <v-text-field
+                v-model="planSearchQuery"
+                label="Поиск по названию"
+                clearable
+                variant="outlined"
+                density="compact"
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" md="6" lg="4">
+              <v-select
+                v-model="planStatusFilter"
+                :items="statusOptions"
+                label="Статус"
+                variant="outlined"
+                density="compact"
+                clearable
+              ></v-select>
+            </v-col>
+            <v-col cols="12" md="6" lg="4">
+              <v-btn
+                icon="mdi-plus"
+                variant="flat"
+                color="primary"
+                size="small"
+                @click="openPlanDialog()"
+                title="Добавить план"
+              />
+            </v-col>
+          </v-row>
+
+          <!-- Таблица планов -->
+          <v-data-table
+            :headers="planHeaders"
+            :items="filteredPlans"
+            :loading="loadingPlans"
+            class="elevation-1"
+            item-value="id"
+            :items-per-page="10"
+          >
+            <!-- Название с популярным значком -->
+            <template v-slot:item.name="{ item }">
+              <div class="d-flex align-center">
+                <span class="font-weight-medium">{{ item.name }}</span>
+                <v-chip
+                  v-if="item.is_popular"
+                  color="orange"
+                  size="x-small"
+                  class="ml-2"
+                >
+                  Популярный
+                </v-chip>
+              </div>
+            </template>
+
+            <!-- Цена -->
+            <template v-slot:item.price="{ item }">
+              <span class="font-weight-bold text-primary">
+                {{ formatPrice(item.price, item.currency) }}
+              </span>
+              <span class="text-caption text-grey ml-1">
+                / {{ getBillingPeriodText(item.billing_period) }}
+              </span>
+            </template>
+
+            <!-- Статус -->
+            <template v-slot:item.is_active="{ item }">
+              <v-chip
+                :color="item.is_active ? 'green' : 'red'"
+                size="small"
+              >
+                {{ item.is_active ? 'Активен' : 'Неактивен' }}
+              </v-chip>
+            </template>
+
+            <!-- Действия -->
+            <template v-slot:item.actions="{ item }">
+              <v-btn
+                icon="mdi-pencil"
+                size="small"
+                variant="text"
+                @click="openPlanDialog(item)"
+              ></v-btn>
+              <v-btn
+                icon="mdi-delete"
+                size="small"
+                variant="text"
+                color="error"
+                @click="deletePlan(item)"
+              ></v-btn>
+            </template>
+          </v-data-table>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
 
     <!-- Диалог создания/редактирования плана -->
     <v-dialog v-model="planDialog" max-width="600px" persistent>
@@ -1272,7 +1363,6 @@ const contractsStats = ref<{
 } | null>(null)
 const contractNumerators = ref<ContractNumerator[]>([])
 const loadingNumerators = ref(false)
-const contractNumeratorsSection = ref<HTMLElement | null>(null)
 const availableContracts = ref<any[]>([])
 const loadingContracts = ref(false)
 
@@ -1295,6 +1385,9 @@ const invoiceDateEnd = ref('')
 // Диалоги
 const planDialog = ref(false)
 const subscriptionDialog = ref(false)
+const contractNumeratorsDialog = ref(false)
+const invoiceNumeratorsDialog = ref(false)
+const tariffPlansDialog = ref(false)
 const subscriptionWizardOpen = ref(false)
 const generateInvoiceDialog = ref(false)
 const paymentDialog = ref(false)
@@ -1884,15 +1977,6 @@ const isOverdue = (invoice: Invoice) => {
   return new Date() > new Date(invoice.due_date) && invoice.status !== 'paid' && invoice.status !== 'cancelled'
 }
 
-// Функция прокрутки к секции нумераторов
-const scrollToNumerators = () => {
-  nextTick(() => {
-    const element = document.getElementById('contract-numerators-section')
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  })
-}
 
 // ----------- Доп. UI/действия для «Настроек» -----------
 
@@ -2026,20 +2110,16 @@ watch(activeTab, (newTab) => {
   
   if (newTab === 'invoices' && invoices.value.length === 0) {
     fetchInvoices()
-  } else if (newTab === 'settings' && !billingSettings.value) {
-    fetchBillingSettings()
+  } else if (newTab === 'settings') {
+    if (!billingSettings.value) {
+      fetchBillingSettings()
+    }
+    // Загружаем тарифные планы при открытии настроек
+    if (plans.value.length === 0) {
+      fetchPlans()
+    }
   }
   
-  // Если переходим на вкладку settings и есть параметр scrollToNumerators, прокручиваем
-  if (newTab === 'settings' && route.query.scrollToNumerators === 'true') {
-    nextTick(() => {
-      setTimeout(() => {
-        scrollToNumerators()
-        // Убираем параметр из URL после прокрутки
-        router.replace({ query: { ...route.query, scrollToNumerators: undefined } })
-      }, 300) // Небольшая задержка для рендеринга вкладки
-    })
-  }
 })
 
 // Синхронизируем activeTab с изменениями route.query.tab
@@ -2059,6 +2139,16 @@ watch(generateInvoiceDialog, (isOpen) => {
 </script>
 
 <style scoped>
+.settings-tile {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: rgb(var(--v-theme-primary)) !important;
+}
 .v-card {
   border-radius: 12px;
 }
