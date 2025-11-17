@@ -145,7 +145,7 @@ export interface ContractForm {
   
   start_date: string;
   end_date: string;
-  tariff_plan_id: number;
+  tariff_plan_id?: number; // Опционально, будет привязан через подписку
   total_amount: string;
   currency: string;
   status: ContractStatus;

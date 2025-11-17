@@ -846,14 +846,7 @@ const route = useRoute();
 const formRef = ref();
 const formValid = ref(false);
 const saving = ref(false);
-const loadingAccounts = ref(false);
-const accounts = ref<Account[]>([]);
-// Удалено: isTariffPlanInitialized - не используется
-const accountObjects = ref<any[]>([]);
-const loadingAccountObjects = ref(false);
-const selectedAccountName = ref('');
-const selectedObjectsForContract = ref<number[]>([]);
-const objectsSearchQuery = ref('');
+// Удалено: учетные записи и объекты - перенесены в подписки
 const loadingOrganizationData = ref(false);
 const selectedOrganization = ref<any>(null);
 const innSearchQuery = ref<string>('');
@@ -875,30 +868,7 @@ const generatingNumber = ref(false);
 const billingSettings = ref<BillingSettings | null>(null);
 const loadingBillingSettings = ref(false);
 
-// Заголовки таблицы объектов
-const objectsTableHeaders = [
-  { title: 'Название', key: 'name', sortable: true },
-  { title: 'IMEI', key: 'imei', sortable: true },
-  { title: 'Телефон', key: 'phone_number', sortable: true },
-  { title: 'Статус', key: 'status', sortable: true },
-];
-
-// Отфильтрованные объекты по поисковому запросу
-const filteredAccountObjects = computed(() => {
-  if (!objectsSearchQuery.value.trim()) {
-    return accountObjects.value;
-  }
-
-  const query = objectsSearchQuery.value.toLowerCase().trim();
-  return accountObjects.value.filter(obj => {
-    return (
-      (obj.name && obj.name.toLowerCase().includes(query)) ||
-      (obj.imei && obj.imei.toLowerCase().includes(query)) ||
-      (obj.phone_number && obj.phone_number.toLowerCase().includes(query)) ||
-      (obj.description && obj.description.toLowerCase().includes(query))
-    );
-  });
-});
+// Удалено: таблица объектов - перенесена в подписки
 
 // Snackbar
 const showSnackbar = ref(false);
@@ -944,12 +914,11 @@ const defaultForm: ContractForm = {
   end_date: '', // Будет установлено автоматически (по умолчанию 1 год)
   total_amount: '',
   currency: 'RUB',
-  status: 'active',
+  status: 'draft', // По умолчанию черновик, после привязки подписки станет "active"
   is_active: true,
   notify_before: 30,
   notes: '',
   external_id: '',
-  account_id: undefined,
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
@@ -963,26 +932,7 @@ const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]
 // Удалено: currencyOptions - не используется
 
 // Удалено: notificationOptions - не используется
-
-const accountOptions = computed(() => {
-  return accounts.value.map(account => ({
-    value: account.id,
-    title: account.name, // Только название учетной записи
-    raw: account,
-  }));
-});
-
-// Найти учетную запись по ID для отображения
-const findAccountById = (accountId: number | undefined) => {
-  if (!accountId) return null;
-  return accounts.value.find(acc => acc.id === accountId) || null;
-};
-
-// Computed для отображения выбранной учетной записи
-const selectedAccount = computed(() => {
-  if (!form.value.account_id) return null;
-  return findAccountById(form.value.account_id);
-});
+// Удалено: accountOptions, findAccountById, selectedAccount - перенесены в подписки
 
 
 const numeratorOptions = computed(() => {
@@ -1209,7 +1159,7 @@ const saveContract = async () => {
       client_email: form.value.client_email || '',
       client_phone: form.value.client_phone || '',
       client_address: form.value.client_address || '',
-      status: form.value.status || 'active',
+      status: form.value.status || 'draft', // По умолчанию черновик
       notes: form.value.notes || '',
     };
     
@@ -1250,50 +1200,12 @@ const saveContract = async () => {
       contractData.end_date = endDate.toISOString();
     }
     
-    // Добавляем account_id для привязки объектов (если есть) - это отдельное поле в CreateContractRequest
-    if (form.value.account_id) {
-      contractData.account_id = Number(form.value.account_id);
-    }
-    
-    // Добавляем object_ids для привязки объектов при создании договора
-    if (selectedObjectsForContract.value.length > 0) {
-      contractData.object_ids = selectedObjectsForContract.value;
-    }
-    
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
     
     // Создаем договор
     const createdContract = await contractsService.createContract(contractData);
     
-    // Если есть выбранные объекты, привязываем их к договору (дополнительная привязка через отдельный endpoint)
-    if (selectedObjectsForContract.value.length > 0 && createdContract.id) {
-      try {
-        const attachData = {
-          object_ids: selectedObjectsForContract.value,
-          account_id: form.value.account_id ? Number(form.value.account_id) : undefined,
-        };
-        console.log('📤 Отправка данных для привязки объектов:', JSON.stringify(attachData, null, 2));
-        await contractsService.attachObjectsToContract(createdContract.id, attachData);
-        console.log(`✅ Привязано ${selectedObjectsForContract.value.length} объектов к договору`);
-        showSnackbarMessage(
-          `Договор создан и привязано ${selectedObjectsForContract.value.length} объектов`,
-          'success'
-        );
-      } catch (attachError: any) {
-        console.error('Ошибка привязки объектов к договору:', attachError);
-        // Не блокируем создание договора, если привязка не удалась
-        showSnackbarMessage(
-          'Договор создан, но не все объекты удалось привязать. Вы можете привязать их позже.',
-          'warning'
-        );
-        setTimeout(() => {
-          router.push('/billing');
-        }, 2000);
-        return;
-      }
-    } else {
-      showSnackbarMessage('Договор успешно создан', 'success');
-    }
+    showSnackbarMessage('Договор успешно создан', 'success');
 
     setTimeout(() => {
       router.push('/billing');
@@ -1429,456 +1341,7 @@ const generateNumber = async (skipConfirmation = false) => {
 };
 
 // Поисковый запрос для учетных записей
-const accountSearchQuery = ref('');
-
-// Загрузка списка учетных записей с поиском (оптимизированная версия)
-const loadAccounts = async (searchQuery: string = '') => {
-  if (loadingAccounts.value) return;
-  loadingAccounts.value = true;
-  
-  // Сохраняем выбранную учетную запись перед обновлением списка
-  const selectedAccountId = form.value.account_id;
-  let selectedAccount: Account | null = null;
-  if (selectedAccountId) {
-    selectedAccount = findAccountById(selectedAccountId);
-  }
-  
-  try {
-    // Загружаем только первую страницу (100 записей) или результаты поиска
-    // Это значительно ускоряет загрузку, так как не нужно загружать все страницы
-    const response = await accountsService.getAccounts({ 
-      page: 1, 
-      per_page: 100,
-      ordering: 'name',
-      search: searchQuery || undefined
-    });
-    
-    accounts.value = response.results || [];
-    
-    // Если была выбранная учетная запись и её нет в новом списке, добавляем её
-    if (selectedAccount && selectedAccountId) {
-      const existsInNewList = accounts.value.some(acc => acc.id === selectedAccountId);
-      if (!existsInNewList) {
-        accounts.value.unshift(selectedAccount);
-        console.log('✅ Выбранная учетная запись сохранена в списке:', selectedAccount.name);
-      }
-    }
-    
-    console.log(`✅ Загружено ${accounts.value.length} учетных записей${searchQuery ? ` (поиск: "${searchQuery}")` : ''}`);
-  } catch (error) {
-    console.error('Ошибка загрузки учетных записей:', error);
-    accounts.value = [];
-    
-    // В случае ошибки, если была выбранная учетная запись, добавляем её обратно
-    if (selectedAccount) {
-      accounts.value = [selectedAccount];
-    }
-  } finally {
-    loadingAccounts.value = false;
-  }
-};
-
-// Загрузка одной учетной записи по ID (для оптимизации при переходе с предзаполненным account_id)
-const loadSingleAccount = async (accountId: number) => {
-  if (loadingAccounts.value) return;
-  loadingAccounts.value = true;
-  const startTime = performance.now();
-  
-  try {
-    console.log(`📋 Загрузка учетной записи по ID: ${accountId}`);
-    const account = await accountsService.getAccount(accountId);
-    const endTime = performance.now();
-    const duration = (endTime - startTime).toFixed(2);
-    
-    accounts.value = [account];
-    console.log(`✅ Учетная запись загружена за ${duration}ms: ${account.name} (ID: ${account.id})`);
-    
-    // Если загрузка занимает больше 2 секунд, предупреждаем
-    if (endTime - startTime > 2000) {
-      console.warn(`⚠️ Медленная загрузка учетной записи: ${duration}ms`);
-    }
-  } catch (error) {
-    const endTime = performance.now();
-    const duration = (endTime - startTime).toFixed(2);
-    console.error(`❌ Ошибка загрузки учетной записи (${duration}ms):`, error);
-    // В случае ошибки загружаем все записи как fallback
-    console.log('⚠️ Fallback: загружаем все учетные записи');
-    await loadAccounts();
-  } finally {
-    loadingAccounts.value = false;
-  }
-};
-
-// Отладочная функция для проверки структуры item при клике
-const debugAccountItem = (item: any) => {
-  console.log('🔍 DEBUG: Структура item в выпадающем списке:', {
-    item,
-    itemRaw: item?.raw,
-    itemTitle: item?.title,
-    itemValue: item?.value,
-    objectsTotal: item?.raw?.objectsTotal,
-    objects_total: item?.raw?.objects_total,
-    objectsActive: item?.raw?.objectsActive,
-    objects_active: item?.raw?.objects_active,
-    allKeys: item?.raw ? Object.keys(item.raw) : []
-  });
-};
-
-// Вспомогательные функции для получения количества объектов из учетной записи
-const getObjectsTotal = (account: any): number => {
-  if (!account) {
-    return 0;
-  }
-  
-  // Проверяем разные возможные варианты полей (camelCase и snake_case)
-  let total = account.objectsTotal ?? 
-               account.objects_total ?? 
-               account.objectsCount ?? 
-               account.objects_count ?? 
-               0;
-  
-  // Если не нашли, проверяем вложенную структуру
-  if (!total && account.raw) {
-    total = account.raw.objectsTotal ?? 
-            account.raw.objects_total ?? 
-            account.raw.objectsCount ?? 
-            account.raw.objects_count ?? 
-            0;
-  }
-  
-  const numValue = typeof total === 'number' ? total : (total ? parseInt(String(total), 10) : 0) || 0;
-  
-  // Логируем для отладки при каждом вызове (временно)
-  if (account && account.name) {
-    console.debug(`🔍 getObjectsTotal для "${account.name}":`, {
-      accountType: typeof account,
-      objectsTotal: account.objectsTotal,
-      objects_total: account.objects_total,
-      hasRaw: !!account.raw,
-      rawObjectsTotal: account.raw?.objectsTotal,
-      result: numValue,
-      allAccountKeys: Object.keys(account || {})
-    });
-  }
-  
-  return numValue;
-};
-
-const getObjectsActive = (account: any): number => {
-  if (!account) {
-    console.warn('⚠️ getObjectsActive: account is null or undefined');
-    return 0;
-  }
-  
-  // Проверяем разные возможные варианты полей (camelCase и snake_case)
-  const active = account.objectsActive ?? 
-                 account.objects_active ?? 
-                 account.activeObjects ?? 
-                 account.active_objects ??
-                 (account.raw ? (account.raw.objectsActive ?? account.raw.objects_active) : null) ??
-                 0;
-  
-  return typeof active === 'number' ? active : parseInt(String(active), 10) || 0;
-};
-
-// Удалено: filterAccounts - не используется, поиск выполняется на сервере
-
-// Обработчик поиска учетных записей (с debounce для оптимизации)
-let accountSearchTimeout: ReturnType<typeof setTimeout> | null = null;
-const handleAccountSearch = async (query: string | null) => {
-  // Обрабатываем случай, когда query может быть null или undefined
-  const searchQuery = query ?? '';
-  accountSearchQuery.value = searchQuery;
-  
-  // Очищаем предыдущий таймаут
-  if (accountSearchTimeout) {
-    clearTimeout(accountSearchTimeout);
-  }
-  
-  // Если поле очищено (null, undefined или пустая строка), сразу загружаем первую страницу
-  if (!searchQuery || searchQuery.trim().length === 0) {
-    await loadAccounts('');
-    return;
-  }
-  
-  // Debounce: ждем 300ms после последнего ввода перед поиском
-  accountSearchTimeout = setTimeout(async () => {
-    const trimmedQuery = searchQuery.trim();
-    if (trimmedQuery.length >= 2) {
-      // Ищем только если введено 2+ символа
-      await loadAccounts(trimmedQuery);
-    }
-  }, 300);
-};
-
-// Обработчик фокуса на autocomplete учетной записи
-const handleAccountAutocompleteFocus = async () => {
-  // Если есть выбранная учетная запись, убеждаемся что она в списке
-  if (form.value.account_id) {
-    const account = findAccountById(form.value.account_id);
-    if (!account) {
-      // Если выбранной учетной записи нет в списке, загружаем её
-      console.log('📋 Выбранная учетная запись не найдена в списке, загружаем...');
-      try {
-        const selectedAccount = await accountsService.getAccount(form.value.account_id);
-        const existingIndex = accounts.value.findIndex(acc => acc.id === form.value.account_id);
-        if (existingIndex === -1) {
-          accounts.value.unshift(selectedAccount);
-          console.log('✅ Выбранная учетная запись добавлена в список:', selectedAccount.name);
-        }
-      } catch (error) {
-        console.error('❌ Ошибка загрузки выбранной учетной записи:', error);
-      }
-    }
-  }
-  
-  // Если список пустой или содержит только одну запись, загружаем первую страницу
-  if ((accounts.value.length === 0 || accounts.value.length === 1) && !loadingAccounts.value && !accountSearchQuery.value) {
-    console.log('📋 Загружаем первую страницу учетных записей для выбора');
-    await loadAccounts();
-  }
-};
-
-// Обработчик потери фокуса на autocomplete учетной записи
-const handleAccountAutocompleteBlur = () => {
-  // При потере фокуса очищаем поисковый запрос, если есть выбранная учетная запись
-  // Это нужно для корректного отображения выбранной записи
-  if (form.value.account_id && accountSearchQuery.value) {
-    // Небольшая задержка, чтобы не конфликтовать с выбором из списка
-    setTimeout(() => {
-      if (form.value.account_id) {
-        accountSearchQuery.value = '';
-      }
-    }, 200);
-  }
-};
-
-// Обработчик выбора учетной записи
-const onAccountSelected = async (accountId: number | undefined) => {
-  console.log('🔵 onAccountSelected called with:', accountId);
-  
-  if (!accountId) {
-    accountObjects.value = [];
-    selectedAccountName.value = '';
-    selectedObjectsForContract.value = [];
-    objectsSearchQuery.value = '';
-    accountSearchQuery.value = ''; // Очищаем поисковый запрос
-    return;
-  }
-
-  let account = findAccountById(accountId);
-  
-  // Если учетная запись не найдена в текущем списке, загружаем её отдельно
-  if (!account) {
-    console.log('📋 Учетная запись не найдена в списке, загружаем отдельно...');
-    try {
-      account = await accountsService.getAccount(accountId);
-      // Добавляем загруженную учетную запись в список, если её там еще нет
-      const existingIndex = accounts.value.findIndex(acc => acc.id === accountId);
-      if (existingIndex === -1) {
-        accounts.value.unshift(account); // Добавляем в начало списка
-        console.log('✅ Учетная запись добавлена в список:', account.name);
-      }
-    } catch (error) {
-      console.error('❌ Ошибка загрузки учетной записи:', error);
-      // В случае ошибки очищаем выбор
-      form.value.account_id = undefined;
-      return;
-    }
-  }
-
-  if (account) {
-    selectedAccountName.value = account.name;
-    console.log('🔵 Selected account:', account.name);
-    
-    // Очищаем поисковый запрос после выбора, чтобы выбранная запись отображалась корректно
-    accountSearchQuery.value = '';
-  }
-
-  // Очищаем предыдущий выбор объектов
-  selectedObjectsForContract.value = [];
-  objectsSearchQuery.value = '';
-
-  // Загружаем объекты этой учетной записи, которые не привязаны к договорам
-  await loadAccountObjects(accountId);
-};
-
-// Загрузка объектов учетной записи без привязки к договорам
-const loadAccountObjects = async (accountId: number) => {
-  loadingAccountObjects.value = true;
-  accountObjects.value = [];
-  
-  try {
-    const account = findAccountById(accountId);
-    if (!account) {
-      console.warn('⚠️ Учетная запись не найдена:', accountId);
-      return;
-    }
-
-    console.log('🔍 Начинаем загрузку объектов для учетной записи:', {
-      accountId,
-      accountName: account.name,
-      objectsTotal: account.objectsTotal,
-      objectsActive: account.objectsActive
-    });
-
-    const objectsService = getObjectsService();
-    
-    // Загружаем все объекты учетной записи
-    // Используем accountName для фильтрации, но убираем фильтр is_active чтобы видеть все объекты
-    let allObjects: any[] = [];
-    let page = 1;
-    let hasMore = true;
-    const perPage = 100;
-    const maxPages = 20; // Ограничение для предотвращения бесконечных циклов
-
-    console.log('📡 Отправляем запрос на получение объектов для учетной записи:', {
-      accountId: account.id,
-      accountName: account.name,
-      objectsTotal: account.objectsTotal,
-      objectsActive: account.objectsActive
-    });
-
-    while (hasMore && page <= maxPages) {
-      try {
-        // Используем accountId для более точной фильтрации объектов по выбранной учетной записи
-        const response = await objectsService.getObjects(page, perPage, {
-          accountId: account.id, // Фильтруем по ID учетной записи - это гарантирует, что показываются объекты только выбранной компании
-          accountName: account.name, // Дополнительный фильтр по имени для совместимости
-          // Убираем фильтр is_active, чтобы загрузить все объекты (и активные, и неактивные)
-        });
-        
-        console.log(`📋 Страница ${page}: фильтр accountId=${account.id}, accountName="${account.name}"`);
-
-        console.log(`📋 Страница ${page}: получено объектов:`, response.data?.items?.length || 0);
-
-        if (response.data && response.data.items && response.data.items.length > 0) {
-          // Логируем первые несколько объектов для отладки
-          if (page === 1 && response.data.items.length > 0) {
-            console.log('📦 Первые объекты до фильтрации:', response.data.items.slice(0, 3).map((obj: any) => ({
-              id: obj.id,
-              name: obj.name,
-              contract_id: obj.contract_id,
-              accountId: obj.accountId || obj.company_id,
-              accountName: obj.accountName
-            })));
-          }
-
-          allObjects = allObjects.concat(response.data.items);
-          hasMore = response.data.items.length === perPage && page < maxPages;
-          page++;
-        } else {
-          hasMore = false;
-        }
-      } catch (pageError) {
-        console.error(`❌ Ошибка загрузки страницы ${page}:`, pageError);
-        hasMore = false;
-      }
-    }
-
-    console.log(`📊 Всего загружено объектов до фильтрации: ${allObjects.length} для учетной записи "${account.name}" (ID: ${account.id})`);
-
-    // КРИТИЧЕСКИ ВАЖНО: Фильтруем объекты на стороне фронтенда, чтобы показать ТОЛЬКО объекты выбранной учетной записи
-    // Axenta Cloud API может не применять фильтры правильно, поэтому делаем дополнительную проверку
-    const filteredObjects = allObjects.filter((obj: any) => {
-      // Получаем accountId объекта (может быть в разных полях)
-      const objAccountId = obj.accountId || obj.company_id;
-      
-      // Получаем accountName объекта для сравнения
-      const objAccountName = obj.accountName || '';
-      
-      // Проверяем по accountId (наиболее надежный способ)
-      if (objAccountId && Number(objAccountId) === Number(account.id)) {
-        return true;
-      }
-      
-      // Если accountId не совпадает или отсутствует, проверяем по accountName (дополнительная проверка)
-      // Используем точное сравнение с учетом возможных различий в регистре/пробелах
-      if (objAccountName && objAccountName.trim() === account.name.trim()) {
-        return true;
-      }
-      
-      // Если ни accountId, ни accountName не совпадают, объект не принадлежит выбранной учетной записи
-      return false;
-    });
-
-    console.log(`🔍 После фильтрации: ${filteredObjects.length} объектов соответствуют учетной записи "${account.name}" (ID: ${account.id})`);
-    
-    // Логируем объекты, которые не прошли фильтрацию (если есть)
-    if (allObjects.length > filteredObjects.length) {
-      const excluded = allObjects.filter((obj: any) => {
-        const objAccountId = obj.accountId || obj.company_id;
-        const objAccountName = obj.accountName || '';
-        return !(
-          (objAccountId && Number(objAccountId) === Number(account.id)) ||
-          (objAccountName.trim() === account.name.trim())
-        );
-      });
-      if (excluded.length > 0) {
-        console.warn(`⚠️ Исключено ${excluded.length} объектов, которые не принадлежат выбранной учетной записи:`, 
-          excluded.slice(0, 5).map((obj: any) => ({
-            name: obj.name,
-            accountId: obj.accountId || obj.company_id,
-            accountName: obj.accountName,
-            expectedAccountId: account.id,
-            expectedAccountName: account.name
-          }))
-        );
-      }
-    }
-
-    // Показываем только отфильтрованные объекты
-    accountObjects.value = filteredObjects;
-
-    console.log(`✅ Загружено и отфильтровано ${accountObjects.value.length} объектов для учетной записи "${account.name}" (ID: ${account.id})`);
-    
-    // Если объектов нет, проверяем почему
-    if (accountObjects.value.length === 0 && allObjects.length > 0) {
-      console.warn('⚠️ Объекты были загружены, но ни один не соответствует выбранной учетной записи');
-      console.log('📋 Информация о загруженных объектах:', {
-        totalLoaded: allObjects.length,
-        accountId: account.id,
-        accountName: account.name,
-        sampleObjects: allObjects.slice(0, 3).map((obj: any) => ({
-          name: obj.name,
-          accountId: obj.accountId || obj.company_id,
-          accountName: obj.accountName
-        }))
-      });
-    } else if (accountObjects.value.length === 0) {
-      console.warn('⚠️ Для учетной записи не найдено объектов');
-      console.log('💡 Возможные причины:');
-      console.log('   - В учетной записи действительно нет объектов');
-      console.log('   - Поле accountId или accountName в объектах не совпадает с выбранной учетной записью');
-      console.log('   - Объекты находятся в другой учетной записи');
-      
-      // Пробуем загрузить без фильтра для проверки, работает ли API вообще
-      try {
-        const testResponse = await objectsService.getObjects(1, 10, {});
-        console.log('🧪 Тестовый запрос без фильтров вернул:', testResponse.data?.items?.length || 0, 'объектов');
-        if (testResponse.data?.items && testResponse.data.items.length > 0) {
-          console.log('📦 Первый объект из тестового запроса:', {
-            name: testResponse.data.items[0].name,
-            accountName: testResponse.data.items[0].accountName,
-          });
-          console.log('💡 Если accountName первого объекта отличается от выбранной учетной записи, значит нужно проверить соответствие');
-        }
-      } catch (testError) {
-        console.error('❌ Ошибка тестового запроса:', testError);
-      }
-    }
-  } catch (error: any) {
-    console.error('❌ Ошибка загрузки объектов учетной записи:', error);
-    console.error('📋 Детали ошибки:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
-    accountObjects.value = [];
-  } finally {
-    loadingAccountObjects.value = false;
-  }
-};
+// Удалено: все функции работы с учетными записями и объектами - перенесены в подписки
 
 
 const formatCurrency = (amount: number, currency = 'RUB'): string => {
@@ -1932,18 +1395,7 @@ const onClientTypeChange = (clientType: ClientType) => {
   showBankMenu.value = false;
 };
 
-// Watcher для автоматической загрузки объектов при изменении account_id
-watch(() => form.value.account_id, async (newAccountId, oldAccountId) => {
-  console.log('🔵 watch account_id changed:', { newAccountId, oldAccountId });
-  if (newAccountId && newAccountId !== oldAccountId) {
-    await onAccountSelected(newAccountId);
-  } else if (!newAccountId) {
-    accountObjects.value = [];
-    selectedAccountName.value = '';
-    selectedObjectsForContract.value = [];
-    objectsSearchQuery.value = '';
-  }
-});
+// Удалено: watcher для account_id - перенесен в подписки
 
 // Обработчик обновления ИНН из событий компонента
 const handleInnUpdate = (val: string | Event) => {
@@ -2374,53 +1826,11 @@ watch(() => selectedNumeratorId.value, async (newId) => {
 
 // Lifecycle
 onMounted(async () => {
-  // Обработка query параметра account_id - если есть, загружаем только эту учетную запись
-  const accountIdParam = route.query.account_id;
-  let accountId: number | null = null;
-  
-  if (accountIdParam) {
-    const parsedId = Number(accountIdParam);
-    if (!isNaN(parsedId) && parsedId > 0) {
-      accountId = parsedId;
-    }
-  }
-  
-  // Если есть account_id в query, загружаем только эту учетную запись
-  // Иначе загружаем все как обычно
-  if (accountId) {
-    // Загружаем параллельно все необходимые данные
-    await Promise.all([
-      loadSingleAccount(accountId),
-      loadBillingSettings(),
-      loadNumerators(),
-    ]);
-    
-    // Устанавливаем account_id в форму (объекты загрузятся автоматически через watcher)
-    // Это произойдет после загрузки учетной записи, так что watcher сработает
-    form.value.account_id = accountId;
-    console.log('✅ Учетная запись предзаполнена из query параметра, ID:', accountId);
-    
-    // Объекты загрузятся автоматически через watcher на form.account_id
-    // Но можно также загрузить их сразу, чтобы не ждать watcher
-    if (accounts.value.length > 0) {
-      const account = accounts.value.find(acc => acc.id === accountId);
-      if (account) {
-        console.log('📋 Начинаем загрузку объектов для учетной записи:', account.name);
-        // Загружаем объекты асинхронно, не блокируя UI
-        loadAccountObjects(accountId).catch(err => {
-          console.error('Ошибка загрузки объектов:', err);
-        });
-      }
-    }
-  } else {
-    // Обычная загрузка - НЕ загружаем все учетные записи сразу для оптимизации
-    // Загрузим их только при фокусе на поле или при поиске
-    await Promise.all([
-      // loadAccounts() - убрано для оптимизации, загрузится при фокусе на поле
-      loadBillingSettings(),
-      loadNumerators(),
-    ]);
-  }
+  // Удалено: обработка query параметра account_id - перенесена в подписки
+  await Promise.all([
+    loadBillingSettings(),
+    loadNumerators(),
+  ]);
 });
 </script>
 
