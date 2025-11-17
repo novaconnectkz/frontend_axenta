@@ -1214,7 +1214,7 @@ const defaultForm: ContractForm = {
   client_bank_account: '',
   client_bank_recipient: '',
   start_date: new Date().toISOString().split('T')[0],
-  end_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // +1 год
+  end_date: '', // Будет установлено автоматически при выборе тарифного плана
   tariff_plan_id: 0,
   total_amount: '',
   currency: 'RUB',
@@ -1534,8 +1534,31 @@ const onTariffPlanChange = (planId: number | null) => {
     currency: selectedPlan.currency
   });
   
+  // Автоматически устанавливаем период действия договора на основе billing_period тарифа
+  if (form.value.start_date) {
+    const startDate = new Date(form.value.start_date + 'T00:00:00');
+    const endDate = new Date(startDate);
+    
+    if (selectedPlan.billing_period === 'monthly') {
+      // Для месячного тарифа устанавливаем период 1 месяц
+      endDate.setMonth(endDate.getMonth() + 1);
+    } else if (selectedPlan.billing_period === 'yearly') {
+      // Для годового тарифа устанавливаем период 1 год
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    } else {
+      // Для one-time или других типов устанавливаем период 1 год по умолчанию
+      endDate.setFullYear(endDate.getFullYear() + 1);
+    }
+    
+    form.value.end_date = endDate.toISOString().split('T')[0];
+    console.log('📅 Период договора установлен:', {
+      start_date: form.value.start_date,
+      end_date: form.value.end_date,
+      billing_period: selectedPlan.billing_period
+    });
+  }
+  
   // Стоимость будет рассчитана автоматически при создании подписки
-  // Здесь просто логируем выбор плана
 };
 
 const saveContract = async () => {
@@ -1583,9 +1606,28 @@ const saveContract = async () => {
     }
     
     if (!form.value.end_date) {
-      // По умолчанию через год
-      const defaultEndDate = new Date();
-      defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+      // Устанавливаем период на основе выбранного тарифного плана
+      const startDate = form.value.start_date 
+        ? new Date(form.value.start_date + 'T00:00:00Z')
+        : new Date();
+      const defaultEndDate = new Date(startDate);
+      
+      // Пытаемся найти выбранный тарифный план
+      const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
+      if (selectedPlan) {
+        if (selectedPlan.billing_period === 'monthly') {
+          defaultEndDate.setMonth(defaultEndDate.getMonth() + 1);
+        } else if (selectedPlan.billing_period === 'yearly') {
+          defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+        } else {
+          // Для one-time или других типов устанавливаем период 1 год по умолчанию
+          defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+        }
+      } else {
+        // Если тариф не выбран, устанавливаем период 1 год по умолчанию
+        defaultEndDate.setFullYear(defaultEndDate.getFullYear() + 1);
+      }
+      
       contractData.end_date = defaultEndDate.toISOString();
     } else {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
@@ -2772,6 +2814,31 @@ watch(() => selectedNumeratorId.value, async (newId) => {
     // Небольшая задержка для избежания множественных вызовов
     await new Promise(resolve => setTimeout(resolve, 100));
     await generateNumber(true); // skipConfirmation = true для автоматической генерации
+  }
+});
+
+// Автоматическое обновление end_date при изменении start_date, если тариф уже выбран
+watch(() => form.value.start_date, (newStartDate) => {
+  // Обновляем end_date только если:
+  // 1. start_date установлена
+  // 2. Тарифный план выбран
+  // 3. end_date еще не установлена вручную (или была установлена автоматически)
+  if (newStartDate && form.value.tariff_plan_id) {
+    const selectedPlan = tariffPlans.value.find(plan => plan.id === form.value.tariff_plan_id);
+    if (selectedPlan) {
+      const startDate = new Date(newStartDate + 'T00:00:00');
+      const endDate = new Date(startDate);
+      
+      if (selectedPlan.billing_period === 'monthly') {
+        endDate.setMonth(endDate.getMonth() + 1);
+      } else if (selectedPlan.billing_period === 'yearly') {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      } else {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      }
+      
+      form.value.end_date = endDate.toISOString().split('T')[0];
+    }
   }
 });
 
