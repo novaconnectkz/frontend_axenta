@@ -1176,31 +1176,21 @@ const saveContract = async () => {
       }
     }
     
-    // start_date - обязательное поле на продакшене (NOT NULL в БД)
-    // Если не указано явно, используем текущую дату
+    // start_date и end_date будут установлены через подписку
+    // Отправляем только если они явно указаны в форме
     if (form.value.start_date) {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
       const startDate = new Date(form.value.start_date + 'T00:00:00Z');
       contractData.start_date = startDate.toISOString();
-    } else {
-      // Устанавливаем текущую дату как дату начала по умолчанию
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      contractData.start_date = today.toISOString();
     }
+    // Если start_date не указан, оставляем пустым - будет установлен через подписку
     
-    // end_date опционально - будет установлено через подписку
     if (form.value.end_date) {
       // Если дата в формате YYYY-MM-DD, конвертируем в ISO
       const endDate = new Date(form.value.end_date + 'T23:59:59Z');
       contractData.end_date = endDate.toISOString();
-    } else {
-      // Устанавливаем дату через год по умолчанию (стандартный период договора)
-      const endDate = new Date();
-      endDate.setFullYear(endDate.getFullYear() + 1);
-      endDate.setHours(23, 59, 59, 999);
-      contractData.end_date = endDate.toISOString();
     }
+    // Если end_date не указан, оставляем пустым - будет установлен через подписку
     
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
     
