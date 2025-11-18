@@ -11,6 +11,18 @@
       </v-card-title>
 
       <v-card-text>
+        <!-- Отображение общих ошибок -->
+        <v-alert
+          v-if="errors.general"
+          type="error"
+          variant="tonal"
+          class="mb-4"
+          closable
+          @click:close="errors.general = ''"
+        >
+          {{ errors.general }}
+        </v-alert>
+        
         <!-- Шаги мастера -->
         <v-stepper v-model="currentStep" class="elevation-0">
           <v-stepper-header>
@@ -73,7 +85,7 @@
                   placeholder="Начните вводить номер договора, название или клиента..."
                   :search="contractSearchQuery"
                   @update:search="handleContractSearch"
-                  @update:model-value="(value) => { form.contract_id = value; onContractSelected(value); }"
+                  @update:model-value="onContractSelected"
                   no-data-text="Договоры не найдены"
                   loading-text="Загрузка договоров..."
                   :menu-props="{ maxHeight: 400 }"
@@ -203,7 +215,7 @@
                     <!-- Информация о типе тарифа -->
                     <v-alert 
                       v-if="selectedPlan"
-                      :type="selectedPlan.billing_period === 'one-time' ? 'info' : 'default'"
+                      :type="selectedPlan.billing_period === 'one-time' ? 'info' : 'info'"
                       variant="tonal"
                       density="compact"
                       class="mb-3"
@@ -681,7 +693,7 @@
           Отмена
         </v-btn>
         <v-btn
-          v-if="currentStep < 4"
+          v-if="currentStep < 5"
           color="primary"
           :disabled="!canProceed"
           @click="nextStep"
@@ -931,7 +943,7 @@ const canProceed = computed(() => {
       const canProceedStep1 = !!(form.value.contract_id && hasTariffAccess.value)
       return canProceedStep1
     case 2:
-      return form.value.billing_plan_id > 0
+      return !!(form.value.billing_plan_id && form.value.billing_plan_id > 0)
     case 3:
       return true // Учетная запись не обязательна
     case 4:
@@ -942,8 +954,8 @@ const canProceed = computed(() => {
 })
 
 const canCreate = computed(() => {
-  return form.value.billing_plan_id > 0 && 
-         form.value.start_date && 
+  return !!(form.value.billing_plan_id && form.value.billing_plan_id > 0) && 
+         !!form.value.start_date && 
          !creating.value
 })
 
@@ -1105,17 +1117,18 @@ const checkTariffAccess = async () => {
   hasTariffAccess.value = true
 }
 
-const onContractSelected = async (contractId?: number) => {
+const onContractSelected = async (contractId?: number | null) => {
   console.log('📝 onContractSelected вызван, contractId:', contractId)
-  console.log('📝 form.contract_id до обновления:', form.value.contract_id)
+  console.log('📝 form.contract_id текущее значение:', form.value.contract_id)
   
-  // Обновляем form.value.contract_id, если contractId передан
-  if (contractId !== undefined) {
+  // v-model уже обновил form.contract_id, но на всякий случай синхронизируем
+  if (contractId !== undefined && contractId !== null) {
     form.value.contract_id = contractId
-    console.log('✅ form.contract_id обновлен на:', form.value.contract_id)
-  } else {
-    // Если contractId не передан, используем текущее значение из v-model
-    console.log('⚠️ contractId не передан, используем текущее значение:', form.value.contract_id)
+    console.log('✅ form.contract_id установлен на:', form.value.contract_id)
+  } else if (contractId === null || contractId === undefined) {
+    // Если значение очищено
+    form.value.contract_id = undefined
+    console.log('⚠️ Договор очищен')
   }
   
   errors.value.contract_id = ''
@@ -1308,6 +1321,17 @@ const previousStep = () => {
 const createSubscription = async () => {
   if (!canCreate.value) return
   
+  // Дополнительная валидация перед отправкой
+  if (!form.value.billing_plan_id || form.value.billing_plan_id <= 0) {
+    errors.value.general = 'Выберите тарифный план'
+    return
+  }
+  
+  if (!form.value.start_date) {
+    errors.value.general = 'Укажите дату начала подписки'
+    return
+  }
+  
   creating.value = true
   errors.value = {}
   
@@ -1317,16 +1341,23 @@ const createSubscription = async () => {
       object_ids?: number[]
       contract_period_months?: number | null
       start_time?: string
+      end_date?: string
     } = {
       company_id: form.value.company_id,
-      billing_plan_id: form.value.billing_plan_id!,
+      billing_plan_id: form.value.billing_plan_id,
       start_date: form.value.start_date,
-      start_time: form.value.start_time, // Добавляем время начала
+      start_time: form.value.start_time || undefined, // Добавляем время начала, если указано
       status: form.value.status,
       is_auto_renew: form.value.is_auto_renew,
       contract_id: form.value.contract_id,
-      split_period: form.value.split_period,
-      contract_period_months: form.value.contract_period_months,
+      split_period: form.value.split_period || false,
+      // Используем subscriptionMonths для расчета периода подписки
+      contract_period_months: subscriptionMonths.value > 0 ? subscriptionMonths.value : undefined,
+    }
+    
+    // Добавляем end_date, если он вычислен
+    if (calculatedEndDate.value) {
+      subscriptionData.end_date = calculatedEndDate.value
     }
     
     // Добавляем account_id и object_ids, если они выбраны
@@ -1335,7 +1366,7 @@ const createSubscription = async () => {
     }
     
     if (selectedObjects.value.length > 0) {
-      subscriptionData.object_ids = selectedObjects.value
+      subscriptionData.object_ids = Array.from(selectedObjects.value)
     }
     
     if (form.value.transfer_from_existing && existingSubscriptions.value.length > 0) {
@@ -1375,8 +1406,9 @@ const close = () => {
   currentStep.value = 1
   form.value = {
     company_id: companyId.value,
-    billing_plan_id: 0,
+    billing_plan_id: undefined as any, // Используем undefined для корректного отображения в v-select
     start_date: new Date().toISOString().split('T')[0],
+    start_time: '', // Сбрасываем время начала
     is_auto_renew: true,
     status: 'active',
     contract_id: undefined,
@@ -1395,6 +1427,7 @@ const close = () => {
   hasTariffAccess.value = true // Сбрасываем доступ к тарифам
   savedSelectedAccount.value = null // Сбрасываем сохраненную учетную запись
   allAccountObjects.value = [] // Сбрасываем все объекты
+  startImmediately.value = false // Сбрасываем флаг немедленного запуска
   
   // Сбрасываем параметры подписки
   subscriptionMonths.value = 1
@@ -1616,9 +1649,14 @@ const contractFilter = (item: any, queryText: string, itemText: string) => {
   
   const query = queryText.toLowerCase().trim()
   
-  // Если searchText не определен, формируем его из доступных полей
-  const searchText = item.raw.searchText || 
-    `${item.raw.number || ''} ${item.raw.title || ''} ${item.raw.client_name || ''} ${item.raw.status || ''}`.toLowerCase()
+  // Формируем searchText из всех доступных полей договора
+  const number = (item.raw.number || '').toLowerCase()
+  const title = (item.raw.title || '').toLowerCase()
+  const clientName = (item.raw.client_name || '').toLowerCase()
+  const status = (item.raw.status || '').toLowerCase()
+  
+  // Объединяем все поля в одну строку для поиска
+  const searchText = `${number} ${title} ${clientName} ${status}`.trim()
   
   // Поиск по всем полям: номер, название, клиент, статус
   // Поддерживает частичные совпадения (цифры, символы, буквы)
