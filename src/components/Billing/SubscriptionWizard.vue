@@ -200,19 +200,51 @@
                   </v-card-title>
                   <v-divider />
                   <v-card-text>
+                    <!-- Информация о типе тарифа -->
+                    <v-alert 
+                      v-if="selectedPlan"
+                      :type="selectedPlan.billing_period === 'one-time' ? 'info' : 'default'"
+                      variant="tonal"
+                      density="compact"
+                      class="mb-3"
+                    >
+                      <div class="d-flex align-center">
+                        <v-icon 
+                          :icon="selectedPlan.billing_period === 'monthly' ? 'mdi-calendar-month' : 
+                                 selectedPlan.billing_period === 'yearly' ? 'mdi-calendar' : 
+                                 'mdi-currency-usd'"
+                          size="small"
+                          class="mr-2"
+                        />
+                        <span class="text-body-2">
+                          Период биллинга: 
+                          <strong>
+                            {{ selectedPlan.billing_period === 'monthly' ? 'Ежемесячный' : 
+                               selectedPlan.billing_period === 'yearly' ? 'Ежегодный' : 
+                               'Одноразовый' }}
+                          </strong>
+                        </span>
+                      </div>
+                    </v-alert>
+
                     <!-- Сводка по стоимости -->
                     <div class="d-flex justify-space-between align-center">
                       <div>
-                        <div class="text-body-2 text-grey">Стоимость за период (за 1 объект):</div>
+                        <div class="text-body-2 text-grey">
+                          {{ selectedPlan?.billing_period === 'one-time' 
+                             ? 'Стоимость (за 1 объект):' 
+                             : 'Стоимость за период (за 1 объект):' }}
+                        </div>
                         <div class="text-h6 font-weight-bold">
                           {{ formatPrice(calculatedTotalPrice, selectedPlan?.currency || 'RUB') }}
                         </div>
                       </div>
-                      <div style="width: 200px;">
+                      <!-- Выбор периода (не показываем для одноразовых) -->
+                      <div v-if="selectedPlan?.billing_period !== 'one-time'" style="width: 200px;">
                         <v-select
                           v-model="subscriptionMonths"
                           :items="subscriptionPeriodOptions"
-                          label="Период подписки"
+                          :label="selectedPlan?.billing_period === 'yearly' ? 'Период (годы)' : 'Период подписки'"
                           variant="outlined"
                           density="compact"
                           hide-details
@@ -765,23 +797,53 @@ const minStartDate = computed(() => {
   return `${year}-${month}-01`
 })
 
-// Опции для выбора периода подписки
-const subscriptionPeriodOptions = [
-  { title: '1 месяц', value: 1 },
-  { title: '2 месяца', value: 2 },
-  { title: '3 месяца', value: 3 },
-  { title: '4 месяца', value: 4 },
-  { title: '5 месяцев', value: 5 },
-  { title: '6 месяцев', value: 6 },
-  { title: '7 месяцев', value: 7 },
-  { title: '8 месяцев', value: 8 },
-  { title: '9 месяцев', value: 9 },
-  { title: '10 месяцев', value: 10 },
-  { title: '11 месяцев', value: 11 },
-  { title: '12 месяцев', value: 12 },
-  { title: '24 месяца', value: 24 },
-  { title: '36 месяцев', value: 36 }
-]
+// Опции для выбора периода подписки (зависят от billing_period тарифа)
+const subscriptionPeriodOptions = computed(() => {
+  if (!selectedPlan.value) {
+    return [{ title: '1 месяц', value: 1 }]
+  }
+
+  const billingPeriod = selectedPlan.value.billing_period
+
+  // Для месячных тарифов - показываем месяцы
+  if (billingPeriod === 'monthly') {
+    return [
+      { title: '1 месяц', value: 1 },
+      { title: '2 месяца', value: 2 },
+      { title: '3 месяца', value: 3 },
+      { title: '4 месяца', value: 4 },
+      { title: '5 месяцев', value: 5 },
+      { title: '6 месяцев', value: 6 },
+      { title: '7 месяцев', value: 7 },
+      { title: '8 месяцев', value: 8 },
+      { title: '9 месяцев', value: 9 },
+      { title: '10 месяцев', value: 10 },
+      { title: '11 месяцев', value: 11 },
+      { title: '12 месяцев', value: 12 },
+      { title: '24 месяца', value: 24 },
+      { title: '36 месяцев', value: 36 }
+    ]
+  }
+
+  // Для годовых тарифов - показываем годы (значения в месяцах)
+  if (billingPeriod === 'yearly') {
+    return [
+      { title: '1 год', value: 12 },
+      { title: '2 года', value: 24 },
+      { title: '3 года', value: 36 },
+      { title: '4 года', value: 48 },
+      { title: '5 лет', value: 60 }
+    ]
+  }
+
+  // Для одноразовых тарифов - фиксированный период
+  if (billingPeriod === 'one-time') {
+    return [{ title: 'Одноразово', value: 1 }]
+  }
+
+  // По умолчанию
+  return [{ title: '1 месяц', value: 1 }]
+})
 
 // Ошибки
 const errors = ref<Record<string, string>>({})
@@ -1084,6 +1146,25 @@ const onPlanSelected = (planId?: number) => {
     console.log('⚠️ planId не передан, используем текущее значение:', form.value.billing_plan_id)
   }
   
+  // Устанавливаем период по умолчанию в зависимости от типа тарифа
+  if (selectedPlan.value) {
+    const billingPeriod = selectedPlan.value.billing_period
+    
+    if (billingPeriod === 'yearly') {
+      // Для годовых тарифов - по умолчанию 1 год (12 месяцев)
+      subscriptionMonths.value = 12
+      console.log('✅ Установлен период по умолчанию для годового тарифа: 12 месяцев (1 год)')
+    } else if (billingPeriod === 'one-time') {
+      // Для одноразовых - фиксированный период
+      subscriptionMonths.value = 1
+      console.log('✅ Установлен период по умолчанию для одноразового тарифа: 1')
+    } else {
+      // Для месячных - по умолчанию 1 месяц
+      subscriptionMonths.value = 1
+      console.log('✅ Установлен период по умолчанию для месячного тарифа: 1 месяц')
+    }
+  }
+  
   errors.value.billing_plan_id = ''
   calculateEndDate()
   calculateTotalPrice()
@@ -1098,12 +1179,24 @@ const calculateEndDate = () => {
   
   const startDate = new Date(form.value.start_date)
   const endDate = new Date(startDate)
-  endDate.setMonth(endDate.getMonth() + subscriptionMonths.value)
-  // Вычитаем 1 день, чтобы получить последний день периода
-  endDate.setDate(endDate.getDate() - 1)
   
-  calculatedEndDate.value = endDate.toISOString().split('T')[0]
-  console.log(`📅 Рассчитана дата окончания: ${calculatedEndDate.value} (${subscriptionMonths.value} мес.)`)
+  // Для одноразовых тарифов дата окончания = дата начала
+  if (selectedPlan.value?.billing_period === 'one-time') {
+    calculatedEndDate.value = form.value.start_date
+    console.log(`📅 Рассчитана дата окончания (одноразово): ${calculatedEndDate.value}`)
+  } else {
+    // Для месячных и годовых - добавляем месяцы
+    endDate.setMonth(endDate.getMonth() + subscriptionMonths.value)
+    // Вычитаем 1 день, чтобы получить последний день периода
+    endDate.setDate(endDate.getDate() - 1)
+    
+    calculatedEndDate.value = endDate.toISOString().split('T')[0]
+    
+    const periodType = selectedPlan.value?.billing_period === 'yearly' 
+      ? `${subscriptionMonths.value / 12} лет` 
+      : `${subscriptionMonths.value} мес.`
+    console.log(`📅 Рассчитана дата окончания: ${calculatedEndDate.value} (${periodType})`)
+  }
   
   // Обновляем общую стоимость при изменении периода
   calculateTotalPrice()
@@ -1116,9 +1209,30 @@ const calculateTotalPrice = () => {
     return
   }
   
-  // Стоимость = цена за месяц * количество месяцев
-  calculatedTotalPrice.value = selectedPlan.value.price * subscriptionMonths.value
-  console.log(`💰 Рассчитана стоимость: ${calculatedTotalPrice.value} (${selectedPlan.value.price} * ${subscriptionMonths.value})`)
+  const billingPeriod = selectedPlan.value.billing_period
+  const planPrice = selectedPlan.value.price
+  
+  // Для месячных тарифов: цена за месяц × количество месяцев
+  if (billingPeriod === 'monthly') {
+    calculatedTotalPrice.value = planPrice * subscriptionMonths.value
+    console.log(`💰 Рассчитана стоимость (месячный): ${calculatedTotalPrice.value} (${planPrice} × ${subscriptionMonths.value} мес.)`)
+  }
+  // Для годовых тарифов: цена за год × количество лет
+  else if (billingPeriod === 'yearly') {
+    const years = subscriptionMonths.value / 12
+    calculatedTotalPrice.value = planPrice * years
+    console.log(`💰 Рассчитана стоимость (годовой): ${calculatedTotalPrice.value} (${planPrice} × ${years} лет)`)
+  }
+  // Для одноразовых: фиксированная цена
+  else if (billingPeriod === 'one-time') {
+    calculatedTotalPrice.value = planPrice
+    console.log(`💰 Рассчитана стоимость (одноразово): ${calculatedTotalPrice.value}`)
+  }
+  // По умолчанию - считаем как месячный
+  else {
+    calculatedTotalPrice.value = planPrice * subscriptionMonths.value
+    console.log(`💰 Рассчитана стоимость (по умолчанию): ${calculatedTotalPrice.value}`)
+  }
 }
 
 // Вспомогательная функция для склонения слова "месяц"
