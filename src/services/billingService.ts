@@ -207,13 +207,16 @@ class BillingService {
    */
   async getSubscriptions(companyId: number): Promise<Subscription[]> {
     try {
+      console.log('🌐 BillingService: Запрос подписок для company_id:', companyId)
       const response: AxiosResponse<SubscriptionsResponse> =
         await this.apiClient.get("/auth/billing/subscriptions", {
           params: { company_id: companyId }
         });
+      console.log('📥 BillingService: Ответ от API:', response.data)
+      console.log('📊 BillingService: Количество подписок в ответе:', response.data.data?.length || 0)
       return response.data.data || [];
     } catch (error) {
-      console.error("Ошибка при загрузке подписок:", error);
+      console.error("❌ BillingService: Ошибка при загрузке подписок:", error);
       return [];
     }
   }

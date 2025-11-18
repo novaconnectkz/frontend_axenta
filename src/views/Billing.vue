@@ -147,6 +147,19 @@
               item-value="id"
               :items-per-page="10"
             >
+              <!-- Клиент и договор -->
+              <template v-slot:item.client="{ item }">
+                <div v-if="item.contract">
+                  <div class="font-weight-medium">{{ item.contract.client_name }}</div>
+                  <div class="text-caption text-grey">
+                    Договор: {{ item.contract.number }}
+                  </div>
+                </div>
+                <div v-else class="text-grey">
+                  Компания ID: {{ item.company_id }}
+                </div>
+              </template>
+
               <!-- План -->
               <template v-slot:item.billing_plan="{ item }">
                 <div>
@@ -191,8 +204,15 @@
                   icon="mdi-cancel"
                   size="small"
                   variant="text"
-                  color="error"
+                  color="warning"
                   @click="cancelSubscription(item)"
+                ></v-btn>
+                <v-btn
+                  icon="mdi-delete"
+                  size="small"
+                  variant="text"
+                  color="error"
+                  @click="deleteSubscription(item)"
                 ></v-btn>
               </template>
             </v-data-table>
@@ -1458,7 +1478,7 @@ const planHeaders = [
 ]
 
 const subscriptionHeaders = [
-  { title: 'Компания', key: 'company_id', sortable: true },
+  { title: 'Клиент / Договор', key: 'client', sortable: false },
   { title: 'Тарифный план', key: 'billing_plan', sortable: false },
   { title: 'Дата начала', key: 'start_date', sortable: true },
   { title: 'Следующий платеж', key: 'next_payment_date', sortable: true },
@@ -1574,9 +1594,16 @@ const fetchPlans = async () => {
 const fetchSubscriptions = async () => {
   loadingSubscriptions.value = true
   try {
-    subscriptions.value = await billingService.getSubscriptions(currentCompanyId.value)
+    console.log('🔍 Загружаем подписки для company_id:', currentCompanyId.value)
+    const result = await billingService.getSubscriptions(currentCompanyId.value)
+    console.log('✅ Получены подписки:', result)
+    console.log('📊 Количество подписок:', result.length)
+    if (result.length > 0) {
+      console.log('📋 Первая подписка:', result[0])
+    }
+    subscriptions.value = result
   } catch (error) {
-    console.error('Ошибка при загрузке подписок:', error)
+    console.error('❌ Ошибка при загрузке подписок:', error)
   } finally {
     loadingSubscriptions.value = false
   }
@@ -1760,6 +1787,22 @@ const cancelSubscription = async (subscription: Subscription) => {
     await loadDashboardData()
   } catch (error) {
     console.error('Ошибка при отмене подписки:', error)
+  }
+}
+
+const deleteSubscription = async (subscription: Subscription) => {
+  if (!confirm(`Вы уверены, что хотите удалить подписку? Это действие нельзя отменить.`)) return
+
+  try {
+    console.log('🗑️ Удаление подписки:', subscription.id)
+    await billingService.deleteSubscription(subscription.id!)
+    console.log('✅ Подписка удалена')
+    await fetchSubscriptions()
+    await loadDashboardData()
+  } catch (error: any) {
+    console.error('❌ Ошибка при удалении подписки:', error)
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении подписки'
+    alert(`Ошибка: ${errorMessage}`)
   }
 }
 

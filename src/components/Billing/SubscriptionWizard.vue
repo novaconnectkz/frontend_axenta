@@ -200,66 +200,7 @@
                   </v-card-title>
                   <v-divider />
                   <v-card-text>
-                    <v-row>
-                      <!-- Период подписки -->
-                      <v-col cols="12" md="6">
-                        <v-select
-                          v-model="subscriptionMonths"
-                          :items="subscriptionPeriodOptions"
-                          label="Период подписки"
-                          variant="outlined"
-                          prepend-icon="mdi-calendar-clock"
-                          @update:model-value="calculateEndDate"
-                        />
-                      </v-col>
-
-                      <!-- Автопродление -->
-                      <v-col cols="12" md="6">
-                        <v-switch
-                          v-model="form.is_auto_renew"
-                          label="Автоматическое продление"
-                          color="primary"
-                          hide-details
-                        >
-                          <template v-slot:prepend>
-                            <v-icon :icon="form.is_auto_renew ? 'mdi-autorenew' : 'mdi-reload-alert'" />
-                          </template>
-                        </v-switch>
-                        <div class="text-caption text-grey mt-1 ml-12">
-                          {{ form.is_auto_renew ? 'Подписка будет автоматически продлеваться' : 'Подписка не будет продлеваться автоматически' }}
-                        </div>
-                      </v-col>
-
-                      <!-- Дата начала -->
-                      <v-col cols="12" md="6">
-                        <v-text-field
-                          v-model="form.start_date"
-                          label="Дата начала"
-                          type="date"
-                          variant="outlined"
-                          prepend-icon="mdi-calendar-start"
-                          :min="minStartDate"
-                          @update:model-value="calculateEndDate"
-                        />
-                      </v-col>
-
-                      <!-- Дата окончания (расчетная) -->
-                      <v-col cols="12" md="6">
-                        <v-text-field
-                          :model-value="calculatedEndDate"
-                          label="Дата окончания"
-                          type="date"
-                          variant="outlined"
-                          prepend-icon="mdi-calendar-end"
-                          readonly
-                          hint="Рассчитывается автоматически"
-                          persistent-hint
-                        />
-                      </v-col>
-                    </v-row>
-
                     <!-- Сводка по стоимости -->
-                    <v-divider class="my-3" />
                     <div class="d-flex justify-space-between align-center">
                       <div>
                         <div class="text-body-2 text-grey">Стоимость за период (за 1 объект):</div>
@@ -267,12 +208,16 @@
                           {{ formatPrice(calculatedTotalPrice, selectedPlan?.currency || 'RUB') }}
                         </div>
                       </div>
-                      <div class="text-right">
-                        <div class="text-caption text-grey">{{ subscriptionMonths }} {{ getMonthsWord(subscriptionMonths) }}</div>
-                        <div class="text-caption text-grey" v-if="form.is_auto_renew">
-                          <v-icon size="small" color="success">mdi-autorenew</v-icon>
-                          С автопродлением
-                        </div>
+                      <div style="width: 200px;">
+                        <v-select
+                          v-model="subscriptionMonths"
+                          :items="subscriptionPeriodOptions"
+                          label="Период подписки"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                          @update:model-value="calculateEndDate"
+                        />
                       </div>
                     </div>
                   </v-card-text>
@@ -287,6 +232,7 @@
                 
                 <v-autocomplete
                   v-model="form.account_id"
+                  v-model:search="accountSearchQuery"
                   :items="accountOptions"
                   item-title="title"
                   item-value="value"
@@ -297,7 +243,6 @@
                   hint="Выберите учетную запись для автоматической привязки её объектов к подписке"
                   persistent-hint
                   clearable
-                  :search="accountSearchQuery"
                   @update:search="handleAccountSearch"
                   no-data-text="Учетные записи не найдены"
                   loading-text="Загрузка учетных записей..."
@@ -465,7 +410,30 @@
               <div class="pa-4">
                 <h3 class="mb-4">Настройка периода</h3>
                 
-                <v-row>
+                <!-- Опция "Запустить немедленно" -->
+                <v-row class="mb-2">
+                  <v-col cols="12">
+                    <v-checkbox
+                      v-model="startImmediately"
+                      label="Запустить подписку немедленно"
+                      color="primary"
+                      hide-details
+                      @update:model-value="onStartImmediatelyChanged"
+                    >
+                      <template v-slot:label>
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" size="small">mdi-rocket-launch</v-icon>
+                          <span>Запустить подписку немедленно</span>
+                        </div>
+                      </template>
+                    </v-checkbox>
+                    <div v-if="startImmediately" class="text-caption text-grey ml-8 mt-1">
+                      Подписка активируется сразу после создания
+                    </div>
+                  </v-col>
+                </v-row>
+                
+                <v-row v-if="!startImmediately">
                   <v-col cols="12" md="4">
                     <v-text-field
                       v-model="form.start_date"
@@ -482,6 +450,26 @@
                       </template>
                     </v-text-field>
                   </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model="form.start_time"
+                      label="Время начала"
+                      type="time"
+                      variant="outlined"
+                      :error="!!errors.start_time"
+                      :error-messages="errors.start_time"
+                      @update:model-value="onStartTimeChanged"
+                      hint="Если не указано, будет использовано 00:00"
+                      persistent-hint
+                    >
+                      <template v-slot:append>
+                        <v-icon>mdi-clock-outline</v-icon>
+                      </template>
+                    </v-text-field>
+                  </v-col>
+                </v-row>
+                
+                <v-row v-if="!startImmediately">
                   <v-col cols="12" md="4">
                     <v-text-field
                       v-model.number="form.contract_period_months"
@@ -536,7 +524,7 @@
 
                 <!-- Информация о запланированной активации -->
                 <v-alert
-                  v-if="isScheduledStart"
+                  v-if="isScheduledStart && !startImmediately"
                   type="info"
                   class="mt-4"
                   variant="tonal"
@@ -544,7 +532,7 @@
                   <v-icon class="mr-2">mdi-clock-outline</v-icon>
                   <strong>Подписка будет запланирована</strong>
                   <div class="text-caption mt-1">
-                    Подписка создастся со статусом "Запланированная" и активируется автоматически в 00:00 {{ formatDate(form.start_date) }}
+                    Подписка создастся со статусом "Запланированная" и активируется автоматически в {{ formatDateTime(form.start_date, form.start_time) }}
                   </div>
                 </v-alert>
               </div>
@@ -728,10 +716,12 @@ const form = ref<CreateSubscriptionData & {
   split_period?: boolean
   contract_period_months?: number | null
   account_id?: number
+  start_time?: string // Новое поле для времени начала
 }>({
   company_id: companyId.value,
-  billing_plan_id: 0,
+  billing_plan_id: undefined as any, // Изменено с 0 на undefined для корректного отображения в v-select
   start_date: new Date().toISOString().split('T')[0],
+  start_time: '', // Пустое значение = 00:00
   is_auto_renew: true,
   status: 'active',
   contract_id: undefined,
@@ -750,10 +740,17 @@ const accounts = ref<Account[]>([])
 const loadingAccounts = ref(false)
 const accountSearchQuery = ref('')
 const accountObjects = ref<any[]>([])
+const allAccountObjects = ref<any[]>([]) // Все объекты учетной записи (включая с договорами)
 const loadingAccountObjects = ref(false)
 const selectedObjects = ref<number[]>([])
 const objectsSearchQuery = ref('')
 const contractSearchQuery = ref('')
+
+// Сохраняем выбранную учетную запись отдельно
+const savedSelectedAccount = ref<Account | null>(null)
+
+// Новые параметры для гибкого старта подписки
+const startImmediately = ref(false) // Запустить немедленно
 
 // Параметры подписки
 const subscriptionMonths = ref(1) // По умолчанию 1 месяц
@@ -889,11 +886,18 @@ const canCreate = computed(() => {
 })
 
 const isScheduledStart = computed(() => {
-  if (!form.value.start_date) return false
-  const startDate = new Date(form.value.start_date)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return startDate > today
+  if (!form.value.start_date || startImmediately.value) return false
+  
+  // Создаем дату/время начала
+  const startDateStr = form.value.start_date
+  const startTimeStr = form.value.start_time || '00:00'
+  const [hours, minutes] = startTimeStr.split(':').map(Number)
+  const startDateTime = new Date(startDateStr)
+  startDateTime.setHours(hours, minutes, 0, 0)
+  
+  // Сравниваем с текущим моментом
+  const now = new Date()
+  return startDateTime > now
 })
 
 const shouldSplitPeriod = computed(() => {
@@ -984,6 +988,13 @@ const loadPlans = async () => {
     plans.value = await billingService.getBillingPlans(companyId.value)
     console.log('✅ Загружено тарифов:', plans.value.length)
     console.log('📋 Доступные тарифы:', availablePlans.value)
+    
+    // Автовыбор первого тарифа, если он один
+    if (availablePlans.value.length === 1 && !form.value.billing_plan_id) {
+      form.value.billing_plan_id = availablePlans.value[0].id
+      onPlanSelected(availablePlans.value[0].id)
+      console.log('✅ Автоматически выбран единственный доступный тариф:', availablePlans.value[0].id)
+    }
   } catch (error) {
     console.error('❌ Ошибка загрузки планов:', error)
   } finally {
@@ -1127,6 +1138,33 @@ const onStartDateChanged = () => {
   recalculatePrice()
 }
 
+const onStartTimeChanged = () => {
+  errors.value.start_time = ''
+  // Пересчитываем статус при изменении времени
+  if (isScheduledStart.value) {
+    form.value.status = 'scheduled'
+  } else {
+    form.value.status = 'active'
+  }
+}
+
+const onStartImmediatelyChanged = () => {
+  if (startImmediately.value) {
+    // Если включен режим "немедленно", устанавливаем текущую дату/время
+    const now = new Date()
+    form.value.start_date = now.toISOString().split('T')[0]
+    form.value.start_time = now.toTimeString().split(' ')[0].substring(0, 5) // HH:MM
+    form.value.status = 'active'
+  } else {
+    // Возвращаем обычный режим
+    if (isScheduledStart.value) {
+      form.value.status = 'scheduled'
+    } else {
+      form.value.status = 'active'
+    }
+  }
+}
+
 const recalculatePrice = () => {
   // Пересчет уже происходит в computed свойствах
 }
@@ -1164,10 +1202,12 @@ const createSubscription = async () => {
       account_id?: number
       object_ids?: number[]
       contract_period_months?: number | null
+      start_time?: string
     } = {
       company_id: form.value.company_id,
       billing_plan_id: form.value.billing_plan_id!,
       start_date: form.value.start_date,
+      start_time: form.value.start_time, // Добавляем время начала
       status: form.value.status,
       is_auto_renew: form.value.is_auto_renew,
       contract_id: form.value.contract_id,
@@ -1188,11 +1228,24 @@ const createSubscription = async () => {
       subscriptionData.transfer_from_subscription_id = existingSubscriptions.value[0].id
     }
     
+    console.log('📤 Отправка данных подписки на сервер:')
+    console.log('  contract_id:', subscriptionData.contract_id)
+    console.log('  billing_plan_id:', subscriptionData.billing_plan_id)
+    console.log('  start_date:', subscriptionData.start_date)
+    console.log('  start_time:', subscriptionData.start_time)
+    console.log('  status:', subscriptionData.status)
+    console.log('  account_id:', subscriptionData.account_id)
+    console.log('  object_ids:', subscriptionData.object_ids)
+    console.log('  subscriptionData (полный):', subscriptionData)
+    console.log('  calculatedEndDate:', calculatedEndDate.value)
+    console.log('  subscriptionMonths:', subscriptionMonths.value)
+    
     const subscription = await billingService.createSubscription(subscriptionData)
     emit('created', subscription)
     close()
   } catch (error: any) {
     console.error('Ошибка создания подписки:', error)
+    console.error('📥 Ответ сервера:', error.response?.data)
     if (error.response?.data?.error) {
       errors.value.general = error.response.data.error
     } else {
@@ -1226,6 +1279,8 @@ const close = () => {
   accountSearchQuery.value = ''
   contractSearchQuery.value = ''
   hasTariffAccess.value = true // Сбрасываем доступ к тарифам
+  savedSelectedAccount.value = null // Сбрасываем сохраненную учетную запись
+  allAccountObjects.value = [] // Сбрасываем все объекты
   
   // Сбрасываем параметры подписки
   subscriptionMonths.value = 1
@@ -1236,6 +1291,13 @@ const close = () => {
 const formatDate = (date?: string) => {
   if (!date) return ''
   return billingService.formatDate(date)
+}
+
+const formatDateTime = (date?: string, time?: string) => {
+  if (!date) return ''
+  const formattedDate = billingService.formatDate(date)
+  const formattedTime = time || '00:00'
+  return `${formattedDate} ${formattedTime}`
 }
 
 const formatPrice = (amount: number, currency = 'RUB') => {
@@ -1288,17 +1350,35 @@ const filteredAccountObjects = computed(() => {
 
 // Опции учетных записей
 const accountOptions = computed(() => {
-  return accounts.value.map(account => ({
+  const options = accounts.value.map(account => ({
     value: account.id,
     title: account.name,
     raw: account,
   }))
+  
+  // Убеждаемся, что выбранная учетная запись всегда в списке
+  if (form.value.account_id && savedSelectedAccount.value) {
+    const isInList = options.some(opt => opt.value === form.value.account_id)
+    if (!isInList) {
+      console.log('📌 Добавляем сохраненную учетную запись в список опций:', savedSelectedAccount.value.name)
+      options.unshift({
+        value: savedSelectedAccount.value.id,
+        title: savedSelectedAccount.value.name,
+        raw: savedSelectedAccount.value,
+      })
+    }
+  }
+  
+  return options
 })
 
 // Выбранная учетная запись
 const selectedAccount = computed(() => {
   if (!form.value.account_id) return null
-  return accounts.value.find(acc => acc.id === form.value.account_id) || null
+  // Сначала ищем в текущем списке
+  const fromList = accounts.value.find(acc => acc.id === form.value.account_id)
+  // Если не найдена, используем сохраненную
+  return fromList || savedSelectedAccount.value
 })
 
 // Функции для работы с объектами
@@ -1316,8 +1396,13 @@ const loadAccounts = async (search = '') => {
   
   loadingAccounts.value = true
   try {
-    const response = await accountsService.getAccounts(1, 50, { search })
+    const response = await accountsService.getAccounts({ 
+      page: 1, 
+      per_page: 50, 
+      search: search || undefined 
+    })
     accounts.value = response.results || []
+    console.log('📋 Загружено учетных записей:', accounts.value.length, search ? `(поиск: "${search}")` : '')
   } catch (error) {
     console.error('Ошибка загрузки учетных записей:', error)
     accounts.value = []
@@ -1330,12 +1415,25 @@ const loadAccounts = async (search = '') => {
 const loadAccountObjects = async (accountId: number) => {
   loadingAccountObjects.value = true
   try {
-    const account = accounts.value.find(acc => acc.id === accountId)
+    // Ищем учетную запись сначала в текущем списке, потом в сохраненной
+    let account = accounts.value.find(acc => acc.id === accountId)
+    if (!account && savedSelectedAccount.value?.id === accountId) {
+      account = savedSelectedAccount.value
+      console.log('✅ Используем сохраненную учетную запись')
+    }
+    
     if (!account) {
-      console.warn('Учетная запись не найдена:', accountId)
+      console.warn('⚠️ Учетная запись не найдена:', accountId)
       accountObjects.value = []
+      allAccountObjects.value = []
       return
     }
+    
+    console.log('📦 Загрузка объектов для учетной записи:', { 
+      id: account.id, 
+      name: account.name,
+      objectsTotal: account.objectsTotal 
+    })
     
     // Загружаем объекты через getObjects с фильтром по accountId
     const objectsService = getObjectsService()
@@ -1344,11 +1442,47 @@ const loadAccountObjects = async (accountId: number) => {
       accountName: account.name
     })
     
+    console.log('📦 Ответ от getObjects:', {
+      response: response,
+      dataItems: response.data?.items,
+      itemsLength: response.data?.items?.length || 0
+    })
+    
     // Фильтруем только объекты без договоров
-    accountObjects.value = (response.data?.items || []).filter((obj: any) => !obj.contract_id)
+    const allObjects = response.data?.items || []
+    // Фильтруем: убираем объекты с contract_id, НО игнорируем случаи когда contract_id === account.id
+    // (это ошибка в Axenta Cloud API, где contract_id может быть равен account_id)
+    const objectsWithoutContract = allObjects.filter((obj: any) => {
+      if (!obj.contract_id) return true // Нет contract_id - подходит
+      if (obj.contract_id === account.id) return true // contract_id === account_id - это ошибка API, игнорируем
+      return false // Есть реальный contract_id - пропускаем
+    })
+    
+    console.log('📦 Объекты после фильтрации:', {
+      всегоОбъектов: allObjects.length,
+      безДоговоров: objectsWithoutContract.length,
+      сДоговорами: allObjects.length - objectsWithoutContract.length
+    })
+    
+    // Логируем первые несколько объектов для проверки
+    if (allObjects.length > 0) {
+      console.log('📦 Примеры объектов с contract_id:', 
+        allObjects.slice(0, 3).map((obj: any) => ({
+          id: obj.id,
+          name: obj.name,
+          contract_id: obj.contract_id,
+          contract_number: obj.contract_number,
+          isContractIdSameAsAccountId: obj.contract_id === account.id
+        }))
+      )
+    }
+    
+    allAccountObjects.value = allObjects // Сохраняем все объекты
+    accountObjects.value = objectsWithoutContract
   } catch (error) {
-    console.error('Ошибка загрузки объектов:', error)
+    console.error('❌ Ошибка загрузки объектов:', error)
     accountObjects.value = []
+    allAccountObjects.value = []
   } finally {
     loadingAccountObjects.value = false
   }
@@ -1379,11 +1513,16 @@ const contractFilter = (item: any, queryText: string, itemText: string) => {
 
 // Обработчики
 const handleAccountSearch = (query: string) => {
-  accountSearchQuery.value = query
-  if (query.length >= 2) {
+  console.log('🔍 handleAccountSearch вызван с query:', query)
+  // accountSearchQuery уже обновлен через v-model:search, не нужно дублировать
+  if (query && query.length >= 2) {
+    console.log('✅ Запускаем поиск с query:', query)
     loadAccounts(query)
-  } else if (query.length === 0) {
+  } else if (!query || query.length === 0) {
+    console.log('⚠️ Query пустой, загружаем все учетные записи')
     loadAccounts()
+  } else {
+    console.log('ℹ️ Query слишком короткий:', query.length, 'символов')
   }
 }
 
@@ -1394,10 +1533,21 @@ const handleAccountAutocompleteFocus = () => {
 }
 
 const onAccountSelected = (accountId: number | undefined) => {
+  console.log('🔄 onAccountSelected вызван с accountId:', accountId)
   if (accountId) {
+    console.log('✅ Загружаем объекты для учетной записи:', accountId)
+    // Сохраняем выбранную учетную запись
+    const account = accounts.value.find(acc => acc.id === accountId)
+    if (account) {
+      savedSelectedAccount.value = account
+      console.log('💾 Сохранили учетную запись:', account.name)
+    }
     loadAccountObjects(accountId)
   } else {
+    console.log('⚠️ accountId не указан, очищаем объекты')
+    savedSelectedAccount.value = null
     accountObjects.value = []
+    allAccountObjects.value = []
     selectedObjects.value = []
   }
 }

@@ -63,6 +63,13 @@ export interface Subscription {
   company_id: number;
   billing_plan_id: number;
   billing_plan: BillingPlan;
+  contract_id?: number;
+  contract?: {
+    id: number;
+    number: string;
+    client_name: string;
+    title: string;
+  };
   start_date: string;
   end_date?: string;
   status: SubscriptionStatus;
@@ -254,6 +261,7 @@ export interface CreateSubscriptionData {
   company_id: number;
   billing_plan_id: number;
   start_date?: string;
+  start_time?: string; // Время начала подписки (HH:MM)
   end_date?: string;
   status?: SubscriptionStatus;
   is_auto_renew?: boolean;
