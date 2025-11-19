@@ -357,6 +357,13 @@ class BillingService {
   }
 
   /**
+   * Удалить счет
+   */
+  async deleteInvoice(invoiceId: number): Promise<void> {
+    await this.apiClient.delete(`/auth/billing/invoices/${invoiceId}`);
+  }
+
+  /**
    * Получить просроченные счета
    */
   async getOverdueInvoices(companyId?: number): Promise<Invoice[]> {

@@ -59,7 +59,7 @@ class InvoiceNumeratorsService {
   async getInvoiceNumerators(companyId: number): Promise<InvoiceNumerator[]> {
     try {
       const response: AxiosResponse<InvoiceNumeratorsResponse> =
-        await this.apiClient.get("/auth/invoice-numerators", {
+        await this.apiClient.get("/auth/billing/invoice-numerators", {
           params: { company_id: companyId },
         });
       return response.data.data || [];
@@ -71,7 +71,7 @@ class InvoiceNumeratorsService {
 
   async getInvoiceNumerator(id: number): Promise<InvoiceNumerator> {
     try {
-      const response = await this.apiClient.get(`/auth/invoice-numerators/${id}`);
+      const response = await this.apiClient.get(`/auth/billing/invoice-numerators/${id}`);
       return response.data.data;
     } catch {
       // Поиск в моках по всем компаниям
@@ -90,7 +90,7 @@ class InvoiceNumeratorsService {
   ): Promise<InvoiceNumerator> {
     try {
       const response = await this.apiClient.post(
-        "/auth/invoice-numerators",
+        "/auth/billing/invoice-numerators",
         data
       );
       return response.data.data;
@@ -128,7 +128,7 @@ class InvoiceNumeratorsService {
   ): Promise<InvoiceNumerator> {
     try {
       const response = await this.apiClient.put(
-        `/auth/invoice-numerators/${id}`,
+        `/auth/billing/invoice-numerators/${id}`,
         data
       );
       return response.data.data;
@@ -156,7 +156,7 @@ class InvoiceNumeratorsService {
 
   async deleteInvoiceNumerator(id: number): Promise<void> {
     try {
-      await this.apiClient.delete(`/auth/invoice-numerators/${id}`);
+      await this.apiClient.delete(`/auth/billing/invoice-numerators/${id}`);
     } catch {
       // Fallback: удаление из LocalStorage
       const raw = localStorage.getItem(this.storageKey);
@@ -176,7 +176,7 @@ class InvoiceNumeratorsService {
   ): Promise<{ number: string; counter: number }> {
     try {
       const response = await this.apiClient.post(
-        `/auth/invoice-numerators/${numeratorId}/generate`,
+        `/auth/billing/invoice-numerators/${numeratorId}/generate`,
         params || {}
       );
       return response.data.data;

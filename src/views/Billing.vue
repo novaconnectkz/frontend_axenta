@@ -267,7 +267,7 @@
             <v-spacer></v-spacer>
             <v-btn 
               color="primary" 
-              @click="generateInvoiceDialog = true"
+              @click="openGenerateInvoiceDialog"
               prepend-icon="mdi-plus"
             >
               Сгенерировать счет
@@ -374,8 +374,16 @@
                     icon="mdi-cancel" 
                     size="small" 
                     variant="text" 
+                    color="warning"
+                    @click="cancelInvoiceConfirm(item)" 
+                  />
+                  <v-btn 
+                    v-if="item.status !== 'paid'"
+                    icon="mdi-delete" 
+                    size="small" 
+                    variant="text" 
                     color="error"
-                    @click="cancelInvoice(item)" 
+                    @click="deleteInvoiceConfirm(item)" 
                   />
                 </div>
               </template>
@@ -1014,7 +1022,7 @@
     </v-dialog>
 
     <!-- Диалог генерации счета -->
-    <v-dialog v-model="generateInvoiceDialog" max-width="600px" persistent>
+    <v-dialog v-model="generateInvoiceDialog" max-width="700px" persistent>
       <v-card>
         <v-card-title>
           <span class="text-h5">Сгенерировать счет</span>
@@ -1024,31 +1032,97 @@
           <v-form>
             <v-row>
               <v-col cols="12">
-                <v-select
+                <v-autocomplete
                   v-model.number="selectedContractId"
                   :items="contractSelectItems"
                   label="Договор"
                   :loading="loadingContracts"
-                  hint="Выберите договор для которого нужно создать счет"
+                  hint="Начните вводить номер договора или название клиента для поиска"
                   persistent-hint
                   required
-                ></v-select>
+                  clearable
+                  :no-data-text="'Нет доступных договоров'"
+                  placeholder="Поиск договора..."
+                >
+                  <template #prepend-inner>
+                    <v-icon>mdi-file-document</v-icon>
+                  </template>
+                </v-autocomplete>
               </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="invoiceFormData.period_start"
-                  label="Дата начала периода"
-                  type="date"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="invoiceFormData.period_end"
-                  label="Дата окончания периода"
-                  type="date"
-                  required
-                ></v-text-field>
+
+              <!-- Подписки с чекбоксами -->
+              <v-col v-if="selectedContractId" cols="12">
+                <div class="mb-2 d-flex justify-space-between align-center">
+                  <label class="text-subtitle-1 font-weight-medium">Подписки</label>
+                  <v-btn
+                    v-if="contractSubscriptions.length > 0"
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    @click="toggleAllSubscriptions"
+                  >
+                    {{ allSubscriptionsSelected ? 'Снять все' : 'Выбрать все' }}
+                  </v-btn>
+                </div>
+                
+                <v-progress-linear
+                  v-if="loadingContractSubscriptions"
+                  indeterminate
+                  color="primary"
+                  class="mb-3"
+                ></v-progress-linear>
+
+                <div v-if="!loadingContractSubscriptions && contractSubscriptions.length === 0" class="text-grey text-center pa-4">
+                  У выбранного договора нет активных подписок
+                </div>
+
+                <v-list v-if="!loadingContractSubscriptions && contractSubscriptions.length > 0" class="subscription-list" density="compact">
+                  <v-list-item
+                    v-for="subscription in contractSubscriptions"
+                    :key="subscription.id"
+                    class="subscription-item px-0"
+                  >
+                    <template #prepend>
+                      <v-checkbox
+                        v-model="selectedSubscriptionIds"
+                        :value="subscription.id"
+                        hide-details
+                        density="compact"
+                      ></v-checkbox>
+                    </template>
+
+                    <v-list-item-title>
+                      <div class="d-flex justify-space-between align-center">
+                        <div>
+                          <span class="font-weight-medium">{{ subscription.billing_plan?.name }}</span>
+                          <v-chip size="x-small" :color="getSubscriptionStatusColor(subscription.status)" class="ml-2">
+                            {{ getSubscriptionStatusText(subscription.status) }}
+                          </v-chip>
+                        </div>
+                        <span class="text-caption text-grey">
+                          {{ formatPrice(subscription.billing_plan?.price || 0, subscription.billing_plan?.currency || 'RUB') }}
+                        </span>
+                      </div>
+                    </v-list-item-title>
+
+                    <v-list-item-subtitle class="text-caption">
+                      {{ formatDate(subscription.start_date) }} - {{ subscription.end_date ? formatDate(subscription.end_date) : 'Бессрочно' }}
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+
+                <!-- Информация о выбранном периоде -->
+                <v-alert
+                  v-if="selectedSubscriptionIds.length > 0"
+                  type="info"
+                  variant="tonal"
+                  class="mt-3"
+                  density="compact"
+                >
+                  <div class="text-caption">
+                    <strong>Период биллинга:</strong> {{ calculatedPeriod.start }} - {{ calculatedPeriod.end }}
+                  </div>
+                </v-alert>
               </v-col>
             </v-row>
           </v-form>
@@ -1056,10 +1130,11 @@
 
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn variant="text" @click="generateInvoiceDialog = false">Отмена</v-btn>
+          <v-btn variant="text" @click="closeGenerateInvoiceDialog">Отмена</v-btn>
           <v-btn 
             color="primary" 
             @click="generateInvoice"
+            :disabled="!selectedContractId || selectedSubscriptionIds.length === 0"
           >
             Сгенерировать
           </v-btn>
@@ -1427,6 +1502,9 @@ const contractNumerators = ref<ContractNumerator[]>([])
 const loadingNumerators = ref(false)
 const availableContracts = ref<any[]>([])
 const loadingContracts = ref(false)
+const contractSubscriptions = ref<Subscription[]>([])
+const loadingContractSubscriptions = ref(false)
+const selectedSubscriptionIds = ref<number[]>([])
 
 // Состояния загрузки
 const loadingPlans = ref(false)
@@ -1598,6 +1676,44 @@ const contractSelectItems = computed(() =>
     value: contract.id
   }))
 )
+
+// Computed для работы с подписками в диалоге генерации счета
+const allSubscriptionsSelected = computed(() => {
+  return contractSubscriptions.value.length > 0 && 
+         selectedSubscriptionIds.value.length === contractSubscriptions.value.length
+})
+
+const calculatedPeriod = computed(() => {
+  if (selectedSubscriptionIds.value.length === 0) {
+    return { start: '', end: '' }
+  }
+
+  const selectedSubs = contractSubscriptions.value.filter(sub => 
+    selectedSubscriptionIds.value.includes(sub.id!)
+  )
+
+  if (selectedSubs.length === 0) {
+    return { start: '', end: '' }
+  }
+
+  // Находим минимальную дату начала и максимальную дату окончания
+  const startDates = selectedSubs.map(sub => new Date(sub.start_date))
+  const endDates = selectedSubs
+    .filter(sub => sub.end_date)
+    .map(sub => new Date(sub.end_date!))
+
+  const minStart = new Date(Math.min(...startDates.map(d => d.getTime())))
+  
+  // Если у всех подписок нет end_date, используем текущую дату
+  const maxEnd = endDates.length > 0 
+    ? new Date(Math.max(...endDates.map(d => d.getTime())))
+    : new Date()
+
+  return {
+    start: formatDate(minStart.toISOString()),
+    end: formatDate(maxEnd.toISOString())
+  }
+})
 
 // Методы загрузки данных
 const loadDashboardData = async () => {
@@ -1886,7 +2002,7 @@ const processPayment = async () => {
   }
 }
 
-const cancelInvoice = async (invoice: Invoice) => {
+const cancelInvoiceConfirm = async (invoice: Invoice) => {
   const reason = prompt('Укажите причину отмены счета:')
   if (!reason) return
 
@@ -1899,23 +2015,95 @@ const cancelInvoice = async (invoice: Invoice) => {
   }
 }
 
-const generateInvoice = async () => {
-  if (!selectedContractId.value || !invoiceFormData.value.period_start || !invoiceFormData.value.period_end) {
-    alert('Заполните все поля')
+const deleteInvoiceConfirm = async (invoice: Invoice) => {
+  if (!confirm(`Вы уверены, что хотите удалить счет ${invoice.number}? Это действие нельзя отменить.`)) {
     return
   }
 
   try {
-    await billingService.generateInvoice(selectedContractId.value, invoiceFormData.value)
+    await billingService.deleteInvoice(invoice.id)
     await fetchInvoices()
     await loadDashboardData()
-    generateInvoiceDialog.value = false
-    // Сброс формы
-    selectedContractId.value = null
-    invoiceFormData.value = { period_start: '', period_end: '' }
+    alert('Счет успешно удален')
+  } catch (error: any) {
+    console.error('Ошибка при удалении счета:', error)
+    const errorMessage = error.response?.data?.error || 'Ошибка при удалении счета'
+    alert(errorMessage)
+  }
+}
+
+const generateInvoice = async () => {
+  if (!selectedContractId.value || selectedSubscriptionIds.value.length === 0) {
+    alert('Выберите договор и хотя бы одну подписку')
+    return
+  }
+
+  // Вычисляем period_start и period_end из выбранных подписок
+  const selectedSubs = contractSubscriptions.value.filter(sub => 
+    selectedSubscriptionIds.value.includes(sub.id!)
+  )
+
+  const startDates = selectedSubs.map(sub => new Date(sub.start_date))
+  const endDates = selectedSubs
+    .filter(sub => sub.end_date)
+    .map(sub => new Date(sub.end_date!))
+
+  const minStart = new Date(Math.min(...startDates.map(d => d.getTime())))
+  const maxEnd = endDates.length > 0 
+    ? new Date(Math.max(...endDates.map(d => d.getTime())))
+    : new Date()
+
+  const periodData = {
+    period_start: minStart.toISOString().split('T')[0],
+    period_end: maxEnd.toISOString().split('T')[0]
+  }
+
+  try {
+    await billingService.generateInvoice(selectedContractId.value, periodData)
+    await fetchInvoices()
+    await loadDashboardData()
+    closeGenerateInvoiceDialog()
   } catch (error) {
     console.error('Ошибка при генерации счета:', error)
     alert('Ошибка при генерации счета')
+  }
+}
+
+// Метод для открытия диалога генерации счета
+const openGenerateInvoiceDialog = async () => {
+  generateInvoiceDialog.value = true
+  await fetchContracts()
+}
+
+// Метод для закрытия диалога генерации счета
+const closeGenerateInvoiceDialog = () => {
+  generateInvoiceDialog.value = false
+  selectedContractId.value = null
+  selectedSubscriptionIds.value = []
+  contractSubscriptions.value = []
+  // Не сбрасываем selectedInvoiceNumeratorId чтобы сохранить выбор пользователя
+}
+
+// Метод для загрузки подписок по договору
+const fetchContractSubscriptions = async (contractId: number) => {
+  loadingContractSubscriptions.value = true
+  try {
+    const allSubs = await billingService.getSubscriptions(currentCompanyId.value)
+    contractSubscriptions.value = allSubs.filter(sub => sub.contract_id === contractId)
+  } catch (error) {
+    console.error('Ошибка при загрузке подписок договора:', error)
+    contractSubscriptions.value = []
+  } finally {
+    loadingContractSubscriptions.value = false
+  }
+}
+
+// Метод для выбора/снятия всех подписок
+const toggleAllSubscriptions = () => {
+  if (allSubscriptionsSelected.value) {
+    selectedSubscriptionIds.value = []
+  } else {
+    selectedSubscriptionIds.value = contractSubscriptions.value.map(sub => sub.id!)
   }
 }
 
@@ -2226,6 +2414,22 @@ watch(() => route.query.tab, (newTab) => {
 watch(generateInvoiceDialog, (isOpen) => {
   if (isOpen) {
     fetchContracts()
+  } else {
+    // Очищаем данные при закрытии диалога
+    selectedContractId.value = null
+    selectedSubscriptionIds.value = []
+    contractSubscriptions.value = []
+  }
+})
+
+// Загружаем подписки при выборе договора
+watch(selectedContractId, (contractId) => {
+  if (contractId) {
+    fetchContractSubscriptions(contractId)
+    selectedSubscriptionIds.value = []
+  } else {
+    contractSubscriptions.value = []
+    selectedSubscriptionIds.value = []
   }
 })
 
@@ -2509,5 +2713,29 @@ watch(generateInvoiceDialog, (isOpen) => {
 [data-theme="dark"] .v-btn--variant-outlined {
   border-color: #3a3a3c !important;
   color: #ffffff !important;
+}
+
+/* Стили для списка подписок в диалоге генерации счета */
+.subscription-list {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.subscription-item {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.subscription-item:last-child {
+  border-bottom: none;
+}
+
+[data-theme="dark"] .subscription-list {
+  border-color: #3a3a3c;
+}
+
+[data-theme="dark"] .subscription-item {
+  border-bottom-color: #3a3a3c;
 }
 </style>
