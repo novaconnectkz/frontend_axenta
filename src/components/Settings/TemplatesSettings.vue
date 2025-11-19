@@ -65,156 +65,92 @@
       </v-row>
     </div>
 
-    <!-- Загрузка -->
-    <div v-if="loading" class="text-center py-8">
-      <v-progress-circular indeterminate color="primary" />
-      <p class="mt-4 text-body-2">Загрузка шаблонов...</p>
-    </div>
-
-    <!-- Список шаблонов -->
-    <div v-else>
-      <v-row>
-        <v-col
-          v-for="template in templates"
-          :key="template.id"
-          cols="12"
-          md="6"
-          lg="4"
+    <!-- Разделы шаблонов -->
+    <v-row class="template-sections">
+      <!-- Шаблоны для создания объектов -->
+      <v-col cols="12" md="4">
+        <v-card 
+          class="template-section-card" 
+          elevation="2"
+          @click="navigateToObjects"
         >
-          <v-card
-            class="template-card"
-            :class="{ 'template-card--system': template.is_system }"
-            elevation="2"
-          >
-            <!-- Заголовок карточки -->
-            <v-card-title class="d-flex align-center justify-space-between">
-              <div class="d-flex align-center gap-3">
-                <v-avatar
-                  :color="getTemplateColor(template.type)"
-                  size="40"
-                >
-                  <v-icon :icon="getTemplateIcon(template.type)" color="white" />
-                </v-avatar>
-                
-                <div>
-                  <div class="text-subtitle-1 font-weight-bold">
-                    {{ template.name }}
-                  </div>
-                  <div class="text-caption text-medium-emphasis">
-                    {{ getTemplateTypeLabel(template.type) }}
-                    {{ template.category ? ` • ${template.category}` : '' }}
-                  </div>
+          <v-card-title class="template-card-title">
+            <div class="d-flex align-center justify-space-between w-100">
+              <div class="d-flex align-center gap-2 flex-grow-1">
+                <v-icon icon="mdi-office-building" color="primary" size="24" />
+                <div class="flex-grow-1">
+                  <div class="text-subtitle-1 font-weight-bold text-wrap">Объекты</div>
+                  <div class="text-caption text-medium-emphasis text-wrap">Управление шаблонами объектов</div>
                 </div>
               </div>
+              <v-icon icon="mdi-chevron-right" color="grey" size="20" class="ml-2 flex-shrink-0" />
+            </div>
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="py-4">
+            <div class="text-center text-body-2 text-medium-emphasis">
+              Нажмите для настройки
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-              <!-- Бейджи -->
-              <div class="d-flex gap-1">
-                <v-chip
-                  v-if="template.is_system"
-                  size="x-small"
-                  color="success"
-                  variant="elevated"
-                >
-                  Системный
-                </v-chip>
-                <v-chip
-                  v-if="!template.is_active"
-                  size="x-small"
-                  color="grey"
-                  variant="outlined"
-                >
-                  Неактивен
-                </v-chip>
-              </div>
-            </v-card-title>
-
-            <!-- Описание -->
-            <v-card-text class="pt-0">
-              <p class="text-body-2 mb-3">{{ template.description }}</p>
-
-              <!-- Дополнительная информация -->
-              <div class="template-info">
-                <div class="d-flex align-center justify-space-between text-caption mb-2">
-                  <span class="text-medium-emphasis">
-                    <v-icon size="14" class="me-1">mdi-chart-bar</v-icon>
-                    Использований: {{ template.usage_count }}
-                  </span>
-                  <span class="text-medium-emphasis">
-                    <v-icon size="14" class="me-1">mdi-calendar</v-icon>
-                    {{ formatDate(template.updated_at) }}
-                  </span>
-                </div>
-
-                <!-- Специфичная информация для каждого типа -->
-                <div v-if="template.type === 'object'" class="template-details">
-                  <div class="text-caption text-medium-emphasis">
-                    <v-icon size="14" class="me-1">mdi-form-select</v-icon>
-                    Полей: {{ (template as any).fields?.length || 0 }}
-                  </div>
-                </div>
-
-                <div v-if="template.type === 'user'" class="template-details">
-                  <div class="text-caption text-medium-emphasis">
-                    <v-icon size="14" class="me-1">mdi-shield-account</v-icon>
-                    Роль: {{ (template as any).role_id }}
-                  </div>
-                </div>
-
-                <div v-if="template.type === 'notification'" class="template-details">
-                  <div class="text-caption text-medium-emphasis">
-                    <v-icon size="14" class="me-1">mdi-bell</v-icon>
-                    Каналов: {{ (template as any).channels?.length || 0 }}
-                  </div>
+      <!-- Шаблоны для создания УЗ -->
+      <v-col cols="12" md="4">
+        <v-card 
+          class="template-section-card" 
+          elevation="2"
+          @click="navigateToUsers"
+        >
+          <v-card-title class="template-card-title">
+            <div class="d-flex align-center justify-space-between w-100">
+              <div class="d-flex align-center gap-2 flex-grow-1">
+                <v-icon icon="mdi-account-plus" color="success" size="24" />
+                <div class="flex-grow-1">
+                  <div class="text-subtitle-1 font-weight-bold text-wrap">Учетные записи</div>
+                  <div class="text-caption text-medium-emphasis text-wrap">Управление шаблонами учетных записей</div>
                 </div>
               </div>
-            </v-card-text>
+              <v-icon icon="mdi-chevron-right" color="grey" size="20" class="ml-2 flex-shrink-0" />
+            </div>
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="py-4">
+            <div class="text-center text-body-2 text-medium-emphasis">
+              Нажмите для настройки
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
 
-            <!-- Действия -->
-            <v-card-actions class="pt-0">
-              <v-switch
-                v-model="template.is_active"
-                :label="template.is_active ? 'Активен' : 'Неактивен'"
-                color="primary"
-                hide-details
-                @change="toggleTemplate(template)"
-              />
-
-              <v-spacer />
-
-              <v-btn
-                variant="text"
-                size="small"
-                @click="viewTemplate(template)"
-              >
-                <v-icon start>mdi-eye</v-icon>
-                Просмотр
-              </v-btn>
-
-              <v-btn
-                variant="text"
-                size="small"
-                @click="editTemplate(template)"
-                :disabled="template.is_system"
-              >
-                <v-icon start>mdi-pencil</v-icon>
-                Изменить
-              </v-btn>
-
-              <v-btn
-                variant="text"
-                size="small"
-                color="error"
-                @click="deleteTemplate(template)"
-                :disabled="template.is_system"
-              >
-                <v-icon start>mdi-delete</v-icon>
-                Удалить
-              </v-btn>
-            </v-card-actions>
-          </v-card>
-        </v-col>
-      </v-row>
-    </div>
+      <!-- Шаблоны отчетов -->
+      <v-col cols="12" md="4">
+        <v-card 
+          class="template-section-card" 
+          elevation="2"
+          @click="navigateToReports"
+        >
+          <v-card-title class="template-card-title">
+            <div class="d-flex align-center justify-space-between w-100">
+              <div class="d-flex align-center gap-2 flex-grow-1">
+                <v-icon icon="mdi-chart-line" color="info" size="24" />
+                <div class="flex-grow-1">
+                  <div class="text-subtitle-1 font-weight-bold text-wrap">Отчеты</div>
+                  <div class="text-caption text-medium-emphasis text-wrap">Управление шаблонами отчетов</div>
+                </div>
+              </div>
+              <v-icon icon="mdi-chevron-right" color="grey" size="20" class="ml-2 flex-shrink-0" />
+            </div>
+          </v-card-title>
+          <v-divider />
+          <v-card-text class="py-4">
+            <div class="text-center text-body-2 text-medium-emphasis">
+              Нажмите для настройки
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+    </v-row>
 
     <!-- Диалог просмотра шаблона -->
     <v-dialog v-model="viewDialog.show" max-width="800" scrollable>
@@ -510,6 +446,9 @@ import type {
     UserTemplate
 } from '@/types/settings';
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 // Реактивные данные
 const loading = ref(false);
@@ -807,6 +746,19 @@ const confirmCreateTemplate = async () => {
   }
 };
 
+// Навигация
+const navigateToObjects = () => {
+  router.push({ name: 'TemplateObjects' });
+};
+
+const navigateToUsers = () => {
+  router.push({ name: 'TemplateUsers' });
+};
+
+const navigateToReports = () => {
+  router.push({ name: 'TemplateReports' });
+};
+
 // Lifecycle
 onMounted(() => {
   loadTemplates();
@@ -828,27 +780,43 @@ onMounted(() => {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
-.template-card {
+.template-section-card {
   transition: all 0.3s ease;
   border-radius: 12px;
+  cursor: pointer;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.template-card:hover {
+.template-section-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
-.template-card--system {
-  border: 2px solid rgba(var(--v-theme-success), 0.3);
+.template-section-card:active {
+  transform: translateY(0);
 }
 
-.template-card .v-card-title {
-  padding-bottom: 8px;
+.template-card-title {
+  padding: 16px !important;
+  min-height: auto;
 }
 
-.template-card .v-card-text {
-  padding-top: 8px;
+.template-card-title .text-subtitle-1 {
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.template-card-title .text-caption {
+  line-height: 1.3;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.template-sections {
+  margin-bottom: 16px;
 }
 
 .template-info {

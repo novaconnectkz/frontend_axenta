@@ -28,7 +28,7 @@ import axios, { type AxiosResponse } from "axios";
 class ContractsService {
   private apiClient = axios.create({
     baseURL: config.apiBaseUrl,
-    timeout: 30000,
+    timeout: 120000, // Увеличено до 2 минут для медленных запросов
   });
 
   constructor() {
@@ -331,6 +331,22 @@ class ContractsService {
     await this.apiClient.delete(
       `/auth/contracts/${contractId}/objects/${objectId}`
     );
+  }
+
+  /**
+   * Синхронизировать договор с подпиской
+   * Обновляет период договора из подписки и привязывает объекты, если они указаны
+   */
+  async syncContractFromSubscription(
+    contractId: number,
+    data?: { object_ids?: number[]; account_id?: number }
+  ): Promise<ContractWithRelations> {
+    const response: AxiosResponse<ContractResponse> =
+      await this.apiClient.post(
+        `/auth/contracts/${contractId}/sync-from-subscription`,
+        data || {}
+      );
+    return response.data.data;
   }
 
   // ========== ДЕМО ДАННЫЕ ==========

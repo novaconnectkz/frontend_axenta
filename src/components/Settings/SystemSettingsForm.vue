@@ -107,6 +107,60 @@
         </v-row>
       </div>
 
+      <!-- Налоговые настройки -->
+      <div class="settings-section mb-8">
+        <h4 class="text-h6 font-weight-bold mb-4 d-flex align-center gap-2">
+          <v-icon color="primary">mdi-cash-multiple</v-icon>
+          Налоги и сборы
+        </h4>
+        
+        <v-row>
+          <v-col cols="12" md="6">
+            <v-select
+              v-model="form.vat_rate_preset"
+              label="Ставка НДС"
+              :items="vatRatePresets"
+              variant="outlined"
+              hint="Выберите стандартную ставку или укажите свою"
+              persistent-hint
+              class="mb-3"
+              @update:model-value="handleVatPresetChange"
+            />
+          </v-col>
+          
+          <v-col cols="12" md="6">
+            <v-text-field
+              v-model.number="form.vat_rate_custom"
+              label="Своя ставка НДС (%)"
+              type="number"
+              variant="outlined"
+              :disabled="form.vat_rate_preset !== 'custom'"
+              :rules="form.vat_rate_preset === 'custom' ? [rules.required, rules.vatRate] : []"
+              hint="От 0 до 100%"
+              persistent-hint
+              class="mb-3"
+            />
+          </v-col>
+        </v-row>
+
+        <v-alert
+          v-if="form.vat_rate_preset !== 'none'"
+          type="info"
+          variant="tonal"
+          class="mt-4"
+        >
+          <div class="d-flex align-center">
+            <v-icon class="mr-2">mdi-information</v-icon>
+            <div>
+              <strong>Текущая ставка НДС: {{ currentVatRate }}%</strong>
+              <div class="text-caption mt-1">
+                НДС будет автоматически выделяться из цены при расчете подписок и договоров
+              </div>
+            </div>
+          </div>
+        </v-alert>
+      </div>
+
       <!-- Настройки интерфейса -->
       <div class="settings-section mb-8">
         <h4 class="text-h6 font-weight-bold mb-4 d-flex align-center gap-2">
@@ -311,7 +365,7 @@ import type {
     SystemSettings,
     SystemSettingsForm
 } from '@/types/settings';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -335,7 +389,9 @@ const form = ref<SystemSettingsForm>({
   telegram_notifications_enabled: true,
   backup_enabled: true,
   backup_schedule: '0 2 * * *',
-  backup_retention_days: 30
+  backup_retention_days: 30,
+  vat_rate_preset: 'russia',
+  vat_rate_custom: 20
 });
 
 const originalSettings = ref<SystemSettings | null>(null);
@@ -383,15 +439,48 @@ const dateFormatOptions = [
   { value: 'DD MMM YYYY', title: 'ДД МММ ГГГГ' }
 ];
 
+const vatRatePresets = [
+  { value: 'russia', title: 'Россия — 20%' },
+  { value: 'kazakhstan', title: 'Казахстан — 12%' },
+  { value: 'none', title: 'Без НДС' },
+  { value: 'custom', title: 'Своя ставка' }
+];
+
+// Вычисляемое значение текущей ставки НДС
+const currentVatRate = computed(() => {
+  switch (form.value.vat_rate_preset) {
+    case 'russia':
+      return 20
+    case 'kazakhstan':
+      return 12
+    case 'custom':
+      return form.value.vat_rate_custom || 0
+    default:
+      return 0
+  }
+});
+
 // Правила валидации
 const rules = {
   required: (value: any) => !!value || 'Обязательное поле',
-  positiveNumber: (value: number) => value > 0 || 'Должно быть положительным числом'
+  positiveNumber: (value: number) => value > 0 || 'Должно быть положительным числом',
+  vatRate: (value: number) => (value >= 0 && value <= 100) || 'Ставка НДС должна быть от 0 до 100%'
 };
 
 // Методы
 const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
+};
+
+const handleVatPresetChange = (preset: string) => {
+  // При выборе предустановленной ставки обновляем custom значение
+  if (preset === 'russia') {
+    form.value.vat_rate_custom = 20
+  } else if (preset === 'kazakhstan') {
+    form.value.vat_rate_custom = 12
+  } else if (preset === 'none') {
+    form.value.vat_rate_custom = 0
+  }
 };
 
 const loadSettings = async () => {
@@ -417,7 +506,9 @@ const loadSettings = async () => {
       telegram_notifications_enabled: settings.telegram_notifications_enabled,
       backup_enabled: settings.backup_enabled,
       backup_schedule: settings.backup_schedule,
-      backup_retention_days: settings.backup_retention_days
+      backup_retention_days: settings.backup_retention_days,
+      vat_rate_preset: settings.vat_rate_preset || 'russia',
+      vat_rate_custom: settings.vat_rate_custom || 20
     };
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error);
@@ -495,7 +586,9 @@ const resetForm = () => {
       telegram_notifications_enabled: originalSettings.value.telegram_notifications_enabled,
       backup_enabled: originalSettings.value.backup_enabled,
       backup_schedule: originalSettings.value.backup_schedule,
-      backup_retention_days: originalSettings.value.backup_retention_days
+      backup_retention_days: originalSettings.value.backup_retention_days,
+      vat_rate_preset: originalSettings.value.vat_rate_preset || 'russia',
+      vat_rate_custom: originalSettings.value.vat_rate_custom || 20
     };
   }
   

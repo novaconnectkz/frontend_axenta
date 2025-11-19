@@ -117,40 +117,6 @@
                   </div>
                 </v-alert>
 
-                <!-- Предупреждение о существующих подписках -->
-                <v-alert
-                  v-if="existingSubscriptions.length > 0"
-                  type="warning"
-                  class="mt-4"
-                  variant="tonal"
-                >
-                  <div class="d-flex align-center">
-                    <v-icon class="mr-2">mdi-alert</v-icon>
-                    <div class="flex-grow-1">
-                      <strong>Объект уже в подписке</strong>
-                      <div class="text-caption mt-1">
-                        Найдено {{ existingSubscriptions.length }} активных подписок для этого договора
-                      </div>
-                      <div v-for="sub in existingSubscriptions" :key="sub.id" class="mt-2">
-                        <v-chip size="small" class="mr-2">
-                          {{ sub.billing_plan?.name }}
-                        </v-chip>
-                        <span class="text-caption">
-                          до {{ formatDate(sub.end_date || sub.next_payment_date) }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <template v-slot:append>
-                    <v-checkbox
-                      v-model="form.transfer_from_existing"
-                      label="Перенести в новый тариф"
-                      hide-details
-                      density="compact"
-                    ></v-checkbox>
-                  </template>
-                </v-alert>
-
                 <!-- Ошибка прав доступа -->
                 <v-alert
                   v-if="!hasTariffAccess && form.contract_id"
@@ -446,6 +412,40 @@
                     />
                   </v-card-text>
                 </v-card>
+
+                <!-- Предупреждение о том, что объекты уже в подписке -->
+                <v-alert
+                  v-if="objectsInSubscriptionsWarning.length > 0"
+                  type="warning"
+                  class="mt-4"
+                  variant="tonal"
+                >
+                  <div class="d-flex align-center">
+                    <v-icon class="mr-2">mdi-alert</v-icon>
+                    <div class="flex-grow-1">
+                      <strong>Объект уже в подписке</strong>
+                      <div class="text-caption mt-1">
+                        Найдено {{ objectsInSubscriptionsWarning.length }} активных подписок для этого договора
+                      </div>
+                      <div v-for="sub in objectsInSubscriptionsWarning" :key="sub.id" class="mt-2">
+                        <v-chip size="small" class="mr-2">
+                          {{ sub.billing_plan?.name }}
+                        </v-chip>
+                        <span class="text-caption">
+                          до {{ formatDate(sub.end_date || sub.next_payment_date) }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <template v-slot:append>
+                    <v-checkbox
+                      v-model="form.transfer_from_existing"
+                      label="Перенести в новый тариф"
+                      hide-details
+                      density="compact"
+                    ></v-checkbox>
+                  </template>
+                </v-alert>
               </div>
             </v-stepper-window-item>
 
@@ -541,7 +541,7 @@
 
                 <!-- Предложение разбить период -->
                 <v-alert
-                  v-if="shouldSplitPeriod"
+                  v-if="shouldSplitPeriod && !conflictingSubscriptionError"
                   type="info"
                   class="mt-4"
                   variant="tonal"
@@ -564,6 +564,24 @@
                       @update:model-value="recalculatePrice"
                     ></v-checkbox>
                   </template>
+                </v-alert>
+
+                <!-- Блокирующая ошибка: тариф и период совпадают с существующей подпиской -->
+                <v-alert
+                  v-if="conflictingSubscriptionError"
+                  type="error"
+                  class="mt-4"
+                  variant="tonal"
+                >
+                  <div class="d-flex align-center">
+                    <v-icon class="mr-2">mdi-alert-circle</v-icon>
+                    <div class="flex-grow-1">
+                      <strong>Невозможно создать подписку</strong>
+                      <div class="text-caption mt-1">
+                        {{ conflictingSubscriptionError }}
+                      </div>
+                    </div>
+                  </div>
                 </v-alert>
 
                 <!-- Информация о запланированной активации -->
@@ -626,7 +644,7 @@
                       <v-list-item>
                         <v-list-item-title>Договор</v-list-item-title>
                         <template v-slot:append>
-                          <span class="text-body-2">{{ selectedContract?.title || selectedContract?.number }}</span>
+                          <span class="text-body-2">{{ selectedContract?.number }}</span>
                         </template>
                       </v-list-item>
                       <v-list-item>
@@ -635,10 +653,28 @@
                           <span class="text-body-2">{{ selectedPlan?.name }}</span>
                         </template>
                       </v-list-item>
+                      <v-list-item v-if="selectedObjects.length > 0">
+                        <v-list-item-title>Объекты</v-list-item-title>
+                        <template v-slot:append>
+                          <span class="text-body-2">{{ selectedObjects.length }} {{ selectedObjects.length === 1 ? 'объект' : selectedObjects.length < 5 ? 'объекта' : 'объектов' }}</span>
+                        </template>
+                      </v-list-item>
                       <v-list-item>
                         <v-list-item-title>Дата начала</v-list-item-title>
                         <template v-slot:append>
                           <span class="text-body-2">{{ formatDate(form.start_date) }}</span>
+                        </template>
+                      </v-list-item>
+                      <v-list-item v-if="calculatedEndDate">
+                        <v-list-item-title>Дата окончания</v-list-item-title>
+                        <template v-slot:append>
+                          <span class="text-body-2">{{ formatDate(calculatedEndDate) }}</span>
+                        </template>
+                      </v-list-item>
+                      <v-list-item v-if="subscriptionMonths && subscriptionMonths > 1">
+                        <v-list-item-title>Период подписки</v-list-item-title>
+                        <template v-slot:append>
+                          <span class="text-body-2">{{ subscriptionMonths }} {{ subscriptionMonths === 1 ? 'месяц' : subscriptionMonths < 5 ? 'месяца' : 'месяцев' }}</span>
                         </template>
                       </v-list-item>
                       <v-list-item v-if="form.split_period && periodInfo">
@@ -653,7 +689,7 @@
                       <v-list-item>
                         <v-list-item-title class="font-weight-bold">Базовая цена</v-list-item-title>
                         <template v-slot:append>
-                          <span class="text-h6">{{ formatPrice(basePrice, selectedPlan?.currency || 'RUB') }}</span>
+                          <span class="text-h6">{{ formatPrice(selectedPlan?.price || 0, selectedPlan?.currency || 'RUB') }}</span>
                         </template>
                       </v-list-item>
                       <v-list-item v-if="showVAT && taxAmount > 0">
@@ -795,6 +831,10 @@ const savedSelectedAccount = ref<Account | null>(null)
 
 // Новые параметры для гибкого старта подписки
 const startImmediately = ref(false) // Запустить немедленно
+
+// Новые переменные для проверок
+const objectsInSubscriptionsWarning = ref<Subscription[]>([])
+const conflictingSubscriptionError = ref('')
 
 // Параметры подписки
 const subscriptionMonths = ref(1) // По умолчанию 1 месяц
@@ -947,7 +987,8 @@ const canProceed = computed(() => {
     case 3:
       return true // Учетная запись не обязательна
     case 4:
-      return !!form.value.start_date
+      // Блокируем переход на шаг 5, если есть конфликт подписок
+      return !!form.value.start_date && !conflictingSubscriptionError.value
     default:
       return true
   }
@@ -956,7 +997,8 @@ const canProceed = computed(() => {
 const canCreate = computed(() => {
   return !!(form.value.billing_plan_id && form.value.billing_plan_id > 0) && 
          !!form.value.start_date && 
-         !creating.value
+         !creating.value &&
+         !conflictingSubscriptionError.value // Блокируем, если есть конфликт
 })
 
 const isScheduledStart = computed(() => {
@@ -991,7 +1033,15 @@ const periodInfo = computed(() => {
 })
 
 const taxRate = computed(() => {
-  return billingSettings.value?.default_tax_rate || 20
+  const rate = billingSettings.value?.default_tax_rate
+  // Обработка Decimal объекта или строки
+  if (rate === null || rate === undefined) return 20
+  if (typeof rate === 'number') return rate
+  if (typeof rate === 'string') return parseFloat(rate) || 20
+  // Если это объект (Decimal), пробуем извлечь значение
+  const parsed = parseFloat(rate) || 20
+  console.log('💰 Вычислен taxRate:', parsed, 'из', rate)
+  return parsed
 })
 
 const basePrice = computed(() => {
@@ -1002,18 +1052,38 @@ const basePrice = computed(() => {
   if (form.value.split_period && periodInfo.value && selectedPlan.value.billing_period === 'monthly') {
     const daysInMonth = new Date(new Date(form.value.start_date).getFullYear(), new Date(form.value.start_date).getMonth() + 1, 0).getDate()
     price = (price * periodInfo.value.days) / daysInMonth
+  } else {
+    // Учитываем количество месяцев/лет подписки
+    const billingPeriod = selectedPlan.value.billing_period
+    
+    if (billingPeriod === 'monthly') {
+      // Для месячных тарифов: цена за месяц × количество месяцев
+      price = price * (subscriptionMonths.value || 1)
+    } else if (billingPeriod === 'yearly') {
+      // Для годовых тарифов: цена за год × количество лет
+      const years = (subscriptionMonths.value || 12) / 12
+      price = price * years
+    }
+    // Для one-time цена остается без изменений
   }
+  
+  // Умножаем на количество объектов
+  const objectsCount = selectedObjects.value.length || 1
+  price = price * objectsCount
   
   return price
 })
 
-const taxAmount = computed(() => {
-  if (!showVAT.value) return 0
-  return (basePrice.value * taxRate.value) / 100
+const totalPrice = computed(() => {
+  // Итого = basePrice (уже включает период × объекты)
+  return basePrice.value
 })
 
-const totalPrice = computed(() => {
-  return basePrice.value + (showVAT.value ? taxAmount.value : 0)
+const taxAmount = computed(() => {
+  if (!showVAT.value) return 0
+  // НДС выделяется из итоговой суммы
+  // Формула: НДС = Сумма × НДС% / (100 + НДС%)
+  return totalPrice.value * (taxRate.value / (100 + taxRate.value))
 })
 
 // Методы
@@ -1079,6 +1149,10 @@ const loadPlans = async () => {
 const loadBillingSettings = async () => {
   try {
     billingSettings.value = await billingService.getBillingSettings(companyId.value)
+    console.log('📊 Загружены настройки биллинга:', billingSettings.value)
+    console.log('📊 default_tax_rate:', billingSettings.value?.default_tax_rate, 'type:', typeof billingSettings.value?.default_tax_rate)
+    console.log('📊 vat_rate_preset:', billingSettings.value?.vat_rate_preset)
+    console.log('📊 vat_rate_custom:', billingSettings.value?.vat_rate_custom)
     showVAT.value = billingSettings.value?.tax_included || false
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
@@ -1428,6 +1502,8 @@ const close = () => {
   savedSelectedAccount.value = null // Сбрасываем сохраненную учетную запись
   allAccountObjects.value = [] // Сбрасываем все объекты
   startImmediately.value = false // Сбрасываем флаг немедленного запуска
+  objectsInSubscriptionsWarning.value = [] // Сбрасываем предупреждения
+  conflictingSubscriptionError.value = '' // Сбрасываем ошибки конфликтов
   
   // Сбрасываем параметры подписки
   subscriptionMonths.value = 1
@@ -1695,12 +1771,98 @@ const onAccountSelected = (accountId: number | undefined) => {
       console.log('💾 Сохранили учетную запись:', account.name)
     }
     loadAccountObjects(accountId)
+    // Сбрасываем предупреждения при смене учетной записи
+    objectsInSubscriptionsWarning.value = []
   } else {
     console.log('⚠️ accountId не указан, очищаем объекты')
     savedSelectedAccount.value = null
     accountObjects.value = []
     allAccountObjects.value = []
     selectedObjects.value = []
+    objectsInSubscriptionsWarning.value = []
+  }
+}
+
+// Проверка объектов на наличие в других подписках
+const checkObjectsInSubscriptions = async () => {
+  if (!selectedObjects.value.length || !form.value.contract_id) {
+    objectsInSubscriptionsWarning.value = []
+    return
+  }
+
+  try {
+    // Загружаем все активные подписки для договора
+    const subscriptions = await billingService.getSubscriptions(companyId.value)
+    const activeSubscriptions = subscriptions.filter(
+      s => s.contract_id === form.value.contract_id && (s.status === 'active' || s.status === 'scheduled')
+    )
+
+    if (activeSubscriptions.length > 0) {
+      // Проверяем, есть ли выбранные объекты в этих подписках
+      const subscriptionsWithSelectedObjects = []
+      
+      for (const sub of activeSubscriptions) {
+        if (sub.object_ids && sub.object_ids.some(id => selectedObjects.value.includes(id))) {
+          subscriptionsWithSelectedObjects.push(sub)
+        }
+      }
+
+      objectsInSubscriptionsWarning.value = subscriptionsWithSelectedObjects
+      console.log('⚠️ Найдено подписок с выбранными объектами:', subscriptionsWithSelectedObjects.length)
+    } else {
+      objectsInSubscriptionsWarning.value = []
+    }
+  } catch (error) {
+    console.error('Ошибка проверки объектов в подписках:', error)
+    objectsInSubscriptionsWarning.value = []
+  }
+}
+
+// Проверка конфликта тарифа и периода с существующими подписками
+const checkSubscriptionConflict = () => {
+  conflictingSubscriptionError.value = ''
+  
+  if (!form.value.billing_plan_id || !selectedObjects.value.length) {
+    return
+  }
+
+  // Проверяем, есть ли подписки с таким же тарифом и пересекающимся периодом
+  const conflictingSubscriptions = objectsInSubscriptionsWarning.value.filter(sub => {
+    // Проверяем, совпадает ли тариф
+    if (sub.billing_plan_id !== form.value.billing_plan_id) {
+      return false
+    }
+
+    // Проверяем пересечение периодов
+    const startDate = new Date(form.value.start_date)
+    const endDate = calculatedEndDate.value ? new Date(calculatedEndDate.value) : null
+    const subStartDate = new Date(sub.start_date)
+    const subEndDate = sub.end_date ? new Date(sub.end_date) : null
+
+    // Если оба периода имеют даты окончания
+    if (endDate && subEndDate) {
+      // Периоды пересекаются, если startDate <= subEndDate && subStartDate <= endDate
+      return startDate <= subEndDate && subStartDate <= endDate
+    }
+
+    // Если у новой подписки нет даты окончания
+    if (!endDate && subEndDate) {
+      return startDate <= subEndDate
+    }
+
+    // Если у существующей подписки нет даты окончания
+    if (endDate && !subEndDate) {
+      return subStartDate <= endDate
+    }
+
+    // Если у обеих нет даты окончания - всегда пересекаются
+    return true
+  })
+
+  if (conflictingSubscriptions.length > 0) {
+    const sub = conflictingSubscriptions[0]
+    conflictingSubscriptionError.value = `Уже существует активная подписка с тарифом "${sub.billing_plan?.name}" и пересекающимся периодом. Измените тариф или период подписки.`
+    console.error('❌ Обнаружен конфликт подписок:', conflictingSubscriptions)
   }
 }
 
@@ -1737,6 +1899,25 @@ watch(currentStep, (step) => {
     loadPlans()
     // Инициализируем расчет при входе на шаг 2
     calculateEndDate()
+  } else if (step === 4) {
+    // При переходе на шаг 4 проверяем конфликты
+    checkSubscriptionConflict()
+  }
+})
+
+// Проверка объектов при изменении выбранных объектов
+watch(selectedObjects, () => {
+  if (selectedObjects.value.length > 0) {
+    checkObjectsInSubscriptions()
+  } else {
+    objectsInSubscriptionsWarning.value = []
+  }
+}, { deep: true })
+
+// Пересчет конфликтов при изменении даты, периода или тарифа
+watch([() => form.value.start_date, () => form.value.billing_plan_id, calculatedEndDate], () => {
+  if (currentStep.value === 4) {
+    checkSubscriptionConflict()
   }
 })
 

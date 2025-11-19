@@ -1,4 +1,5 @@
 // Сервис для работы с настройками системы
+import axios from 'axios';
 import { config } from "@/config/env";
 import type {
   ConnectionStatus,
@@ -506,6 +507,8 @@ const demoSystemSettings: SystemSettings = {
   email_notifications_enabled: true,
   sms_notifications_enabled: false,
   telegram_notifications_enabled: true,
+  vat_rate_preset: "russia",
+  vat_rate_custom: 20,
   backup_enabled: true,
   backup_schedule: "0 2 * * *", // каждый день в 2:00
   backup_retention_days: 30,
@@ -673,6 +676,48 @@ const demoIntegrationLogs: IntegrationLog[] = [
 
 class SettingsService {
   private baseUrl = config.apiBaseUrl;
+  private apiClient = axios.create({
+    baseURL: config.apiBaseUrl,
+    timeout: 30000,
+  });
+
+  constructor() {
+    // Добавляем interceptor для токена
+    this.apiClient.interceptors.request.use((config) => {
+      const token = localStorage.getItem('axenta_token');
+      if (token) {
+        config.headers.Authorization = `Token ${token}`;
+      }
+      
+      const companyRaw = localStorage.getItem('axenta_company');
+      if (companyRaw) {
+        try {
+          const company = JSON.parse(companyRaw);
+          const companyId = company?.id;
+          if (companyId) {
+            config.headers['X-Tenant-ID'] = String(companyId);
+          }
+        } catch (error) {
+          console.error('Error parsing company data:', error);
+        }
+      }
+      
+      return config;
+    });
+  }
+
+  private getCompanyId(): number | null {
+    try {
+      const companyRaw = localStorage.getItem('axenta_company');
+      if (companyRaw) {
+        const company = JSON.parse(companyRaw);
+        return company?.id || null;
+      }
+    } catch (error) {
+      console.error('Error getting company ID:', error);
+    }
+    return null;
+  }
 
   // === ИНТЕГРАЦИИ ===
 
@@ -801,28 +846,157 @@ class SettingsService {
 
   // === ШАБЛОНЫ ===
 
-  async getTemplates(type?: string): Promise<TemplatesResponse> {
-    await new Promise((resolve) => setTimeout(resolve, 300));
+  async getTemplates(type?: string, system?: string): Promise<TemplatesResponse> {
+    try {
+      const headers = createHeaders();
+      let url = '';
+      
+      // Определяем URL в зависимости от типа шаблона
+      if (type === 'report') {
+        url = `${API_BASE_URL}/api/reports/templates`;
+        if (system) {
+          url += `?system=${system}`;
+        }
+      } else if (type === 'user') {
+        url = `${API_BASE_URL}/api/user-templates`;
+        if (system) {
+          url += `?system=${system}`;
+        }
+      } else if (type === 'object') {
+        url = `${API_BASE_URL}/api/object-templates`;
+        if (system) {
+          url += `?system=${system}`;
+        }
+      } else {
+        // Если тип не указан, возвращаем пустой массив
+        // В будущем можно сделать запросы ко всем типам и объединить
+        return { templates: [], total: 0 };
+      }
 
-    let templates: (ObjectTemplate | UserTemplate | NotificationTemplate)[] = [
-      ...demoObjectTemplates,
-      ...demoUserTemplates,
-      ...demoNotificationTemplates,
-    ];
+      const response = await fetch(url, { headers });
+      
+      if (!response.ok) {
+        throw new Error(`Ошибка загрузки шаблонов: ${response.statusText}`);
+      }
 
-    if (type) {
-      templates = templates.filter((t) => t.type === type);
+      let templates: (ObjectTemplate | UserTemplate | NotificationTemplate | ReportTemplate)[] = [];
+      
+      if (type === 'report') {
+        const data = await response.json();
+        // Преобразуем данные бэкенда в формат фронтенда
+        templates = Array.isArray(data) ? data.map((t: any) => this.mapReportTemplateFromBackend(t)) : [];
+      } else if (type === 'user') {
+        const data = await response.json();
+        if (data.status === 'success' && data.data) {
+          templates = Array.isArray(data.data.items) 
+            ? data.data.items.map((t: any) => this.mapUserTemplateFromBackend(t))
+            : [];
+        }
+      } else if (type === 'object') {
+        const data = await response.json();
+        if (data.status === 'success' && data.data) {
+          templates = Array.isArray(data.data.items) 
+            ? data.data.items.map((t: any) => this.mapObjectTemplateFromBackend(t))
+            : [];
+        }
+      }
+
+      // Фильтруем по системе, если указана
+      if (system) {
+        templates = templates.filter((t) => t.system === system);
+      }
+
+      return {
+        templates,
+        total: templates.length,
+      };
+    } catch (error) {
+      console.error('Ошибка загрузки шаблонов:', error);
+      // В случае ошибки возвращаем пустой массив
+      return { templates: [], total: 0 };
+    }
+  }
+
+  // Маппинг шаблона отчета из формата бэкенда в формат фронтенда
+  private mapReportTemplateFromBackend(data: any): ReportTemplate {
+    let config: any = {};
+    try {
+      if (data.config && typeof data.config === 'string') {
+        config = JSON.parse(data.config);
+      } else if (data.config) {
+        config = data.config;
+      }
+    } catch (e) {
+      console.warn('Ошибка парсинга config шаблона отчета:', e);
     }
 
+    // Извлекаем system из config или используем значение по умолчанию
+    const system = config.system || data.system || 'axenta';
+
     return {
-      templates,
-      total: templates.length,
+      id: data.id?.toString() || '',
+      type: 'report',
+      system: system,
+      name: data.name || '',
+      description: data.description || '',
+      category: data.category,
+      is_system: data.is_system || false,
+      is_active: data.is_active !== undefined ? data.is_active : true,
+      usage_count: data.usage_count || 0,
+      created_at: data.created_at ? new Date(data.created_at) : new Date(),
+      updated_at: data.updated_at ? new Date(data.updated_at) : new Date(),
+      // Сохраняем content и settings из config
+      content: config.content,
+      settings: config.settings,
+      sql_query: data.sql_query,
+      parameters: data.parameters ? (typeof data.parameters === 'string' ? JSON.parse(data.parameters) : data.parameters) : undefined,
+      headers: data.headers ? (typeof data.headers === 'string' ? JSON.parse(data.headers) : data.headers) : undefined,
+      formatting: data.formatting ? (typeof data.formatting === 'string' ? JSON.parse(data.formatting) : data.formatting) : undefined,
+    };
+  }
+
+  // Маппинг шаблона пользователя из формата бэкенда в формат фронтенда
+  private mapUserTemplateFromBackend(data: any): UserTemplate {
+    return {
+      id: data.id?.toString() || '',
+      type: 'user',
+      system: data.system || 'axenta',
+      name: data.name || '',
+      description: data.description || '',
+      category: data.category,
+      is_system: data.is_system || false,
+      is_active: data.is_active !== undefined ? data.is_active : true,
+      usage_count: data.usage_count || 0,
+      created_at: data.created_at ? new Date(data.created_at) : new Date(),
+      updated_at: data.updated_at ? new Date(data.updated_at) : new Date(),
+      role_id: data.role_id?.toString() || '',
+      permissions: data.permissions || [],
+      default_settings: data.settings ? (typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings) : {},
+    };
+  }
+
+  // Маппинг шаблона объекта из формата бэкенда в формат фронтенда
+  private mapObjectTemplateFromBackend(data: any): ObjectTemplate {
+    return {
+      id: data.id?.toString() || '',
+      type: 'object',
+      system: data.system || 'axenta',
+      name: data.name || '',
+      description: data.description || '',
+      category: data.category,
+      is_system: data.is_system || false,
+      is_active: data.is_active !== undefined ? data.is_active : true,
+      usage_count: data.usage_count || 0,
+      created_at: data.created_at ? new Date(data.created_at) : new Date(),
+      updated_at: data.updated_at ? new Date(data.updated_at) : new Date(),
+      fields: data.fields || [],
+      default_values: data.default_settings ? (typeof data.default_settings === 'string' ? JSON.parse(data.default_settings) : data.default_settings) : {},
     };
   }
 
   async getTemplate(
     id: string
-  ): Promise<ObjectTemplate | UserTemplate | NotificationTemplate> {
+  ): Promise<ObjectTemplate | UserTemplate | NotificationTemplate | ReportTemplate> {
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const allTemplates = [
@@ -861,22 +1035,92 @@ class SettingsService {
   }
 
   async createTemplate(templateData: any): Promise<{ status: string; data?: any; error?: string }> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
     try {
-      // В реальном приложении здесь был бы API вызов
-      const newTemplate = {
-        id: Date.now().toString(),
-        created_at: new Date(),
-        updated_at: new Date(),
-        ...templateData,
-      };
+      const headers = createHeaders();
+      let url = '';
+      let body: any = {};
 
-      console.log('Создан новый шаблон:', newTemplate);
-      return { status: 'success', data: newTemplate };
+      // Определяем URL и формат тела запроса в зависимости от типа шаблона
+      if (templateData.type === 'report') {
+        url = `${API_BASE_URL}/api/reports/templates`;
+        // Для отчетов Axenta сохраняем content и settings в config
+        const config: any = {};
+        if (templateData.content) {
+          config.content = templateData.content;
+        }
+        if (templateData.settings) {
+          config.settings = templateData.settings;
+        }
+        
+        body = {
+          name: templateData.name,
+          description: templateData.description || '',
+          type: templateData.report_type || 'objects', // Тип отчета для бэкенда (должен быть одним из: objects, users, billing, installations, warehouse, contracts, general)
+          system: templateData.system || 'axenta', // Система шаблона
+          config: config,
+          sql_query: templateData.sql_query || '',
+          parameters: templateData.parameters || {},
+          headers: templateData.headers || [],
+          formatting: templateData.formatting || {},
+          is_public: templateData.is_public || false,
+        };
+      } else if (templateData.type === 'user') {
+        url = `${API_BASE_URL}/api/user-templates`;
+        body = {
+          name: templateData.name,
+          description: templateData.description || '',
+          role_id: parseInt(templateData.role_id) || 1,
+          system: templateData.system || 'axenta', // Система шаблона
+          settings: JSON.stringify(templateData.default_settings || {}),
+          is_active: templateData.is_active !== undefined ? templateData.is_active : true,
+        };
+      } else if (templateData.type === 'object') {
+        url = `${API_BASE_URL}/api/object-templates`;
+        body = {
+          name: templateData.name,
+          description: templateData.description || '',
+          category: templateData.category || '',
+          system: templateData.system || 'axenta', // Система шаблона
+          config: JSON.stringify(templateData.config || {}),
+          default_settings: JSON.stringify(templateData.default_values || {}),
+          is_active: templateData.is_active !== undefined ? templateData.is_active : true,
+        };
+      } else {
+        return { status: 'error', error: 'Неподдерживаемый тип шаблона' };
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error || `Ошибка создания шаблона: ${response.statusText}`;
+        console.error('Детали ошибки создания шаблона:', errorData);
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      
+      // Преобразуем ответ в формат фронтенда
+      let mappedTemplate: any;
+      if (templateData.type === 'report') {
+        mappedTemplate = this.mapReportTemplateFromBackend(data);
+      } else if (templateData.type === 'user') {
+        mappedTemplate = this.mapUserTemplateFromBackend(data.data || data);
+      } else if (templateData.type === 'object') {
+        mappedTemplate = this.mapObjectTemplateFromBackend(data.data || data);
+      }
+
+      return { status: 'success', data: mappedTemplate };
     } catch (error) {
       console.error('Ошибка создания шаблона:', error);
-      return { status: 'error', error: 'Ошибка создания шаблона' };
+      return { 
+        status: 'error', 
+        error: error instanceof Error ? error.message : 'Ошибка создания шаблона' 
+      };
     }
   }
 
@@ -916,22 +1160,48 @@ class SettingsService {
   // === СИСТЕМНЫЕ НАСТРОЙКИ ===
 
   async getSystemSettings(): Promise<SystemSettings> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+    const companyId = this.getCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not found');
+    }
 
-    return demoSystemSettings;
+    try {
+      const response = await this.apiClient.get(`/auth/system/settings`, {
+        params: { company_id: companyId }
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error('Error loading system settings:', error);
+      // Возвращаем демо данные в случае ошибки
+      return demoSystemSettings;
+    }
   }
 
   async updateSystemSettings(
     data: Partial<SystemSettingsForm>
   ): Promise<SystemSettings> {
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    const companyId = this.getCompanyId();
+    if (!companyId) {
+      throw new Error('Company ID not found');
+    }
 
-    // Обновляем демо данные
-    Object.assign(demoSystemSettings, data, {
-      updated_at: new Date(),
-    });
-
-    return demoSystemSettings;
+    try {
+      const response = await this.apiClient.put(`/auth/system/settings`, data, {
+        params: { company_id: companyId }
+      });
+      
+      console.log('✅ Системные настройки обновлены:', response.data.data);
+      
+      // Если обновлены настройки НДС, они автоматически синхронизированы с billing_settings на бэкенде
+      if (data.vat_rate_preset !== undefined || data.vat_rate_custom !== undefined) {
+        console.log('✅ Настройки НДС синхронизированы с биллингом');
+      }
+      
+      return response.data.data;
+    } catch (error) {
+      console.error('Error updating system settings:', error);
+      throw error;
+    }
   }
 
   // === МОНИТОРИНГ ИНТЕГРАЦИЙ ===

@@ -659,6 +659,7 @@ const calculateCost = (contract: Contract) => {
   showSnackbarMessage(message, 'info');
 };
 
+
 const deleteContract = async (contract: Contract) => {
   if (!confirm(`Вы уверены, что хотите удалить договор ${contract.number}?`)) {
     return;

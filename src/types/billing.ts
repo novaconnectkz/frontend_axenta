@@ -77,6 +77,8 @@ export interface Subscription {
   last_payment_date?: string;
   next_payment_date?: string;
   payment_method: string;
+  object_ids?: number[];
+  objects_count?: number;
 }
 
 // Позиция счета

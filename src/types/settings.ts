@@ -159,6 +159,23 @@ export interface SmsSettings {
 
 // === ШАБЛОНЫ ===
 
+// Типы систем для шаблонов
+export const TEMPLATE_SYSTEMS = {
+  AXENTA: "axenta",
+  BITRIX24: "bitrix24",
+  ONEC: "1c",
+} as const;
+
+export type TemplateSystem = (typeof TEMPLATE_SYSTEMS)[keyof typeof TEMPLATE_SYSTEMS];
+
+// Маппинг типов интеграций на системы шаблонов
+// Только интеграции, которые поддерживают шаблоны
+export const INTEGRATION_TO_TEMPLATE_SYSTEM_MAP: Record<string, TemplateSystem> = {
+  [INTEGRATION_TYPES.AXENTA]: TEMPLATE_SYSTEMS.AXENTA,
+  [INTEGRATION_TYPES.BITRIX24]: TEMPLATE_SYSTEMS.BITRIX24,
+  [INTEGRATION_TYPES.ONEC]: TEMPLATE_SYSTEMS.ONEC,
+};
+
 // Типы шаблонов
 export const TEMPLATE_TYPES = {
   OBJECT: "object",
@@ -173,6 +190,7 @@ export type TemplateType = (typeof TEMPLATE_TYPES)[keyof typeof TEMPLATE_TYPES];
 export interface TemplateBase {
   id: string;
   type: TemplateType;
+  system: TemplateSystem; // Система, для которой предназначен шаблон
   name: string;
   description: string;
   category?: string;
@@ -222,6 +240,38 @@ export interface NotificationTemplate extends TemplateBase {
   channels: NotificationChannel[];
 }
 
+// Шаблон отчета (расширенная версия для Axenta)
+export interface ReportTemplate extends TemplateBase {
+  type: "report";
+  // Для стандартных отчетов
+  sql_query?: string;
+  parameters?: Record<string, any>;
+  headers?: Record<string, any>;
+  formatting?: Record<string, any>;
+  // Для отчетов Axenta с content и settings
+  content?: Array<{
+    name: string;
+    type: string;
+    columns?: Array<{
+      name: string;
+      title?: string;
+      type?: string;
+      isActive?: boolean;
+    }>;
+    settings?: Record<string, any>;
+    typeContent?: string;
+  }>;
+  settings?: {
+    description?: string;
+    mainSettings?: Record<string, any>;
+    mapSettings?: Record<string, any>;
+    markersSettings?: Record<string, any>;
+    addressSettings?: Record<string, any>;
+    shiftSettings?: any[];
+    binds?: any[];
+  };
+}
+
 // === СИСТЕМНЫЕ НАСТРОЙКИ ===
 
 // Общие настройки системы
@@ -245,6 +295,10 @@ export interface SystemSettings {
   email_notifications_enabled: boolean;
   sms_notifications_enabled: boolean;
   telegram_notifications_enabled: boolean;
+
+  // Налоговые настройки
+  vat_rate_preset?: "russia" | "kazakhstan" | "none" | "custom";
+  vat_rate_custom?: number;
 
   // Настройки резервного копирования
   backup_enabled: boolean;
@@ -332,6 +386,8 @@ export interface SystemSettingsForm {
   email_notifications_enabled: boolean;
   sms_notifications_enabled: boolean;
   telegram_notifications_enabled: boolean;
+  vat_rate_preset?: "russia" | "kazakhstan" | "none" | "custom";
+  vat_rate_custom?: number;
   backup_enabled: boolean;
   backup_schedule: string;
   backup_retention_days: number;
@@ -350,7 +406,7 @@ export interface NotificationChannelsResponse {
 }
 
 export interface TemplatesResponse {
-  templates: (ObjectTemplate | UserTemplate | NotificationTemplate)[];
+  templates: (ObjectTemplate | UserTemplate | NotificationTemplate | ReportTemplate)[];
   total: number;
 }
 
@@ -446,4 +502,11 @@ export const NOTIFICATION_EVENT_LABELS = {
   [NOTIFICATION_EVENTS.PAYMENT_OVERDUE]: "Просроченный платеж",
   [NOTIFICATION_EVENTS.SYSTEM_ERROR]: "Системная ошибка",
   [NOTIFICATION_EVENTS.SYNC_ERROR]: "Ошибка синхронизации",
+} as const;
+
+// Метки систем для шаблонов
+export const TEMPLATE_SYSTEM_LABELS = {
+  [TEMPLATE_SYSTEMS.AXENTA]: "Axenta",
+  [TEMPLATE_SYSTEMS.BITRIX24]: "Битрикс24",
+  [TEMPLATE_SYSTEMS.ONEC]: "1С:Предприятие",
 } as const;

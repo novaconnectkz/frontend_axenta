@@ -409,9 +409,27 @@ const attachSelectedObjects = async () => {
 
   attaching.value = true;
   try {
-    await contractsService.attachObjectsToContract(props.contract.id, {
+    // Определяем account_id (целевую компанию) для привязки объектов
+    // Если у договора есть уже привязанные объекты, используем company_id первого объекта
+    // (это должна быть целевая компания, объекты которой привязываются к договору)
+    // Если объектов нет, используем company_id договора как fallback
+    let accountId: number | undefined;
+    if (currentObjects.value.length > 0 && currentObjects.value[0].company_id) {
+      accountId = currentObjects.value[0].company_id;
+    } else if (props.contract.company_id) {
+      accountId = props.contract.company_id;
+    }
+
+    const requestData: { object_ids: number[]; account_id?: number } = {
       object_ids: selectedObjects.value,
-    });
+    };
+
+    // Передаем account_id только если он определен
+    if (accountId) {
+      requestData.account_id = accountId;
+    }
+
+    await contractsService.attachObjectsToContract(props.contract.id, requestData);
 
     const objectCount = selectedObjects.value.length;
     emit('success', `Успешно привязано объектов: ${objectCount}`);

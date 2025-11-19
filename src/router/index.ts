@@ -187,6 +187,39 @@ const routes = [
         },
       },
 
+      // Шаблоны для создания объектов
+      {
+        path: "settings/templates/objects",
+        name: "TemplateObjects",
+        component: () => import("@/views/TemplateObjectsPage.vue"),
+        meta: {
+          title: "Шаблоны для создания объектов",
+          requiresAuth: true,
+        },
+      },
+
+      // Шаблоны для создания УЗ
+      {
+        path: "settings/templates/users",
+        name: "TemplateUsers",
+        component: () => import("@/views/TemplateUsersPage.vue"),
+        meta: {
+          title: "Шаблоны для создания УЗ",
+          requiresAuth: true,
+        },
+      },
+
+      // Шаблоны отчетов
+      {
+        path: "settings/templates/reports",
+        name: "TemplateReports",
+        component: () => import("@/views/TemplateReportsPage.vue"),
+        meta: {
+          title: "Шаблоны отчетов",
+          requiresAuth: true,
+        },
+      },
+
       // Демо интерфейса кэша
       {
         path: "cache-demo",
