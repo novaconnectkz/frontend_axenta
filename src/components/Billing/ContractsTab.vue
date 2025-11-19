@@ -890,6 +890,12 @@ onMounted(async () => {
     await loadContracts();
   }
 });
+
+// Экспортируем метод для обновления данных извне
+defineExpose({
+  loadContracts,
+  refresh: loadContracts // Алиас для удобства
+});
 </script>
 
 <style scoped>

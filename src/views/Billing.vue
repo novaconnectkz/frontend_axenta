@@ -119,7 +119,7 @@
     <v-window v-model="activeTab">
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
-        <ContractsTab @stats-updated="handleContractsStatsUpdate" />
+        <ContractsTab ref="contractsTabRef" @stats-updated="handleContractsStatsUpdate" />
       </v-window-item>
 
       <!-- Подписки -->
@@ -1333,6 +1333,9 @@ const router = useRouter()
 // Реактивные данные
 const activeTab = ref((route.query.tab as string) || 'contracts') // Начинаем с договоров или из query
 
+// Рефы на дочерние компоненты
+const contractsTabRef = ref<InstanceType<typeof ContractsTab> | null>(null)
+
 // Получаем company_id из localStorage
 const getCurrentCompanyId = (): number => {
   try {
@@ -1787,8 +1790,16 @@ const openSubscriptionDialog = (subscription?: Subscription) => {
 }
 
 const onSubscriptionCreated = async (subscription: Subscription) => {
+  console.log('✅ Подписка создана, обновляем данные...', subscription)
   await fetchSubscriptions()
   await loadDashboardData()
+  
+  // Обновляем список договоров, так как подписка обновляет информацию в договоре
+  if (contractsTabRef.value?.loadContracts) {
+    console.log('🔄 Обновляем список договоров после создания подписки')
+    await contractsTabRef.value.loadContracts()
+  }
+  
   subscriptionWizardOpen.value = false
 }
 
