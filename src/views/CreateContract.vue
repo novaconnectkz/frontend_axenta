@@ -1828,7 +1828,7 @@ onMounted(async () => {
 
 <style scoped>
 .create-contract-page {
-  padding: 16px;
+  padding: 12px;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -1837,42 +1837,42 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .page-title-section {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .page-icon {
   color: rgb(var(--v-theme-primary));
-  font-size: 28px !important;
+  font-size: 24px !important;
 }
 
 .page-title {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
 }
 
 .page-subtitle {
-  font-size: 13px;
+  font-size: 12px;
   color: rgb(var(--v-theme-on-surface-variant));
-  margin: 2px 0 0 0;
+  margin: 1px 0 0 0;
 }
 
 .form-card {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .form-content {
-  padding: 16px;
+  padding: 12px;
 }
 
 .form-section {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .form-section:last-child {
@@ -1880,16 +1880,16 @@ onMounted(async () => {
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   color: rgb(var(--v-theme-primary));
 }
 
 .subsection-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: rgb(var(--v-theme-on-surface));
   display: flex;
@@ -1929,7 +1929,7 @@ onMounted(async () => {
 .website-input-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .website-input-container {
@@ -1944,7 +1944,7 @@ onMounted(async () => {
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 400;
   z-index: 2;
   pointer-events: none;
@@ -1971,47 +1971,47 @@ onMounted(async () => {
 }
 
 .form-actions {
-  padding: 0 16px 16px;
+  padding: 0 12px 12px;
 }
 
 .actions-buttons {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
   .create-contract-page {
-    padding: 16px;
+    padding: 8px;
   }
 
   .page-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 8px;
   }
 
   .form-content {
-    padding: 16px;
+    padding: 8px;
   }
 
   .form-section {
-    margin-bottom: 24px;
+    margin-bottom: 12px;
   }
 }
 
 .objects-card {
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .objects-card :deep(.v-card-title) {
-  padding: 12px 16px;
-  font-size: 14px;
+  padding: 8px 12px;
+  font-size: 13px;
 }
 
 .objects-card :deep(.v-card-text) {
-  padding: 12px 16px;
+  padding: 8px 12px;
 }
 
 .objects-table-container {
@@ -2031,7 +2031,7 @@ onMounted(async () => {
 .object-name-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 /* Выравнивание полей ввода по нижнему краю */
@@ -2044,19 +2044,19 @@ onMounted(async () => {
 .form-section .v-col > label.apple-input-label + .v-autocomplete,
 .form-section .v-col > label.apple-input-label + .v-textarea,
 .form-section .v-col > label.apple-input-label + .v-text-field {
-  margin-top: 4px;
+  margin-top: 3px;
 }
 
 /* Обеспечиваем одинаковую высоту для полей ввода */
 .form-section :deep(.apple-input-wrapper-base) {
-  height: 48px;
+  height: 40px;
 }
 
 .form-section :deep(.v-select .v-field),
 .form-section :deep(.v-autocomplete .v-field),
 .form-section :deep(.v-textarea .v-field),
 .form-section :deep(.v-text-field .v-field) {
-  height: 48px;
+  height: 40px;
 }
 
 /* Уменьшаем отступы между строками в форме */
@@ -2065,7 +2065,7 @@ onMounted(async () => {
 }
 
 .form-section :deep(.v-col) {
-  padding-bottom: 8px;
+  padding-bottom: 6px;
 }
 </style>
 
