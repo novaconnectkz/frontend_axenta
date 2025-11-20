@@ -115,7 +115,21 @@
 
       <v-data-table :headers="tableHeaders" :items="filteredContracts" :loading="loading" :items-per-page="itemsPerPage"
         :search="filters.search" class="contracts-table" no-data-text="Договоры не найдены"
-        loading-text="Загрузка договоров..." :sort-by="[{ key: 'created_at', order: 'desc' }]">
+        loading-text="Загрузка договоров..."         :sort-by="[{ key: 'created_at', order: 'desc' }]">
+        <!-- Порядковый номер -->
+        <template #item.sequential_number="{ index }">
+          <div class="sequential-number">
+            {{ index + 1 }}
+          </div>
+        </template>
+
+        <!-- Дата создания -->
+        <template #item.created_at="{ item }">
+          <div class="created-date">
+            {{ formatDate(item.created_at) }}
+          </div>
+        </template>
+
         <!-- Номер договора -->
         <template #item.number="{ item }">
           <div class="contract-number">
@@ -273,6 +287,8 @@ const filters = ref<ContractFilters>({
 
 // Заголовки таблицы
 const tableHeaders = [
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
+  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
   { title: 'Название / Клиент', key: 'title', sortable: true },
   { title: 'Тарифный план', key: 'tariff_plan', sortable: false, width: '180px' },

@@ -108,6 +108,20 @@
         density="compact"
         :items-per-page="10"
       >
+        <!-- Порядковый номер -->
+        <template #item.sequential_number="{ index }">
+          <div class="sequential-number">
+            {{ index + 1 }}
+          </div>
+        </template>
+
+        <!-- Дата создания -->
+        <template #item.created_at="{ item }">
+          <div class="created-date">
+            {{ formatDate(item.created_at) }}
+          </div>
+        </template>
+
         <!-- Номер договора -->
         <template #item.number="{ item }">
           <v-chip 
@@ -211,9 +225,9 @@
                       :key="obj.id"
                       class="objects-tooltip-item"
                     >
-                      <span v-if="obj.name && obj.name !== `Объект #${obj.id}`">
+                      <span v-if="obj.name">
                         <strong>{{ obj.name }}</strong>
-                        <span class="objects-tooltip-id">(ID: {{ obj.id }})</span>
+                        <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id }})</span>
                       </span>
                       <span v-else>
                         Объект #{{ obj.id }}
@@ -342,6 +356,8 @@ const emit = defineEmits<{
 interface Contract {
   id: number;
   number: string;
+  sequential_number?: number; // Порядковый номер договора
+  created_at?: string; // Дата создания
   title: string;
   client_name: string;
   start_date: string;
@@ -375,6 +391,8 @@ const snackbarColor = ref('success');
 
 // Заголовки таблицы (компактные для вкладки)
 const headers = [
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
+  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
   { title: 'Клиент', key: 'title', sortable: true },
   { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '140px' },
@@ -495,6 +513,8 @@ const loadDemoContracts = async () => {
       {
         id: 1,
         number: "DOG-2024-001",
+        sequential_number: 1,
+        created_at: "2024-01-01T00:00:00Z",
         title: "Мониторинг транспорта",
         client_name: "ООО Логистика Плюс",
         start_date: "2024-01-01T00:00:00Z",
@@ -510,6 +530,8 @@ const loadDemoContracts = async () => {
       {
         id: 2,
         number: "DOG-2024-002",
+        sequential_number: 2,
+        created_at: "2024-02-01T00:00:00Z",
         title: "Мониторинг стройтехники",
         client_name: "ООО СтройТех",
         start_date: "2024-02-01T00:00:00Z",
@@ -525,6 +547,8 @@ const loadDemoContracts = async () => {
       {
         id: 3,
         number: "DOG-2024-003",
+        sequential_number: 3,
+        created_at: "2024-01-15T00:00:00Z",
         title: "Мониторинг такси",
         client_name: "ИП Таксистов А.В.",
         start_date: "2024-01-01T00:00:00Z",
@@ -540,6 +564,8 @@ const loadDemoContracts = async () => {
       {
         id: 4,
         number: "DOG-2024-004",
+        sequential_number: 4,
+        created_at: "2024-03-01T00:00:00Z",
         title: "Мониторинг сельхозтехники",
         client_name: "СПК Колос",
         start_date: "2024-03-01T00:00:00Z",
@@ -555,6 +581,8 @@ const loadDemoContracts = async () => {
       {
         id: 5,
         number: "DOG-2023-015",
+        sequential_number: 5,
+        created_at: "2023-12-01T00:00:00Z",
         title: "Мониторинг курьерской службы",
         client_name: "ООО Быстрая Доставка",
         start_date: "2023-12-01T00:00:00Z",
@@ -570,6 +598,8 @@ const loadDemoContracts = async () => {
       {
         id: 6,
         number: "DOG-2024-005",
+        sequential_number: 6,
+        created_at: "2024-02-15T00:00:00Z",
         title: "Мониторинг медтехники",
         client_name: "ГБУ Больница №7",
         start_date: "2024-02-15T00:00:00Z",
@@ -585,6 +615,8 @@ const loadDemoContracts = async () => {
       {
         id: 7,
         number: "DOG-2024-006",
+        sequential_number: 7,
+        created_at: "2024-01-05T00:00:00Z",
         title: "Мониторинг коммунальной техники",
         client_name: "ГБУ Автодороги",
         start_date: "2024-01-05T00:00:00Z",
@@ -600,6 +632,8 @@ const loadDemoContracts = async () => {
       {
         id: 8,
         number: "DOG-2023-020",
+        sequential_number: 8,
+        created_at: "2023-11-01T00:00:00Z",
         title: "Мониторинг инкассации",
         client_name: "ООО СБ Инкассация",
         start_date: "2023-11-01T00:00:00Z",

@@ -147,6 +147,20 @@
               item-value="id"
               :items-per-page="10"
             >
+              <!-- Порядковый номер -->
+              <template v-slot:item.sequential_number="{ index }">
+                <div class="sequential-number">
+                  {{ index + 1 }}
+                </div>
+              </template>
+
+              <!-- Дата создания -->
+              <template v-slot:item.created_at="{ item }">
+                <div class="created-date">
+                  {{ formatDate(item.created_at) }}
+                </div>
+              </template>
+
               <!-- Клиент и договор -->
               <template v-slot:item.client="{ item }">
                 <div v-if="item.contract">
@@ -192,9 +206,9 @@
                           :key="obj.id"
                           class="objects-tooltip-item"
                         >
-                          <span v-if="obj.name && obj.name !== `Объект #${obj.id}`">
+                          <span v-if="obj.name">
                             <strong>{{ obj.name }}</strong>
-                            <span class="objects-tooltip-id">(ID: {{ obj.id }})</span>
+                            <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id }})</span>
                           </span>
                           <span v-else>
                             Объект #{{ obj.id }}
@@ -316,6 +330,13 @@
               item-value="id"
               :items-per-page="10"
             >
+              <!-- Порядковый номер -->
+              <template v-slot:item.sequential_number="{ index }">
+                <div class="sequential-number">
+                  {{ index + 1 }}
+                </div>
+              </template>
+
               <!-- Номер счета -->
               <template v-slot:item.number="{ item }">
                 <v-btn
@@ -1598,6 +1619,8 @@ const planHeaders = [
 ]
 
 const subscriptionHeaders = [
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
+  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Клиент / Договор', key: 'client', sortable: false },
   { title: 'Тарифный план', key: 'billing_plan', sortable: false },
   { title: 'Объекты', key: 'objects', sortable: false },
@@ -1608,6 +1631,7 @@ const subscriptionHeaders = [
 ]
 
 const invoiceHeaders = [
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
   { title: 'Номер', key: 'number', sortable: true },
   { title: 'Дата счета', key: 'invoice_date', sortable: true },
   { title: 'Срок оплаты', key: 'due_date', sortable: true },

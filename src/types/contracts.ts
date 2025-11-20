@@ -80,6 +80,7 @@ export const NOTIFICATION_PERIOD_OPTIONS = [
 export interface ContractBase {
   id: number;
   number: string;
+  sequential_number?: number; // Порядковый номер договора
   title: string;
   description?: string;
   company_id: number;

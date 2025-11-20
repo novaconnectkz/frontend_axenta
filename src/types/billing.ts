@@ -60,6 +60,7 @@ export interface Subscription {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+  sequential_number?: number; // Порядковый номер подписки
   company_id: number;
   billing_plan_id: number;
   billing_plan: BillingPlan;
@@ -113,6 +114,7 @@ export interface Invoice {
   updated_at: string;
   deleted_at?: string;
   number: string;
+  sequential_number?: number; // Порядковый номер счета
   title: string;
   description: string;
   invoice_date: string;
