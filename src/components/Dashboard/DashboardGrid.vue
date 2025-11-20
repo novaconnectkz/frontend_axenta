@@ -49,7 +49,7 @@
             <component 
               :is="getWidgetComponent(widget.type)" 
               :widget-id="widget.id"
-              :refresh-interval="widget.config.refreshInterval || 300"
+              :refresh-interval="widget.config.refreshInterval || 60"
               @configure="configureWidget(widget)" 
               @remove="removeWidget(widget.id)"
               v-bind="widget.config" 
@@ -72,7 +72,7 @@
             <component 
               :is="getWidgetComponent(widget.type)" 
               :widget-id="widget.id"
-              :refresh-interval="widget.config.refreshInterval || 300"
+              :refresh-interval="widget.config.refreshInterval || 60"
               @configure="configureWidget(widget)" 
               @remove="removeWidget(widget.id)"
               v-bind="widget.config" 
@@ -489,7 +489,7 @@ export default defineComponent({
         type: widgetType.type,
         size: 'medium',
         position: { row: 0, col: 0, width: 6, height: 4 },
-        config: { refreshInterval: 300 },
+        config: { refreshInterval: 60 },
         visible: true
       };
       dashboardStore.addWidget(newWidget);

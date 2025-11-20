@@ -167,9 +167,10 @@ class DashboardService {
         
         // Получаем данные об объектах
         if (this.useRealObjectsData) {
-          console.log("📊 Loading real objects data...");
+          console.log("📊 Loading real objects data for dashboard...");
           const objectsService = ObjectsService.getInstance();
-          const realObjectsStats = await objectsService.getObjectsStats();
+          // Используем forceRefresh чтобы получить актуальные данные
+          const realObjectsStats = await objectsService.getObjectsStats(forceRefresh);
           console.log("📊 Real objects stats:", realObjectsStats);
           console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
           

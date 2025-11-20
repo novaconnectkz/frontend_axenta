@@ -1489,8 +1489,8 @@ const loadObjects = async () => {
 
 const loadStats = async () => {
   try {
-    // Загружаем основную статистику
-    const statsData = await objectsService.getObjectsStats();
+    // Загружаем основную статистику с forceRefresh для обхода кеша
+    const statsData = await objectsService.getObjectsStats(true);
     stats.value[0].value = statsData.total;
     stats.value[1].value = statsData.active;
     stats.value[2].value = statsData.inactive;

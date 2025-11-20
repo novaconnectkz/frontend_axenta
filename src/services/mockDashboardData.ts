@@ -252,7 +252,7 @@ export const mockDashboardLayouts: DashboardLayout[] = [
         type: "objects-overview",
         size: "medium",
         position: { row: 0, col: 0, width: 6, height: 4 },
-        config: { refreshInterval: 300 },
+        config: { refreshInterval: 60 },
         visible: true,
       },
       {
@@ -261,7 +261,7 @@ export const mockDashboardLayouts: DashboardLayout[] = [
         type: "users-overview",
         size: "medium",
         position: { row: 0, col: 6, width: 6, height: 4 },
-        config: { refreshInterval: 300 },
+        config: { refreshInterval: 60 },
         visible: true,
       },
       {
@@ -288,7 +288,7 @@ export const mockDashboardLayouts: DashboardLayout[] = [
         type: "installations-overview",
         size: "medium",
         position: { row: 8, col: 0, width: 6, height: 4 },
-        config: { refreshInterval: 300 },
+        config: { refreshInterval: 60 },
         visible: true,
       },
       {

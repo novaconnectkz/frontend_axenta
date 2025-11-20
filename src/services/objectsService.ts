@@ -765,8 +765,10 @@ export class ObjectsService {
       const age = now - this.statsCache.timestamp;
       
       if (age < this.statsCache.ttl) {
-        console.log(`📦 Используем кешированную статистику объектов (возраст: ${Math.round(age / 1000)}с)`);
+        console.log(`📦 Используем кешированную статистику объектов (возраст: ${Math.round(age / 1000)}с)`, this.statsCache.data);
         return this.statsCache.data;
+      } else {
+        console.log(`🔄 Кеш устарел (возраст: ${Math.round(age / 1000)}с), запрашиваем новые данные`);
       }
     }
 
