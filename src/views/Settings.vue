@@ -168,6 +168,11 @@
               <PerformanceSettings />
             </div>
 
+            <!-- Аудит-логи -->
+            <div v-if="activeTab === 'audit-logs'">
+              <AuditLogs />
+            </div>
+
             <!-- Документация -->
             <div v-if="activeTab === 'documentation'">
               <div class="documentation-section">
@@ -303,9 +308,11 @@
 <script setup lang="ts">
 import { settingsService } from '@/services/settingsService';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { VueDraggable } from 'vue-draggable-plus';
 
 // Импорты компонентов (будут созданы далее)
+import AuditLogs from '@/components/Settings/AuditLogs.vue';
 import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
@@ -338,6 +345,9 @@ import type {
 
 // Ключ для сохранения порядка вкладок в localStorage
 const TABS_ORDER_KEY = 'axenta_settings_tabs_order';
+
+// Router
+const route = useRoute();
 
 // Реактивные данные
 const activeTab = ref('integrations');
@@ -472,6 +482,14 @@ const defaultTabs = [
     title: 'Документация',
     subtitle: 'API, руководства, развертывание',
     icon: 'mdi-book-open-variant',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
+  },
+  {
+    value: 'audit-logs',
+    title: 'Аудит-логи',
+    subtitle: 'История действий пользователей',
+    icon: 'mdi-file-document-outline',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
   }
@@ -842,6 +860,15 @@ const handleRunPipeline = async (pipelineId: string) => {
 onMounted(async () => {
   // Загружаем сохраненный порядок вкладок
   loadTabsOrder();
+  
+  // Проверяем query параметр tab из URL
+  if (route.query.tab) {
+    const tabValue = route.query.tab as string;
+    const tabExists = defaultTabs.some(t => t.value === tabValue);
+    if (tabExists) {
+      activeTab.value = tabValue;
+    }
+  }
   
   // Сначала загружаем статистику документации, затем общую статистику
   await loadDocumentationStats();
