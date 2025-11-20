@@ -56,29 +56,58 @@
       <!-- Боковое меню -->
       <v-col cols="12" md="3">
         <v-card class="settings-navigation" elevation="2">
+          <!-- Заголовок с кнопкой сброса -->
+          <div class="navigation-header pa-3 d-flex align-center justify-space-between">
+            <span class="text-caption text-medium-emphasis">
+              <v-icon icon="mdi-drag-vertical" size="small" class="mr-1" />
+              Перетащите для изменения порядка
+            </span>
+            <v-btn
+              v-if="isOrderChanged"
+              icon="mdi-restore"
+              size="x-small"
+              variant="text"
+              @click="resetTabsOrder"
+              title="Сбросить порядок"
+            />
+          </div>
+          
+          <v-divider />
+          
           <v-list nav>
-            <v-list-item
-              v-for="tab in tabs"
-              :key="tab.value"
-              :value="tab.value"
-              :active="activeTab === tab.value"
-              @click="activeTab = tab.value"
-              class="settings-nav-item"
+            <VueDraggable
+              v-model="sortedTabs"
+              :animation="200"
+              handle=".drag-handle"
+              ghost-class="ghost-item"
+              @end="saveTabsOrder"
             >
-              <template #prepend>
-                <v-icon :icon="tab.icon" />
-              </template>
-              <v-list-item-title>{{ tab.title }}</v-list-item-title>
-              <v-list-item-subtitle>{{ tab.subtitle }}</v-list-item-subtitle>
-              
-              <template #append v-if="tab.badge">
-                <v-badge
-                  :content="tab.badge"
-                  :color="tab.badgeColor || 'primary'"
-                  inline
-                />
-              </template>
-            </v-list-item>
+              <v-list-item
+                v-for="tab in sortedTabs"
+                :key="tab.value"
+                :value="tab.value"
+                :active="activeTab === tab.value"
+                @click="activeTab = tab.value"
+                class="settings-nav-item"
+              >
+                <template #prepend>
+                  <div class="d-flex align-center">
+                    <v-icon icon="mdi-drag-vertical" class="drag-handle" size="small" />
+                    <v-icon :icon="tab.icon" />
+                  </div>
+                </template>
+                <v-list-item-title>{{ tab.title }}</v-list-item-title>
+                <v-list-item-subtitle>{{ tab.subtitle }}</v-list-item-subtitle>
+                
+                <template #append v-if="tab.badge">
+                  <v-badge
+                    :content="tab.badge"
+                    :color="tab.badgeColor || 'primary'"
+                    inline
+                  />
+                </template>
+              </v-list-item>
+            </VueDraggable>
           </v-list>
         </v-card>
       </v-col>
@@ -274,6 +303,7 @@
 <script setup lang="ts">
 import { settingsService } from '@/services/settingsService';
 import { computed, onMounted, ref, watch } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
 
 // Импорты компонентов (будут созданы далее)
 import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
@@ -305,6 +335,9 @@ import type {
     SystemHealth,
     UserDocumentation
 } from '@/types/documentation';
+
+// Ключ для сохранения порядка вкладок в localStorage
+const TABS_ORDER_KEY = 'axenta_settings_tabs_order';
 
 // Реактивные данные
 const activeTab = ref('integrations');
@@ -369,67 +402,157 @@ const systemHealth = ref<SystemHealth | null>(null);
 const activeDocumentationTab = ref('api-docs');
 
 // Вкладки настроек
-const tabs = computed(() => [
+const defaultTabs = [
   {
     value: 'integrations',
     title: 'Интеграции',
     subtitle: 'Внешние системы',
     icon: 'mdi-connection',
-    badge: stats.value.integrations.errors > 0 ? stats.value.integrations.errors : undefined,
-    badgeColor: stats.value.integrations.errors > 0 ? 'error' : 'primary'
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'notifications',
     title: 'Уведомления',
     subtitle: 'Каналы связи',
     icon: 'mdi-bell-ring',
-    badge: stats.value.notifications.enabled
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'templates',
     title: 'Шаблоны',
     subtitle: 'Объекты и пользователи',
     icon: 'mdi-file-document-multiple',
-    badge: stats.value.templates.total
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'monitoring',
     title: 'Мониторинг',
     subtitle: 'Статус интеграций',
-    icon: 'mdi-monitor-dashboard'
+    icon: 'mdi-monitor-dashboard',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'system',
-    title: 'Система',
+    title: 'Компания',
     subtitle: 'Общие параметры',
-    icon: 'mdi-cog'
+    icon: 'mdi-cog',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'auto-refresh',
     title: 'Автообновление',
     subtitle: 'Обновление данных',
-    icon: 'mdi-refresh-auto'
+    icon: 'mdi-refresh-auto',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'security',
     title: 'Безопасность',
     subtitle: 'Доступ и права',
-    icon: 'mdi-shield-check'
+    icon: 'mdi-shield-check',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'performance',
     title: 'Производительность',
     subtitle: 'Оптимизация и безопасность',
-    icon: 'mdi-speedometer'
+    icon: 'mdi-speedometer',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   },
   {
     value: 'documentation',
     title: 'Документация',
     subtitle: 'API, руководства, развертывание',
     icon: 'mdi-book-open-variant',
-    badge: stats.value.documentation.apiEndpoints.documented + stats.value.documentation.userDocs.published
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   }
-]);
+];
+
+// Реактивный массив для отсортированных вкладок
+const sortedTabs = ref([...defaultTabs]);
+
+// Вкладки настроек с бейджами
+const tabs = computed(() => {
+  return sortedTabs.value.map(tab => {
+    const updatedTab = { ...tab };
+    
+    switch (tab.value) {
+      case 'integrations':
+        updatedTab.badge = stats.value.integrations.errors > 0 ? stats.value.integrations.errors : undefined;
+        updatedTab.badgeColor = stats.value.integrations.errors > 0 ? 'error' : 'primary';
+        break;
+      case 'notifications':
+        updatedTab.badge = stats.value.notifications.enabled;
+        break;
+      case 'templates':
+        updatedTab.badge = stats.value.templates.total;
+        break;
+      case 'documentation':
+        updatedTab.badge = stats.value.documentation.apiEndpoints.documented + stats.value.documentation.userDocs.published;
+        break;
+    }
+    
+    return updatedTab;
+  });
+});
+
+// Проверка, изменен ли порядок
+const isOrderChanged = computed(() => {
+  return JSON.stringify(sortedTabs.value.map(t => t.value)) !== 
+         JSON.stringify(defaultTabs.map(t => t.value));
+});
+
+// Сохранение порядка вкладок в localStorage
+const saveTabsOrder = () => {
+  try {
+    const order = sortedTabs.value.map(tab => tab.value);
+    localStorage.setItem(TABS_ORDER_KEY, JSON.stringify(order));
+    showSnackbar('Порядок сохранён', 'success', 2000);
+  } catch (error) {
+    console.error('Ошибка сохранения порядка вкладок:', error);
+  }
+};
+
+// Загрузка порядка вкладок из localStorage
+const loadTabsOrder = () => {
+  try {
+    const savedOrder = localStorage.getItem(TABS_ORDER_KEY);
+    if (!savedOrder) return;
+    
+    const order = JSON.parse(savedOrder) as string[];
+    
+    // Создаем новый массив, сохраняя порядок из localStorage
+    const orderedTabs = order
+      .map(value => defaultTabs.find(tab => tab.value === value))
+      .filter(tab => tab !== undefined);
+    
+    // Добавляем вкладки, которых нет в сохраненном порядке (новые вкладки)
+    const remainingTabs = defaultTabs.filter(
+      tab => !order.includes(tab.value)
+    );
+    
+    sortedTabs.value = [...orderedTabs, ...remainingTabs];
+  } catch (error) {
+    console.error('Ошибка загрузки порядка вкладок:', error);
+    sortedTabs.value = [...defaultTabs];
+  }
+};
+
+// Сброс порядка вкладок к значению по умолчанию
+const resetTabsOrder = () => {
+  sortedTabs.value = [...defaultTabs];
+  localStorage.removeItem(TABS_ORDER_KEY);
+  showSnackbar('Порядок сброшен', 'info', 2000);
+};
 
 // Текущая вкладка
 const currentTab = computed(() => {
@@ -717,6 +840,9 @@ const handleRunPipeline = async (pipelineId: string) => {
 
 // Lifecycle
 onMounted(async () => {
+  // Загружаем сохраненный порядок вкладок
+  loadTabsOrder();
+  
   // Сначала загружаем статистику документации, затем общую статистику
   await loadDocumentationStats();
   await loadStats();
@@ -752,10 +878,37 @@ watch(activeTab, (newTab) => {
   border-radius: 12px;
 }
 
+.navigation-header {
+  background: rgba(var(--v-theme-surface-variant), 0.3);
+  border-bottom: 1px solid rgba(var(--v-theme-outline), 0.1);
+}
+
 .settings-nav-item {
   margin: 4px 8px;
   border-radius: 8px;
   transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.drag-handle {
+  cursor: grab;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  margin-right: 12px;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.ghost-item {
+  opacity: 0.5;
+  background: rgba(var(--v-theme-primary), 0.1);
+  border: 2px dashed rgba(var(--v-theme-primary), 0.5);
 }
 
 .settings-nav-item:hover {
