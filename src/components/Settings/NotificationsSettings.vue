@@ -389,8 +389,9 @@
                 <strong>Для создания бота MAX:</strong>
                 <ol class="ml-4 mt-2">
                   <li>Найдите бота <code>@MasterBot</code> в MAX</li>
-                  <li>Отправьте команду <code>/newbot</code></li>
+                  <li>Отправьте команду <code>/create</code></li>
                   <li>Следуйте инструкциям для создания бота</li>
+                  <li>Используйте <code>/get_token</code> для получения токена</li>
                   <li>Скопируйте полученный токен сюда</li>
                 </ol>
               </div>

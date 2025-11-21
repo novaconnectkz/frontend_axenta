@@ -488,8 +488,9 @@
                 <strong>Для создания бота MAX:</strong>
                 <ol class="ml-4 mt-2">
                   <li>Найдите бота <code>@MasterBot</code> в MAX</li>
-                  <li>Отправьте команду <code>/newbot</code></li>
+                  <li>Отправьте команду <code>/create</code></li>
                   <li>Следуйте инструкциям для создания бота</li>
+                  <li>Используйте <code>/get_token</code> для получения токена</li>
                   <li>Скопируйте полученный токен сюда</li>
                 </ol>
               </div>
@@ -553,6 +554,138 @@
             <v-alert type="warning" variant="tonal" density="compact" class="mt-3">
               <div class="text-caption">
                 <strong>Обратите внимание:</strong> MAX API доступен только на территории России
+              </div>
+            </v-alert>
+          </div>
+
+          <div v-if="editDialog.integration.type === 'email'">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <h4 class="text-subtitle-1 font-weight-bold mb-0">Настройки Email SMTP</h4>
+              <v-btn
+                variant="text"
+                size="small"
+                :href="`${config.backendUrl}/docs/EMAIL_INTEGRATION.md`"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <v-icon start size="16">mdi-help-circle-outline</v-icon>
+                Инструкция
+              </v-btn>
+            </div>
+            
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information"
+            >
+              <div class="text-body-2">
+                <strong>Популярные SMTP серверы:</strong>
+                <ul class="ml-4 mt-2">
+                  <li><strong>Gmail:</strong> smtp.gmail.com:587 (требуется App Password)</li>
+                  <li><strong>Mail.ru:</strong> smtp.mail.ru:465 или :587</li>
+                  <li><strong>Yandex:</strong> smtp.yandex.ru:465 или :587</li>
+                  <li><strong>Office365:</strong> smtp.office365.com:587</li>
+                </ul>
+              </div>
+            </v-alert>
+            
+            <v-row>
+              <v-col cols="8">
+                <v-text-field
+                  v-model="editDialog.form.settings.smtp_host"
+                  label="SMTP сервер"
+                  variant="outlined"
+                  placeholder="smtp.gmail.com"
+                  hint="Адрес SMTP сервера"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="4">
+                <v-text-field
+                  v-model.number="editDialog.form.settings.smtp_port"
+                  label="Порт"
+                  type="number"
+                  variant="outlined"
+                  placeholder="587"
+                  hint="Порт SMTP"
+                  persistent-hint
+                />
+              </v-col>
+            </v-row>
+            
+            <v-text-field
+              v-model="editDialog.form.settings.smtp_username"
+              label="Имя пользователя"
+              variant="outlined"
+              placeholder="user@example.com"
+              hint="Логин для SMTP (обычно email)"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-text-field
+              v-model="editDialog.form.settings.smtp_password"
+              label="Пароль"
+              :type="showToken ? 'text' : 'password'"
+              variant="outlined"
+              hint="Пароль или App Password для SMTP"
+              persistent-hint
+              class="mb-3"
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+            
+            <v-switch
+              v-model="editDialog.form.settings.smtp_use_tls"
+              label="Использовать TLS/SSL"
+              color="primary"
+              hint="Рекомендуется включить для безопасности"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-divider class="my-4" />
+            
+            <h5 class="text-subtitle-2 font-weight-bold mb-3">Отправитель</h5>
+            
+            <v-row>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="editDialog.form.settings.smtp_from_email"
+                  label="Email отправителя"
+                  variant="outlined"
+                  placeholder="noreply@company.com"
+                  hint="From email"
+                  persistent-hint
+                />
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
+                  v-model="editDialog.form.settings.smtp_from_name"
+                  label="Имя отправителя"
+                  variant="outlined"
+                  placeholder="Axenta CRM"
+                  hint="From name"
+                  persistent-hint
+                />
+              </v-col>
+            </v-row>
+            
+            <v-alert type="success" variant="tonal" density="compact" class="mt-3">
+              <div class="text-caption">
+                <strong>Совет:</strong> Для Gmail используйте "App Password" вместо обычного пароля. 
+                Создайте его в настройках аккаунта Google.
               </div>
             </v-alert>
           </div>
@@ -845,8 +978,10 @@ const getStatusLabel = (status: string) => {
 
 // Проверка, является ли интеграция демо (в разработке)
 const isDemoIntegration = (integrationId: string) => {
-  // Telegram и MAX больше не являются демо интеграциями
-  if (integrationId === 'telegram' || integrationId === 'telegram-new' || integrationId === 'max' || integrationId === 'max-new') {
+  // Telegram, MAX и Email больше не являются демо интеграциями
+  if (integrationId === 'telegram' || integrationId === 'telegram-new' || 
+      integrationId === 'max' || integrationId === 'max-new' ||
+      integrationId === 'email' || integrationId === 'email-new') {
     return false;
   }
   return integrationId.includes('-demo');
@@ -1159,27 +1294,78 @@ const loadIntegrations = async () => {
       });
     }
     
-    allIntegrations.push({
-      id: 'email-demo',
-      type: 'email',
-      name: 'Email SMTP',
-      description: 'Интеграция с SMTP сервером для отправки email уведомлений',
-      status: 'inactive',
-      enabled: false,
-      lastSync: null,
-      created_at: new Date('2024-01-01T10:00:00'),
-      updated_at: new Date('2024-01-15T14:30:00'),
-      settings: {
-        smtp_host: 'smtp.example.com',
-        smtp_port: 587,
-        smtp_username: 'noreply@company.com',
-        smtp_password: '*********************',
-        smtp_from_email: 'noreply@company.com',
-        smtp_from_name: 'Axenta CRM',
-        smtp_use_tls: true,
-        template_language: 'ru',
-      },
-    });
+    // Email SMTP интеграция
+    try {
+      const emailConfig = await settingsService.getEmailConfig();
+      
+      if (emailConfig) {
+        allIntegrations.push({
+          id: 'email',
+          type: 'email',
+          name: 'Email SMTP',
+          description: 'Интеграция с SMTP сервером для отправки email уведомлений',
+          status: (emailConfig.smtp_host && emailConfig.smtp_username && emailConfig.is_active) ? 'active' : 'inactive',
+          enabled: emailConfig.is_active || false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            smtp_host: emailConfig.smtp_host || '',
+            smtp_port: emailConfig.smtp_port || 587,
+            smtp_username: emailConfig.smtp_username || '',
+            smtp_password: emailConfig.smtp_password || '',
+            smtp_from_email: emailConfig.smtp_from_email || '',
+            smtp_from_name: emailConfig.smtp_from_name || '',
+            smtp_use_tls: emailConfig.smtp_use_tls !== undefined ? emailConfig.smtp_use_tls : true,
+          },
+        });
+      } else {
+        // Настройки не найдены в БД, добавляем заглушку для настройки
+        allIntegrations.push({
+          id: 'email-new',
+          type: 'email',
+          name: 'Email SMTP',
+          description: 'Интеграция с SMTP сервером для отправки email уведомлений',
+          status: 'inactive',
+          enabled: false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            smtp_host: '',
+            smtp_port: 587,
+            smtp_username: '',
+            smtp_password: '',
+            smtp_from_email: '',
+            smtp_from_name: 'Axenta CRM',
+            smtp_use_tls: true,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек Email из БД:', error);
+      // Fallback - добавляем заглушку для настройки
+      allIntegrations.push({
+        id: 'email-new',
+        type: 'email',
+        name: 'Email SMTP',
+        description: 'Интеграция с SMTP сервером для отправки email уведомлений',
+        status: 'inactive',
+        enabled: false,
+        lastSync: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        settings: {
+          smtp_host: '',
+          smtp_port: 587,
+          smtp_username: '',
+          smtp_password: '',
+          smtp_from_email: '',
+          smtp_from_name: 'Axenta CRM',
+          smtp_use_tls: true,
+        },
+      });
+    }
     
     allIntegrations.push({
       id: 'sms-demo',
@@ -1306,6 +1492,18 @@ const testConnection = async (integration: IntegrationWithSettings) => {
       if (result.success) {
         showSnackbar(
           `Подключение к MAX успешно`,
+          'success'
+        );
+      } else {
+        showSnackbar(result.message, 'error');
+      }
+    } else if (integration.type === 'email') {
+      // Тестируем подключение к SMTP серверу
+      result = await settingsService.testEmailConnection();
+      
+      if (result.success) {
+        showSnackbar(
+          `Подключение к SMTP успешно`,
           'success'
         );
       } else {
@@ -1611,6 +1809,42 @@ const saveIntegration = async () => {
         await loadIntegrations();
       } else {
         showSnackbar(result.message || 'Ошибка сохранения настроек MAX', 'error');
+      }
+      return;
+    } else if (editDialog.value.integration.type === 'email') {
+      // Сохраняем настройки Email SMTP в БД через API
+      const settingsToSave = { ...editDialog.value.form.settings };
+      
+      // Определяем, создаем новую интеграцию или обновляем существующую
+      const existingConfig = await settingsService.getEmailConfig();
+      const isNew = !existingConfig;
+      
+      let result;
+      if (isNew) {
+        result = await settingsService.setupEmailIntegration(settingsToSave);
+      } else {
+        result = await settingsService.updateEmailIntegration(settingsToSave);
+      }
+      
+      if (result.success) {
+        // Обновляем статус интеграции в списке
+        const index = integrations.value.findIndex(i => i.id === 'email' || i.id === 'email-new');
+        if (index !== -1) {
+          integrations.value[index] = {
+            ...integrations.value[index],
+            id: 'email',
+            enabled: settingsToSave.enabled || false,
+            status: settingsToSave.smtp_host && settingsToSave.smtp_username && (settingsToSave.enabled || false) ? 'active' : 'inactive',
+            settings: settingsToSave,
+          };
+        }
+        
+        editDialog.value.show = false;
+        showSnackbar(result.message || 'Настройки Email SMTP успешно сохранены в БД', 'success');
+        // Перезагружаем список интеграций для получения актуальных данных из БД
+        await loadIntegrations();
+      } else {
+        showSnackbar(result.message || 'Ошибка сохранения настроек Email SMTP', 'error');
       }
       return;
     } else if (editDialog.value.integration.type === 'novaconnect') {
