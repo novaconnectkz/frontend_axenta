@@ -364,6 +364,19 @@ class BillingService {
   }
 
   /**
+   * Отправить счет клиенту (изменить статус с draft на sent)
+   */
+  async sendInvoice(invoiceId: number): Promise<Invoice> {
+    const response: AxiosResponse<InvoiceResponse> = await this.apiClient.post(
+      `/auth/billing/invoices/${invoiceId}/send`
+    );
+    if (!response.data.data) {
+      throw new Error("Ошибка отправки счета");
+    }
+    return response.data.data;
+  }
+
+  /**
    * Получить просроченные счета
    */
   async getOverdueInvoices(companyId?: number): Promise<Invoice[]> {

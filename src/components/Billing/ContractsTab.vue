@@ -392,17 +392,17 @@ const showSnackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
 
-// Заголовки таблицы (компактные для вкладки)
+// Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
-  { title: 'Номер', key: 'number', sortable: true, width: '120px' },
-  { title: 'Клиент', key: 'title', sortable: true },
-  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '140px' },
-  { title: 'Период', key: 'period', sortable: false, width: '180px' },
-  { title: 'Сумма', key: 'total_amount', sortable: true, width: '120px' },
-  { title: 'Статус', key: 'status', sortable: true, width: '100px' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '120px' },
+  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px' },
+  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px' },
+  { title: 'Клиент', key: 'title', sortable: true, width: 'auto', minWidth: '150px' },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px' },
+  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px' },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'end' },
+  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px' },
+  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'end' },
 ];
 
 // Опции для фильтров
@@ -1161,11 +1161,74 @@ defineExpose({
   --v-table-row-height: 56px;
 }
 
+/* Улучшенная адаптивность таблицы */
+.contracts-table :deep(.v-data-table__wrapper) {
+  overflow-x: auto;
+}
+
+.contracts-table :deep(table) {
+  min-width: 1000px;
+  table-layout: auto;
+}
+
+.contracts-table :deep(th) {
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 12px 16px !important;
+}
+
+.contracts-table :deep(td) {
+  padding: 8px 16px !important;
+  vertical-align: middle;
+}
+
+/* Оптимизация колонок для лучшего отображения */
+.contracts-table :deep(th:first-child),
+.contracts-table :deep(td:first-child) {
+  padding-left: 16px !important;
+  text-align: center;
+}
+
+.contracts-table :deep(th:last-child),
+.contracts-table :deep(td:last-child) {
+  padding-right: 16px !important;
+}
+
+/* Responsive: скрытие некоторых колонок на малых экранах */
+@media (max-width: 1400px) {
+  .contracts-table :deep(th:nth-child(2)),
+  .contracts-table :deep(td:nth-child(2)) {
+    display: none; /* Скрываем колонку "Дата" на средних экранах */
+  }
+}
+
+@media (max-width: 1200px) {
+  .contracts-table :deep(th:nth-child(5)),
+  .contracts-table :deep(td:nth-child(5)) {
+    display: none; /* Скрываем колонку "Тариф" на малых экранах */
+  }
+}
+
+@media (max-width: 960px) {
+  .contracts-table :deep(table) {
+    min-width: 700px;
+  }
+  
+  .contracts-table :deep(th:nth-child(6)),
+  .contracts-table :deep(td:nth-child(6)) {
+    display: none; /* Скрываем колонку "Период" на планшетах */
+  }
+}
+
 .contract-title {
   font-weight: 600;
   font-size: 13px;
   margin-bottom: 2px;
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contract-client {
@@ -1173,17 +1236,38 @@ defineExpose({
   font-weight: 500;
   color: rgb(var(--v-theme-on-surface));
   line-height: 1.4;
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sequential-number {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.created-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
 }
 
 .amount-value {
   font-weight: 600;
-  font-family: 'SF Mono', monospace;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .actions-cell {
   display: flex;
   gap: 2px;
+  justify-content: flex-end;
+  align-items: center;
 }
 
 .empty-state {
@@ -1425,6 +1509,65 @@ defineExpose({
 }
 
 [data-theme="dark"] .tariff-tooltip-content {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Улучшенные hover-эффекты для строк таблицы */
+.contracts-table :deep(tbody tr) {
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+
+.contracts-table :deep(tbody tr:hover) {
+  background-color: rgba(25, 118, 210, 0.04) !important;
+}
+
+[data-theme="dark"] .contracts-table :deep(tbody tr:hover) {
+  background-color: rgba(0, 122, 255, 0.08) !important;
+}
+
+/* Анимация для ячеек */
+.contracts-table :deep(td) {
+  transition: padding 0.2s ease;
+}
+
+/* Стили для скроллбара */
+.contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar {
+  height: 8px;
+}
+
+.contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .contracts-table :deep(.v-data-table__wrapper)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"] .sequential-number {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .created-date {
   color: rgba(255, 255, 255, 0.7);
 }
 

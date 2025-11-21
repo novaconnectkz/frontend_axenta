@@ -399,30 +399,72 @@
               <!-- Действия -->
               <template v-slot:item.actions="{ item }">
                 <div class="actions-cell">
-                  <v-btn icon="mdi-eye" size="small" variant="text" @click="viewInvoice(item)" />
-                  <v-btn 
-                    v-if="item.status !== 'paid' && item.status !== 'cancelled'"
-                    icon="mdi-credit-card" 
-                    size="small" 
-                    variant="text" 
-                    @click="processPaymentDialog(item)" 
-                  />
-                  <v-btn 
-                    v-if="item.status !== 'cancelled'"
-                    icon="mdi-cancel" 
-                    size="small" 
-                    variant="text" 
-                    color="warning"
-                    @click="cancelInvoiceConfirm(item)" 
-                  />
-                  <v-btn 
-                    v-if="item.status !== 'paid'"
-                    icon="mdi-delete" 
-                    size="small" 
-                    variant="text" 
-                    color="error"
-                    @click="deleteInvoiceConfirm(item)" 
-                  />
+                  <v-tooltip text="Просмотр">
+                    <template #activator="{ props }">
+                      <v-btn 
+                        v-bind="props"
+                        icon="mdi-eye" 
+                        size="small" 
+                        variant="text" 
+                        @click="viewInvoice(item)" 
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Отправить счёт клиенту">
+                    <template #activator="{ props }">
+                      <v-btn 
+                        v-if="item.status === 'draft'"
+                        v-bind="props"
+                        icon="mdi-send" 
+                        size="small" 
+                        variant="text" 
+                        color="primary"
+                        @click="sendInvoiceToClient(item)" 
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Обработать платёж">
+                    <template #activator="{ props }">
+                      <v-btn 
+                        v-if="item.status !== 'paid' && item.status !== 'cancelled'"
+                        v-bind="props"
+                        icon="mdi-credit-card" 
+                        size="small" 
+                        variant="text" 
+                        @click="processPaymentDialog(item)" 
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Отменить счёт">
+                    <template #activator="{ props }">
+                      <v-btn 
+                        v-if="item.status !== 'cancelled'"
+                        v-bind="props"
+                        icon="mdi-cancel" 
+                        size="small" 
+                        variant="text" 
+                        color="warning"
+                        @click="cancelInvoiceConfirm(item)" 
+                      />
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Удалить счёт">
+                    <template #activator="{ props }">
+                      <v-btn 
+                        v-if="item.status !== 'paid'"
+                        v-bind="props"
+                        icon="mdi-delete" 
+                        size="small" 
+                        variant="text" 
+                        color="error"
+                        @click="deleteInvoiceConfirm(item)" 
+                      />
+                    </template>
+                  </v-tooltip>
                 </div>
               </template>
             </v-data-table>
@@ -1271,7 +1313,9 @@
                 :items="[
                   { title: 'Система', value: 'system' },
                   { title: 'Email', value: 'email' },
-                  { title: 'Slack', value: 'slack' }
+                  { title: 'Telegram', value: 'telegram' },
+                  { title: 'MAX', value: 'max' },
+                  { title: 'SMS', value: 'sms' }
                 ]"
                 label="Канал"
               />
@@ -2113,6 +2157,25 @@ const deleteInvoiceConfirm = async (invoice: Invoice) => {
     console.error('Ошибка при удалении счета:', error)
     const errorMessage = error.response?.data?.error || 'Ошибка при удалении счета'
     alert(errorMessage)
+  }
+}
+
+const sendInvoiceToClient = async (invoice: Invoice) => {
+  if (!confirm(`Вы уверены, что хотите отправить счет ${invoice.number} клиенту? После отправки счет появится в разделе "К оплате".`)) {
+    return
+  }
+
+  try {
+    console.log('📤 Отправка счета:', invoice.number)
+    await billingService.sendInvoice(invoice.id)
+    console.log('✅ Счет успешно отправлен')
+    await fetchInvoices()
+    await loadDashboardData()
+    alert(`Счет ${invoice.number} успешно отправлен клиенту`)
+  } catch (error: any) {
+    console.error('❌ Ошибка при отправке счета:', error)
+    const errorMessage = error.response?.data?.error || 'Ошибка при отправке счета'
+    alert(`Ошибка: ${errorMessage}`)
   }
 }
 

@@ -129,6 +129,13 @@
                   <span>{{ channel.settings.provider }} {{ channel.settings.test_mode ? '(тест)' : '' }}</span>
                 </div>
               </div>
+
+              <div v-if="channel.channel === 'max'" class="channel-info">
+                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
+                  <v-icon size="14">mdi-message-processing</v-icon>
+                  <span>{{ channel.settings.use_polling ? 'Long Polling' : 'Webhook' }} | {{ channel.settings.parse_mode || 'HTML' }}</span>
+                </div>
+              </div>
             </v-card-text>
 
             <!-- Действия -->
@@ -373,6 +380,72 @@
               persistent-hint
             />
           </div>
+
+          <div v-if="editDialog.channel.channel === 'max'">
+            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки MAX</h4>
+            
+            <v-alert type="info" variant="tonal" class="mb-4">
+              <div class="text-body-2">
+                <strong>Для создания бота MAX:</strong>
+                <ol class="ml-4 mt-2">
+                  <li>Найдите бота <code>@MasterBot</code> в MAX</li>
+                  <li>Отправьте команду <code>/newbot</code></li>
+                  <li>Следуйте инструкциям для создания бота</li>
+                  <li>Скопируйте полученный токен сюда</li>
+                </ol>
+              </div>
+            </v-alert>
+            
+            <v-text-field
+              v-model="editDialog.form.settings.bot_token"
+              label="Токен бота MAX"
+              type="password"
+              variant="outlined"
+              placeholder="Вставьте токен от @MasterBot"
+              hint="API токен для работы с MAX Bot API"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-select
+              v-model="editDialog.form.settings.parse_mode"
+              label="Режим парсинга сообщений"
+              :items="[
+                { value: 'HTML', title: 'HTML' },
+                { value: 'Markdown', title: 'Markdown' }
+              ]"
+              variant="outlined"
+              hint="Формат текста для отправки сообщений"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.use_polling"
+              label="Использовать Long Polling"
+              color="primary"
+              hint="Long Polling вместо Webhook (для тестирования)"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-text-field
+              v-if="!editDialog.form.settings.use_polling"
+              v-model="editDialog.form.settings.webhook_url"
+              label="Webhook URL"
+              variant="outlined"
+              placeholder="https://yourdomain.com/api/max/webhook"
+              hint="URL для получения обновлений от MAX"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-alert type="warning" variant="tonal" density="compact">
+              <div class="text-caption">
+                <strong>Обратите внимание:</strong> MAX API доступен только на территории России
+              </div>
+            </v-alert>
+          </div>
         </v-card-text>
 
         <v-divider />
@@ -468,7 +541,8 @@ const getChannelIcon = (channel: string) => {
     telegram: 'mdi-telegram',
     email: 'mdi-email',
     sms: 'mdi-message-text',
-    push: 'mdi-bell'
+    push: 'mdi-bell',
+    max: 'mdi-message-flash'
   };
   return icons[channel as keyof typeof icons] || 'mdi-bell';
 };
@@ -478,7 +552,8 @@ const getChannelColor = (channel: string) => {
     telegram: 'cyan',
     email: 'purple',
     sms: 'teal',
-    push: 'orange'
+    push: 'orange',
+    max: 'blue'
   };
   return colors[channel as keyof typeof colors] || 'primary';
 };
@@ -488,7 +563,8 @@ const getChannelLabel = (channel: string) => {
     telegram: 'Telegram Bot',
     email: 'Email SMTP',
     sms: 'SMS Gateway',
-    push: 'Push-уведомления'
+    push: 'Push-уведомления',
+    max: 'MAX Messenger'
   } as any;
   return labels[channel] || channel;
 };

@@ -473,6 +473,90 @@
             </div>
           </div>
 
+          <div v-if="editDialog.integration.type === 'max'">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <h4 class="text-subtitle-1 font-weight-bold mb-0">Настройки MAX Messenger</h4>
+            </div>
+            
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information"
+            >
+              <div class="text-body-2">
+                <strong>Для создания бота MAX:</strong>
+                <ol class="ml-4 mt-2">
+                  <li>Найдите бота <code>@MasterBot</code> в MAX</li>
+                  <li>Отправьте команду <code>/newbot</code></li>
+                  <li>Следуйте инструкциям для создания бота</li>
+                  <li>Скопируйте полученный токен сюда</li>
+                </ol>
+              </div>
+            </v-alert>
+            
+            <v-text-field
+              v-model="editDialog.form.settings.bot_token"
+              label="Bot Token"
+              :type="showToken ? 'text' : 'password'"
+              variant="outlined"
+              hint="Токен бота, полученный от @MasterBot в MAX"
+              persistent-hint
+              class="mb-3"
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+            
+            <v-select
+              v-model="editDialog.form.settings.parse_mode"
+              label="Режим парсинга"
+              :items="[
+                { value: 'HTML', title: 'HTML' },
+                { value: 'Markdown', title: 'Markdown' }
+              ]"
+              variant="outlined"
+              hint="Формат текста для отправки сообщений"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.use_polling"
+              label="Использовать Long Polling"
+              color="primary"
+              hint="Long Polling вместо Webhook (для разработки)"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-text-field
+              v-if="!editDialog.form.settings.use_polling"
+              v-model="editDialog.form.settings.webhook_url"
+              label="Webhook URL"
+              variant="outlined"
+              placeholder="https://yourdomain.com/api/max/webhook"
+              hint="URL для получения обновлений от MAX"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-alert type="warning" variant="tonal" density="compact" class="mt-3">
+              <div class="text-caption">
+                <strong>Обратите внимание:</strong> MAX API доступен только на территории России
+              </div>
+            </v-alert>
+          </div>
+
           <div v-if="editDialog.integration.type === 'novaconnect'">
             <v-alert
               type="info"
@@ -691,6 +775,7 @@ const getIntegrationIcon = (type: string) => {
     bitrix24: 'mdi-briefcase',
     '1c': 'mdi-database',
     telegram: 'mdi-telegram',
+    max: 'mdi-message-flash',
     email: 'mdi-email',
     sms: 'mdi-message-text'
   };
@@ -704,6 +789,7 @@ const getIntegrationColor = (type: string) => {
     bitrix24: 'orange',
     '1c': 'green',
     telegram: 'cyan',
+    max: 'blue',
     email: 'purple',
     sms: 'teal'
   };
@@ -717,6 +803,7 @@ const getIntegrationTypeLabel = (type: string) => {
     bitrix24: 'Битрикс24',
     '1c': '1С:Предприятие',
     telegram: 'Telegram Bot',
+    max: 'MAX Messenger',
     email: 'Email SMTP',
     sms: 'SMS Gateway'
   } as any;
@@ -758,8 +845,8 @@ const getStatusLabel = (status: string) => {
 
 // Проверка, является ли интеграция демо (в разработке)
 const isDemoIntegration = (integrationId: string) => {
-  // Telegram больше не является демо интеграцией
-  if (integrationId === 'telegram' || integrationId === 'telegram-new') {
+  // Telegram и MAX больше не являются демо интеграциями
+  if (integrationId === 'telegram' || integrationId === 'telegram-new' || integrationId === 'max' || integrationId === 'max-new') {
     return false;
   }
   return integrationId.includes('-demo');
@@ -1008,6 +1095,70 @@ const loadIntegrations = async () => {
       });
     }
     
+    // MAX Messenger интеграция
+    try {
+      const maxConfig = await settingsService.getMaxConfig();
+      
+      if (maxConfig) {
+        allIntegrations.push({
+          id: 'max',
+          type: 'max',
+          name: 'MAX Messenger',
+          description: 'Российский мессенджер для отправки уведомлений пользователям через MAX Bot API',
+          status: (maxConfig.bot_token && maxConfig.is_active) ? 'active' : 'inactive',
+          enabled: maxConfig.is_active || false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            bot_token: maxConfig.bot_token || '',
+            parse_mode: maxConfig.parse_mode || 'HTML',
+            webhook_url: maxConfig.webhook_url || '',
+            use_polling: maxConfig.use_polling || false,
+          },
+        });
+      } else {
+        // Настройки не найдены в БД, добавляем заглушку для настройки
+        allIntegrations.push({
+          id: 'max-new',
+          type: 'max',
+          name: 'MAX Messenger',
+          description: 'Российский мессенджер для отправки уведомлений пользователям через MAX Bot API',
+          status: 'inactive',
+          enabled: false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            bot_token: '',
+            parse_mode: 'HTML',
+            webhook_url: '',
+            use_polling: false,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек MAX из БД:', error);
+      // Fallback - добавляем заглушку для настройки
+      allIntegrations.push({
+        id: 'max-new',
+        type: 'max',
+        name: 'MAX Messenger',
+        description: 'Российский мессенджер для отправки уведомлений пользователям через MAX Bot API',
+        status: 'inactive',
+        enabled: false,
+        lastSync: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        settings: {
+          bot_token: '',
+          parse_mode: 'HTML',
+          webhook_url: '',
+          use_polling: false,
+        },
+      });
+    }
+    
     allIntegrations.push({
       id: 'email-demo',
       type: 'email',
@@ -1143,6 +1294,18 @@ const testConnection = async (integration: IntegrationWithSettings) => {
       if (result.success) {
         showSnackbar(
           `Подключение успешно`,
+          'success'
+        );
+      } else {
+        showSnackbar(result.message, 'error');
+      }
+    } else if (integration.type === 'max') {
+      // Тестируем подключение к MAX Bot API
+      result = await settingsService.testMaxConnection();
+      
+      if (result.success) {
+        showSnackbar(
+          `Подключение к MAX успешно`,
           'success'
         );
       } else {
@@ -1412,6 +1575,42 @@ const saveIntegration = async () => {
         await loadIntegrations();
       } else {
         showSnackbar(result.message || 'Ошибка сохранения настроек Telegram', 'error');
+      }
+      return;
+    } else if (editDialog.value.integration.type === 'max') {
+      // Сохраняем настройки MAX в БД через API
+      const settingsToSave = { ...editDialog.value.form.settings };
+      
+      // Определяем, создаем новую интеграцию или обновляем существующую
+      const existingConfig = await settingsService.getMaxConfig();
+      const isNew = !existingConfig;
+      
+      let result;
+      if (isNew) {
+        result = await settingsService.setupMaxIntegration(settingsToSave);
+      } else {
+        result = await settingsService.updateMaxIntegration(settingsToSave);
+      }
+      
+      if (result.success) {
+        // Обновляем статус интеграции в списке
+        const index = integrations.value.findIndex(i => i.id === 'max' || i.id === 'max-new');
+        if (index !== -1) {
+          integrations.value[index] = {
+            ...integrations.value[index],
+            id: 'max',
+            enabled: settingsToSave.enabled || false,
+            status: settingsToSave.bot_token && (settingsToSave.enabled || false) ? 'active' : 'inactive',
+            settings: settingsToSave,
+          };
+        }
+        
+        editDialog.value.show = false;
+        showSnackbar(result.message || 'Настройки MAX успешно сохранены в БД', 'success');
+        // Перезагружаем список интеграций для получения актуальных данных из БД
+        await loadIntegrations();
+      } else {
+        showSnackbar(result.message || 'Ошибка сохранения настроек MAX', 'error');
       }
       return;
     } else if (editDialog.value.integration.type === 'novaconnect') {
