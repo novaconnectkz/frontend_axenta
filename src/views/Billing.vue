@@ -181,7 +181,7 @@
               <!-- Клиент и договор -->
               <template v-slot:item.client="{ item }">
                 <div v-if="item.contract">
-                  <div class="font-weight-medium">{{ item.contract.client_name }}</div>
+                  <div class="font-weight-medium">{{ item.contract.client_short_name || item.contract.client_name }}</div>
                   <div class="text-caption text-grey">
                     Договор: {{ item.contract.number }}
                   </div>
