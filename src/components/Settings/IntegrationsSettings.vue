@@ -638,8 +638,9 @@
                   icon
                   variant="text"
                   size="small"
-                  @click="showToken = !showToken"
+                  @click="toggleEmailPassword"
                   class="mr-1"
+                  :loading="loadingPassword"
                 >
                   <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
                 </v-btn>
@@ -855,6 +856,7 @@ import { computed, onMounted, ref } from 'vue';
 const loading = ref(false);
 const integrations = ref<IntegrationWithSettings[]>([]);
 const testingConnections = ref<Record<string, boolean>>({});
+const loadingPassword = ref(false);
 
 const editDialog = ref({
   show: false,
@@ -985,6 +987,42 @@ const isDemoIntegration = (integrationId: string) => {
     return false;
   }
   return integrationId.includes('-demo');
+};
+
+// Метод для переключения видимости пароля Email
+const toggleEmailPassword = async () => {
+  if (!showToken.value) {
+    // Показываем пароль - загружаем реальный с сервера
+    loadingPassword.value = true;
+    try {
+      // Запрашиваем настройки с реальным паролем
+      const response = await fetch(`${config.backendUrl}/api/auth/email/config?show_password=true`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('axenta_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.config && data.config.smtp_password) {
+        // Обновляем пароль в форме
+        editDialog.value.form.settings.smtp_password = data.config.smtp_password;
+        showToken.value = true;
+      } else {
+        showSnackbar('Не удалось загрузить пароль', 'error');
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки пароля:', error);
+      showSnackbar('Ошибка загрузки пароля', 'error');
+    } finally {
+      loadingPassword.value = false;
+    }
+  } else {
+    // Скрываем пароль - маскируем обратно
+    showToken.value = false;
+  }
 };
 
 const loadIntegrations = async () => {

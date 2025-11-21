@@ -146,6 +146,13 @@ export interface Invoice {
   paid_amount: string;
   notes: string;
   external_id: string;
+  // Настройки отправки
+  send_channels?: string; // Каналы отправки через запятую (email,telegram,max)
+  send_to_email?: string;
+  send_to_telegram?: string;
+  send_to_max?: string;
+  last_sent_at?: string;
+  last_sent_channels?: string; // Каналы последней отправки
   items: InvoiceItem[];
 }
 
@@ -322,6 +329,18 @@ export interface ProcessPaymentData {
 // Данные для отмены счета
 export interface CancelInvoiceData {
   reason: string;
+}
+
+// Данные для отправки счета клиенту
+export type InvoiceSendChannel = "email" | "telegram" | "max";
+
+export interface SendInvoiceData {
+  channels: InvoiceSendChannel[];
+  contact_info: {
+    email?: string;
+    telegram?: string;
+    max?: string;
+  };
 }
 
 // Данные для обновления настроек биллинга

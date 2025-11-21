@@ -366,9 +366,13 @@ class BillingService {
   /**
    * Отправить счет клиенту (изменить статус с draft на sent)
    */
-  async sendInvoice(invoiceId: number): Promise<Invoice> {
+  async sendInvoice(
+    invoiceId: number,
+    data: SendInvoiceData
+  ): Promise<Invoice> {
     const response: AxiosResponse<InvoiceResponse> = await this.apiClient.post(
-      `/auth/billing/invoices/${invoiceId}/send`
+      `/auth/billing/invoices/${invoiceId}/send`,
+      data
     );
     if (!response.data.data) {
       throw new Error("Ошибка отправки счета");

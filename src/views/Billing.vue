@@ -1453,6 +1453,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Диалог отправки счета клиенту -->
+    <SendInvoiceDialog
+      v-model="sendInvoiceDialogOpen"
+      :invoice="selectedInvoiceForSend"
+      @sent="handleInvoiceSent"
+    />
   </v-container>
 </template>
 
@@ -1462,6 +1469,7 @@ import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
 import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
+import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
 import { billingService } from '@/services/billingService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
@@ -1616,6 +1624,8 @@ const subscriptionWizardOpen = ref(false)
 const generateInvoiceDialog = ref(false)
 const paymentDialog = ref(false)
 const invoiceViewDialog = ref(false)
+const sendInvoiceDialogOpen = ref(false)
+const selectedInvoiceForSend = ref<Invoice | null>(null)
 
 // Формы
 const planFormValid = ref(false)
@@ -2161,22 +2171,19 @@ const deleteInvoiceConfirm = async (invoice: Invoice) => {
 }
 
 const sendInvoiceToClient = async (invoice: Invoice) => {
-  if (!confirm(`Вы уверены, что хотите отправить счет ${invoice.number} клиенту? После отправки счет появится в разделе "К оплате".`)) {
-    return
-  }
+  // Открываем диалог отправки счета
+  selectedInvoiceForSend.value = invoice
+  sendInvoiceDialogOpen.value = true
+}
 
-  try {
-    console.log('📤 Отправка счета:', invoice.number)
-    await billingService.sendInvoice(invoice.id)
-    console.log('✅ Счет успешно отправлен')
-    await fetchInvoices()
-    await loadDashboardData()
-    alert(`Счет ${invoice.number} успешно отправлен клиенту`)
-  } catch (error: any) {
-    console.error('❌ Ошибка при отправке счета:', error)
-    const errorMessage = error.response?.data?.error || 'Ошибка при отправке счета'
-    alert(`Ошибка: ${errorMessage}`)
-  }
+const handleInvoiceSent = async (updatedInvoice: Invoice) => {
+  console.log('✅ Счет успешно отправлен:', updatedInvoice.number)
+  await fetchInvoices()
+  await loadDashboardData()
+  
+  // Показываем уведомление
+  const sentChannels = updatedInvoice.last_sent_channels?.split(',').join(', ') || 'выбранные каналы'
+  alert(`Счет ${updatedInvoice.number} успешно отправлен через: ${sentChannels}`)
 }
 
 const generateInvoice = async () => {
