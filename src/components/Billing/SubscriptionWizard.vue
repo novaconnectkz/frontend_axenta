@@ -936,18 +936,20 @@ const contractOptions = computed(() => {
   
   return uniqueContracts.map(contract => {
     // Показываем только номер договора и клиента (без дублирования title)
-    const title = contract.client_name 
-      ? `${contract.number} - ${contract.client_name}`
+    const clientDisplay = contract.client_short_name || contract.client_name
+    const title = clientDisplay 
+      ? `${contract.number} - ${clientDisplay}`
       : contract.number
     
     return {
       id: contract.id,
       title,
       client_name: contract.client_name,
+      client_short_name: contract.client_short_name,
       status: contract.status,
       number: contract.number,
       // Добавляем все поля для поиска (номер, название, клиент, статус)
-      searchText: `${contract.number} ${contract.title || ''} ${contract.client_name || ''} ${contract.status || ''}`.toLowerCase()
+      searchText: `${contract.number} ${contract.title || ''} ${contract.client_short_name || contract.client_name || ''} ${contract.status || ''}`.toLowerCase()
     }
   })
 })
@@ -1728,7 +1730,7 @@ const contractFilter = (item: any, queryText: string, itemText: string) => {
   // Формируем searchText из всех доступных полей договора
   const number = (item.raw.number || '').toLowerCase()
   const title = (item.raw.title || '').toLowerCase()
-  const clientName = (item.raw.client_name || '').toLowerCase()
+  const clientName = (item.raw.client_short_name || item.raw.client_name || '').toLowerCase()
   const status = (item.raw.status || '').toLowerCase()
   
   // Объединяем все поля в одну строку для поиска

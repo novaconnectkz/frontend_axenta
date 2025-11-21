@@ -164,7 +164,7 @@
             </h3>
             
             <v-row>
-              <v-col cols="12" md="4">
+              <v-col cols="12" md="2">
                 <label class="apple-input-label">Тип клиента <span class="apple-input-required">*</span></label>
                 <v-select
                   v-model="form.client_type"
@@ -178,12 +178,21 @@
                 />
               </v-col>
               
-              <v-col cols="12" md="8">
+              <v-col cols="12" :md="form.client_type === CLIENT_TYPES.ORGANIZATION ? 5 : 10">
                 <AppleInput
                   v-model="form.client_name"
-                  :label="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON ? 'ФИО клиента' : 'Наименование клиента'"
+                  :label="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON ? 'ФИО клиента' : 'Полное наименование клиента'"
                   :rules="[rules.required]"
                   required
+                />
+              </v-col>
+              
+              <!-- Сокращенное название для организаций -->
+              <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION" cols="12" md="5">
+                <AppleInput
+                  v-model="form.client_short_name"
+                  label="Сокращенное название с ОПФ"
+                  hint="Автоматически заполняется при выборе организации по ИНН"
                 />
               </v-col>
             </v-row>
@@ -191,7 +200,7 @@
             <!-- Реквизиты для организаций -->
             <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
               <v-row>
-                <v-col cols="12" md="3">
+                <v-col cols="12" md="4">
                   <div style="position: relative;" ref="innAutocompleteRef" class="inn-field-container">
                     <AppleInput
                       ref="innInputRef"
@@ -228,7 +237,7 @@
                           Введите ИНН (10 цифр) или ОГРН (13 цифр), и система автоматически заполнит:
                           <ul class="mt-2 mb-2 pl-3" style="text-align: left; line-height: 1.6;">
                             <li>Наименование организации</li>
-                            <li>ИНН, КПП, ОГРН, ОКПО</li>
+                            <li>ИНН, КПП, ОГРН</li>
                             <li>Юридический и почтовый адреса</li>
                             <li>Руководителя</li>
                             <li>Контактные данные (телефон, email, сайт)</li>
@@ -274,27 +283,19 @@
                     </v-menu>
                 </v-col>
                 
-                <v-col cols="12" md="3">
+                <v-col cols="12" md="4">
                   <AppleInput
                     v-model="form.client_kpp"
                     label="КПП"
                   />
                 </v-col>
                 
-                <v-col cols="12" md="3">
+                <v-col cols="12" md="4">
                   <AppleInput
                     v-model="form.client_ogrn"
                     label="ОГРН"
                     :rules="[rules.ogrn]"
                     :maxlength="13"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="3">
-                  <AppleInput
-                    v-model="form.client_okpo"
-                    label="ОКПО"
-                    :maxlength="10"
                   />
                 </v-col>
               </v-row>
@@ -540,13 +541,9 @@
                 </v-col>
                 
                 <v-col cols="12" md="6">
-                  <label class="apple-input-label">Действует на основании</label>
-                  <v-textarea
+                  <AppleInput
                     v-model="form.client_based_on"
-                    variant="outlined"
-                    density="compact"
-                    rows="1"
-                    hide-details
+                    label="Действует на основании"
                   />
                 </v-col>
               </v-row>
@@ -559,35 +556,10 @@
                 Банковские реквизиты
               </h4>
               
-              <!-- Для организаций порядок: Расчётный счёт, Корреспондентский счёт, Банк, БИК -->
+              <!-- Для организаций порядок: БИК, Расчётный счёт, Корреспондентский счёт, Банк -->
               <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
                 <v-row>
-                  <v-col cols="12" md="6">
-                    <AppleInput
-                      v-model="form.client_bank_account"
-                      label="Расчётный счёт"
-                      :maxlength="20"
-                    />
-                  </v-col>
-                  
-                  <v-col cols="12" md="6">
-                    <AppleInput
-                      v-model="form.client_bank_correspondent_account"
-                      label="Корреспондентский счёт"
-                      :maxlength="20"
-                    />
-                  </v-col>
-                </v-row>
-                
-                <v-row>
-                  <v-col cols="12" md="8">
-                    <AppleInput
-                      v-model="form.client_bank_name"
-                      label="Банк"
-                    />
-                  </v-col>
-                  
-                  <v-col cols="12" md="4">
+                  <v-col cols="12" md="2">
                     <div style="position: relative;" ref="bikAutocompleteRef" class="inn-field-container">
                       <AppleInput
                         :model-value="form.client_bank_bik"
@@ -660,6 +632,29 @@
                         </v-list-item>
                       </v-list>
                     </v-menu>
+                  </v-col>
+                  
+                  <v-col cols="12" md="3">
+                    <AppleInput
+                      v-model="form.client_bank_account"
+                      label="Расчётный счёт"
+                      :maxlength="20"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="12" md="3">
+                    <AppleInput
+                      v-model="form.client_bank_correspondent_account"
+                      label="Корреспондентский счёт"
+                      :maxlength="20"
+                    />
+                  </v-col>
+                
+                  <v-col cols="12" md="4">
+                    <AppleInput
+                      v-model="form.client_bank_name"
+                      label="Банк"
+                    />
                   </v-col>
                 </v-row>
               </template>
@@ -667,16 +662,14 @@
               <!-- Для физических лиц и ИП порядок: Банк, БИК, Корреспондентский счёт, Расчётный счёт, Получатель -->
               <template v-else>
                 <v-row>
-                  <v-col cols="12">
+                  <v-col cols="12" md="6">
                     <AppleInput
                       v-model="form.client_bank_name"
                       label="Наименование банка"
                     />
                   </v-col>
-                </v-row>
-                
-                <v-row>
-                  <v-col cols="12" md="4">
+                  
+                  <v-col cols="12" md="2">
                     <div style="position: relative;" ref="bikAutocompleteRef" class="inn-field-container">
                       <AppleInput
                         :model-value="form.client_bank_bik"
@@ -758,18 +751,18 @@
                       :maxlength="20"
                     />
                   </v-col>
-                  
-                  <v-col cols="12" md="4">
+                </v-row>
+                
+                <v-row>
+                  <v-col cols="12" md="6">
                     <AppleInput
                       v-model="form.client_bank_account"
                       label="Расчётный счёт"
                       :maxlength="20"
                     />
                   </v-col>
-                </v-row>
-                
-                <v-row>
-                  <v-col cols="12">
+                  
+                  <v-col cols="12" md="6">
                     <AppleInput
                       v-model="form.client_bank_recipient"
                       label="Получатель"
@@ -882,6 +875,7 @@ const defaultForm: ContractForm = {
   description: '',
   client_type: CLIENT_TYPES.ORGANIZATION,
   client_name: '',
+  client_short_name: '',
   client_inn: '',
   client_kpp: '',
   client_email: '',
@@ -1154,6 +1148,7 @@ const saveContract = async () => {
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
       client_name: form.value.client_name,
+      client_short_name: form.value.client_short_name || '', // Сокращенное название с ОПФ
       client_inn: form.value.client_inn || '',
       client_kpp: form.value.client_kpp || '',
       client_email: form.value.client_email || '',
@@ -1736,6 +1731,10 @@ const onOrganizationSelect = (selected: any) => {
     // Основные данные
     if (extractedData.client_name) {
       form.value.client_name = extractedData.client_name;
+    }
+    
+    if (extractedData.client_short_name) {
+      form.value.client_short_name = extractedData.client_short_name;
     }
     
     if (extractedData.client_inn) {

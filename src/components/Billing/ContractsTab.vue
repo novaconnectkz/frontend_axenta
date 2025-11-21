@@ -128,6 +128,8 @@
             size="small" 
             :color="getStatusColor(item.status)"
             variant="tonal"
+            style="cursor: pointer;"
+            @click="navigateToSubscriptions(item)"
           >
             {{ item.number }}
           </v-chip>
@@ -135,7 +137,7 @@
 
         <!-- Клиент -->
         <template #item.title="{ item }">
-          <div class="contract-client">{{ item.client_name }}</div>
+          <div class="contract-client">{{ item.client_short_name || item.client_name }}</div>
         </template>
 
         <!-- Тарифный план -->
@@ -360,6 +362,7 @@ interface Contract {
   created_at?: string; // Дата создания
   title: string;
   client_name: string;
+  client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   start_date: string;
   end_date: string;
   total_amount: string;
@@ -425,7 +428,8 @@ const filteredContracts = computed(() => {
     result = result.filter(contract =>
       contract.number.toLowerCase().includes(query) ||
       contract.title.toLowerCase().includes(query) ||
-      contract.client_name.toLowerCase().includes(query)
+      contract.client_name.toLowerCase().includes(query) ||
+      (contract.client_short_name && contract.client_short_name.toLowerCase().includes(query))
     );
   }
 
@@ -677,6 +681,20 @@ const createContract = () => {
 const viewContract = (contract: Contract) => {
   console.log('Просмотр договора:', contract.number);
   showSnackbarMessage(`Просмотр договора ${contract.number}`, 'info');
+};
+
+// Навигация к подпискам по договору
+const navigateToSubscriptions = (contract: Contract) => {
+  console.log('Навигация к подпискам по договору:', contract.number);
+  // Переход на страницу биллинга с вкладкой "Подписки" и фильтром по contract_id
+  router.push({
+    path: '/billing',
+    query: {
+      tab: 'subscriptions',
+      contract_id: contract.id.toString(),
+      contract_number: contract.number
+    }
+  });
 };
 
 const viewInvoices = (contract: Contract) => {

@@ -161,7 +161,7 @@
                 <v-col cols="12" md="8">
                   <AppleInput
                     v-model="form.client_name"
-                    label="Наименование клиента"
+                    label="Полное наименование клиента"
                     :rules="[rules.required]"
                     prepend-icon="mdi-domain"
                     required
@@ -220,6 +220,17 @@
                       </v-list>
                     </v-menu>
                   </div>
+                </v-col>
+              </v-row>
+
+              <v-row>
+                <v-col cols="12" md="12">
+                  <AppleInput
+                    v-model="form.client_short_name"
+                    label="Сокращенное название с ОПФ"
+                    prepend-icon="mdi-domain"
+                    hint="Автоматически заполняется при выборе организации по ИНН"
+                  />
                 </v-col>
               </v-row>
 
@@ -529,6 +540,7 @@ const defaultForm: ContractForm = {
   title: '',
   description: '',
   client_name: '',
+  client_short_name: '',
   client_inn: '',
   client_kpp: '',
   client_email: '',
@@ -1007,6 +1019,10 @@ const onOrganizationSelect = (selected: any) => {
     // Заполняем все поля данными из выбранной организации
     if (extractedData.client_name) {
       form.value.client_name = extractedData.client_name;
+    }
+    
+    if (extractedData.client_short_name) {
+      form.value.client_short_name = extractedData.client_short_name;
     }
     
     if (extractedData.client_inn) {

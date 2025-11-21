@@ -143,7 +143,7 @@
         <template #item.title="{ item }">
           <div class="contract-info">
             <div class="contract-title">{{ item.title }}</div>
-            <div class="contract-client">{{ item.client_name }}</div>
+            <div class="contract-client">{{ item.client_short_name || item.client_name }}</div>
           </div>
         </template>
 
@@ -533,7 +533,7 @@ const exportContracts = async () => {
     const csvData = contracts.value.map(contract => ({
       'Номер': contract.number,
       'Название': contract.title,
-      'Клиент': contract.client_name,
+      'Клиент': contract.client_short_name || contract.client_name,
       'ИНН': contract.client_inn || '',
       'Телефон': contract.client_phone || '',
       'Email': contract.client_email || '',

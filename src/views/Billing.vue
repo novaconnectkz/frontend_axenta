@@ -138,10 +138,27 @@
           </v-card-title>
           
           <v-card-text>
+            <!-- Фильтр по договору (если активен) -->
+            <v-alert
+              v-if="filteredByContractId"
+              type="info"
+              variant="tonal"
+              closable
+              @click:close="clearContractFilter"
+              class="mb-4"
+            >
+              <div class="d-flex align-center">
+                <v-icon icon="mdi-filter" class="mr-2" />
+                <span>
+                  Отображаются подписки по договору: <strong>{{ filteredByContractNumber }}</strong>
+                </span>
+              </div>
+            </v-alert>
+
             <!-- Таблица подписок -->
             <v-data-table
               :headers="subscriptionHeaders"
-              :items="subscriptions"
+              :items="filteredSubscriptions"
               :loading="loadingSubscriptions"
               class="elevation-1"
               item-value="id"
@@ -1542,6 +1559,8 @@ const planStatusFilter = ref<boolean | null>(null)
 const invoiceStatusFilter = ref<InvoiceStatus | null>(null)
 const invoiceDateStart = ref('')
 const invoiceDateEnd = ref('')
+const filteredByContractId = ref<number | null>(null)
+const filteredByContractNumber = ref<string | null>(null)
 
 // Диалоги
 const planDialog = ref(false)
@@ -1660,6 +1679,34 @@ const filteredPlans = computed(() => {
 
   if (planStatusFilter.value !== null) {
     filtered = filtered.filter(plan => plan.is_active === planStatusFilter.value)
+  }
+
+  return filtered
+})
+
+// Фильтрованные подписки (с учетом фильтра по договору)
+const filteredSubscriptions = computed(() => {
+  let filtered = subscriptions.value
+
+  console.log('🔍 Фильтрация подписок:', {
+    totalSubscriptions: subscriptions.value.length,
+    filteredByContractId: filteredByContractId.value,
+    filteredByContractNumber: filteredByContractNumber.value
+  })
+
+  // Применяем фильтр по договору, если он установлен
+  if (filteredByContractId.value !== null && filteredByContractId.value !== undefined) {
+    filtered = filtered.filter(sub => {
+      console.log('Проверка подписки:', {
+        subscriptionId: sub.id,
+        contractId: sub.contract_id,
+        matches: sub.contract_id === filteredByContractId.value
+      })
+      return sub.contract_id === filteredByContractId.value
+    })
+    console.log(`✅ Отфильтровано подписок: ${filtered.length} из ${subscriptions.value.length}`)
+  } else {
+    console.log(`✅ Фильтр не применен, показываем все подписки: ${filtered.length}`)
   }
 
   return filtered
@@ -1917,6 +1964,19 @@ const deletePlan = async (plan: BillingPlan) => {
 // Методы для подписок
 const openSubscriptionWizard = () => {
   subscriptionWizardOpen.value = true
+}
+
+// Метод очистки фильтра по договору
+const clearContractFilter = () => {
+  filteredByContractId.value = null
+  filteredByContractNumber.value = null
+  // Обновляем URL без параметров фильтра
+  router.replace({
+    path: '/billing',
+    query: {
+      tab: 'subscriptions'
+    }
+  })
 }
 
 const openSubscriptionDialog = (subscription?: Subscription) => {
@@ -2432,6 +2492,28 @@ watch(activeTab, (newTab) => {
 watch(() => route.query.tab, (newTab) => {
   if (newTab && typeof newTab === 'string' && newTab !== activeTab.value) {
     activeTab.value = newTab
+  }
+}, { immediate: true })
+
+// Отслеживаем параметры фильтрации по договору в URL
+watch(() => route.query.contract_id, (contractId) => {
+  console.log('🔗 Изменение параметра contract_id в URL:', {
+    contractId,
+    type: typeof contractId,
+    contractNumber: route.query.contract_number
+  })
+  
+  if (contractId && typeof contractId === 'string') {
+    filteredByContractId.value = parseInt(contractId, 10)
+    filteredByContractNumber.value = (route.query.contract_number as string) || null
+    console.log('✅ Фильтр установлен:', {
+      id: filteredByContractId.value,
+      number: filteredByContractNumber.value
+    })
+  } else {
+    filteredByContractId.value = null
+    filteredByContractNumber.value = null
+    console.log('❌ Фильтр сброшен')
   }
 }, { immediate: true })
 

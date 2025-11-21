@@ -317,6 +317,7 @@ class DaDataService {
    */
   extractOrganizationData(orgData: any): {
     client_name?: string;
+    client_short_name?: string;
     client_inn?: string;
     client_kpp?: string;
     client_address?: string;
@@ -358,8 +359,10 @@ class DaDataService {
     
     // Извлекаем название
     let clientName = '';
+    let clientShortName = '';
     if (typeof name === 'object' && name !== null) {
       clientName = name.full_with_opf || name.full || name.short_with_opf || name.short || '';
+      clientShortName = name.short_with_opf || ''; // Сокращенное название с ОПФ
     } else if (typeof name === 'string') {
       clientName = name;
     }
@@ -464,6 +467,7 @@ class DaDataService {
 
     return {
       client_name: clientName,
+      client_short_name: clientShortName,
       client_inn: org.inn || '',
       client_kpp: org.kpp || '',
       client_address: legalAddress, // Для обратной совместимости

@@ -85,6 +85,7 @@ export interface ContractBase {
   description?: string;
   company_id: number;
   client_name: string;
+  client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   client_contact?: string;
   start_date: string;
   end_date: string;
@@ -111,6 +112,7 @@ export interface ContractForm {
   description?: string;
   client_type?: ClientType; // Тип клиента: организация, ИП, физическое лицо
   client_name: string;
+  client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   client_inn?: string;
   client_kpp?: string;
   client_email?: string;
@@ -161,6 +163,7 @@ export interface ContractForm {
 
 // Договор с дополнительными полями и связями
 export interface ContractWithRelations extends Contract {
+  client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   client_inn?: string;
   client_kpp?: string;
   client_email?: string;
