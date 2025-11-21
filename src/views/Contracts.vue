@@ -288,7 +288,7 @@ const filters = ref<ContractFilters>({
 // Заголовки таблицы
 const tableHeaders = [
   { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
   { title: 'Название / Клиент', key: 'title', sortable: true },
   { title: 'Тарифный план', key: 'tariff_plan', sortable: false, width: '180px' },

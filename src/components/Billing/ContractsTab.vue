@@ -395,7 +395,7 @@ const snackbarColor = ref('success');
 // Заголовки таблицы (компактные для вкладки)
 const headers = [
   { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
   { title: 'Клиент', key: 'title', sortable: true },
   { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '140px' },

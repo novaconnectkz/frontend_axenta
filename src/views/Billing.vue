@@ -1639,7 +1639,7 @@ const planHeaders = [
 
 const subscriptionHeaders = [
   { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Дата создания', key: 'created_at', sortable: true, width: '140px' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Клиент / Договор', key: 'client', sortable: false },
   { title: 'Тарифный план', key: 'billing_plan', sortable: false },
   { title: 'Объекты', key: 'objects', sortable: false },
