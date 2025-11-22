@@ -1142,19 +1142,41 @@ const saveContract = async () => {
 
   saving.value = true;
   try {
-    // Подготавливаем данные для отправки - оставляем только поля, которые есть в модели Contract
+    // Подготавливаем данные для отправки - отправляем все поля формы
     const contractData: any = {
       number: form.value.number,
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
+      client_type: form.value.client_type,
       client_name: form.value.client_name,
-      client_short_name: form.value.client_short_name || '', // Сокращенное название с ОПФ
+      client_short_name: form.value.client_short_name || '',
       client_inn: form.value.client_inn || '',
       client_kpp: form.value.client_kpp || '',
       client_email: form.value.client_email || '',
       client_phone: form.value.client_phone || '',
       client_address: form.value.client_address || '',
-      status: form.value.status || 'draft', // По умолчанию черновик
+      client_legal_address: form.value.client_legal_address || '',
+      client_postal_address: form.value.client_postal_address || '',
+      client_ogrn: form.value.client_ogrn || '',
+      client_okpo: form.value.client_okpo || '',
+      client_director: form.value.client_director || '',
+      client_based_on: form.value.client_based_on || '',
+      client_passport_series: form.value.client_passport_series || '',
+      client_passport_number: form.value.client_passport_number || '',
+      client_passport_issued_by: form.value.client_passport_issued_by || '',
+      client_passport_issue_date: form.value.client_passport_issue_date || '',
+      client_passport_department_code: form.value.client_passport_department_code || '',
+      client_registration_address: form.value.client_registration_address || '',
+      client_actual_address: form.value.client_actual_address || '',
+      client_snils: form.value.client_snils || '',
+      client_ogrnip: form.value.client_ogrnip || '',
+      client_website: form.value.client_website || '',
+      client_bank_name: form.value.client_bank_name || '',
+      client_bank_bik: form.value.client_bank_bik || '',
+      client_bank_correspondent_account: form.value.client_bank_correspondent_account || '',
+      client_bank_account: form.value.client_bank_account || '',
+      client_bank_recipient: form.value.client_bank_recipient || '',
+      status: form.value.status || 'draft',
       notes: form.value.notes || '',
     };
     

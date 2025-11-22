@@ -151,6 +151,15 @@ const routes = [
           requiresAuth: true,
         },
       },
+      {
+        path: "contracts/edit/:id",
+        name: "EditContract",
+        component: () => import("@/views/EditContract.vue"),
+        meta: {
+          title: "Редактирование договора",
+          requiresAuth: true,
+        },
+      },
 
       // Биллинг
       {

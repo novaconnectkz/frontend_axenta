@@ -97,7 +97,7 @@
     </v-card>
 
     <!-- Таблица договоров -->
-    <v-card variant="outlined" v-if="contracts.length > 0">
+    <v-card variant="outlined" v-if="filteredContracts.length > 0">
       <v-data-table
         :headers="headers"
         :items="filteredContracts"
@@ -267,6 +267,19 @@
                   size="small" 
                   variant="text" 
                   @click="viewContract(item)"
+                />
+              </template>
+            </v-tooltip>
+            
+            <v-tooltip text="Редактировать">
+              <template #activator="{ props }">
+                <v-btn 
+                  v-bind="props"
+                  icon="mdi-pencil" 
+                  size="small" 
+                  variant="text" 
+                  color="primary"
+                  @click="editContract(item)"
                 />
               </template>
             </v-tooltip>
@@ -681,6 +694,14 @@ const createContract = () => {
 const viewContract = (contract: Contract) => {
   console.log('Просмотр договора:', contract.number);
   showSnackbarMessage(`Просмотр договора ${contract.number}`, 'info');
+};
+
+const editContract = (contract: Contract) => {
+  console.log('📝 Редактирование договора:', contract.number);
+  router.push({
+    name: 'EditContract',
+    params: { id: contract.id }
+  });
 };
 
 // Навигация к подпискам по договору

@@ -76,6 +76,30 @@ export const NOTIFICATION_PERIOD_OPTIONS = [
   { value: 90, title: "90 дней" },
 ] as const;
 
+// Типы клиентов
+export const CLIENT_TYPES = {
+  ORGANIZATION: "organization",
+  INDIVIDUAL_ENTREPRENEUR: "individual_entrepreneur",
+  PHYSICAL_PERSON: "physical_person",
+} as const;
+
+export type ClientType =
+  (typeof CLIENT_TYPES)[keyof typeof CLIENT_TYPES];
+
+// Лейблы типов клиентов
+export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
+  [CLIENT_TYPES.ORGANIZATION]: "Организация",
+  [CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR]: "Индивидуальный предприниматель (ИП)",
+  [CLIENT_TYPES.PHYSICAL_PERSON]: "Физическое лицо",
+};
+
+// Опции типов клиентов
+export const CLIENT_TYPE_OPTIONS = [
+  { value: CLIENT_TYPES.ORGANIZATION, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.ORGANIZATION] },
+  { value: CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR] },
+  { value: CLIENT_TYPES.PHYSICAL_PERSON, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.PHYSICAL_PERSON] },
+] as const;
+
 // Базовый интерфейс договора
 export interface ContractBase {
   id: number;
@@ -84,9 +108,43 @@ export interface ContractBase {
   title: string;
   description?: string;
   company_id: number;
+  client_type?: ClientType; // Тип клиента
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   client_contact?: string;
+  client_inn?: string;
+  client_kpp?: string;
+  client_email?: string;
+  client_phone?: string;
+  client_address?: string;
+  client_legal_address?: string; // Юридический адрес (для организаций)
+  client_postal_address?: string; // Почтовый адрес (для организаций)
+  
+  // Дополнительные реквизиты для организаций
+  client_ogrn?: string; // ОГРН (для организаций)
+  client_okpo?: string; // ОКПО (для организаций)
+  client_director?: string; // Генеральный директор / Руководитель
+  client_based_on?: string; // Действует на основании
+  
+  // Поля для физических лиц и ИП
+  client_passport_series?: string; // Серия паспорта
+  client_passport_number?: string; // Номер паспорта
+  client_passport_issued_by?: string; // Кем выдан паспорт
+  client_passport_issue_date?: string; // Дата выдачи паспорта
+  client_passport_department_code?: string; // Код подразделения
+  client_registration_address?: string; // Адрес регистрации (для ИП и физических лиц)
+  client_actual_address?: string; // Адрес фактического проживания (для физических лиц)
+  client_snils?: string; // СНИЛС (для физических лиц)
+  client_ogrnip?: string; // ОГРНИП (для ИП)
+  client_website?: string; // Сайт (для ИП и организаций)
+  
+  // Банковские реквизиты
+  client_bank_name?: string; // Наименование банка
+  client_bank_bik?: string; // БИК
+  client_bank_correspondent_account?: string; // Корреспондентский счёт
+  client_bank_account?: string; // Расчётный счёт
+  client_bank_recipient?: string; // Получатель
+  
   start_date: string;
   end_date: string;
   status: ContractStatus;
@@ -163,12 +221,41 @@ export interface ContractForm {
 
 // Договор с дополнительными полями и связями
 export interface ContractWithRelations extends Contract {
+  client_type?: ClientType; // Тип клиента
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   client_inn?: string;
   client_kpp?: string;
   client_email?: string;
   client_phone?: string;
   client_address?: string;
+  client_legal_address?: string; // Юридический адрес (для организаций)
+  client_postal_address?: string; // Почтовый адрес (для организаций)
+  
+  // Дополнительные реквизиты для организаций
+  client_ogrn?: string; // ОГРН (для организаций)
+  client_okpo?: string; // ОКПО (для организаций)
+  client_director?: string; // Генеральный директор / Руководитель
+  client_based_on?: string; // Действует на основании
+  
+  // Поля для физических лиц и ИП
+  client_passport_series?: string; // Серия паспорта
+  client_passport_number?: string; // Номер паспорта
+  client_passport_issued_by?: string; // Кем выдан паспорт
+  client_passport_issue_date?: string; // Дата выдачи паспорта
+  client_passport_department_code?: string; // Код подразделения
+  client_registration_address?: string; // Адрес регистрации (для ИП и физических лиц)
+  client_actual_address?: string; // Адрес фактического проживания (для физических лиц)
+  client_snils?: string; // СНИЛС (для физических лиц)
+  client_ogrnip?: string; // ОГРНИП (для ИП)
+  client_website?: string; // Сайт (для ИП и организаций)
+  
+  // Банковские реквизиты
+  client_bank_name?: string; // Наименование банка
+  client_bank_bik?: string; // БИК
+  client_bank_correspondent_account?: string; // Корреспондентский счёт
+  client_bank_account?: string; // Расчётный счёт
+  client_bank_recipient?: string; // Получатель
+  
   tariff_plan_id?: number;
   total_amount?: string;
   notify_before?: number;
@@ -342,28 +429,4 @@ export const RESET_PERIOD_OPTIONS = [
   { value: "never", title: "Никогда" },
   { value: "yearly", title: "Ежегодно" },
   { value: "monthly", title: "Ежемесячно" },
-] as const;
-
-// Типы клиентов
-export const CLIENT_TYPES = {
-  ORGANIZATION: "organization",
-  INDIVIDUAL_ENTREPRENEUR: "individual_entrepreneur",
-  PHYSICAL_PERSON: "physical_person",
-} as const;
-
-export type ClientType =
-  (typeof CLIENT_TYPES)[keyof typeof CLIENT_TYPES];
-
-// Лейблы типов клиентов
-export const CLIENT_TYPE_LABELS: Record<ClientType, string> = {
-  [CLIENT_TYPES.ORGANIZATION]: "Организация",
-  [CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR]: "Индивидуальный предприниматель (ИП)",
-  [CLIENT_TYPES.PHYSICAL_PERSON]: "Физическое лицо",
-};
-
-// Опции типов клиентов
-export const CLIENT_TYPE_OPTIONS = [
-  { value: CLIENT_TYPES.ORGANIZATION, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.ORGANIZATION] },
-  { value: CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR] },
-  { value: CLIENT_TYPES.PHYSICAL_PERSON, title: CLIENT_TYPE_LABELS[CLIENT_TYPES.PHYSICAL_PERSON] },
 ] as const;

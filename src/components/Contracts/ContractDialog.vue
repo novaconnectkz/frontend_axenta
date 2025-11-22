@@ -277,149 +277,6 @@
               </v-row>
             </div>
 
-            <!-- Тарификация и стоимость -->
-            <div class="form-section">
-              <h3 class="section-title">
-                <v-icon icon="mdi-currency-rub" class="mr-2" />
-                Тарификация и стоимость
-              </h3>
-              
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-select
-                    v-model="form.tariff_plan_id"
-                    :items="tariffPlanOptions"
-                    label="Тарифный план"
-                    :rules="[rules.required]"
-                    variant="outlined"
-                    density="comfortable"
-                    prepend-icon="mdi-package-variant"
-                    :loading="loadingTariffPlans"
-                    required
-                    @update:model-value="onTariffPlanChange"
-                  >
-                    <template #item="{ props, item }">
-                      <v-list-item v-bind="props">
-                        <template #prepend>
-                          <v-avatar size="small" color="primary">
-                            <v-icon icon="mdi-package-variant" />
-                          </v-avatar>
-                        </template>
-                        
-                        <v-list-item-title>{{ item.title }}</v-list-item-title>
-                        <v-list-item-subtitle>
-                          {{ formatCurrency((item.raw as unknown as BillingPlan).price) }}/мес
-                          • До {{ (item.raw as unknown as BillingPlan).max_devices }} устройств
-                        </v-list-item-subtitle>
-                      </v-list-item>
-                    </template>
-                  </v-select>
-                </v-col>
-                
-                <v-col cols="12" md="3">
-                  <AppleInput
-                    v-model="form.total_amount"
-                    label="Общая стоимость"
-                    prepend-icon="mdi-calculator"
-                    :rules="[rules.number]"
-                    type="number"
-                    step="0.01"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="3">
-                  <v-select
-                    v-model="form.currency"
-                    :items="currencyOptions"
-                    label="Валюта"
-                    variant="outlined"
-                    density="comfortable"
-                    prepend-icon="mdi-cash"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-
-            <!-- Период действия (только при редактировании) -->
-            <div v-if="isEdit" class="form-section">
-              <h3 class="section-title">
-                <v-icon icon="mdi-calendar-range" class="mr-2" />
-                Период действия
-              </h3>
-              
-              <v-row>
-                <v-col cols="12" md="4">
-                  <AppleInput
-                    v-model="form.start_date"
-                    label="Дата начала"
-                    prepend-icon="mdi-calendar-start"
-                    type="date"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="4">
-                  <AppleInput
-                    v-model="form.end_date"
-                    label="Дата окончания"
-                    prepend-icon="mdi-calendar-end"
-                    type="date"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="4">
-                  <v-select
-                    v-model="form.notify_before"
-                    :items="notificationOptions"
-                    label="Уведомлять за"
-                    variant="outlined"
-                    density="comfortable"
-                    prepend-icon="mdi-bell"
-                  />
-                </v-col>
-              </v-row>
-            </div>
-
-            <!-- Дополнительные параметры -->
-            <div class="form-section">
-              <h3 class="section-title">
-                <v-icon icon="mdi-cog" class="mr-2" />
-                Дополнительные параметры
-              </h3>
-              
-              <v-row>
-                <v-col cols="12" md="6">
-                  <v-switch
-                    v-model="form.is_active"
-                    label="Активный договор"
-                    color="success"
-                    density="comfortable"
-                  />
-                </v-col>
-                
-                <v-col cols="12" md="6">
-                  <AppleInput
-                    v-model="form.external_id"
-                    label="Внешний ID"
-                    prepend-icon="mdi-identifier"
-                    hint="ID в внешних системах (1С, Битрикс24)"
-                    persistent-hint
-                  />
-                </v-col>
-              </v-row>
-
-              <v-row>
-                <v-col cols="12">
-                  <v-textarea
-                    v-model="form.notes"
-                    label="Примечания"
-                    variant="outlined"
-                    density="comfortable"
-                    prepend-icon="mdi-note-text"
-                    rows="3"
-                  />
-                </v-col>
-              </v-row>
-            </div>
           </v-container>
         </v-form>
       </v-card-text>
@@ -546,16 +403,7 @@ const defaultForm: ContractForm = {
   client_email: '',
   client_phone: '',
   client_address: '',
-  start_date: undefined, // Будет установлено через подписку
-  end_date: undefined, // Будет установлено через подписку
-  tariff_plan_id: 0,
-  total_amount: '',
-  currency: 'RUB',
   status: 'draft',
-  is_active: true,
-  notify_before: 30,
-  notes: '',
-  external_id: '',
   account_id: undefined,
 };
 
@@ -699,21 +547,13 @@ const fillForm = (contract: ContractWithRelations) => {
     title: contract.title,
     description: contract.description || '',
     client_name: contract.client_name,
+    client_short_name: contract.client_short_name || '',
     client_inn: contract.client_inn || '',
     client_kpp: contract.client_kpp || '',
     client_email: contract.client_email || '',
     client_phone: contract.client_phone || '',
     client_address: contract.client_address || '',
-    start_date: contract.start_date.split('T')[0],
-    end_date: contract.end_date.split('T')[0],
-    tariff_plan_id: contract.tariff_plan_id || 0,
-    total_amount: contract.total_amount || '',
-    currency: contract.currency,
     status: contract.status,
-    is_active: contract.is_active,
-    notify_before: contract.notify_before,
-    notes: contract.notes || '',
-    external_id: contract.external_id || '',
     account_id: undefined, // Не загружаем account_id при редактировании
   };
 };

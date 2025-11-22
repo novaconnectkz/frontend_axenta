@@ -241,9 +241,10 @@ import type {
 } from '@/types/contracts';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 
 // Импорт компонентов диалогов
 import ContractDialog from '@/components/Contracts/ContractDialog.vue';
@@ -465,8 +466,11 @@ const openCreateDialog = () => {
 };
 
 const editContract = (contract: ContractWithRelations) => {
-  selectedContract.value = contract;
-  showContractDialog.value = true;
+  console.log('📝 Редактирование договора:', contract.number);
+  // Перенаправляем на страницу редактирования
+  router.push({
+    path: `/contracts/edit/${contract.id}`
+  });
 };
 
 const viewContract = (contract: ContractWithRelations) => {
@@ -651,6 +655,48 @@ const downloadCSV = (csvContent: string, filename: string) => {
   document.body.removeChild(link);
 };
 
+// Флаг для отслеживания обработки query параметра
+const editQueryProcessed = ref(false);
+
+// Функция для обработки query параметра редактирования
+const handleEditQueryParam = () => {
+  // Избегаем повторной обработки
+  if (editQueryProcessed.value) {
+    return;
+  }
+
+  if (route.query.edit && contracts.value.length > 0) {
+    const contractId = parseInt(route.query.edit as string);
+    console.log('🔍 Обработка query параметра edit:', contractId);
+    console.log('📋 Всего контрактов загружено:', contracts.value.length);
+    
+    if (!isNaN(contractId)) {
+      const contract = contracts.value.find(c => c.id === contractId);
+      if (contract) {
+        console.log('✅ Договор найден:', contract.number);
+        editQueryProcessed.value = true;
+        
+        // Сразу открываем диалог
+        console.log('📝 Открываем диалог редактирования для:', contract.number);
+        selectedContract.value = contract;
+        showContractDialog.value = true;
+        
+        // Очищаем query параметр после открытия диалога
+        setTimeout(() => {
+          router.replace({ path: '/contracts', query: {} });
+        }, 100);
+      } else {
+        console.warn('⚠️ Договор не найден с ID:', contractId);
+        console.log('📋 Доступные ID договоров:', contracts.value.map(c => c.id));
+        // Договор не найден, показываем сообщение
+        editQueryProcessed.value = true;
+        showSnackbarMessage(`Договор с ID ${contractId} не найден`, 'error');
+        router.replace({ path: '/contracts', query: {} });
+      }
+    }
+  }
+};
+
 // Watchers
 watch(filters, () => {
   if (!demoMode.value) {
@@ -658,12 +704,38 @@ watch(filters, () => {
   }
 }, { deep: true });
 
+// Отслеживаем загрузку контрактов для обработки query параметра
+watch(() => contracts.value, (newContracts) => {
+  console.log('👀 Контракты изменились, количество:', newContracts.length);
+  if (newContracts.length > 0 && route.query.edit && !editQueryProcessed.value) {
+    console.log('🔄 Попытка обработать query параметр после загрузки контрактов');
+    setTimeout(() => {
+      handleEditQueryParam();
+    }, 100);
+  }
+}, { deep: false });
+
 // Lifecycle
 onMounted(async () => {
+  console.log('🚀 Contracts.vue mounted');
+  console.log('📌 Query параметры:', route.query);
+  
+  editQueryProcessed.value = false; // Сбрасываем флаг
+  
   await Promise.all([
     loadContracts(),
     loadTariffPlans(),
   ]);
+  
+  console.log('📊 Загрузка завершена, контрактов:', contracts.value.length);
+  
+  // Проверяем query параметр после загрузки данных
+  if (route.query.edit) {
+    console.log('🔍 Обнаружен query параметр edit, обрабатываем...');
+    setTimeout(() => {
+      handleEditQueryParam();
+    }, 200);
+  }
 });
 </script>
 
