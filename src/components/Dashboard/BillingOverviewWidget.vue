@@ -85,25 +85,23 @@
             </v-card-title>
             <v-card-text>
               <div class="trend-item">
-                <div class="trend-label">Рост выручки</div>
-                <div class="trend-value positive">
-                  <v-icon icon="mdi-trending-up" size="small" />
-                  +12.5%
-                </div>
-              </div>
-              <v-divider class="my-2" />
-              <div class="trend-item">
-                <div class="trend-label">Новых договоров</div>
-                <div class="trend-value positive">
-                  <v-icon icon="mdi-trending-up" size="small" />
-                  +8 за месяц
-                </div>
-              </div>
-              <v-divider class="my-2" />
-              <div class="trend-item">
                 <div class="trend-label">Средний чек</div>
                 <div class="trend-value">
                   {{ formatCurrency(averageInvoice) }}
+                </div>
+              </div>
+              <v-divider class="my-2" />
+              <div class="trend-item">
+                <div class="trend-label">Активных договоров</div>
+                <div class="trend-value">
+                  {{ data.active_contracts }}
+                </div>
+              </div>
+              <v-divider class="my-2" />
+              <div class="trend-item">
+                <div class="trend-label">Общая выручка</div>
+                <div class="trend-value">
+                  {{ formatCurrency(data.total_revenue) }}
                 </div>
               </div>
             </v-card-text>
@@ -198,8 +196,18 @@ export default defineComponent({
     let refreshTimer: NodeJS.Timeout | null = null;
 
     const averageInvoice = computed(() => {
-      if (!data.value || data.value.active_contracts === 0) return 0;
-      return data.value.monthly_revenue / data.value.active_contracts;
+      if (!data.value) return 0;
+      // Если нет активных договоров, возвращаем 0
+      if (data.value.active_contracts === 0) return 0;
+      // Если есть месячная выручка, используем её
+      if (data.value.monthly_revenue > 0) {
+        return data.value.monthly_revenue / data.value.active_contracts;
+      }
+      // Иначе вычисляем из общей выручки (приблизительно)
+      if (data.value.total_revenue > 0) {
+        return data.value.total_revenue / data.value.active_contracts;
+      }
+      return 0;
     });
 
     const formatCurrency = (amount: number): string => {
