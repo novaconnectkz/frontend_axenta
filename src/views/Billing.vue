@@ -379,6 +379,23 @@
                 </v-btn>
               </template>
 
+              <!-- Клиент и договор -->
+              <template v-slot:item.client="{ item }">
+                <v-tooltip location="top" v-if="item.contract">
+                  <template #activator="{ props }">
+                    <div class="subscription-client-info" v-bind="props">
+                      <div class="client-name">{{ item.contract.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
+                    </div>
+                  </template>
+                  <div>Договор: {{ item.contract.number }}</div>
+                </v-tooltip>
+                <div v-else class="subscription-client-info">
+                  <div class="client-name text-grey">
+                    —
+                  </div>
+                </div>
+              </template>
+
               <!-- Сумма -->
               <template v-slot:item.total_amount="{ item }">
                 <div class="text-right">
@@ -1718,13 +1735,14 @@ const subscriptionHeaders = [
 ]
 
 const invoiceHeaders = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Номер', key: 'number', sortable: true },
-  { title: 'Дата счета', key: 'invoice_date', sortable: true },
-  { title: 'Срок оплаты', key: 'due_date', sortable: true },
-  { title: 'Сумма', key: 'total_amount', sortable: true },
-  { title: 'Статус', key: 'status', sortable: true },
-  { title: 'Действия', key: 'actions', sortable: false }
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' },
+  { title: 'Номер', key: 'number', sortable: true, align: 'center' },
+  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' },
+  { title: 'Дата счета', key: 'invoice_date', sortable: true, align: 'center' },
+  { title: 'Срок оплаты', key: 'due_date', sortable: true, align: 'center' },
+  { title: 'Сумма', key: 'total_amount', sortable: true, align: 'center' },
+  { title: 'Статус', key: 'status', sortable: true, align: 'center' },
+  { title: 'Действия', key: 'actions', sortable: false, align: 'center' }
 ]
 
 // Вычисляемые свойства

@@ -125,6 +125,7 @@ export interface Invoice {
     id: number;
     number: string;
     client_name: string;
+    client_short_name?: string;
     client_email: string;
   };
   tariff_plan_id: number;
