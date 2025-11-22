@@ -180,25 +180,33 @@
 
               <!-- Клиент и договор -->
               <template v-slot:item.client="{ item }">
-                <div v-if="item.contract">
-                  <div class="font-weight-medium">{{ item.contract.client_short_name || item.contract.client_name }}</div>
-                  <div class="text-caption text-grey">
-                    Договор: {{ item.contract.number }}
+                <v-tooltip location="top" v-if="item.contract">
+                  <template #activator="{ props }">
+                    <div class="subscription-client-info" v-bind="props">
+                      <div class="client-name">{{ item.contract.client_short_name || item.contract.client_name }}</div>
+                    </div>
+                  </template>
+                  <div>Договор: {{ item.contract.number }}</div>
+                </v-tooltip>
+                <div v-else class="subscription-client-info">
+                  <div class="client-name text-grey">
+                    Компания ID: {{ item.company_id }}
                   </div>
-                </div>
-                <div v-else class="text-grey">
-                  Компания ID: {{ item.company_id }}
                 </div>
               </template>
 
               <!-- План -->
               <template v-slot:item.billing_plan="{ item }">
-                <div>
-                  <div class="font-weight-medium">{{ item.billing_plan?.name }}</div>
-                  <div class="text-caption text-grey">
-                    {{ formatPrice(item.billing_plan?.price || 0, item.billing_plan?.currency || 'RUB') }}
-                  </div>
-                </div>
+                <v-tooltip location="top">
+                  <template #activator="{ props }">
+                    <div class="tariff-info" v-bind="props">
+                      <v-chip size="small" color="primary" variant="tonal">
+                        {{ item.billing_plan?.name || 'Не указан' }}
+                      </v-chip>
+                    </div>
+                  </template>
+                  <div>Стоимость: {{ formatPrice(item.billing_plan?.price || 0, item.billing_plan?.currency || 'RUB') }}</div>
+                </v-tooltip>
               </template>
 
               <!-- Объекты -->
@@ -242,14 +250,18 @@
 
               <!-- Даты -->
               <template v-slot:item.start_date="{ item }">
-                {{ formatDate(item.start_date) }}
+                <div class="subscription-date">
+                  {{ formatDate(item.start_date) }}
+                </div>
               </template>
 
               <template v-slot:item.next_payment_date="{ item }">
-                <span v-if="item.next_payment_date">
-                  {{ formatDate(item.next_payment_date) }}
-                </span>
-                <span v-else class="text-grey">—</span>
+                <div class="subscription-date">
+                  <span v-if="item.next_payment_date">
+                    {{ formatDate(item.next_payment_date) }}
+                  </span>
+                  <span v-else class="text-grey">—</span>
+                </div>
               </template>
 
               <!-- Статус подписки -->
@@ -264,26 +276,28 @@
 
               <!-- Действия -->
               <template v-slot:item.actions="{ item }">
-                <v-btn
-                  icon="mdi-pencil"
-                  size="small"
-                  variant="text"
-                  @click="openSubscriptionDialog(item)"
-                ></v-btn>
-                <v-btn
-                  icon="mdi-cancel"
-                  size="small"
-                  variant="text"
-                  color="warning"
-                  @click="cancelSubscription(item)"
-                ></v-btn>
-                <v-btn
-                  icon="mdi-delete"
-                  size="small"
-                  variant="text"
-                  color="error"
-                  @click="deleteSubscription(item)"
-                ></v-btn>
+                <div class="actions-cell">
+                  <v-btn
+                    icon="mdi-pencil"
+                    size="small"
+                    variant="text"
+                    @click="openSubscriptionDialog(item)"
+                  ></v-btn>
+                  <v-btn
+                    icon="mdi-cancel"
+                    size="small"
+                    variant="text"
+                    color="warning"
+                    @click="cancelSubscription(item)"
+                  ></v-btn>
+                  <v-btn
+                    icon="mdi-delete"
+                    size="small"
+                    variant="text"
+                    color="error"
+                    @click="deleteSubscription(item)"
+                  ></v-btn>
+                </div>
               </template>
             </v-data-table>
           </v-card-text>
@@ -1692,15 +1706,15 @@ const planHeaders = [
 ]
 
 const subscriptionHeaders = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
-  { title: 'Клиент / Договор', key: 'client', sortable: false },
-  { title: 'Тарифный план', key: 'billing_plan', sortable: false },
-  { title: 'Объекты', key: 'objects', sortable: false },
-  { title: 'Дата начала', key: 'start_date', sortable: true },
-  { title: 'Следующий платеж', key: 'next_payment_date', sortable: true },
-  { title: 'Статус', key: 'status', sortable: true },
-  { title: 'Действия', key: 'actions', sortable: false }
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '140px', align: 'center' },
+  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' },
+  { title: 'Тарифный план', key: 'billing_plan', sortable: false, align: 'center' },
+  { title: 'Объекты', key: 'objects', sortable: false, align: 'center' },
+  { title: 'Дата начала', key: 'start_date', sortable: true, align: 'center' },
+  { title: 'Следующий платеж', key: 'next_payment_date', sortable: true, align: 'center' },
+  { title: 'Статус', key: 'status', sortable: true, align: 'center' },
+  { title: 'Действия', key: 'actions', sortable: false, align: 'center' }
 ]
 
 const invoiceHeaders = [
@@ -2913,5 +2927,73 @@ watch(selectedContractId, (contractId) => {
 
 [data-theme="dark"] .subscription-item {
   border-bottom-color: #3a3a3c;
+}
+
+/* Высота строк в таблице подписок */
+.v-data-table {
+  --v-table-row-height: 56px;
+}
+
+/* Стили для динамического распределения информации в подписках */
+.subscription-client-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.subscription-client-info .client-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(var(--v-theme-on-surface));
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.tariff-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sequential-number {
+  font-weight: 600;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.created-date {
+  font-size: 12px;
+  font-family: 'SF Mono', monospace;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.subscription-date {
+  font-size: 12px;
+  font-family: 'SF Mono', monospace;
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.actions-cell {
+  display: flex;
+  gap: 4px;
+}
+
+/* Темная тема для новых стилей подписок */
+[data-theme="dark"] .subscription-client-info .client-name {
+  color: #ffffff !important;
+}
+
+
+[data-theme="dark"] .sequential-number {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .created-date {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .subscription-date {
+  color: #ffffff !important;
 }
 </style>
