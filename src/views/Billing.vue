@@ -383,11 +383,15 @@
               <template v-slot:item.client="{ item }">
                 <v-tooltip location="top" v-if="item.contract">
                   <template #activator="{ props }">
-                    <div class="subscription-client-info" v-bind="props">
-                      <div class="client-name">{{ item.contract.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
+                    <div 
+                      class="subscription-client-info clickable" 
+                      v-bind="props"
+                      @click="navigateToSubscription(item)"
+                    >
+                      <div class="client-name-link">{{ item.contract.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
                     </div>
                   </template>
-                  <div>Договор: {{ item.contract.number }}</div>
+                  <div>Договор: {{ item.contract.number }}<br>Кликните для просмотра подписки</div>
                 </v-tooltip>
                 <div v-else class="subscription-client-info">
                   <div class="client-name text-grey">
@@ -2065,6 +2069,29 @@ const clearContractFilter = () => {
   })
 }
 
+// Переход к подпискам по договору из счета
+const navigateToSubscription = (invoice: Invoice) => {
+  if (!invoice.contract_id || !invoice.contract) {
+    console.warn('У счета нет привязанного договора')
+    return
+  }
+
+  console.log('🔗 Переход к подпискам договора:', {
+    contractId: invoice.contract_id,
+    contractNumber: invoice.contract.number
+  })
+
+  // Переходим на вкладку подписок с фильтром по договору
+  router.push({
+    path: '/billing',
+    query: {
+      tab: 'subscriptions',
+      contract_id: invoice.contract_id.toString(),
+      contract_number: invoice.contract.number
+    }
+  })
+}
+
 const openSubscriptionDialog = (subscription?: Subscription) => {
   if (subscription) {
     editingSubscription.value = { ...subscription }
@@ -2968,6 +2995,31 @@ watch(selectedContractId, (contractId) => {
   white-space: nowrap;
 }
 
+.subscription-client-info.clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.subscription-client-info.clickable:hover {
+  transform: translateY(-1px);
+}
+
+.subscription-client-info .client-name-link {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(var(--v-theme-primary));
+  line-height: 1.4;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.subscription-client-info.clickable:hover .client-name-link {
+  color: rgb(var(--v-theme-primary));
+  text-decoration-style: solid;
+}
+
 .tariff-info {
   display: flex;
   align-items: center;
@@ -3013,5 +3065,13 @@ watch(selectedContractId, (contractId) => {
 
 [data-theme="dark"] .subscription-date {
   color: #ffffff !important;
+}
+
+[data-theme="dark"] .subscription-client-info .client-name-link {
+  color: #007AFF !important;
+}
+
+[data-theme="dark"] .subscription-client-info.clickable:hover .client-name-link {
+  color: #0A84FF !important;
 }
 </style>

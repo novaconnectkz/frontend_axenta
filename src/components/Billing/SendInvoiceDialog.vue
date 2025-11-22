@@ -12,7 +12,7 @@
         <div v-if="invoice" class="mb-4">
           <div class="invoice-info">
             <p><strong>Счет:</strong> {{ invoice.number }}</p>
-            <p><strong>Клиент:</strong> {{ invoice.contract?.client_name || 'Не указан' }}</p>
+            <p><strong>Клиент:</strong> {{ invoice.contract?.client_short_name || invoice.contract?.client_name || 'Не указан' }}</p>
             <p><strong>Сумма:</strong> {{ invoice.total_amount }} {{ invoice.currency }}</p>
             <p><strong>Срок оплаты:</strong> {{ formatDate(invoice.due_date) }}</p>
           </div>
