@@ -80,6 +80,9 @@ class DashboardService {
   
   // Флаг для использования реальных данных пользователей
   private useRealUsersData = true;
+  
+  // Флаг для использования реальных данных биллинга
+  private useRealBillingData = true;
 
   // Кеширование статистики
   private statsCache: {
@@ -204,12 +207,36 @@ class DashboardService {
           usersStats = mockDashboardStats.users;
         }
         
+        // Получаем данные биллинга
+        let billingStats;
+        if (this.useRealBillingData) {
+          console.log("📊 Loading real billing data...");
+          console.log("🔧 useRealBillingData flag:", this.useRealBillingData);
+          try {
+            billingStats = await this.getRealBillingStats();
+            console.log("✅ Real billing stats loaded:", billingStats);
+          } catch (err: any) {
+            console.error("❌ Ошибка получения данных биллинга:", err);
+            console.error("Error details:", {
+              message: err.message,
+              response: err.response?.data,
+              status: err.response?.status
+            });
+            // НЕ используем fallback на mock данные - лучше показать ошибку
+            // чтобы пользователь знал, что данные не загрузились
+            throw new Error(`Не удалось загрузить данные биллинга: ${err.message || "Неизвестная ошибка"}`);
+          }
+        } else {
+          console.log("⚠️ Используются mock данные биллинга (useRealBillingData = false)");
+          billingStats = mockDashboardStats.billing;
+        }
+        
         // Собираем итоговую статистику
         const dashboardStats: DashboardStats = {
           objects: objectsStats,
           users: usersStats,
+          billing: billingStats,
           // Для остальных разделов пока используем mock данные
-          billing: mockDashboardStats.billing,
           installations: mockDashboardStats.installations,
           warehouse: mockDashboardStats.warehouse
         };
@@ -492,6 +519,204 @@ class DashboardService {
   // Получение текущего состояния режима реальных данных пользователей
   isRealUsersDataMode(): boolean {
     return this.useRealUsersData;
+  }
+
+  // Получение реальных данных биллинга с API
+  private async getRealBillingStats(): Promise<BillingStats> {
+    console.log("🔍 Начинаем загрузку реальных данных биллинга...");
+    
+    // Проверяем наличие токена
+    const token = localStorage.getItem("axenta_token");
+    if (!token) {
+      console.error("❌ Токен не найден в localStorage");
+      throw new Error("Требуется авторизация для получения данных биллинга");
+    }
+    
+    // Получаем company_id из localStorage
+    let companyId: string | null = null;
+    try {
+      const companyRaw = localStorage.getItem("axenta_company");
+      console.log("📦 Company data from localStorage:", companyRaw);
+      if (companyRaw) {
+        const company = JSON.parse(companyRaw);
+        console.log("📦 Parsed company:", company);
+        if (company && (company.id || company.company_id)) {
+          companyId = company.id ?? company.company_id;
+          console.log("✅ Company ID найден:", companyId);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Ошибка получения company_id из localStorage:", err);
+    }
+
+    if (!companyId) {
+      console.error("❌ company_id не найден в localStorage");
+      throw new Error("company_id не найден в localStorage");
+    }
+
+    const companyIdNum = parseInt(companyId, 10);
+    if (isNaN(companyIdNum)) {
+      console.error("❌ Неверный формат company_id:", companyId);
+      throw new Error("Неверный формат company_id");
+    }
+    
+    console.log("🔢 Company ID (number):", companyIdNum);
+
+    try {
+      console.log("🌐 Отправляем запросы к API...");
+      
+      // Параллельно запрашиваем данные биллинга и количество счетов
+      const [dashboardResponse, sentInvoicesResponse, draftInvoicesResponse, overdueInvoicesResponse] = await Promise.all([
+        // Запрос к API /api/dashboard?company_id=
+        this.apiClient.get("/dashboard", {
+          params: {
+            company_id: companyId,
+            demo: 0 // Явно указываем, что нужны реальные данные
+          }
+        }).catch((err) => {
+          console.error("❌ Ошибка запроса /dashboard:", err);
+          console.error("Response:", err.response?.data);
+          throw err;
+        }),
+        // Запрос количества счетов со статусом "sent"
+        this.apiClient.get("/auth/billing/invoices", {
+          params: {
+            company_id: companyIdNum,
+            status: "sent",
+            limit: 1,
+            offset: 0
+          }
+        }).catch(() => ({ data: { total: 0 } })), // В случае ошибки используем 0
+        // Запрос количества счетов со статусом "draft"
+        this.apiClient.get("/auth/billing/invoices", {
+          params: {
+            company_id: companyIdNum,
+            status: "draft",
+            limit: 1,
+            offset: 0
+          }
+        }).catch(() => ({ data: { total: 0 } })), // В случае ошибки используем 0
+        // Запрос количества просроченных счетов
+        this.apiClient.get("/auth/billing/invoices/overdue", {
+          params: {
+            company_id: companyIdNum
+          }
+        }).catch(() => ({ data: { data: [] } })) // В случае ошибки используем пустой массив
+      ]);
+
+      console.log("✅ Получены ответы от API");
+      console.log("📊 Dashboard response:", dashboardResponse.data);
+      console.log("📊 Sent invoices response:", sentInvoicesResponse.data);
+      console.log("📊 Draft invoices response:", draftInvoicesResponse.data);
+      console.log("📊 Overdue invoices response:", overdueInvoicesResponse.data);
+      
+      // Бэкенд возвращает в двух форматах:
+      // 1. Demo режим: { status: "success", data: {...}, demo_notice: "..." }
+      // 2. Реальный режим: { revenue_total, subscriptions_active, payable, overdue }
+      const backendData = dashboardResponse.data.data || dashboardResponse.data;
+      console.log("📊 Backend data:", backendData);
+      
+      // Проверяем, не вернулись ли demo данные
+      if (dashboardResponse.data.demo_notice) {
+        console.warn("⚠️ Получены demo данные вместо реальных!");
+        throw new Error("Получены demo данные. Проверьте параметр demo=0");
+      }
+      
+      // Преобразуем decimal значения в числа
+      // decimal.Decimal сериализуется как строка или число
+      const parseDecimal = (value: any): number => {
+        if (value === null || value === undefined) return 0;
+        if (typeof value === "number") return value;
+        if (typeof value === "string") {
+          const parsed = parseFloat(value);
+          return isNaN(parsed) ? 0 : parsed;
+        }
+        // Если это объект decimal, пытаемся получить значение
+        if (typeof value === "object" && "String" in value) {
+          return parseFloat(value.String() || "0");
+        }
+        return 0;
+      };
+      
+      // Получаем количество счетов
+      const sentInvoicesCount = sentInvoicesResponse.data?.total || 0;
+      const draftInvoicesCount = draftInvoicesResponse.data?.total || 0;
+      const pendingInvoicesCount = sentInvoicesCount + draftInvoicesCount;
+      console.log("📊 Pending invoices count:", pendingInvoicesCount, "(sent:", sentInvoicesCount, ", draft:", draftInvoicesCount, ")");
+      
+      // Обрабатываем ответ от /auth/billing/invoices/overdue
+      // Может быть массивом или объектом с полем data
+      let overdueInvoices: any[] = [];
+      if (Array.isArray(overdueInvoicesResponse.data)) {
+        overdueInvoices = overdueInvoicesResponse.data;
+      } else if (overdueInvoicesResponse.data?.data && Array.isArray(overdueInvoicesResponse.data.data)) {
+        overdueInvoices = overdueInvoicesResponse.data.data;
+      }
+      const overdueInvoicesCount = overdueInvoices.length;
+      console.log("📊 Overdue invoices count:", overdueInvoicesCount);
+      
+      const billingStats: BillingStats = {
+        total_revenue: parseDecimal(backendData.revenue_total),
+        monthly_revenue: 0, // Бэкенд не предоставляет месячную выручку, можно добавить отдельный запрос
+        pending_invoices: pendingInvoicesCount,
+        overdue_invoices: overdueInvoicesCount,
+        active_contracts: parseInt(backendData.subscriptions_active?.toString() || "0", 10)
+      };
+      
+      console.log("✅ Итоговые данные биллинга:", billingStats);
+
+      return billingStats;
+    } catch (error: any) {
+      console.error("Ошибка получения данных биллинга с API:", error);
+      throw error;
+    }
+  }
+
+  // Публичный метод для переключения режима реальных данных биллинга
+  setRealBillingDataMode(enabled: boolean): void {
+    this.useRealBillingData = enabled;
+  }
+
+  // Получение текущего состояния режима реальных данных биллинга
+  isRealBillingDataMode(): boolean {
+    return this.useRealBillingData;
+  }
+
+  // Очистка кеша биллинга при переключении на реальные данные
+  clearBillingCache(): void {
+    // Очищаем in-memory кеш
+    if (this.statsCache.data) {
+      const cachedData = { ...this.statsCache.data };
+      cachedData.billing = {
+        total_revenue: 0,
+        monthly_revenue: 0,
+        pending_invoices: 0,
+        overdue_invoices: 0,
+        active_contracts: 0
+      };
+      this.statsCache.data = cachedData;
+    }
+    // Очищаем persistent кеш
+    try {
+      const key = this.getPersistentKey();
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.data) {
+          parsed.data.billing = {
+            total_revenue: 0,
+            monthly_revenue: 0,
+            pending_invoices: 0,
+            overdue_invoices: 0,
+            active_contracts: 0
+          };
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+      }
+    } catch (err) {
+      console.warn("Ошибка очистки persistent кеша биллинга:", err);
+    }
+    console.log("🗑️ Кеш биллинга очищен");
   }
 }
 
