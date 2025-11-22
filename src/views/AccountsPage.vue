@@ -102,12 +102,14 @@
             />
           </div>
           <div class="filter-item">
-            <v-select
+            <v-autocomplete
               v-model="selectedParent"
               label="Родительский аккаунт"
               :items="parentAccountOptions"
               variant="outlined"
               density="comfortable"
+              clearable
+              no-data-text="Нет данных"
               @update:model-value="onParentChange"
             />
           </div>
@@ -792,21 +794,10 @@ const filters = ref<AccountsFilters>({
 
 // Фильтр по родительскому аккаунту - по умолчанию "Все родители"
 const selectedParent = ref<string>('');
-// Создаем список родительских аккаунтов
-const createParentAccountOptions = () => {
-  const baseOptions = [
-    { title: 'Все родители', value: '' },
-    { title: 'Южаков Константин Николаевич ИП', value: 'Южаков Константин Николаевич ИП' },
-    { title: 'ТРАНСНАВИ ООО', value: 'ТРАНСНАВИ ООО' },
-    { title: 'Италон ООО', value: 'Италон ООО' },
-    { title: 'Телетранс Запад ООО', value: 'Телетранс Запад ООО' },
-    { title: 'Емельянов Роман Юрьевич ИП', value: 'Емельянов Роман Юрьевич ИП' },
-  ];
-
-  return baseOptions;
-};
-
-const parentAccountOptions = ref(createParentAccountOptions());
+// Список родительских аккаунтов (динамически загружается из API)
+const parentAccountOptions = ref<Array<{ title: string; value: string }>>([
+  { title: 'Все родители', value: '' }
+]);
 
 // Диалоги
 const viewDialog = ref(false);
@@ -835,6 +826,60 @@ const snackbar = ref({
   color: 'info',
   timeout: 30000
 });
+
+// Ключ для localStorage
+const FILTERS_STORAGE_KEY = 'accountsPage_filters';
+
+// Функции для работы с сохранением фильтров
+const saveFiltersToStorage = () => {
+  try {
+    const filtersData = {
+      searchQuery: searchQuery.value,
+      type: filters.value.type,
+      is_active: filters.value.is_active,
+      selectedParent: selectedParent.value,
+      currentPage: currentPage.value,
+      itemsPerPage: itemsPerPage.value,
+      sortBy: sortBy.value,
+      sortOrder: sortOrder.value,
+    };
+    localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(filtersData));
+    console.log('💾 Фильтры сохранены в localStorage');
+  } catch (error) {
+    console.error('❌ Ошибка сохранения фильтров:', error);
+  }
+};
+
+const loadFiltersFromStorage = () => {
+  try {
+    const savedFilters = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (savedFilters) {
+      const filtersData = JSON.parse(savedFilters);
+      searchQuery.value = filtersData.searchQuery || '';
+      filters.value.type = filtersData.type ?? null;
+      filters.value.is_active = filtersData.is_active ?? null;
+      selectedParent.value = filtersData.selectedParent || '';
+      currentPage.value = filtersData.currentPage || 1;
+      itemsPerPage.value = filtersData.itemsPerPage || 10;
+      sortBy.value = filtersData.sortBy || 'creationDatetime';
+      sortOrder.value = filtersData.sortOrder || 'desc';
+      console.log('📂 Фильтры восстановлены из localStorage');
+      return true;
+    }
+  } catch (error) {
+    console.error('❌ Ошибка загрузки фильтров:', error);
+  }
+  return false;
+};
+
+const clearFiltersFromStorage = () => {
+  try {
+    localStorage.removeItem(FILTERS_STORAGE_KEY);
+    console.log('🗑️ Фильтры удалены из localStorage');
+  } catch (error) {
+    console.error('❌ Ошибка удаления фильтров:', error);
+  }
+};
 
 // Опции для фильтров
 const accountTypes = [
@@ -1226,22 +1271,35 @@ const loadStats = async (isBackground = false, forceRefresh = false) => {
 // Загрузка списка родительских аккаунтов с использованием кеширования
 const loadParentAccounts = async (forceRefresh: boolean = false) => {
   try {
-    // Используем оптимизированный метод с кешированием
-    const uniqueParents = await accountsService.getParentAccounts(forceRefresh);
+    console.log('📋 Загрузка списка родительских аккаунтов...');
     
-    // Обновляем опции без дублирования
-    const filteredParents = uniqueParents.filter(parent => parent && parent !== 'GLOMOS');
+    // Загружаем все аккаунты для извлечения уникальных родителей
+    const response = await accountsService.getAccounts({
+      per_page: 1000,
+      ordering: 'name'
+    });
+    
+    // Извлекаем уникальные имена родительских аккаунтов из поля parentAccountName
+    const uniqueParentsSet = new Set<string>();
+    response.results.forEach(account => {
+      // Добавляем родительский аккаунт, если он указан
+      if (account.parentAccountName && account.parentAccountName.trim()) {
+        uniqueParentsSet.add(account.parentAccountName.trim());
+      }
+    });
+    
+    // Преобразуем Set в отсортированный массив опций
+    const parentNames = Array.from(uniqueParentsSet).sort();
     
     parentAccountOptions.value = [
       { title: 'Все родители', value: '' },
-      { title: 'GLOMOS', value: 'GLOMOS' },
-      ...filteredParents.map(parent => ({
-        title: parent,
-        value: parent
+      ...parentNames.map(name => ({
+        title: name,
+        value: name
       }))
     ];
     
-    console.log('✅ Загружены родительские аккаунты:', uniqueParents.length);
+    console.log(`✅ Загружено ${parentNames.length} уникальных родительских аккаунтов для фильтра`);
   } catch (error) {
     console.error('❌ Ошибка загрузки родительских аккаунтов:', error);
   }
@@ -1284,6 +1342,7 @@ const debouncedSearch = debounce(() => {
   // Очищаем кэш при изменении поиска
   allAccountsCache.value = [];
   cacheTimestamp.value = null;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 }, 500);
 
@@ -1300,6 +1359,9 @@ const resetFilters = () => {
   allAccountsCache.value = [];
   cacheTimestamp.value = null;
   
+  // Очищаем сохраненные фильтры из localStorage
+  clearFiltersFromStorage();
+  
   loadAccounts();
 };
 
@@ -1314,6 +1376,7 @@ const onTypeFilterChange = (value: string | null) => {
   filters.value.type = value as "client" | "partner" | null;
   // Сбрасываем страницу на первую при изменении фильтра
   currentPage.value = 1;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
@@ -1327,6 +1390,7 @@ const onStatusFilterChange = (value: boolean | null) => {
   filters.value.is_active = value;
   // Сбрасываем страницу на первую при изменении фильтра
   currentPage.value = 1;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
@@ -1356,6 +1420,7 @@ const onParentChange = (parent: string) => {
   // Очищаем кэш при изменении родительского аккаунта
   allAccountsCache.value = [];
   cacheTimestamp.value = null;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
@@ -1369,6 +1434,7 @@ const onItemsPerPageChange = (items: number) => {
   }
   
   currentPage.value = 1; // Всегда сбрасываем на первую страницу
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
@@ -1394,6 +1460,7 @@ const onSortChange = (sortOptions: any) => {
       itemsPerPage.value = totalItems.value || 1000; // Загружаем все доступные записи
     }
     
+    saveFiltersToStorage(); // Сохраняем фильтры
     loadAccounts();
   }
 };
@@ -1678,17 +1745,20 @@ const createContractForAccount = (account: Account) => {
 // Функции для быстрого перехода
 const goToFirstPage = () => {
   currentPage.value = 1;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
 const goToLastPage = () => {
   currentPage.value = totalPages.value;
+  saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
 };
 
 const goToPrevPage = () => {
   if (currentPage.value > 1) {
     currentPage.value = currentPage.value - 1;
+    saveFiltersToStorage(); // Сохраняем фильтры
     loadAccounts();
   }
 };
@@ -1696,6 +1766,7 @@ const goToPrevPage = () => {
 const goToNextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value = currentPage.value + 1;
+    saveFiltersToStorage(); // Сохраняем фильтры
     loadAccounts();
   }
 };
@@ -1886,6 +1957,9 @@ const closePopup = () => {
 
 // Lifecycle hooks
 onMounted(() => {
+  // Восстанавливаем фильтры из localStorage перед загрузкой данных
+  const filtersRestored = loadFiltersFromStorage();
+  
   // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
   loadStats();
