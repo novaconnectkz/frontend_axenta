@@ -23,6 +23,7 @@ import type {
   GenerateInvoiceData,
   Invoice,
   InvoiceResponse,
+  InvoiceStatus,
   InvoicesFilter,
   InvoicesResponse,
   ProcessPaymentData,
@@ -89,7 +90,16 @@ class BillingService {
           localStorage.removeItem("axenta_user");
           localStorage.removeItem("axenta_company");
           localStorage.removeItem("axenta_token_expiry");
-          window.location.href = "/login";
+          
+          // Используем роутер для навигации вместо window.location.href
+          // Это предотвращает полную перезагрузку страницы
+          if (typeof window !== 'undefined' && window.location) {
+            // Проверяем, не находимся ли мы уже на странице логина
+            if (window.location.pathname !== '/login') {
+              // Используем replace, чтобы не создавать запись в истории
+              window.location.replace('/login');
+            }
+          }
         }
         return Promise.reject(error);
       }
@@ -492,58 +502,214 @@ class BillingService {
    * @param companyId - ID компании
    * @param plans - Опционально: уже загруженные планы (чтобы избежать дублирования запросов)
    * @param subscriptions - Опционально: уже загруженные подписки (чтобы избежать дублирования запросов)
+   * @param invoices - Опционально: уже загруженные счета (чтобы избежать дублирования запросов)
+   * @param activeContractsCount - Опционально: количество активных договоров для расчета среднего дохода
    */
   async getBillingDashboardData(
     companyId: number,
     plans?: BillingPlan[],
-    subscriptions?: Subscription[]
+    subscriptions?: Subscription[],
+    invoices?: Invoice[],
+    activeContractsCount?: number
   ): Promise<BillingDashboardData> {
     try {
       // Если данные не переданы, загружаем их
-      const [loadedPlans, loadedSubscriptions] = await Promise.all([
+      const [loadedPlans, loadedSubscriptions, loadedInvoices] = await Promise.all([
         plans ? Promise.resolve(plans) : this.getBillingPlans(companyId),
         subscriptions ? Promise.resolve(subscriptions) : this.getSubscriptions(companyId),
+        invoices ? Promise.resolve(invoices) : this.getInvoices({ company_id: companyId }).then(r => r.invoices),
       ]);
 
-      // Создаем заглушку для дашборда
-      return this.createMockDashboardData(loadedPlans, loadedSubscriptions);
+      // Рассчитываем реальные данные на основе счетов
+      return this.calculateDashboardData(loadedPlans, loadedSubscriptions, loadedInvoices, activeContractsCount);
     } catch (error) {
       console.warn("Failed to load real dashboard data, using mock:", error);
       return this.createMockDashboardData([], []);
     }
   }
 
-  private createMockDashboardData(
+  private calculateDashboardData(
     plans: BillingPlan[],
-    subscriptions: Subscription[]
+    subscriptions: Subscription[],
+    invoices: Invoice[],
+    activeContractsCount?: number
   ): BillingDashboardData {
     const activeSubscriptions = subscriptions.filter(
       (s) => s.status === "active"
     ).length;
 
+    // Рассчитываем метрики на основе счетов
+    let totalRevenue = 0;
+    let monthlyRevenue = 0;
+    let outstandingAmount = 0;
+    let overdueAmount = 0;
+    let overdueInvoicesCount = 0;
+    let paidInvoicesCount = 0;
+    let sentInvoicesCount = 0;
+    let partiallyPaidAmount = 0;
+    let partiallyPaidCount = 0;
+    let invoicesToSendCount = 0;
+    let invoicesWithoutContractCount = 0;
+    let totalPaymentDays = 0;
+    let paidInvoicesWithDates = 0;
+    let paymentActivity7d = 0;
+    let paymentActivity30d = 0;
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // Группируем счета по статусам (счет и сумма)
+    const invoicesByStatus: Record<string, { count: number; amount: number }> = {
+      draft: { count: 0, amount: 0 },
+      sent: { count: 0, amount: 0 },
+      partially_paid: { count: 0, amount: 0 },
+      paid: { count: 0, amount: 0 },
+      overdue: { count: 0, amount: 0 },
+      cancelled: { count: 0, amount: 0 },
+    };
+
+    // Получаем последние 10 счетов для recent_invoices
+    const recentInvoices = [...invoices]
+      .sort((a, b) => {
+        const dateA = new Date(a.invoice_date || a.created_at).getTime();
+        const dateB = new Date(b.invoice_date || b.created_at).getTime();
+        return dateB - dateA;
+      })
+      .slice(0, 10);
+
+    invoices.forEach((invoice) => {
+      const totalAmount = parseFloat(invoice.total_amount) || 0;
+      const paidAmount = parseFloat(invoice.paid_amount) || 0;
+      const status = invoice.status || "draft";
+
+      // Подсчитываем счета по статусам
+      if (invoicesByStatus.hasOwnProperty(status)) {
+        invoicesByStatus[status].count++;
+        invoicesByStatus[status].amount += totalAmount;
+      }
+
+      // Общий доход - сумма оплаченных счетов
+      if (status === "paid") {
+        totalRevenue += totalAmount;
+        paidInvoicesCount++;
+        
+        // Доход за текущий месяц
+        const invoiceDate = invoice.invoice_date ? new Date(invoice.invoice_date) : new Date(invoice.created_at);
+        if (invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear) {
+          monthlyRevenue += totalAmount;
+        }
+
+        // Средний срок оплаты
+        if (invoice.invoice_date && invoice.paid_at) {
+          const invoiceDateObj = new Date(invoice.invoice_date);
+          const paidDateObj = new Date(invoice.paid_at);
+          const daysDiff = Math.floor((paidDateObj.getTime() - invoiceDateObj.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysDiff >= 0) {
+            totalPaymentDays += daysDiff;
+            paidInvoicesWithDates++;
+          }
+        }
+
+        // Активность платежей
+        if (invoice.paid_at) {
+          const paidDate = new Date(invoice.paid_at);
+          if (paidDate >= sevenDaysAgo) {
+            paymentActivity7d++;
+          }
+          if (paidDate >= thirtyDaysAgo) {
+            paymentActivity30d++;
+          }
+        }
+      }
+
+      // Счета к отправке
+      if (status === "draft") {
+        invoicesToSendCount++;
+      }
+
+      // Отправленные счета
+      if (status === "sent") {
+        sentInvoicesCount++;
+      }
+
+      // Частично оплаченные
+      if (status === "partially_paid") {
+        partiallyPaidAmount += (totalAmount - paidAmount);
+        partiallyPaidCount++;
+      }
+
+      // Счета без договора
+      if (!invoice.contract_id) {
+        invoicesWithoutContractCount++;
+      }
+
+      // Сумма к оплате - неоплаченные счета (не cancelled и не полностью оплаченные)
+      if (status !== "paid" && status !== "cancelled") {
+        const amountToPay = totalAmount - paidAmount;
+        outstandingAmount += amountToPay;
+
+        // Просроченные счета
+        if (status === "overdue") {
+          overdueAmount += amountToPay;
+          overdueInvoicesCount++;
+        }
+      }
+    });
+
+    // Дополнительные расчеты
+    const averageInvoiceAmount = paidInvoicesCount > 0 ? totalRevenue / paidInvoicesCount : 0;
+    const paymentConversionRate = sentInvoicesCount > 0 ? (paidInvoicesCount / sentInvoicesCount) * 100 : 0;
+    const averagePaymentDays = paidInvoicesWithDates > 0 ? totalPaymentDays / paidInvoicesWithDates : 0;
+    
+    // Ожидаемый доход (сумма активных подписок)
+    const expectedRevenue = subscriptions
+      .filter(s => s.status === "active")
+      .reduce((sum, s) => {
+        const planPrice = s.billing_plan?.price || 0;
+        return sum + planPrice;
+      }, 0);
+
+    // Новые подписки за текущий месяц
+    const newSubscriptions = subscriptions.filter(s => {
+      const createdDate = new Date(s.created_at);
+      return createdDate.getMonth() === currentMonth && createdDate.getFullYear() === currentYear;
+    }).length;
+
+    // Средний доход с договора
+    // Используем переданное количество активных договоров или активные подписки как приближение
+    const contractsForAverage = activeContractsCount || activeSubscriptions;
+    const averageRevenuePerContract = contractsForAverage > 0 ? totalRevenue / contractsForAverage : 0;
+
+    // Процент просрочки
+    const overduePercentage = outstandingAmount > 0 ? (overdueAmount / outstandingAmount) * 100 : 0;
+
     return {
       widgets: {
+        // Основные метрики
         total_revenue: {
           title: "Общий доход",
-          value: 0,
+          value: totalRevenue,
           currency: "RUB",
           format: "currency",
         },
         monthly_revenue: {
           title: "Доход за месяц",
-          value: 0,
+          value: monthlyRevenue,
           currency: "RUB",
           format: "currency",
         },
         outstanding_amount: {
           title: "К оплате",
-          value: 0,
+          value: outstandingAmount,
           currency: "RUB",
           format: "currency",
         },
         overdue_amount: {
           title: "Просрочено",
-          value: 0,
+          value: overdueAmount,
           currency: "RUB",
           format: "currency",
         },
@@ -554,11 +720,86 @@ class BillingService {
         },
         overdue_invoices: {
           title: "Просроченные счета",
-          value: 0,
+          value: overdueInvoicesCount,
+          format: "number",
+        },
+        
+        // Критичные метрики
+        average_invoice_amount: {
+          title: "Средний чек",
+          value: averageInvoiceAmount,
+          currency: "RUB",
+          format: "currency",
+        },
+        payment_conversion_rate: {
+          title: "Конверсия оплат",
+          value: paymentConversionRate,
+          format: "percentage",
+        },
+        average_payment_days: {
+          title: "Средний срок оплаты",
+          value: Math.round(averagePaymentDays),
+          format: "number",
+        },
+        expected_revenue: {
+          title: "Ожидаемый доход",
+          value: expectedRevenue,
+          currency: "RUB",
+          format: "currency",
+        },
+        
+        // Важные метрики
+        invoices_to_send: {
+          title: "Счета к отправке",
+          value: invoicesToSendCount,
+          format: "number",
+        },
+        partially_paid_amount: {
+          title: "Частично оплачено",
+          value: partiallyPaidAmount,
+          currency: "RUB",
+          format: "currency",
+        },
+        partially_paid_count: {
+          title: "Частично оплаченные",
+          value: partiallyPaidCount,
+          format: "number",
+        },
+        new_subscriptions: {
+          title: "Новые подписки",
+          value: newSubscriptions,
+          format: "number",
+        },
+        
+        // Полезные метрики
+        average_revenue_per_contract: {
+          title: "Средний доход с договора",
+          value: averageRevenuePerContract,
+          currency: "RUB",
+          format: "currency",
+        },
+        overdue_percentage: {
+          title: "Процент просрочки",
+          value: overduePercentage,
+          format: "percentage",
+        },
+        invoices_without_contract: {
+          title: "Счета без договора",
+          value: invoicesWithoutContractCount,
+          format: "number",
+        },
+        payment_activity_7d: {
+          title: "Платежи за 7 дней",
+          value: paymentActivity7d,
+          format: "number",
+        },
+        payment_activity_30d: {
+          title: "Платежи за 30 дней",
+          value: paymentActivity30d,
           format: "number",
         },
       },
-      recent_invoices: [],
+      recent_invoices: recentInvoices,
       revenue_chart: {
         labels: [],
         datasets: [
@@ -569,6 +810,58 @@ class BillingService {
             borderColor: "rgba(54, 162, 235, 1)",
           },
         ],
+      },
+      invoices_by_status: Object.entries(invoicesByStatus).map(([status, data]) => ({
+        status: status as InvoiceStatus,
+        count: data.count,
+        amount: data.amount.toFixed(2),
+      })),
+    };
+  }
+
+  private createMockDashboardData(
+    plans: BillingPlan[],
+    subscriptions: Subscription[]
+  ): BillingDashboardData {
+    // Возвращаем пустые данные со всеми виджетами
+    return {
+      widgets: {
+        // Основные метрики
+        total_revenue: { title: "Общий доход", value: 0, currency: "RUB", format: "currency" },
+        monthly_revenue: { title: "Доход за месяц", value: 0, currency: "RUB", format: "currency" },
+        outstanding_amount: { title: "К оплате", value: 0, currency: "RUB", format: "currency" },
+        overdue_amount: { title: "Просрочено", value: 0, currency: "RUB", format: "currency" },
+        active_subscriptions: { title: "Активные подписки", value: 0, format: "number" },
+        overdue_invoices: { title: "Просроченные счета", value: 0, format: "number" },
+        
+        // Критичные метрики
+        average_invoice_amount: { title: "Средний чек", value: 0, currency: "RUB", format: "currency" },
+        payment_conversion_rate: { title: "Конверсия оплат", value: 0, format: "percentage" },
+        average_payment_days: { title: "Средний срок оплаты", value: 0, format: "number" },
+        expected_revenue: { title: "Ожидаемый доход", value: 0, currency: "RUB", format: "currency" },
+        
+        // Важные метрики
+        invoices_to_send: { title: "Счета к отправке", value: 0, format: "number" },
+        partially_paid_amount: { title: "Частично оплачено", value: 0, currency: "RUB", format: "currency" },
+        partially_paid_count: { title: "Частично оплаченные", value: 0, format: "number" },
+        new_subscriptions: { title: "Новые подписки", value: 0, format: "number" },
+        
+        // Полезные метрики
+        average_revenue_per_contract: { title: "Средний доход с договора", value: 0, currency: "RUB", format: "currency" },
+        overdue_percentage: { title: "Процент просрочки", value: 0, format: "percentage" },
+        invoices_without_contract: { title: "Счета без договора", value: 0, format: "number" },
+        payment_activity_7d: { title: "Платежи за 7 дней", value: 0, format: "number" },
+        payment_activity_30d: { title: "Платежи за 30 дней", value: 0, format: "number" },
+      },
+      recent_invoices: [],
+      revenue_chart: {
+        labels: [],
+        datasets: [{
+          label: "Доходы",
+          data: [],
+          backgroundColor: "rgba(54, 162, 235, 0.2)",
+          borderColor: "rgba(54, 162, 235, 1)",
+        }],
       },
       invoices_by_status: [],
     };

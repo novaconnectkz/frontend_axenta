@@ -476,12 +476,32 @@ export interface BillingWidget {
 
 export interface BillingDashboardData {
   widgets: {
+    // Основные метрики
     total_revenue: BillingWidget;
     monthly_revenue: BillingWidget;
     outstanding_amount: BillingWidget;
     overdue_amount: BillingWidget;
     active_subscriptions: BillingWidget;
     overdue_invoices: BillingWidget;
+    
+    // Критичные метрики
+    average_invoice_amount: BillingWidget;
+    payment_conversion_rate: BillingWidget;
+    average_payment_days: BillingWidget;
+    expected_revenue: BillingWidget;
+    
+    // Важные метрики
+    invoices_to_send: BillingWidget;
+    partially_paid_amount: BillingWidget;
+    partially_paid_count: BillingWidget;
+    new_subscriptions: BillingWidget;
+    
+    // Полезные метрики
+    average_revenue_per_contract: BillingWidget;
+    overdue_percentage: BillingWidget;
+    invoices_without_contract: BillingWidget;
+    payment_activity_7d: BillingWidget;
+    payment_activity_30d: BillingWidget;
   };
   recent_invoices: Invoice[];
   revenue_chart: {

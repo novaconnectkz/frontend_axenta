@@ -210,7 +210,7 @@
         <template #item.total_amount="{ item }">
           <div class="text-right">
             <div class="amount-value">
-              {{ formatCurrency(item.total_amount, item.currency) }}
+              {{ formatCurrency(calculateContractAmount(item), item.currency) }}
             </div>
             <v-tooltip location="top" :disabled="!item.objects || item.objects.length === 0">
               <template #activator="{ props }">
@@ -461,12 +461,43 @@ const filteredContracts = computed(() => {
   return result;
 });
 
+// Функция для расчета стоимости договора
+const calculateContractAmount = (contract: Contract): number => {
+  // Если у договора уже есть заполненная стоимость (не 0), используем её
+  const existingAmount = parseFloat(contract.total_amount || '0');
+  if (existingAmount > 0) {
+    return existingAmount;
+  }
+
+  // Рассчитываем стоимость на основе тарифного плана и объектов
+  if (!contract.tariff_plan || !contract.tariff_plan.price) {
+    return 0;
+  }
+
+  const tariffPrice = contract.tariff_plan.price;
+  const objectsCount = contract.objects?.length || 0;
+
+  // Если есть объекты, рассчитываем стоимость: цена тарифа * количество объектов
+  // Если объектов нет, используем базовую цену тарифа
+  if (objectsCount > 0) {
+    return tariffPrice * objectsCount;
+  } else {
+    // Если объектов нет, но есть тариф, используем базовую цену тарифа
+    return tariffPrice;
+  }
+};
+
 const stats = computed(() => {
   const total = contracts.value.length;
   const active = contracts.value.filter(c => c.status === 'active').length;
   const expired = contracts.value.filter(c => c.status === 'expired').length;
   const expiring_soon = contracts.value.filter(c => isExpiringSoon(c)).length;
-  const total_amount = contracts.value.reduce((sum, c) => sum + parseFloat(c.total_amount), 0);
+  
+  // Используем автоматический расчет стоимости для каждого договора
+  const total_amount = contracts.value.reduce((sum, c) => {
+    const calculatedAmount = calculateContractAmount(c);
+    return sum + calculatedAmount;
+  }, 0);
 
   return {
     total,

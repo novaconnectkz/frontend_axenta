@@ -11,89 +11,414 @@
     </v-row>
 
     <!-- Статистические карточки -->
-    <v-row class="mb-6 stats-row" no-gutters>
-      <!-- Основная статистика биллинга -->
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="primary" class="mb-2">mdi-currency-rub</v-icon>
-            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.total_revenue.value || 0) }}</div>
-            <div class="stat-label">Общий доход</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="success" class="mb-2">mdi-credit-card-check</v-icon>
-            <div class="stat-value">{{ dashboardData?.widgets.active_subscriptions.value || 0 }}</div>
-            <div class="stat-label">Активные подписки</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="warning" class="mb-2">mdi-clock-alert</v-icon>
-            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.outstanding_amount.value || 0) }}</div>
-            <div class="stat-label">К оплате</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="error" class="mb-2">mdi-alert-circle</v-icon>
-            <div class="stat-value">{{ formatCurrency(dashboardData?.widgets.overdue_amount.value || 0) }}</div>
-            <div class="stat-label">Просрочено</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <!-- Статистика договоров -->
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="primary" class="mb-2">mdi-file-document-multiple</v-icon>
-            <div class="stat-value">{{ contractsStats?.total || 0 }}</div>
-            <div class="stat-label">Всего договоров</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="success" class="mb-2">mdi-check-circle</v-icon>
-            <div class="stat-value">{{ contractsStats?.active || 0 }}</div>
-            <div class="stat-label">Активные договоры</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="warning" class="mb-2">mdi-clock-alert</v-icon>
-            <div class="stat-value">{{ contractsStats?.expiring_soon || 0 }}</div>
-            <div class="stat-label">Истекают</div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-      
-      <v-col cols="12" sm="6" md="3" class="pa-2">
-        <v-card variant="outlined" class="stats-card text-center">
-          <v-card-text class="pa-4">
-            <v-icon size="32" color="info" class="mb-2">mdi-currency-rub</v-icon>
-            <div class="stat-value">{{ formatCurrencyShort(contractsStats?.total_amount || 0) }}</div>
-            <div class="stat-label">Стоимость</div>
-          </v-card-text>
+    <v-row class="mb-4" no-gutters>
+      <v-col cols="12">
+        <v-card variant="outlined" class="mb-4">
+          <v-card-title class="d-flex align-center" style="cursor: pointer" @click="toggleMetricsVisibility">
+            <v-icon class="mr-2">mdi-chart-box</v-icon>
+            <span>Метрики биллинга</span>
+            <v-spacer></v-spacer>
+            <v-icon class="mr-2">{{ metricsVisible ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            <v-btn
+              v-if="metricsVisible"
+              variant="text"
+              size="small"
+              @click.stop="expandAllMetrics"
+            >
+              {{ allMetricsExpanded ? 'Скрыть все' : 'Показать все' }}
+            </v-btn>
+          </v-card-title>
         </v-card>
       </v-col>
     </v-row>
+
+    <v-expand-transition>
+      <v-row v-if="metricsVisible" class="mb-6 stats-row" no-gutters>
+      <!-- Основная статистика биллинга -->
+      <v-col cols="12" class="mb-2">
+        <v-card variant="outlined" class="pa-2">
+          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('basic')">
+            <v-icon class="mr-2">mdi-chart-line</v-icon>
+            <span>Основные метрики</span>
+            <v-spacer></v-spacer>
+            <v-icon>{{ expandedCategories.basic ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-card-title>
+          <v-expand-transition>
+            <v-card-text v-if="expandedCategories.basic">
+                <v-row no-gutters>
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.total_revenue.title || 'Общий доход'"
+                      :value="dashboardData?.widgets.total_revenue.value || 0"
+                      icon="mdi-currency-rub"
+                      icon-color="primary"
+                      format="currency"
+                      description="Сумма всех оплаченных счетов за всё время. Показывает общую выручку компании."
+                      metric-key="total_revenue"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+      
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.monthly_revenue.title || 'Доход за месяц'"
+                      :value="dashboardData?.widgets.monthly_revenue.value || 0"
+                      icon="mdi-calendar-month"
+                      icon-color="success"
+                      format="currency"
+                      description="Доход за текущий месяц. Показывает динамику поступления средств."
+                      metric-key="monthly_revenue"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.active_subscriptions.title || 'Активные подписки'"
+                      :value="dashboardData?.widgets.active_subscriptions.value || 0"
+                      icon="mdi-credit-card-check"
+                      icon-color="success"
+                      format="number"
+                      description="Количество подписок со статусом 'active'. Показывает текущую активную базу клиентов."
+                      metric-key="active_subscriptions"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.outstanding_amount.title || 'К оплате'"
+                      :value="dashboardData?.widgets.outstanding_amount.value || 0"
+                      icon="mdi-clock-alert"
+                      icon-color="warning"
+                      format="currency"
+                      description="Сумма неоплаченных счетов (черновики, отправленные, частично оплаченные). Дебиторская задолженность, требующая внимания."
+                      metric-key="outstanding_amount"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.overdue_amount.title || 'Просрочено'"
+                      :value="dashboardData?.widgets.overdue_amount.value || 0"
+                      icon="mdi-alert-circle"
+                      icon-color="error"
+                      format="currency"
+                      description="Сумма просроченных счетов. Критичные долги, требующие немедленных действий."
+                      metric-key="overdue_amount"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.overdue_invoices.title || 'Просроченные счета'"
+                      :value="dashboardData?.widgets.overdue_invoices.value || 0"
+                      icon="mdi-file-document-alert"
+                      icon-color="error"
+                      format="number"
+                      description="Количество просроченных счетов. Требуют немедленного внимания и действий."
+                      metric-key="overdue_invoices"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+
+      <!-- Статистика договоров -->
+      <v-col cols="12" class="mb-2">
+        <v-card variant="outlined" class="pa-2">
+          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('contracts')">
+            <v-icon class="mr-2">mdi-file-document-multiple</v-icon>
+            <span>Статистика договоров</span>
+            <v-spacer></v-spacer>
+            <v-icon>{{ expandedCategories.contracts ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-card-title>
+          <v-expand-transition>
+            <v-card-text v-if="expandedCategories.contracts">
+                <v-row no-gutters>
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      title="Всего договоров"
+                      :value="contractsStats?.total || 0"
+                      icon="mdi-file-document-multiple"
+                      icon-color="primary"
+                      format="number"
+                      description="Общее количество договоров в системе. Показывает общий объем базы договоров."
+                      metric-key="contracts_total"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      title="Активные договоры"
+                      :value="contractsStats?.active || 0"
+                      icon="mdi-check-circle"
+                      icon-color="success"
+                      format="number"
+                      description="Количество договоров со статусом 'active'. Текущие действующие договоры."
+                      metric-key="contracts_active"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      title="Истекают"
+                      :value="contractsStats?.expiring_soon || 0"
+                      icon="mdi-clock-alert"
+                      icon-color="warning"
+                      format="number"
+                      description="Количество договоров, истекающих в ближайшие 30 дней. Требуют продления или переговоров."
+                      metric-key="contracts_expiring"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      title="Стоимость"
+                      :value="contractsStats?.total_amount || 0"
+                      icon="mdi-currency-rub"
+                      icon-color="info"
+                      format="currency"
+                      description="Общая стоимость всех договоров. Потенциальный доход от договоров (рассчитывается автоматически на основе тарифов и объектов)."
+                      metric-key="contracts_cost"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+      
+      <!-- Критичные метрики -->
+      <v-col cols="12" class="mb-2">
+        <v-card variant="outlined" class="pa-2">
+          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('critical')">
+            <v-icon class="mr-2">mdi-alert-circle</v-icon>
+            <span>Критичные метрики</span>
+            <v-spacer></v-spacer>
+            <v-icon>{{ expandedCategories.critical ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-card-title>
+          <v-expand-transition>
+            <v-card-text v-if="expandedCategories.critical">
+                <v-row no-gutters>
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.average_invoice_amount.title || 'Средний чек'"
+                      :value="dashboardData?.widgets.average_invoice_amount.value || 0"
+                      icon="mdi-cash-multiple"
+                      icon-color="primary"
+                      format="currency"
+                      description="Средний размер оплаченного счета. Рассчитывается как общий доход, деленный на количество оплаченных счетов."
+                      metric-key="average_invoice_amount"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.payment_conversion_rate.title || 'Конверсия оплат'"
+                      :value="dashboardData?.widgets.payment_conversion_rate.value || 0"
+                      icon="mdi-percent"
+                      icon-color="success"
+                      format="percentage"
+                      description="Процент оплаченных счетов от отправленных. Показывает эффективность взыскания платежей."
+                      metric-key="payment_conversion_rate"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.average_payment_days.title || 'Средний срок оплаты'"
+                      :value="dashboardData?.widgets.average_payment_days.value || 0"
+                      icon="mdi-calendar-clock"
+                      icon-color="info"
+                      format="number"
+                      description="Среднее количество дней между отправкой и оплатой счета. Показывает платежную дисциплину клиентов."
+                      metric-key="average_payment_days"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.expected_revenue.title || 'Ожидаемый доход'"
+                      :value="dashboardData?.widgets.expected_revenue.value || 0"
+                      icon="mdi-chart-line"
+                      icon-color="success"
+                      format="currency"
+                      description="Сумма всех активных подписок. Прогноз дохода на следующий период."
+                      metric-key="expected_revenue"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+      
+      <!-- Важные метрики -->
+      <v-col cols="12" class="mb-2">
+        <v-card variant="outlined" class="pa-2">
+          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('important')">
+            <v-icon class="mr-2">mdi-star</v-icon>
+            <span>Важные метрики</span>
+            <v-spacer></v-spacer>
+            <v-icon>{{ expandedCategories.important ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-card-title>
+          <v-expand-transition>
+            <v-card-text v-if="expandedCategories.important">
+                <v-row no-gutters>
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.invoices_to_send.title || 'Счета к отправке'"
+                      :value="dashboardData?.widgets.invoices_to_send.value || 0"
+                      icon="mdi-email-send"
+                      icon-color="warning"
+                      format="number"
+                      description="Количество счетов со статусом 'draft'. Неотправленные счета, требующие действий."
+                      metric-key="invoices_to_send"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.partially_paid_amount.title || 'Частично оплачено'"
+                      :value="dashboardData?.widgets.partially_paid_amount.value || 0"
+                      icon="mdi-cash-partial"
+                      icon-color="warning"
+                      format="currency"
+                      description="Сумма частично оплаченных счетов. Счета, требующие доплаты."
+                      metric-key="partially_paid_amount"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.partially_paid_count.title || 'Частично оплаченные'"
+                      :value="dashboardData?.widgets.partially_paid_count.value || 0"
+                      icon="mdi-file-document-edit"
+                      icon-color="warning"
+                      format="number"
+                      description="Количество частично оплаченных счетов. Требуют контроля и доплаты."
+                      metric-key="partially_paid_count"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.new_subscriptions.title || 'Новые подписки'"
+                      :value="dashboardData?.widgets.new_subscriptions.value || 0"
+                      icon="mdi-account-plus"
+                      icon-color="success"
+                      format="number"
+                      description="Количество новых подписок за текущий месяц. Показывает динамику роста базы клиентов."
+                      metric-key="new_subscriptions"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+      
+      <!-- Полезные метрики -->
+      <v-col cols="12" class="mb-2">
+        <v-card variant="outlined" class="pa-2">
+          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('additional')">
+            <v-icon class="mr-2">mdi-chart-box</v-icon>
+            <span>Полезные метрики</span>
+            <v-spacer></v-spacer>
+            <v-icon>{{ expandedCategories.additional ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+          </v-card-title>
+          <v-expand-transition>
+            <v-card-text v-if="expandedCategories.additional">
+                <v-row no-gutters>
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.average_revenue_per_contract.title || 'Средний доход с договора'"
+                      :value="dashboardData?.widgets.average_revenue_per_contract.value || 0"
+                      icon="mdi-chart-box"
+                      icon-color="primary"
+                      format="currency"
+                      description="Средний доход на один активный договор. Показывает эффективность договоров."
+                      metric-key="average_revenue_per_contract"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.overdue_percentage.title || 'Процент просрочки'"
+                      :value="dashboardData?.widgets.overdue_percentage.value || 0"
+                      icon="mdi-alert"
+                      icon-color="error"
+                      format="percentage"
+                      description="Доля просроченной суммы от общей суммы к оплате. Показывает процент проблемных платежей."
+                      metric-key="overdue_percentage"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.invoices_without_contract.title || 'Счета без договора'"
+                      :value="dashboardData?.widgets.invoices_without_contract.value || 0"
+                      icon="mdi-file-question"
+                      icon-color="warning"
+                      format="number"
+                      description="Количество счетов без привязки к договору. Выявление неструктурированных платежей."
+                      metric-key="invoices_without_contract"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.payment_activity_7d.title || 'Платежи за 7 дней'"
+                      :value="dashboardData?.widgets.payment_activity_7d.value || 0"
+                      icon="mdi-calendar-week"
+                      icon-color="info"
+                      format="number"
+                      description="Количество платежей за последние 7 дней. Показывает текущую активность поступления средств."
+                      metric-key="payment_activity_7d"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                  
+                  <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <BillingStatCard
+                      :title="dashboardData?.widgets.payment_activity_30d.title || 'Платежи за 30 дней'"
+                      :value="dashboardData?.widgets.payment_activity_30d.value || 0"
+                      icon="mdi-calendar-month"
+                      icon-color="info"
+                      format="number"
+                      description="Количество платежей за последние 30 дней. Показывает месячную активность поступления средств."
+                      metric-key="payment_activity_30d"
+                      @open-detail="openMetricDetail"
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-expand-transition>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-expand-transition>
 
     <!-- Вкладки -->
     <v-tabs v-model="activeTab" color="primary" class="mb-6">
@@ -1495,6 +1820,24 @@
       :invoice="selectedInvoiceForSend"
       @sent="handleInvoiceSent"
     />
+
+    <!-- Диалог детальной информации о метрике -->
+    <BillingMetricDetailDialog
+      v-model="metricDetailDialog"
+      :title="currentMetricDetail?.title || ''"
+      :value="currentMetricDetail?.value || 0"
+      :icon="currentMetricDetail?.icon || 'mdi-information'"
+      :icon-color="currentMetricDetail?.iconColor || 'primary'"
+      :format="currentMetricDetail?.format || 'number'"
+      :currency="currentMetricDetail?.currency || 'RUB'"
+      :description="currentMetricDetail?.description || ''"
+      :subtitle="currentMetricDetail?.subtitle || ''"
+      :additional-info="currentMetricDetail?.additionalInfo"
+      :detail-table-headers="currentMetricDetail?.tableHeaders"
+      :detail-table-data="currentMetricDetail?.tableData"
+      :additional-stats="currentMetricDetail?.additionalStats"
+      :action-button="currentMetricDetail?.actionButton"
+    />
   </v-container>
 </template>
 
@@ -1505,6 +1848,8 @@ import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vu
 import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
+import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
+import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
 import { billingService } from '@/services/billingService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
@@ -1623,6 +1968,56 @@ const contractsStats = ref<{
   expiring_soon: number
   total_amount: string
 } | null>(null)
+
+// Управление видимостью всего блока метрик
+const metricsVisible = ref(false)
+
+// Управление видимостью категорий метрик
+const expandedCategories = ref({
+  basic: false,
+  contracts: false,
+  critical: false,
+  important: false,
+  additional: false
+})
+
+const allMetricsExpanded = computed(() => {
+  return Object.values(expandedCategories.value).every(v => v === true)
+})
+
+const toggleMetricsVisibility = () => {
+  metricsVisible.value = !metricsVisible.value
+}
+
+const toggleCategory = (category: keyof typeof expandedCategories.value) => {
+  expandedCategories.value[category] = !expandedCategories.value[category]
+}
+
+const expandAllMetrics = () => {
+  const allExpanded = allMetricsExpanded.value
+  Object.keys(expandedCategories.value).forEach(key => {
+    expandedCategories.value[key as keyof typeof expandedCategories.value] = !allExpanded
+  })
+}
+
+// Диалог детальной информации о метрике
+const metricDetailDialog = ref(false)
+const currentMetricDetail = ref<{
+  title: string
+  value: string | number
+  icon: string
+  iconColor: string
+  format: 'currency' | 'number' | 'percentage'
+  currency: string
+  description: string
+  subtitle?: string
+  additionalInfo?: string
+  tableHeaders?: Array<{ title: string; key: string; sortable?: boolean }>
+  tableData?: Array<Record<string, any>>
+  additionalStats?: Array<{ label: string; value: string | number }>
+  actionButton?: { label: string; action: () => void }
+} | null>(null)
+
 const contractNumerators = ref<ContractNumerator[]>([])
 const loadingNumerators = ref(false)
 const availableContracts = ref<any[]>([])
@@ -1879,10 +2274,14 @@ const calculatedPeriod = computed(() => {
 // Методы загрузки данных
 const loadDashboardData = async () => {
   try {
-    // Загружаем планы и подписки один раз
-    const [plansData, subscriptionsData] = await Promise.all([
+    // Сначала загружаем статистику договоров, чтобы она была доступна для расчета дашборда
+    await loadContractsStats()
+    
+    // Затем загружаем планы, подписки и счета
+    const [plansData, subscriptionsData, invoicesData] = await Promise.all([
       billingService.getBillingPlans(currentCompanyId.value),
-      billingService.getSubscriptions(currentCompanyId.value)
+      billingService.getSubscriptions(currentCompanyId.value),
+      billingService.getInvoices({ company_id: currentCompanyId.value }).then(r => r.invoices)
     ])
     
     // Сохраняем в состояние компонента
@@ -1890,13 +2289,66 @@ const loadDashboardData = async () => {
     subscriptions.value = subscriptionsData
     
     // Передаем уже загруженные данные в getBillingDashboardData, чтобы избежать дублирования
+    // Также передаем количество активных договоров для расчета среднего дохода
     dashboardData.value = await billingService.getBillingDashboardData(
       currentCompanyId.value,
       plansData,
-      subscriptionsData
+      subscriptionsData,
+      invoicesData,
+      contractsStats.value?.active || 0
     )
   } catch (error) {
     console.error('Ошибка при загрузке данных дашборда:', error)
+  }
+}
+
+// Функция для загрузки статистики договоров
+const loadContractsStats = async () => {
+  try {
+    const stats = await contractsService.getContractStats()
+    // Применяем автоматический расчет стоимости, если нужно
+    // Получаем договоры для расчета
+    const { contracts } = await contractsService.getContracts({ limit: 1000 })
+    
+    // Рассчитываем total_amount с учетом тарифных планов и объектов
+    const calculatedTotalAmount = contracts.reduce((sum, contract) => {
+      const existingAmount = parseFloat(contract.total_amount || '0')
+      if (existingAmount > 0) {
+        return sum + existingAmount
+      }
+      
+      // Автоматический расчет на основе тарифа и объектов
+      if (contract.tariff_plan?.price) {
+        const tariffPrice = contract.tariff_plan.price
+        const objectsCount = contract.objects?.length || 0
+        if (objectsCount > 0) {
+          return sum + (tariffPrice * objectsCount)
+        } else {
+          return sum + tariffPrice
+        }
+      }
+      
+      return sum
+    }, 0)
+    
+    contractsStats.value = {
+      total: stats.total,
+      active: stats.active,
+      expiring_soon: stats.expiring_soon,
+      total_amount: calculatedTotalAmount.toString()
+    }
+    
+    return stats
+  } catch (error) {
+    console.error('Ошибка при загрузке статистики договоров:', error)
+    // Устанавливаем значения по умолчанию
+    contractsStats.value = {
+      total: 0,
+      active: 0,
+      expiring_soon: 0,
+      total_amount: '0'
+    }
+    return null
   }
 }
 
@@ -2178,8 +2630,12 @@ const viewInvoice = (invoice: Invoice) => {
 
 const processPaymentDialog = (invoice: Invoice) => {
   selectedInvoice.value = invoice
+  // Вычисляем сумму к доплате
+  const totalAmount = parseFloat(invoice.total_amount) || 0
+  const paidAmount = parseFloat(invoice.paid_amount) || 0
+  const amountToPay = totalAmount - paidAmount
   paymentData.value = {
-    amount: invoice.total_amount,
+    amount: String(amountToPay > 0 ? amountToPay : totalAmount),
     payment_method: 'bank_transfer',
     notes: ''
   }
@@ -2190,7 +2646,13 @@ const processPayment = async () => {
   if (!selectedInvoice.value) return
 
   try {
-    await billingService.processPayment(selectedInvoice.value.id, paymentData.value)
+    // Убеждаемся, что amount - строка
+    const paymentPayload: ProcessPaymentData = {
+      amount: String(paymentData.value.amount),
+      payment_method: paymentData.value.payment_method,
+      notes: paymentData.value.notes || ''
+    }
+    await billingService.processPayment(selectedInvoice.value.id, paymentPayload)
     await fetchInvoices()
     await loadDashboardData()
     paymentDialog.value = false
@@ -2421,6 +2883,489 @@ const handleContractsStatsUpdate = (stats: {
   contractsStats.value = stats
 }
 
+// Функция для открытия диалога детальной информации о метрике
+const openMetricDetail = (metricKey: string | undefined) => {
+  if (!metricKey) {
+    return
+  }
+
+  // Обработка метрик договоров (не входят в dashboardData.widgets)
+  if (metricKey.startsWith('contracts_')) {
+    const detail = getContractMetricDetail(metricKey)
+    if (detail) {
+      currentMetricDetail.value = detail
+      metricDetailDialog.value = true
+    }
+    return
+  }
+
+  if (!dashboardData.value) {
+    return
+  }
+
+  const widget = dashboardData.value.widgets[metricKey as keyof typeof dashboardData.value.widgets]
+  if (!widget) {
+    return
+  }
+
+  // Получаем детальную информацию для метрики
+  const detail = getMetricDetail(metricKey, widget)
+  currentMetricDetail.value = detail
+  metricDetailDialog.value = true
+}
+
+// Функция для получения детальной информации о метрике
+const getMetricDetail = (metricKey: string, widget: any) => {
+  const baseDetail = {
+    title: widget.title,
+    value: widget.value,
+    icon: getMetricIcon(metricKey),
+    iconColor: getMetricIconColor(metricKey),
+    format: widget.format || 'number',
+    currency: widget.currency || 'RUB',
+    description: getMetricDescription(metricKey),
+    subtitle: getMetricSubtitle(metricKey, widget.value)
+  }
+
+  // Добавляем специфичные данные для каждой метрики
+  switch (metricKey) {
+    case 'total_revenue':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Дата оплаты', key: 'paid_at', sortable: true },
+          { title: 'Сумма', key: 'amount', sortable: true },
+          { title: 'Клиент', key: 'client', sortable: false }
+        ],
+        tableData: invoices.value
+          .filter(inv => inv.status === 'paid')
+          .map(inv => ({
+            number: inv.number,
+            paid_at: inv.paid_at || inv.invoice_date,
+            amount: parseFloat(inv.total_amount),
+            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+          }))
+          .sort((a, b) => new Date(b.paid_at || '').getTime() - new Date(a.paid_at || '').getTime())
+          .slice(0, 50),
+        additionalStats: [
+          { label: 'Всего оплаченных счетов', value: invoices.value.filter(inv => inv.status === 'paid').length },
+          { label: 'Средний чек', value: formatCurrency(dashboardData.value?.widgets.average_invoice_amount.value || 0) }
+        ],
+        actionButton: {
+          label: 'Перейти к счетам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'invoices'
+            invoiceStatusFilter.value = 'paid'
+          }
+        }
+      }
+
+    case 'monthly_revenue':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Дата', key: 'date', sortable: true },
+          { title: 'Сумма', key: 'amount', sortable: true }
+        ],
+        tableData: invoices.value
+          .filter(inv => {
+            if (inv.status !== 'paid') return false
+            const invoiceDate = new Date(inv.invoice_date || inv.created_at)
+            const now = new Date()
+            return invoiceDate.getMonth() === now.getMonth() && invoiceDate.getFullYear() === now.getFullYear()
+          })
+          .map(inv => ({
+            number: inv.number,
+            date: inv.invoice_date || inv.created_at,
+            amount: parseFloat(inv.total_amount)
+          }))
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      }
+
+    case 'outstanding_amount':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Сумма', key: 'total_amount', sortable: true },
+          { title: 'Оплачено', key: 'paid_amount', sortable: true },
+          { title: 'К доплате', key: 'outstanding', sortable: true },
+          { title: 'Статус', key: 'status', sortable: true },
+          { title: 'Срок оплаты', key: 'due_date', sortable: true }
+        ],
+        tableData: invoices.value
+          .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
+          .map(inv => ({
+            number: inv.number,
+            total_amount: parseFloat(inv.total_amount),
+            paid_amount: parseFloat(inv.paid_amount),
+            outstanding: parseFloat(inv.total_amount) - parseFloat(inv.paid_amount),
+            status: inv.status,
+            due_date: inv.due_date
+          }))
+          .sort((a, b) => b.outstanding - a.outstanding),
+        additionalStats: [
+          { label: 'Всего неоплаченных счетов', value: invoices.value.filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled').length },
+          { label: 'Частично оплаченных', value: invoices.value.filter(inv => inv.status === 'partially_paid').length }
+        ],
+        actionButton: {
+          label: 'Перейти к счетам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'invoices'
+            invoiceStatusFilter.value = null
+          }
+        }
+      }
+
+    case 'overdue_amount':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Сумма', key: 'amount', sortable: true },
+          { title: 'Оплачено', key: 'paid', sortable: true },
+          { title: 'К доплате', key: 'outstanding', sortable: true },
+          { title: 'Срок оплаты', key: 'due_date', sortable: true },
+          { title: 'Дней просрочки', key: 'days_overdue', sortable: true }
+        ],
+        tableData: invoices.value
+          .filter(inv => inv.status === 'overdue' || (new Date(inv.due_date) < new Date() && inv.status !== 'paid' && inv.status !== 'cancelled'))
+          .map(inv => {
+            const dueDate = new Date(inv.due_date)
+            const now = new Date()
+            const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+            return {
+              number: inv.number,
+              amount: parseFloat(inv.total_amount),
+              paid: parseFloat(inv.paid_amount),
+              outstanding: parseFloat(inv.total_amount) - parseFloat(inv.paid_amount),
+              due_date: inv.due_date,
+              days_overdue: daysOverdue > 0 ? daysOverdue : 0
+            }
+          })
+          .sort((a, b) => b.days_overdue - a.days_overdue),
+        actionButton: {
+          label: 'Перейти к просроченным',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'invoices'
+            invoiceStatusFilter.value = 'overdue'
+          }
+        }
+      }
+
+    case 'active_subscriptions':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: '№', key: 'sequential_number', sortable: true },
+          { title: 'Тарифный план', key: 'plan', sortable: false },
+          { title: 'Клиент', key: 'client', sortable: false },
+          { title: 'Дата начала', key: 'start_date', sortable: true },
+          { title: 'Дата окончания', key: 'end_date', sortable: true },
+          { title: 'Стоимость', key: 'price', sortable: true }
+        ],
+        tableData: subscriptions.value
+          .filter(sub => sub.status === 'active')
+          .map((sub, index) => ({
+            sequential_number: index + 1,
+            plan: sub.billing_plan?.name || 'Не указан',
+            client: sub.contract?.client_name || `Компания ID: ${sub.company_id}`,
+            start_date: sub.start_date,
+            end_date: sub.end_date || 'Бессрочно',
+            price: formatCurrency(sub.billing_plan?.price || 0)
+          })),
+        actionButton: {
+          label: 'Перейти к подпискам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'subscriptions'
+          }
+        }
+      }
+
+    case 'invoices_to_send':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Дата создания', key: 'created_at', sortable: true },
+          { title: 'Сумма', key: 'amount', sortable: true },
+          { title: 'Клиент', key: 'client', sortable: false }
+        ],
+        tableData: invoices.value
+          .filter(inv => inv.status === 'draft')
+          .map(inv => ({
+            number: inv.number,
+            created_at: inv.created_at,
+            amount: parseFloat(inv.total_amount),
+            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+          }))
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+        actionButton: {
+          label: 'Перейти к счетам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'invoices'
+            invoiceStatusFilter.value = 'draft'
+          }
+        }
+      }
+
+    case 'partially_paid_amount':
+    case 'partially_paid_count':
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Сумма', key: 'total_amount', sortable: true },
+          { title: 'Оплачено', key: 'paid_amount', sortable: true },
+          { title: 'К доплате', key: 'outstanding', sortable: true },
+          { title: 'Срок оплаты', key: 'due_date', sortable: true }
+        ],
+        tableData: invoices.value
+          .filter(inv => inv.status === 'partially_paid')
+          .map(inv => ({
+            number: inv.number,
+            total_amount: parseFloat(inv.total_amount),
+            paid_amount: parseFloat(inv.paid_amount),
+            outstanding: parseFloat(inv.total_amount) - parseFloat(inv.paid_amount),
+            due_date: inv.due_date
+          }))
+          .sort((a, b) => b.outstanding - a.outstanding),
+        actionButton: {
+          label: 'Перейти к счетам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'invoices'
+            invoiceStatusFilter.value = 'partially_paid'
+          }
+        }
+      }
+
+    case 'payment_activity_7d':
+    case 'payment_activity_30d':
+      const days = metricKey === 'payment_activity_7d' ? 7 : 30
+      const cutoffDate = new Date()
+      cutoffDate.setDate(cutoffDate.getDate() - days)
+      
+      return {
+        ...baseDetail,
+        tableHeaders: [
+          { title: 'Номер счета', key: 'number', sortable: true },
+          { title: 'Дата оплаты', key: 'paid_at', sortable: true },
+          { title: 'Сумма', key: 'amount', sortable: true },
+          { title: 'Клиент', key: 'client', sortable: false }
+        ],
+        tableData: invoices.value
+          .filter(inv => {
+            if (inv.status !== 'paid' || !inv.paid_at) return false
+            return new Date(inv.paid_at) >= cutoffDate
+          })
+          .map(inv => ({
+            number: inv.number,
+            paid_at: inv.paid_at,
+            amount: parseFloat(inv.total_amount),
+            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+          }))
+          .sort((a, b) => new Date(b.paid_at || '').getTime() - new Date(a.paid_at || '').getTime())
+      }
+
+    default:
+      return baseDetail
+  }
+}
+
+// Вспомогательные функции для метрик
+const getMetricIcon = (metricKey: string): string => {
+  const icons: Record<string, string> = {
+    total_revenue: 'mdi-currency-rub',
+    monthly_revenue: 'mdi-calendar-month',
+    active_subscriptions: 'mdi-credit-card-check',
+    outstanding_amount: 'mdi-clock-alert',
+    overdue_amount: 'mdi-alert-circle',
+    overdue_invoices: 'mdi-file-document-alert',
+    average_invoice_amount: 'mdi-cash-multiple',
+    payment_conversion_rate: 'mdi-percent',
+    average_payment_days: 'mdi-calendar-clock',
+    expected_revenue: 'mdi-chart-line',
+    invoices_to_send: 'mdi-email-send',
+    partially_paid_amount: 'mdi-cash-partial',
+    partially_paid_count: 'mdi-file-document-edit',
+    new_subscriptions: 'mdi-account-plus',
+    average_revenue_per_contract: 'mdi-chart-box',
+    overdue_percentage: 'mdi-alert',
+    invoices_without_contract: 'mdi-file-question',
+    payment_activity_7d: 'mdi-calendar-week',
+    payment_activity_30d: 'mdi-calendar-month'
+  }
+  return icons[metricKey] || 'mdi-information'
+}
+
+const getMetricIconColor = (metricKey: string): string => {
+  const colors: Record<string, string> = {
+    total_revenue: 'primary',
+    monthly_revenue: 'success',
+    active_subscriptions: 'success',
+    outstanding_amount: 'warning',
+    overdue_amount: 'error',
+    overdue_invoices: 'error',
+    average_invoice_amount: 'primary',
+    payment_conversion_rate: 'success',
+    average_payment_days: 'info',
+    expected_revenue: 'success',
+    invoices_to_send: 'warning',
+    partially_paid_amount: 'warning',
+    partially_paid_count: 'warning',
+    new_subscriptions: 'success',
+    average_revenue_per_contract: 'primary',
+    overdue_percentage: 'error',
+    invoices_without_contract: 'warning',
+    payment_activity_7d: 'info',
+    payment_activity_30d: 'info'
+  }
+  return colors[metricKey] || 'primary'
+}
+
+const getMetricDescription = (metricKey: string): string => {
+  const descriptions: Record<string, string> = {
+    total_revenue: 'Сумма всех оплаченных счетов за всё время. Показывает общую выручку компании от начала работы.',
+    monthly_revenue: 'Доход за текущий месяц. Рассчитывается на основе счетов, оплаченных в текущем месяце. Показывает динамику поступления средств.',
+    active_subscriptions: 'Количество подписок со статусом "active". Показывает текущую активную базу клиентов, которые регулярно оплачивают услуги.',
+    outstanding_amount: 'Сумма неоплаченных счетов (черновики, отправленные, частично оплаченные). Дебиторская задолженность, требующая внимания и контроля.',
+    overdue_amount: 'Сумма просроченных счетов. Критичные долги, требующие немедленных действий: звонков клиентам, напоминаний, возможных санкций.',
+    overdue_invoices: 'Количество просроченных счетов. Каждый счет требует индивидуального подхода и контроля для взыскания задолженности.',
+    average_invoice_amount: 'Средний размер оплаченного счета. Рассчитывается как общий доход, деленный на количество оплаченных счетов. Показывает типичный размер платежа.',
+    payment_conversion_rate: 'Процент оплаченных счетов от отправленных. Показывает эффективность взыскания платежей. Высокий процент означает хорошую платежную дисциплину клиентов.',
+    average_payment_days: 'Среднее количество дней между отправкой и оплатой счета. Показывает платежную дисциплину клиентов. Меньше дней - лучше.',
+    expected_revenue: 'Сумма всех активных подписок. Прогноз дохода на следующий период при сохранении текущей базы клиентов.',
+    invoices_to_send: 'Количество счетов со статусом "draft". Неотправленные счета, требующие действий: проверки и отправки клиентам.',
+    partially_paid_amount: 'Сумма частично оплаченных счетов. Счета, требующие доплаты. Необходимо контролировать и напоминать клиентам о доплате.',
+    partially_paid_count: 'Количество частично оплаченных счетов. Требуют контроля и доплаты. Каждый счет нужно отслеживать до полной оплаты.',
+    new_subscriptions: 'Количество новых подписок за текущий месяц. Показывает динамику роста базы клиентов. Положительная динамика - хороший знак.',
+    average_revenue_per_contract: 'Средний доход на один активный договор. Показывает эффективность договоров. Высокое значение означает хорошую монетизацию.',
+    overdue_percentage: 'Доля просроченной суммы от общей суммы к оплате. Показывает процент проблемных платежей. Низкий процент - хороший знак.',
+    invoices_without_contract: 'Количество счетов без привязки к договору. Выявление неструктурированных платежей. Рекомендуется привязывать счета к договорам для лучшего учета.',
+    payment_activity_7d: 'Количество платежей за последние 7 дней. Показывает текущую активность поступления средств. Высокая активность - хороший знак.',
+    payment_activity_30d: 'Количество платежей за последние 30 дней. Показывает месячную активность поступления средств. Позволяет оценить стабильность денежного потока.'
+  }
+  return descriptions[metricKey] || 'Детальная информация о метрике.'
+}
+
+const getMetricSubtitle = (metricKey: string, value: string | number): string => {
+  const val = typeof value === 'string' ? parseFloat(value) : value
+  
+  switch (metricKey) {
+    case 'total_revenue':
+      return 'Общая выручка компании'
+    case 'monthly_revenue':
+      return `Доход за ${new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}`
+    case 'active_subscriptions':
+      return 'Активных подписок в системе'
+    case 'outstanding_amount':
+      return 'Требует внимания и контроля'
+    case 'overdue_amount':
+      return 'Критично! Требует немедленных действий'
+    case 'payment_conversion_rate':
+      return val >= 80 ? 'Отличная конверсия' : val >= 60 ? 'Хорошая конверсия' : 'Требует улучшения'
+    case 'average_payment_days':
+      return val <= 7 ? 'Отличная дисциплина' : val <= 14 ? 'Хорошая дисциплина' : 'Требует внимания'
+    default:
+      return ''
+  }
+}
+
+// Функция для получения детальной информации о метриках договоров
+const getContractMetricDetail = (metricKey: string) => {
+  if (!contractsStats.value) {
+    return null
+  }
+
+  const baseDetail = {
+    icon: 'mdi-file-document-multiple',
+    iconColor: 'primary',
+    format: 'number' as const,
+    currency: 'RUB',
+    description: '',
+    subtitle: ''
+  }
+
+  switch (metricKey) {
+    case 'contracts_total':
+      return {
+        ...baseDetail,
+        title: 'Всего договоров',
+        value: contractsStats.value.total,
+        description: 'Общее количество договоров в системе. Показывает общий объем базы договоров.',
+        subtitle: 'Все договоры компании',
+        actionButton: {
+          label: 'Перейти к договорам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'contracts'
+          }
+        }
+      }
+
+    case 'contracts_active':
+      return {
+        ...baseDetail,
+        title: 'Активные договоры',
+        value: contractsStats.value.active,
+        description: 'Количество договоров со статусом "active". Текущие действующие договоры, по которым ведутся активные работы и начисляются платежи.',
+        subtitle: 'Действующие договоры',
+        actionButton: {
+          label: 'Перейти к договорам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'contracts'
+          }
+        }
+      }
+
+    case 'contracts_expiring':
+      return {
+        ...baseDetail,
+        title: 'Истекают',
+        value: contractsStats.value.expiring_soon,
+        description: 'Количество договоров, истекающих в ближайшие 30 дней. Требуют продления или переговоров с клиентами. Важно своевременно связаться с клиентами для продления договоров.',
+        subtitle: 'Требуют внимания',
+        actionButton: {
+          label: 'Перейти к договорам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'contracts'
+          }
+        }
+      }
+
+    case 'contracts_cost':
+      return {
+        ...baseDetail,
+        title: 'Стоимость',
+        value: contractsStats.value.total_amount,
+        format: 'currency' as const,
+        description: 'Общая стоимость всех договоров. Потенциальный доход от договоров. Рассчитывается автоматически на основе тарифных планов и количества объектов в каждом договоре.',
+        subtitle: 'Потенциальный доход',
+        additionalInfo: 'Стоимость рассчитывается как сумма всех договоров: тарифный план × количество объектов. Если договор не имеет объектов, используется базовая стоимость тарифного плана.',
+        actionButton: {
+          label: 'Перейти к договорам',
+          action: () => {
+            metricDetailDialog.value = false
+            activeTab.value = 'contracts'
+          }
+        }
+      }
+
+    default:
+      return null
+  }
+}
+
 const formatPrice = (amount: string | number, currency = 'RUB') => {
   return billingService.formatCurrency(amount, currency)
 }
@@ -2603,6 +3548,9 @@ watch(activeTab, (newTab) => {
     router.replace({ query: { ...route.query, tab: newTab } })
   }
   
+  // Обновляем статистику договоров при переключении вкладок (чтобы плитки всегда были актуальны)
+  loadContractsStats()
+  
   if (newTab === 'invoices' && invoices.value.length === 0) {
     fetchInvoices()
   } else if (newTab === 'settings') {
@@ -2768,41 +3716,23 @@ watch(selectedContractId, (contractId) => {
 
 /* Стили для всех статистических карточек */
 .stats-row {
-  margin: -8px;
+  margin: -4px;
 }
 
 .stats-row .v-col {
-  padding: 8px !important;
+  padding: 4px !important;
 }
 
-.stats-card {
-  height: 120px;
-  min-height: 120px;
+/* Стили для компактных карточек биллинга */
+.billing-stat-card {
+  min-height: 60px;
   transition: all 0.2s ease;
-  border-radius: 12px;
+  border-radius: 8px;
   width: 100%;
 }
 
-.stats-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stats-card .stat-value {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 4px 0;
-  line-height: 1.2;
-  color: rgb(var(--v-theme-on-surface));
-}
-
-.stats-card .stat-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgb(var(--v-theme-on-surface-variant));
-  text-transform: none;
-  letter-spacing: 0;
-  margin-top: 4px;
+.billing-stat-card.expanded {
+  min-height: auto;
 }
 
 /* Темная тема для страницы биллинга */

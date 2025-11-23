@@ -105,7 +105,13 @@ class ContractsService {
           localStorage.removeItem("axenta_user");
           localStorage.removeItem("axenta_company");
           localStorage.removeItem("axenta_token_expiry");
-          window.location.href = "/login";
+          
+          // Используем replace, чтобы не создавать запись в истории
+          if (typeof window !== 'undefined' && window.location) {
+            if (window.location.pathname !== '/login') {
+              window.location.replace('/login');
+            }
+          }
         }
         return Promise.reject(error);
       }

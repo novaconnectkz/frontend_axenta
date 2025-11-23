@@ -5,6 +5,7 @@ import {
   createPublicRoute,
   titleGuard,
 } from "./guards";
+import { isJWTTokenValid } from "@/utils/authInit";
 
 // Импорт компонентов
 
@@ -298,6 +299,24 @@ router.beforeEach(titleGuard);
 router.beforeEach((to, from, next) => {
   let token = localStorage.getItem("axenta_token");
   let localToken = localStorage.getItem("local_access_token");
+
+  // Проверяем валидность токенов (если это JWT)
+  if (token && !isJWTTokenValid(token)) {
+    console.log("🚨 Axenta token expired, removing...");
+    localStorage.removeItem("axenta_token");
+    localStorage.removeItem("axenta_user");
+    localStorage.removeItem("axenta_company");
+    localStorage.removeItem("axenta_token_expiry");
+    token = null;
+  }
+  
+  if (localToken && !isJWTTokenValid(localToken)) {
+    console.log("🚨 Local token expired, removing...");
+    localStorage.removeItem("local_access_token");
+    localStorage.removeItem("local_refresh_token");
+    localStorage.removeItem("local_user");
+    localToken = null;
+  }
 
   // Проверяем, есть ли любой валидный токен
   const hasAnyToken = token || localToken;
