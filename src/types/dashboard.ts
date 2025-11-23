@@ -167,8 +167,16 @@ export interface ActivityItem {
     | "object_deleted"
     | "user_created"
     | "installation_scheduled"
+    | "installation_started"
+    | "installation_completed"
+    | "installation_cancelled"
     | "invoice_generated"
-    | "payment_received";
+    | "payment_received"
+    | "contract_created"
+    | "contract_updated"
+    | "subscription_created"
+    | "subscription_updated"
+    | "subscription_cancelled";
   title: string;
   description: string;
   timestamp: string;

@@ -288,21 +288,25 @@ class DashboardService {
     console.log(`⏱️ TTL кеша статистики установлен: ${ttlMs}мс`);
   }
 
-  // Получение последней активности
-  async getRecentActivity(limit: number = 10): Promise<ActivityItem[]> {
-    if (this.useMockData) {
-      await simulateDelay(50);
-      return mockRecentActivity.slice(0, limit);
-    }
-
+  // Получение последней активности (всегда используем реальные данные)
+  // sources - опциональный массив источников для фильтрации (objects, users, invoices, contracts, installations, subscriptions)
+  async getRecentActivity(limit: number = 10, sources?: string[]): Promise<ActivityItem[]> {
     try {
-      const response = await this.apiClient.get(
-        `/dashboard/activity?limit=${limit}`
-      );
-      return response.data.data;
-    } catch (error) {
-      console.error("Ошибка получения активности:", error);
-      throw error;
+      console.log("📊 Loading real activity data...");
+      const params: any = { limit };
+      if (sources && sources.length > 0) {
+        params.sources = sources.join(",");
+      }
+      
+      const response = await this.apiClient.get("/dashboard/activity", { params });
+      const activities = response.data.data || [];
+      console.log("✅ Real activity data loaded:", activities.length, "items", sources ? `(sources: ${sources.join(", ")})` : "");
+      return activities;
+    } catch (error: any) {
+      console.error("❌ Ошибка получения активности:", error);
+      // В случае ошибки возвращаем пустой массив вместо mock данных
+      console.warn("🔄 Возвращаем пустой массив активности из-за ошибки");
+      return [];
     }
   }
 

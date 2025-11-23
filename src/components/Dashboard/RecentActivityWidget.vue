@@ -12,6 +12,78 @@
     @remove="$emit('remove')"
     @resize="$emit('resize', $event)"
   >
+    <!-- Sources Settings Panel -->
+    <v-expand-transition>
+      <div v-if="showSourcesSettings" class="filters-panel">
+        <v-card variant="outlined" class="mb-4">
+          <v-card-title class="text-subtitle-1">
+            <v-icon start icon="mdi-cog" />
+            Настройка источников активности
+          </v-card-title>
+          <v-card-text>
+            <div class="text-caption text-disabled mb-4">
+              Выберите источники активности, которые будут отображаться в виджете
+            </div>
+            <v-row dense>
+              <v-col
+                v-for="source in availableSources"
+                :key="source.value"
+                cols="12"
+                md="6"
+              >
+                <v-card
+                  :variant="enabledSources.includes(source.value) ? 'tonal' : 'outlined'"
+                  :color="enabledSources.includes(source.value) ? 'primary' : undefined"
+                  class="source-card"
+                  @click="toggleSource(source.value)"
+                  style="cursor: pointer;"
+                >
+                  <v-card-text class="d-flex align-center pa-3">
+                    <v-checkbox
+                      :model-value="enabledSources.includes(source.value)"
+                      :label="source.title"
+                      hide-details
+                      density="compact"
+                      @click.stop="toggleSource(source.value)"
+                    >
+                      <template v-slot:prepend>
+                        <v-icon :icon="source.icon" class="mr-2" />
+                      </template>
+                    </v-checkbox>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+            <v-row dense class="mt-2">
+              <v-col cols="auto">
+                <v-btn
+                  size="small"
+                  variant="outlined"
+                  @click="enabledSources = availableSources.map(s => s.value); saveSources()"
+                >
+                  Включить все
+                </v-btn>
+              </v-col>
+              <v-col cols="auto">
+                <v-btn
+                  size="small"
+                  variant="outlined"
+                  @click="enabledSources = []; saveSources()"
+                >
+                  Отключить все
+                </v-btn>
+              </v-col>
+              <v-col cols="auto" class="ml-auto">
+                <v-chip color="primary" size="small" variant="tonal">
+                  Включено: {{ enabledSources.length }} / {{ availableSources.length }}
+                </v-chip>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </div>
+    </v-expand-transition>
+
     <!-- Filters Panel -->
     <v-expand-transition>
       <div v-if="showFilters" class="filters-panel">
@@ -181,6 +253,14 @@
         </v-badge>
         <v-icon v-else>mdi-filter</v-icon>
       </v-btn>
+      <v-btn
+        icon="mdi-cog"
+        size="small"
+        :variant="showSourcesSettings ? 'tonal' : 'text'"
+        :color="showSourcesSettings ? 'primary' : undefined"
+        @click="showSourcesSettings = !showSourcesSettings"
+        title="Настройка источников"
+      />
     </template>
   </BaseWidget>
 </template>
@@ -224,6 +304,7 @@ export default defineComponent({
     const loading = ref(false);
     const error = ref<string | null>(null);
     const showFilters = ref(false);
+    const showSourcesSettings = ref(false);
     let refreshTimer: NodeJS.Timeout | null = null;
 
     // Load saved filters from localStorage
@@ -248,6 +329,35 @@ export default defineComponent({
       };
     };
 
+    // Load saved activity sources from localStorage
+    const loadSavedSources = (): string[] => {
+      try {
+        const saved = localStorage.getItem('activity-widget-sources');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load saved sources:', error);
+      }
+      // По умолчанию все источники включены
+      return ['objects', 'users', 'invoices', 'contracts', 'installations', 'subscriptions'];
+    };
+
+    // Activity sources configuration
+    const availableSources = [
+      { title: 'Объекты', value: 'objects', icon: 'mdi-cube-outline' },
+      { title: 'Пользователи', value: 'users', icon: 'mdi-account-outline' },
+      { title: 'Счета', value: 'invoices', icon: 'mdi-file-document-outline' },
+      { title: 'Договоры', value: 'contracts', icon: 'mdi-file-document-multiple-outline' },
+      { title: 'Монтажи', value: 'installations', icon: 'mdi-tools' },
+      { title: 'Подписки', value: 'subscriptions', icon: 'mdi-star-outline' }
+    ];
+
+    const enabledSources = ref<string[]>(loadSavedSources());
+
     // Filter state
     const filters = ref(loadSavedFilters());
 
@@ -258,8 +368,16 @@ export default defineComponent({
       { title: 'Объекты удалены', value: 'object_deleted' },
       { title: 'Пользователи созданы', value: 'user_created' },
       { title: 'Монтажи запланированы', value: 'installation_scheduled' },
+      { title: 'Монтажи начаты', value: 'installation_started' },
+      { title: 'Монтажи завершены', value: 'installation_completed' },
+      { title: 'Монтажи отменены', value: 'installation_cancelled' },
       { title: 'Счета сгенерированы', value: 'invoice_generated' },
-      { title: 'Платежи получены', value: 'payment_received' }
+      { title: 'Платежи получены', value: 'payment_received' },
+      { title: 'Договоры созданы', value: 'contract_created' },
+      { title: 'Договоры обновлены', value: 'contract_updated' },
+      { title: 'Подписки созданы', value: 'subscription_created' },
+      { title: 'Подписки обновлены', value: 'subscription_updated' },
+      { title: 'Подписки отменены', value: 'subscription_cancelled' }
     ];
 
     const dateRangeOptions = [
@@ -278,8 +396,16 @@ export default defineComponent({
         'object_deleted': 'mdi-delete-circle',
         'user_created': 'mdi-account-plus',
         'installation_scheduled': 'mdi-calendar-plus',
+        'installation_started': 'mdi-play-circle',
+        'installation_completed': 'mdi-check-circle',
+        'installation_cancelled': 'mdi-cancel',
         'invoice_generated': 'mdi-file-document-plus',
-        'payment_received': 'mdi-cash-check'
+        'payment_received': 'mdi-cash-check',
+        'contract_created': 'mdi-file-document-plus',
+        'contract_updated': 'mdi-file-document-edit',
+        'subscription_created': 'mdi-star-plus',
+        'subscription_updated': 'mdi-star',
+        'subscription_cancelled': 'mdi-star-remove'
       };
       return iconMap[type] || 'mdi-information';
     };
@@ -291,8 +417,16 @@ export default defineComponent({
         'object_deleted': 'error',
         'user_created': 'info',
         'installation_scheduled': 'warning',
+        'installation_started': 'info',
+        'installation_completed': 'success',
+        'installation_cancelled': 'error',
         'invoice_generated': 'secondary',
-        'payment_received': 'success'
+        'payment_received': 'success',
+        'contract_created': 'primary',
+        'contract_updated': 'primary',
+        'subscription_created': 'success',
+        'subscription_updated': 'info',
+        'subscription_cancelled': 'warning'
       };
       return colorMap[type] || 'primary';
     };
@@ -304,8 +438,16 @@ export default defineComponent({
         'object_deleted': 'Объект',
         'user_created': 'Пользователь',
         'installation_scheduled': 'Монтаж',
+        'installation_started': 'Монтаж',
+        'installation_completed': 'Монтаж',
+        'installation_cancelled': 'Монтаж',
         'invoice_generated': 'Счет',
-        'payment_received': 'Платеж'
+        'payment_received': 'Платеж',
+        'contract_created': 'Договор',
+        'contract_updated': 'Договор',
+        'subscription_created': 'Подписка',
+        'subscription_updated': 'Подписка',
+        'subscription_cancelled': 'Подписка'
       };
       return labelMap[type] || 'Система';
     };
@@ -439,13 +581,36 @@ export default defineComponent({
       try {
         // loading.value = true; // Убираем loading, чтобы не было размытия экрана
         error.value = null;
-        activities.value = await dashboardService.getRecentActivity(props.limit);
+        // Передаем включенные источники в запрос
+        activities.value = await dashboardService.getRecentActivity(props.limit, enabledSources.value);
       } catch (err: any) {
         error.value = err.message || 'Ошибка загрузки активности';
         console.error('Ошибка загрузки активности:', err);
       } finally {
         // loading.value = false; // Убираем loading состояние
       }
+    };
+
+    // Save sources to localStorage
+    const saveSources = () => {
+      try {
+        localStorage.setItem('activity-widget-sources', JSON.stringify(enabledSources.value));
+        // Перезагружаем данные с новыми источниками
+        loadData();
+      } catch (error) {
+        console.warn('Failed to save sources:', error);
+      }
+    };
+
+    // Toggle source
+    const toggleSource = (source: string) => {
+      const index = enabledSources.value.indexOf(source);
+      if (index > -1) {
+        enabledSources.value.splice(index, 1);
+      } else {
+        enabledSources.value.push(source);
+      }
+      saveSources();
     };
 
     const startAutoRefresh = () => {
@@ -477,6 +642,7 @@ export default defineComponent({
       loading,
       error,
       showFilters,
+      showSourcesSettings,
       filters,
       activityTypeOptions,
       dateRangeOptions,
@@ -490,7 +656,11 @@ export default defineComponent({
       getActivityTypeLabel,
       formatTime,
       formatFullTime,
-      loadData
+      loadData,
+      availableSources,
+      enabledSources,
+      toggleSource,
+      saveSources
     };
   }
 });
@@ -559,5 +729,14 @@ export default defineComponent({
 
 .recent-activity::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--v-theme-on-surface), 0.3);
+}
+
+.source-card {
+  transition: all 0.2s ease;
+}
+
+.source-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 </style>
