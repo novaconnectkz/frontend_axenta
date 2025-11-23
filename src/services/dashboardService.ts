@@ -328,7 +328,7 @@ class DashboardService {
         params.sources = sources.join(",");
       }
       
-      const response = await this.apiClient.get("/dashboard/activity", { params });
+      const response = await this.apiClient.get("/auth/dashboard/activity", { params });
       const activities = response.data.data || [];
       console.log("✅ Real activity data loaded:", activities.length, "items", sources ? `(sources: ${sources.join(", ")})` : "");
       return activities;
@@ -360,7 +360,7 @@ class DashboardService {
         ...(unreadOnly && { unread_only: "true" }),
       });
 
-      const response = await this.apiClient.get(`/notifications?${params}`);
+      const response = await this.apiClient.get(`/auth/notifications?${params}`);
       return response.data.data;
     } catch (error) {
       console.error("Ошибка получения уведомлений:", error);
@@ -377,7 +377,7 @@ class DashboardService {
     }
 
     try {
-      await this.apiClient.put(`/notifications/${notificationId}/read`);
+      await this.apiClient.put(`/auth/notifications/${notificationId}/read`);
     } catch (error) {
       console.error("Ошибка отметки уведомления:", error);
       throw error;
@@ -397,7 +397,7 @@ class DashboardService {
 
     try {
       const response = await this.apiClient.get(
-        `/dashboard/charts/${type}?range=${range}`
+        `/auth/dashboard/charts/${type}?range=${range}`
       );
       return response.data.data;
     } catch (error) {
@@ -421,13 +421,13 @@ class DashboardService {
     try {
       if (layout.id) {
         const response = await this.apiClient.put(
-          `/dashboard/layouts/${layout.id}`,
+          `/auth/dashboard/layouts/${layout.id}`,
           layout
         );
         return response.data.data;
       } else {
         const response = await this.apiClient.post(
-          "/dashboard/layouts",
+          "/auth/dashboard/layouts",
           layout
         );
         return response.data.data;
@@ -446,7 +446,7 @@ class DashboardService {
     }
 
     try {
-      const response = await this.apiClient.get("/dashboard/layouts");
+      const response = await this.apiClient.get("/auth/dashboard/layouts");
       return response.data.data;
     } catch (error) {
       console.error("Ошибка получения макетов:", error);
@@ -466,7 +466,7 @@ class DashboardService {
     }
 
     try {
-      const response = await this.apiClient.get("/dashboard/layouts/default");
+      const response = await this.apiClient.get("/auth/dashboard/layouts/default");
       return response.data.data;
     } catch (error) {
       console.error("Ошибка получения макета по умолчанию:", error);
@@ -483,7 +483,7 @@ class DashboardService {
     }
 
     try {
-      await this.apiClient.put(`/dashboard/layouts/${layoutId}/default`);
+      await this.apiClient.put(`/auth/dashboard/layouts/${layoutId}/default`);
     } catch (error) {
       console.error("Ошибка установки макета по умолчанию:", error);
       throw error;
@@ -499,7 +499,7 @@ class DashboardService {
     }
 
     try {
-      await this.apiClient.delete(`/dashboard/layouts/${layoutId}`);
+      await this.apiClient.delete(`/auth/dashboard/layouts/${layoutId}`);
     } catch (error) {
       console.error("Ошибка удаления макета:", error);
       throw error;
@@ -515,7 +515,7 @@ class DashboardService {
 
     try {
       const response = await this.apiClient.post(
-        `/dashboard/widgets/${widgetType}/data`,
+        `/auth/dashboard/widgets/${widgetType}/data`,
         config
       );
       return response.data.data;
