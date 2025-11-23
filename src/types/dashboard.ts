@@ -2,6 +2,7 @@
 export interface DashboardStats {
   objects: ObjectStats;
   users: UserStats;
+  accounts: AccountStats;
   billing: BillingStats;
   installations: InstallationStats;
   warehouse: WarehouseStats;
@@ -30,6 +31,14 @@ export interface UserStats {
   by_type?: Record<string, number>;
   role_stats?: Array<{role_name: string; count: number}>;
   last_updated?: string;
+}
+
+export interface AccountStats {
+  total: number;
+  active: number;
+  blocked: number;
+  clients: number;
+  partners: number;
 }
 
 export interface BillingStats {
@@ -78,6 +87,7 @@ export interface Widget {
 export type WidgetType =
   | "objects-overview"
   | "users-overview"
+  | "accounts-overview"
   | "billing-overview"
   | "installations-overview"
   | "warehouse-overview"

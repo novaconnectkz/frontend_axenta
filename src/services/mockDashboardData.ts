@@ -22,6 +22,13 @@ export const mockDashboardStats: DashboardStats = {
     admins: 4,
     regular_users: 24,
   },
+  accounts: {
+    total: 45,
+    active: 38,
+    blocked: 7,
+    clients: 35,
+    partners: 10,
+  },
   billing: {
     total_revenue: 2850000,
     monthly_revenue: 485000,

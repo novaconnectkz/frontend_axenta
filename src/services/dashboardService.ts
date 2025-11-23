@@ -10,6 +10,7 @@ import type {
 import axios from "axios";
 import { ObjectsService } from "./objectsService";
 import { usersService } from "./usersService";
+import { accountsService } from "./accountsService";
 import {
   getMockWidgetData,
   mockChartData,
@@ -80,6 +81,9 @@ class DashboardService {
   
   // Флаг для использования реальных данных пользователей
   private useRealUsersData = true;
+  
+  // Флаг для использования реальных данных учетных записей
+  private useRealAccountsData = true;
   
   // Флаг для использования реальных данных биллинга
   private useRealBillingData = true;
@@ -167,6 +171,7 @@ class DashboardService {
 
         let objectsStats;
         let usersStats;
+        let accountsStats;
         
         // Получаем данные об объектах
         if (this.useRealObjectsData) {
@@ -207,6 +212,30 @@ class DashboardService {
           usersStats = mockDashboardStats.users;
         }
         
+        // Получаем данные об учетных записях
+        if (this.useRealAccountsData) {
+          console.log("📊 Loading real accounts data...");
+          const realAccountsStats = await accountsService.getAccountsStats(forceRefresh);
+          console.log("📊 Real accounts stats:", realAccountsStats);
+          
+          accountsStats = {
+            total: realAccountsStats.total,
+            active: realAccountsStats.active,
+            blocked: realAccountsStats.blocked,
+            clients: realAccountsStats.clients,
+            partners: realAccountsStats.partners
+          };
+        } else {
+          // Если используем mock данные
+          accountsStats = {
+            total: 0,
+            active: 0,
+            blocked: 0,
+            clients: 0,
+            partners: 0
+          };
+        }
+        
         // Получаем данные биллинга
         let billingStats;
         if (this.useRealBillingData) {
@@ -235,6 +264,7 @@ class DashboardService {
         const dashboardStats: DashboardStats = {
           objects: objectsStats,
           users: usersStats,
+          accounts: accountsStats,
           billing: billingStats,
           // Для остальных разделов пока используем mock данные
           installations: mockDashboardStats.installations,
@@ -523,6 +553,16 @@ class DashboardService {
   // Получение текущего состояния режима реальных данных пользователей
   isRealUsersDataMode(): boolean {
     return this.useRealUsersData;
+  }
+
+  // Публичный метод для переключения режима реальных данных учетных записей
+  setRealAccountsDataMode(enabled: boolean): void {
+    this.useRealAccountsData = enabled;
+  }
+
+  // Получение текущего состояния режима реальных данных учетных записей
+  isRealAccountsDataMode(): boolean {
+    return this.useRealAccountsData;
   }
 
   // Получение реальных данных биллинга с API

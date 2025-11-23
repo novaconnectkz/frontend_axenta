@@ -301,7 +301,7 @@ import CurrentUserWidget from './CurrentUserWidget.vue';
 import InstallationsOverviewWidget from './InstallationsOverviewWidget.vue';
 import ObjectsOverviewWidget from './ObjectsOverviewWidget.vue';
 import RecentActivityWidget from './RecentActivityWidget.vue';
-import UsersOverviewWidget from './UsersOverviewWidget.vue';
+import AccountsOverviewWidget from './AccountsOverviewWidget.vue';
 import WarehouseOverviewWidget from './WarehouseOverviewWidget.vue';
 import QuickActionsBlock from './QuickActionsBlock.vue';
 
@@ -309,7 +309,7 @@ export default defineComponent({
   name: 'DashboardGrid',
   components: {
     ObjectsOverviewWidget,
-    UsersOverviewWidget,
+    AccountsOverviewWidget,
     BillingOverviewWidget,
     CurrentUserWidget,
     InstallationsOverviewWidget,
@@ -372,10 +372,10 @@ export default defineComponent({
         icon: 'mdi-monitor'
       },
       {
-        type: 'users-overview',
-        title: 'Обзор пользователей',
-        description: 'Статистика по пользователям системы',
-        icon: 'mdi-account-group'
+        type: 'accounts-overview',
+        title: 'Статистика Учетные записи',
+        description: 'Статистика по учетным записям',
+        icon: 'mdi-briefcase-account'
       },
       {
         type: 'billing-overview',
@@ -449,7 +449,7 @@ export default defineComponent({
       const componentMap: Record<string, any> = {
         'current-user': CurrentUserWidget,
         'objects-overview': ObjectsOverviewWidget,
-        'users-overview': UsersOverviewWidget,
+        'accounts-overview': AccountsOverviewWidget,
         'billing-overview': BillingOverviewWidget,
         'installations-overview': InstallationsOverviewWidget,
         'warehouse-overview': WarehouseOverviewWidget,
