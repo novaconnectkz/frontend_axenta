@@ -125,106 +125,142 @@ export interface AuditFilters {
 }
 
 class PerformanceService {
+  private baseURL = "http://localhost:8080/api/performance";
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<T> {
+    const token =
+      localStorage.getItem("local_access_token") ||
+      localStorage.getItem("axenta_token");
+
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers,
+    };
+
+    const response = await fetch(`${this.baseURL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  }
+
   // Кэширование
   async getCacheMetrics(): Promise<CacheMetrics> {
-    // Возвращаем демо данные
-    return this.getMockCacheMetrics();
+    return this.request<CacheMetrics>("/cache/metrics");
   }
 
   async warmupCache(): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await this.request("/cache/warmup", { method: "POST" });
   }
 
   async clearCache(): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await this.request("/cache/clear", { method: "DELETE" });
   }
 
   async getCacheStats(): Promise<any> {
-    // Возвращаем демо данные
-    return {
-      status: "enabled",
-      key_count: 2840,
-      memory: "15.2MB",
-    };
+    return this.request("/cache/stats");
   }
 
   // Индексы БД
   async getDatabaseIndexes(
     table?: string
   ): Promise<Record<string, DatabaseIndex[]> | DatabaseIndex[]> {
-    // Возвращаем демо данные
-    return this.getMockDatabaseIndexes();
+    const params = table ? `?table=${table}` : "";
+    return this.request(`/database/indexes${params}`);
   }
 
   async createIndexes(): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await this.request("/database/indexes/create", { method: "POST" });
   }
 
   async getIndexUsage(): Promise<IndexUsage[]> {
-    // Возвращаем демо данные
-    return this.getMockIndexUsage();
+    return this.request<IndexUsage[]>("/database/indexes/usage");
   }
 
   async optimizeDatabase(): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await this.request("/database/optimize", { method: "POST" });
   }
 
   async getDatabaseStats(): Promise<TableStats[]> {
-    // Возвращаем демо данные
-    return this.getMockTableStats();
+    return this.request<TableStats[]>("/database/stats");
   }
 
   // Rate Limiting
   async getRateLimitInfo(): Promise<RateLimitInfo> {
-    // Возвращаем демо данные
-    return this.getMockRateLimitInfo();
+    return this.request<RateLimitInfo>("/rate-limit/info");
   }
 
   async clearRateLimit(): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await this.request("/rate-limit/clear", { method: "DELETE" });
   }
 
   // Аудит логи
   async getAuditLogs(filters?: AuditFilters): Promise<AuditLog[]> {
-    // Возвращаем демо данные
-    return this.getMockAuditLogs();
+    const params = new URLSearchParams();
+    if (filters?.user_id) params.append("user_id", filters.user_id.toString());
+    if (filters?.action) params.append("action", filters.action);
+    if (filters?.resource) params.append("resource", filters.resource);
+    if (filters?.limit) params.append("limit", filters.limit.toString());
+    if (filters?.offset) params.append("offset", filters.offset.toString());
+
+    const queryString = params.toString();
+    return this.request<AuditLog[]>(
+      `/audit/logs${queryString ? `?${queryString}` : ""}`
+    );
   }
 
   async getAuditStats(period: string = "week"): Promise<AuditStats> {
-    // Возвращаем демо данные
-    return this.getMockAuditStats();
+    return this.request<AuditStats>(`/audit/stats?period=${period}`);
   }
 
   async getSecurityAlerts(hours: number = 24): Promise<SecurityAlert[]> {
-    // Возвращаем демо данные
-    return this.getMockSecurityAlerts();
+    return this.request<SecurityAlert[]>(`/audit/security-alerts?hours=${hours}`);
   }
 
   async exportAuditLogs(filters?: AuditFilters): Promise<Blob> {
-    // Симуляция экспорта
-    const data = JSON.stringify(this.getMockAuditLogs(), null, 2);
-    return new Blob([data], { type: "application/json" });
+    const token =
+      localStorage.getItem("local_access_token") ||
+      localStorage.getItem("axenta_token");
+
+    const response = await fetch(`${this.baseURL}/audit/export`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(filters || {}),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.blob();
   }
 
   async cleanupAuditLogs(retentionDays: number = 90): Promise<void> {
-    // Симуляция API вызова
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await this.request(`/audit/cleanup?retention_days=${retentionDays}`, {
+      method: "DELETE",
+    });
   }
 
   // Системная информация
   async getSystemInfo(): Promise<SystemInfo> {
-    // Возвращаем демо данные
-    return this.getMockSystemInfo();
+    return this.request<SystemInfo>("/system/info");
   }
 
   async getSystemHealth(): Promise<SystemHealth> {
-    // Возвращаем демо данные
-    return this.getMockSystemHealth();
+    return this.request<SystemHealth>("/system/health");
   }
 
   // Демо данные

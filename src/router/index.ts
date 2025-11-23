@@ -185,6 +185,17 @@ const routes = [
         },
       },
 
+      // Вся активность
+      {
+        path: "activity",
+        name: "Activity",
+        component: () => import("@/views/Activity.vue"),
+        meta: {
+          title: "Вся активность",
+          requiresAuth: true,
+        },
+      },
+
       // Настройки системы
       {
         path: "settings",
