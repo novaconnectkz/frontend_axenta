@@ -395,7 +395,9 @@ const successOptions = [
 ]
 
 // API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+import { config } from '@/config/env'
+
+const API_URL = config.backendUrl
 
 // Загрузка логов
 const loadLogs = async () => {

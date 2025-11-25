@@ -1,3 +1,5 @@
+import { config } from '@/config/env'
+
 // Типы для производительности и безопасности
 export interface CacheMetrics {
   hit_count: number;
@@ -125,7 +127,7 @@ export interface AuditFilters {
 }
 
 class PerformanceService {
-  private baseURL = "http://localhost:8080/api/performance";
+  private baseURL = `${config.apiBaseUrl}/performance`;
 
   private async request<T>(
     endpoint: string,

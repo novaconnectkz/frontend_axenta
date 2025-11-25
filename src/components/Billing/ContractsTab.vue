@@ -586,6 +586,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { debounce } from 'lodash-es';
+import { config } from '@/config/env';
 
 const router = useRouter();
 
@@ -1070,7 +1071,7 @@ const calculateCost = async (contract: Contract) => {
     }
 
     const response = await fetch(
-      `http://localhost:8080/api/auth/billing/contracts/${contract.id}/breakdown`,
+      `${config.apiBaseUrl}/auth/billing/contracts/${contract.id}/breakdown`,
       {
         method: 'GET',
         headers: {
