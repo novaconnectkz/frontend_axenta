@@ -177,32 +177,71 @@
 
         <!-- Тарифный план -->
         <template #item.tariff_plan="{ item }">
-          <v-tooltip location="top">
-            <template #activator="{ props }">
-              <div v-bind="props" style="cursor: help;">
-                <v-chip size="small" color="primary" variant="tonal">
-                  {{ item.tariff_plan?.name || 'Не указан' }}
+          <template v-if="contractTariffsMap.get(item.id)?.count > 1">
+            <!-- Несколько тарифов -->
+            <v-tooltip location="top">
+              <template #activator="{ props }">
+                <v-chip 
+                  size="small" 
+                  color="warning" 
+                  variant="tonal" 
+                  v-bind="props"
+                >
+                  <v-icon size="x-small" class="mr-1">mdi-layers-triple</v-icon>
+                  {{ contractTariffsMap.get(item.id)?.count }} тарифа
                 </v-chip>
-                <div class="text-caption">
-                  {{ formatCurrency(item.tariff_plan?.price || 0) }}/мес
+              </template>
+              <div class="pa-2">
+                <div class="text-subtitle-2 mb-2">Активные тарифы:</div>
+                <div 
+                  v-for="(plan, index) in contractTariffsMap.get(item.id)?.uniquePlans" 
+                  :key="plan.id"
+                  class="mb-1"
+                >
+                  <strong>{{ index + 1 }}.</strong> {{ plan.name }} 
+                  <span class="text-caption">({{ formatCurrency(plan.price || 0) }}/мес)</span>
                 </div>
               </div>
-            </template>
-            <template #default>
-              <div class="tariff-tooltip">
-                <div class="tariff-tooltip-title">Информация о тарифе:</div>
-                <div class="tariff-tooltip-content">
-                  <div v-if="item.tariff_plan">
-                    <strong>{{ item.tariff_plan.name }}</strong>
-                    <div class="mt-1">Стоимость: {{ formatCurrency(item.tariff_plan.price) }}/мес</div>
-                  </div>
-                  <div v-else>
-                    Тарифный план не установлен. Он будет установлен при создании подписки.
+            </v-tooltip>
+          </template>
+          <template v-else-if="contractTariffsMap.get(item.id)?.count === 1">
+            <!-- Один тариф из подписки -->
+            <v-chip size="small" color="primary" variant="tonal">
+              {{ contractTariffsMap.get(item.id)?.uniquePlans[0]?.name }}
+            </v-chip>
+            <div class="text-caption">
+              {{ formatCurrency(contractTariffsMap.get(item.id)?.uniquePlans[0]?.price || 0) }}/мес
+            </div>
+          </template>
+          <template v-else>
+            <!-- Тариф из договора (fallback) -->
+            <v-tooltip location="top">
+              <template #activator="{ props }">
+                <div v-bind="props" style="cursor: help;">
+                  <v-chip size="small" color="grey" variant="tonal">
+                    {{ item.tariff_plan?.name || 'Не указан' }}
+                  </v-chip>
+                  <div class="text-caption" v-if="item.tariff_plan?.price">
+                    {{ formatCurrency(item.tariff_plan?.price || 0) }}/мес
                   </div>
                 </div>
-              </div>
-            </template>
-          </v-tooltip>
+              </template>
+              <template #default>
+                <div class="tariff-tooltip">
+                  <div class="tariff-tooltip-title">Информация о тарифе:</div>
+                  <div class="tariff-tooltip-content">
+                    <div v-if="item.tariff_plan">
+                      <strong>{{ item.tariff_plan.name }}</strong>
+                      <div class="mt-1">Стоимость: {{ formatCurrency(item.tariff_plan.price) }}/мес</div>
+                    </div>
+                    <div v-else>
+                      Тарифный план не установлен. Он будет установлен при создании подписки.
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </v-tooltip>
+          </template>
         </template>
 
         <!-- Период -->
@@ -430,6 +469,7 @@ interface Contract {
 const loading = ref(false);
 const demoMode = ref(false); // Отключен по умолчанию
 const contracts = ref<Contract[]>([]);
+const contractSubscriptions = ref<any[]>([]); // Подписки для всех договоров
 const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
@@ -524,6 +564,45 @@ const calculateContractAmount = (contract: Contract): number => {
     return tariffPrice;
   }
 };
+
+// Карта тарифов для каждого договора (из подписок)
+const contractTariffsMap = computed(() => {
+  const map = new Map<number, { plans: any[], uniquePlans: any[], count: number }>();
+  
+  contracts.value.forEach(contract => {
+    // Находим все активные подписки для этого договора
+    const subscriptions = contractSubscriptions.value.filter(
+      sub => sub.contract_id === contract.id && 
+             sub.status && 
+             ['active', 'scheduled'].includes(sub.status)
+    );
+    
+    // Собираем уникальные тарифы из подписок
+    const uniquePlansMap = new Map();
+    subscriptions.forEach(sub => {
+      if (sub.billing_plan && sub.billing_plan.id) {
+        uniquePlansMap.set(sub.billing_plan.id, sub.billing_plan);
+      }
+    });
+    
+    const uniquePlans = Array.from(uniquePlansMap.values());
+    
+    const info = {
+      plans: subscriptions.map(s => s.billing_plan).filter(Boolean),
+      uniquePlans,
+      count: uniquePlans.length
+    };
+    
+    if (uniquePlans.length > 1) {
+      console.log(`🎯 Contract ${contract.id} (${contract.number}) has ${uniquePlans.length} plans:`, 
+        uniquePlans.map(p => p.name));
+    }
+    
+    map.set(contract.id, info);
+  });
+  
+  return map;
+});
 
 const stats = computed(() => {
   const total = contracts.value.length;
@@ -992,6 +1071,49 @@ const getPeriodTooltipText = (contract: Contract): string => {
 };
 
 // Загрузка реальных договоров
+const loadSubscriptions = async () => {
+  try {
+    const companyData = localStorage.getItem('axenta_company');
+    if (!companyData) {
+      console.warn('⚠️ No company data found in localStorage');
+      return;
+    }
+    
+    const company = JSON.parse(companyData);
+    const companyId = parseInt(company.id, 10);
+    
+    const billingService = (await import('@/services/billingService')).default;
+    const subscriptions = await billingService.getSubscriptions(companyId);
+    contractSubscriptions.value = subscriptions || [];
+    
+    // Логируем группировку по договорам для отладки
+    const byContract = contractSubscriptions.value.reduce((acc, sub) => {
+      const cId = sub.contract_id;
+      if (cId && sub.status && ['active', 'scheduled'].includes(sub.status)) {
+        if (!acc[cId]) {
+          acc[cId] = { count: 0, plans: [] };
+        }
+        acc[cId].count++;
+        if (sub.billing_plan) {
+          acc[cId].plans.push(sub.billing_plan.name);
+        }
+      }
+      return acc;
+    }, {} as Record<number, { count: number, plans: string[] }>);
+    
+    // Показываем только договоры с несколькими тарифами
+    const multiPlans = Object.entries(byContract).filter(([_, data]) => data.count > 1);
+    if (multiPlans.length > 0) {
+      console.log('🎯 Contracts with multiple plans:', 
+        Object.fromEntries(multiPlans)
+      );
+    }
+  } catch (error) {
+    console.error('❌ Error loading subscriptions:', error);
+    contractSubscriptions.value = [];
+  }
+};
+
 const loadContracts = async () => {
   loading.value = true;
   try {
@@ -1005,6 +1127,9 @@ const loadContracts = async () => {
       limit: 100,
     });
     contracts.value = response.contracts || [];
+    
+    // Загружаем подписки для определения тарифов
+    await loadSubscriptions();
   } catch (error) {
     console.error('Ошибка загрузки договоров:', error);
     showSnackbarMessage('Ошибка загрузки договоров', 'error');

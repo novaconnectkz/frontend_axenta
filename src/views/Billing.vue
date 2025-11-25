@@ -1553,6 +1553,65 @@
                   </v-list-item>
                 </v-list>
 
+                <!-- Информация о тарифном плане -->
+                <v-card
+                  v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.mainPlan"
+                  variant="outlined"
+                  class="mt-3"
+                  color="primary"
+                >
+                  <v-card-text class="py-3">
+                    <div class="d-flex align-center mb-2">
+                      <v-icon icon="mdi-tag" color="primary" size="small" class="mr-2"></v-icon>
+                      <span class="text-subtitle-2 font-weight-medium">Тарифный план</span>
+                    </div>
+                    
+                    <div class="d-flex justify-space-between align-center">
+                      <div>
+                        <div class="text-body-1 font-weight-medium">
+                          {{ selectedSubscriptionPlans.mainPlan.name }}
+                        </div>
+                        <div class="text-caption text-grey">
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price || 0, selectedSubscriptionPlans.mainPlan.currency || 'RUB') }}
+                        </div>
+                      </div>
+                      <v-chip 
+                        size="small" 
+                        color="primary" 
+                        variant="flat"
+                      >
+                        <v-icon icon="mdi-lock" size="x-small" class="mr-1"></v-icon>
+                        Автоматически
+                      </v-chip>
+                    </div>
+                  </v-card-text>
+                </v-card>
+
+                <!-- Предупреждение о разных тарифах -->
+                <v-alert
+                  v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.hasDifferentPlans"
+                  type="warning"
+                  variant="tonal"
+                  class="mt-3"
+                  density="compact"
+                >
+                  <div class="d-flex align-center">
+                    <v-icon icon="mdi-alert" class="mr-2"></v-icon>
+                    <div>
+                      <strong>Внимание!</strong> Выбраны подписки с разными тарифными планами.
+                      <div class="text-caption mt-1">
+                        Счет будет сформирован на основе первого тарифа: <strong>{{ selectedSubscriptionPlans.mainPlan?.name }}</strong>
+                      </div>
+                      <div class="text-caption mt-1">
+                        Найдено тарифов: {{ selectedSubscriptionPlans.uniquePlans.length }}
+                        <span v-for="(plan, index) in selectedSubscriptionPlans.uniquePlans" :key="plan.id">
+                          {{ index > 0 ? ', ' : '' }}{{ plan.name }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </v-alert>
+
                 <!-- Информация о выбранном периоде -->
                 <v-alert
                   v-if="selectedSubscriptionIds.length > 0"
@@ -1571,6 +1630,10 @@
         </v-card-text>
 
         <v-card-actions>
+          <div class="text-caption text-grey px-4" v-if="selectedSubscriptionIds.length > 0">
+            <v-icon icon="mdi-information-outline" size="x-small" class="mr-1"></v-icon>
+            Тариф для счета будет автоматически выбран из подписки
+          </div>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closeGenerateInvoiceDialog">Отмена</v-btn>
           <v-btn 
@@ -2319,6 +2382,44 @@ const calculatedPeriod = computed(() => {
   return {
     start: formatDate(minStart.toISOString()),
     end: formatDate(maxEnd.toISOString())
+  }
+})
+
+// Информация о тарифах из выбранных подписок
+const selectedSubscriptionPlans = computed(() => {
+  if (selectedSubscriptionIds.value.length === 0) {
+    return {
+      plans: [],
+      uniquePlans: [],
+      hasDifferentPlans: false,
+      mainPlan: null
+    }
+  }
+
+  const selectedSubs = contractSubscriptions.value.filter(sub => 
+    selectedSubscriptionIds.value.includes(sub.id!)
+  )
+
+  const plans = selectedSubs
+    .map(sub => sub.billing_plan)
+    .filter(plan => plan !== null && plan !== undefined)
+
+  // Получаем уникальные тарифы по ID
+  const uniquePlansMap = new Map()
+  plans.forEach(plan => {
+    if (plan && plan.id) {
+      uniquePlansMap.set(plan.id, plan)
+    }
+  })
+
+  const uniquePlans = Array.from(uniquePlansMap.values())
+  const hasDifferentPlans = uniquePlans.length > 1
+
+  return {
+    plans,
+    uniquePlans,
+    hasDifferentPlans,
+    mainPlan: uniquePlans.length > 0 ? uniquePlans[0] : null
   }
 })
 
