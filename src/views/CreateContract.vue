@@ -1352,6 +1352,7 @@ const loadNumerators = async () => {
     numerators.value = await contractsService.getContractNumerators(companyId);
     
     console.log('📋 Загружено нумераторов:', numerators.value.length);
+    console.log('📝 Список нумераторов:', numerators.value);
     console.log('⚙️ Настройки биллинга:', {
       method: billingSettings.value?.contract_numbering_method,
       defaultNumeratorId: billingSettings.value?.contract_default_numerator_id
