@@ -2194,6 +2194,9 @@ const paymentData = ref<ProcessPaymentData>({
 // Константы
 const currencies = ['RUB', 'USD', 'EUR']
 const billingPeriods = [
+  { title: 'Часовой', value: 'hourly' },
+  { title: 'Дневной', value: 'daily' },
+  { title: 'Недельный', value: 'weekly' },
   { title: 'Месячный', value: 'monthly' },
   { title: 'Годовой', value: 'yearly' },
   { title: 'Одноразовый', value: 'one-time' }
@@ -3613,6 +3616,9 @@ const formatDate = (date: string) => {
 
 const getBillingPeriodText = (period: string) => {
   const periods: Record<string, string> = {
+    hourly: 'час',
+    daily: 'день',
+    weekly: 'неделя',
     monthly: 'месяц',
     yearly: 'год',
     'one-time': 'разово'

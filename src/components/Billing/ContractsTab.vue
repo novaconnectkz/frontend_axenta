@@ -535,8 +535,8 @@
                             <div class="font-weight-medium">{{ sub.plan_name }}</div>
                           </td>
                           <td>
-                            <v-chip size="x-small" :color="sub.billing_period === 'yearly' ? 'purple' : 'blue'">
-                              {{ sub.billing_period === 'yearly' ? 'Годовой' : 'Месячный' }}
+                            <v-chip size="x-small" :color="getBillingPeriodColor(sub.billing_period)">
+                              {{ getBillingPeriodLabel(sub.billing_period) }}
                             </v-chip>
                           </td>
                           <td class="text-center">
@@ -1154,6 +1154,30 @@ const formatDate = (date: string | null | undefined): string => {
     return 'Не указан';
   }
   return dateObj.toLocaleDateString('ru-RU');
+};
+
+const getBillingPeriodLabel = (period: string): string => {
+  const labels: Record<string, string> = {
+    hourly: 'Часовой',
+    daily: 'Дневной',
+    weekly: 'Недельный',
+    monthly: 'Месячный',
+    yearly: 'Годовой',
+    'one-time': 'Разовый'
+  };
+  return labels[period] || period;
+};
+
+const getBillingPeriodColor = (period: string): string => {
+  const colors: Record<string, string> = {
+    hourly: 'orange',
+    daily: 'cyan',
+    weekly: 'teal',
+    monthly: 'blue',
+    yearly: 'purple',
+    'one-time': 'grey'
+  };
+  return colors[period] || 'blue';
 };
 
 // Функция для форматирования периода (начало - конец)
