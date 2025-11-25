@@ -213,6 +213,26 @@
                   <div class="value">{{ getCurrencyLabel(company.currency) }}</div>
                 </div>
               </div>
+
+              <h3 class="section-title">Налоги и сборы</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <div class="label">Ставка НДС</div>
+                  <div class="value">{{ company.default_tax_rate }}%</div>
+                </div>
+                <div class="info-item">
+                  <div class="label">НДС включен в цену</div>
+                  <div class="value">
+                    <v-chip
+                      :color="company.tax_included ? 'success' : 'grey'"
+                      size="small"
+                      variant="flat"
+                    >
+                      {{ company.tax_included ? 'Да' : 'Нет' }}
+                    </v-chip>
+                  </div>
+                </div>
+              </div>
             </div>
           </v-tabs-window-item>
         </v-tabs-window>

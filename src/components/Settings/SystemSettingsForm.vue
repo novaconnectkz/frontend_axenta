@@ -143,6 +143,20 @@
           </v-col>
         </v-row>
 
+        <v-row>
+          <v-col cols="12">
+            <v-switch
+              v-model="form.tax_included"
+              label="НДС включен в цену"
+              color="primary"
+              hint="Итоговая цена указывается с НДС. Влияет на отображение и расчёты."
+              persistent-hint
+              :disabled="form.vat_rate_preset === 'none'"
+              class="mb-3"
+            />
+          </v-col>
+        </v-row>
+
         <v-alert
           v-if="form.vat_rate_preset !== 'none'"
           type="info"
@@ -154,7 +168,7 @@
             <div>
               <strong>Текущая ставка НДС: {{ currentVatRate }}%</strong>
               <div class="text-caption mt-1">
-                НДС будет автоматически выделяться из цены при расчете подписок и договоров
+                {{ form.tax_included ? 'НДС будет выделяться из цены' : 'НДС будет начисляться сверх цены' }} при расчете подписок и договоров
               </div>
             </div>
           </div>
@@ -391,7 +405,9 @@ const form = ref<SystemSettingsForm>({
   backup_schedule: '0 2 * * *',
   backup_retention_days: 30,
   vat_rate_preset: 'russia',
-  vat_rate_custom: 20
+  vat_rate_custom: 20,
+  default_tax_rate: 20,
+  tax_included: false
 });
 
 const originalSettings = ref<SystemSettings | null>(null);
@@ -508,7 +524,9 @@ const loadSettings = async () => {
       backup_schedule: settings.backup_schedule,
       backup_retention_days: settings.backup_retention_days,
       vat_rate_preset: settings.vat_rate_preset || 'russia',
-      vat_rate_custom: settings.vat_rate_custom || 20
+      vat_rate_custom: settings.vat_rate_custom || 20,
+      default_tax_rate: settings.default_tax_rate || 20,
+      tax_included: settings.tax_included || false
     };
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error);
@@ -588,7 +606,9 @@ const resetForm = () => {
       backup_schedule: originalSettings.value.backup_schedule,
       backup_retention_days: originalSettings.value.backup_retention_days,
       vat_rate_preset: originalSettings.value.vat_rate_preset || 'russia',
-      vat_rate_custom: originalSettings.value.vat_rate_custom || 20
+      vat_rate_custom: originalSettings.value.vat_rate_custom || 20,
+      default_tax_rate: originalSettings.value.default_tax_rate || 20,
+      tax_included: originalSettings.value.tax_included || false
     };
   }
   

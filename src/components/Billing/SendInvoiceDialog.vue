@@ -251,20 +251,12 @@ const sendInvoice = async () => {
       }
     })
     
-    console.log('📤 Отправка счета:', props.invoice.number, data)
     const updatedInvoice = await billingService.sendInvoice(props.invoice.id, data)
-    console.log('✅ Счет успешно отправлен')
     
     emit('sent', updatedInvoice)
     closeDialog()
   } catch (err: any) {
-    console.error('❌ Ошибка при отправке счета:', err)
-    console.log('📋 Детали ошибки:', {
-      response: err.response,
-      data: err.response?.data,
-      error: err.response?.data?.error,
-      message: err.message
-    })
+    console.error('Ошибка при отправке счета:', err)
     error.value = err.response?.data?.error || err.message || 'Ошибка при отправке счета'
   } finally {
     loading.value = false

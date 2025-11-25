@@ -169,6 +169,33 @@
                   />
                 </v-col>
 
+                <v-col cols="12">
+                  <v-divider class="my-4" />
+                  <h3 class="mb-4">Налоги и сборы</h3>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field
+                    v-model.number="formData.default_tax_rate"
+                    label="Ставка НДС (%)"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    variant="outlined"
+                    hint="От 0 до 100%"
+                    persistent-hint
+                  />
+                </v-col>
+                <v-col cols="12" md="8">
+                  <v-switch
+                    v-model="formData.tax_included"
+                    label="НДС включен в цену"
+                    color="primary"
+                    hint="Итоговая цена указывается с НДС. Влияет на отображение и расчёты."
+                    persistent-hint
+                  />
+                </v-col>
+
                 <!-- Интеграции (только при редактировании) -->
                 <template v-if="mode === 'edit'">
                   <v-col cols="12">
@@ -350,7 +377,9 @@ const loadCompanyData = () => {
       storage_quota: props.company.storage_quota,
       language: props.company.language,
       timezone: props.company.timezone,
-      currency: props.company.currency
+      currency: props.company.currency,
+      default_tax_rate: props.company.default_tax_rate || 20,
+      tax_included: props.company.tax_included || false
     })
   } else {
     Object.assign(formData, { ...COMPANY_FORM_DEFAULTS })

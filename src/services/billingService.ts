@@ -48,14 +48,6 @@ class BillingService {
       const token = localStorage.getItem("axenta_token");
       const company = localStorage.getItem("axenta_company");
 
-      // Логирование только в режиме разработки
-      if (import.meta.env.DEV) {
-        console.debug("BillingService API request:", {
-          url: config.url,
-          method: config.method,
-          token: token ? "EXISTS" : "MISSING",
-        });
-      }
 
       if (token) {
         config.headers["authorization"] = `Token ${token}`;
@@ -66,7 +58,7 @@ class BillingService {
           const companyData = JSON.parse(company);
           config.headers["X-Tenant-ID"] = companyData.id;
         } catch (e) {
-          console.warn("Invalid company data in localStorage");
+          // Invalid company data in localStorage
         }
       }
 
@@ -77,14 +69,7 @@ class BillingService {
     this.apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.log("BillingService API error:", {
-          status: error.response?.status,
-          url: error.config?.url,
-          message: error.message,
-        });
-
         if (error.response?.status === 401) {
-          console.log("401 error - clearing auth and redirecting to login");
           // Перенаправляем на страницу входа при ошибке авторизации
           localStorage.removeItem("axenta_token");
           localStorage.removeItem("axenta_user");
@@ -195,19 +180,7 @@ class BillingService {
    */
   async deleteBillingPlan(id: number, companyId?: number): Promise<void> {
     const params = companyId ? { company_id: companyId } : {};
-    console.log('deleteBillingPlan: удаление плана', { id, companyId, params });
-    try {
-      await this.apiClient.delete(`/auth/billing/plans/${id}`, { params });
-    } catch (error: any) {
-      console.error('deleteBillingPlan: ошибка удаления', {
-        id,
-        companyId,
-        params,
-        error: error.response?.data,
-        status: error.response?.status
-      });
-      throw error;
-    }
+    await this.apiClient.delete(`/auth/billing/plans/${id}`, { params });
   }
 
   // ========== ПОДПИСКИ ==========
@@ -217,16 +190,13 @@ class BillingService {
    */
   async getSubscriptions(companyId: number): Promise<Subscription[]> {
     try {
-      console.log('🌐 BillingService: Запрос подписок для company_id:', companyId)
       const response: AxiosResponse<SubscriptionsResponse> =
         await this.apiClient.get("/auth/billing/subscriptions", {
           params: { company_id: companyId }
         });
-      console.log('📥 BillingService: Ответ от API:', response.data)
-      console.log('📊 BillingService: Количество подписок в ответе:', response.data.data?.length || 0)
       return response.data.data || [];
     } catch (error) {
-      console.error("❌ BillingService: Ошибка при загрузке подписок:", error);
+      console.error("Ошибка при загрузке подписок:", error);
       return [];
     }
   }
@@ -449,12 +419,13 @@ class BillingService {
         await this.apiClient.get("/auth/billing/settings", {
           params: { company_id: companyId },
         });
+      
       if (!response.data.data) {
         throw new Error("Настройки биллинга не найдены");
       }
       return response.data.data;
     } catch (error) {
-      console.error("Ошибка при загрузке настроек:", error);
+      console.error("Ошибка при загрузке настроек биллинга:", error);
       throw error;
     }
   }
@@ -470,6 +441,7 @@ class BillingService {
       await this.apiClient.put("/auth/billing/settings", data, {
         params: { company_id: companyId },
       });
+    
     if (!response.data.data) {
       throw new Error("Ошибка обновления настроек биллинга");
     }
@@ -523,7 +495,7 @@ class BillingService {
       // Рассчитываем реальные данные на основе счетов
       return this.calculateDashboardData(loadedPlans, loadedSubscriptions, loadedInvoices, activeContractsCount);
     } catch (error) {
-      console.warn("Failed to load real dashboard data, using mock:", error);
+      console.error("Ошибка загрузки данных дашборда:", error);
       return this.createMockDashboardData([], []);
     }
   }

@@ -59,15 +59,50 @@
           <!-- Действия -->
           <v-col cols="12" md="2" class="filter-actions">
             <div class="actions-container">
+            <!-- Кнопка автопилота -->
+            <div class="filter-autopilot">
+              <v-tooltip location="top" :disabled="false">
+                <template #activator="{ props }">
+                  <!-- Оборачиваем в span, чтобы tooltip работал на disabled кнопке -->
+                  <span v-bind="props">
+                    <v-btn
+                      icon="mdi-robot"
+                      color="secondary"
+                      variant="flat"
+                      @click="startAutopilot"
+                      class="autopilot-button"
+                      :disabled="!autopilotEnabled"
+                    />
+                  </span>
+                </template>
+                <div style="max-width: 280px; padding: 4px;">
+                  <div class="text-body-2 font-weight-medium mb-2">
+                    Запустить Автопилот
+                  </div>
+                  <div class="text-caption">
+                    Автоматизация полного цикла: создание договора → подписка → счет → отправка клиенту
+                  </div>
+                  <div v-if="!autopilotEnabled" class="text-caption mt-2 text-warning">
+                    Автопилот отключен в настройках
+                  </div>
+                </div>
+              </v-tooltip>
+            </div>
+              
               <div class="filter-create">
-                <v-btn
-                  icon="mdi-plus"
-                  color="primary"
-                  variant="flat"
-                  @click="createContract"
-                  class="create-button"
-                  :title="'Создать договор'"
-                />
+                <v-tooltip location="top">
+                  <template #activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      icon="mdi-plus"
+                      color="primary"
+                      variant="flat"
+                      @click="createContract"
+                      class="create-button"
+                    />
+                  </template>
+                  <span>Создать договор</span>
+                </v-tooltip>
               </div>
               
               <div class="filter-clear">
@@ -405,6 +440,9 @@ const showSnackbar = ref(false);
 const snackbarText = ref('');
 const snackbarColor = ref('success');
 
+// Автопилот
+const autopilotEnabled = ref(false);
+
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
   { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px' },
@@ -538,14 +576,12 @@ const getActiveFiltersCount = (): number => {
 
 // Методы
 const enableDemoMode = async () => {
-  console.log('🎭 Enabling contracts demo mode...');
   demoMode.value = true;
   await loadDemoContracts();
   showSnackbarMessage('Демо режим договоров включен', 'success');
 };
 
 const disableDemoMode = async () => {
-  console.log('🔄 Disabling contracts demo mode...');
   demoMode.value = false;
   contracts.value = [];
   showSnackbarMessage('Демо режим договоров выключен', 'info');
@@ -553,7 +589,6 @@ const disableDemoMode = async () => {
 };
 
 const loadDemoContracts = async () => {
-  console.log('📄 Loading demo contracts for billing tab...');
   loading.value = true;
   
   try {
@@ -697,10 +732,9 @@ const loadDemoContracts = async () => {
     ];
 
     contracts.value = demoContracts;
-    console.log(`✅ Loaded ${contracts.value.length} contracts for billing tab`);
     
   } catch (error) {
-    console.error('❌ Error loading demo contracts:', error);
+    console.error('Ошибка загрузки демо данных:', error);
     showSnackbarMessage('Ошибка загрузки демо данных', 'error');
   } finally {
     loading.value = false;
@@ -722,13 +756,24 @@ const createContract = () => {
   router.push('/contracts/create');
 };
 
+const startAutopilot = () => {
+  if (!autopilotEnabled.value) {
+    showSnackbarMessage('Автопилот отключен. Включите его в настройках биллинга.', 'warning');
+    return;
+  }
+  // Запускаем автопилот - переходим на страницу создания договора с флагом autopilot=true
+  router.push({
+    path: '/contracts/create',
+    query: { autopilot: 'true' }
+  });
+  showSnackbarMessage('Автопилот запущен. Создайте договор для начала работы.', 'info');
+};
+
 const viewContract = (contract: Contract) => {
-  console.log('Просмотр договора:', contract.number);
   showSnackbarMessage(`Просмотр договора ${contract.number}`, 'info');
 };
 
 const editContract = (contract: Contract) => {
-  console.log('📝 Редактирование договора:', contract.number);
   router.push({
     name: 'EditContract',
     params: { id: contract.id }
@@ -737,7 +782,6 @@ const editContract = (contract: Contract) => {
 
 // Навигация к подпискам по договору
 const navigateToSubscriptions = (contract: Contract) => {
-  console.log('Навигация к подпискам по договору:', contract.number);
   // Переход на страницу биллинга с вкладкой "Подписки" и фильтром по contract_id
   router.push({
     path: '/billing',
@@ -750,13 +794,11 @@ const navigateToSubscriptions = (contract: Contract) => {
 };
 
 const viewInvoices = (contract: Contract) => {
-  console.log('Просмотр счетов по договору:', contract.number);
   showSnackbarMessage(`Счета по договору ${contract.number}`, 'info');
   // Здесь можно переключиться на вкладку "Счета" с фильтром по договору
 };
 
 const calculateCost = (contract: Contract) => {
-  console.log('Расчет стоимости договора:', contract.number);
   const objectsCount = contract.objects?.length || 0;
   const monthlyPrice = contract.tariff_plan?.price || 0;
   const message = `Договор ${contract.number}: ${objectsCount} объектов × ${formatCurrency(monthlyPrice)}/мес`;
@@ -951,7 +993,6 @@ const getPeriodTooltipText = (contract: Contract): string => {
 
 // Загрузка реальных договоров
 const loadContracts = async () => {
-  console.log('📄 Loading real contracts from API...');
   loading.value = true;
   try {
     const contractsService = (await import('@/services/contractsService')).default;
@@ -964,9 +1005,8 @@ const loadContracts = async () => {
       limit: 100,
     });
     contracts.value = response.contracts || [];
-    console.log(`✅ Loaded ${contracts.value.length} contracts from API (total: ${response.total})`);
   } catch (error) {
-    console.error('❌ Error loading contracts:', error);
+    console.error('Ошибка загрузки договоров:', error);
     showSnackbarMessage('Ошибка загрузки договоров', 'error');
     contracts.value = [];
   } finally {
@@ -985,9 +1025,27 @@ watch([searchQuery, statusFilter, activeFilter, expiringFilter], () => {
   debouncedLoadContracts();
 });
 
+// Загрузка настроек биллинга для проверки статуса автопилота
+const loadBillingSettings = async () => {
+  try {
+    const billingService = (await import('@/services/billingService')).default;
+    const companyStr = localStorage.getItem('axenta_company');
+    if (companyStr) {
+      const companyData = JSON.parse(companyStr);
+      const companyId = companyData.id || companyData.ID;
+      if (companyId) {
+        const settings = await billingService.getBillingSettings(Number(companyId));
+        autopilotEnabled.value = settings.autopilot_enabled || false;
+      }
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки настроек биллинга:', error);
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
-  console.log('🚀 Contracts tab mounted in billing');
+  await loadBillingSettings();
   if (demoMode.value) {
     await loadDemoContracts();
   } else {
@@ -1110,6 +1168,7 @@ defineExpose({
 }
 
 /* Стили для кнопок в стиле AccountsPage */
+.filter-autopilot :deep(.v-btn),
 .filter-create :deep(.v-btn),
 .filter-clear :deep(.v-btn) {
   height: 44px !important;
@@ -1123,6 +1182,27 @@ defineExpose({
 .filter-clear :deep(.v-btn) {
   width: 44px !important;
   min-width: 44px !important;
+}
+
+/* Специальные стили для кнопки Автопилот */
+.autopilot-button {
+  box-shadow: 0 2px 8px rgba(156, 39, 176, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.autopilot-button:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(156, 39, 176, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+.autopilot-button:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.autopilot-button :deep(.v-icon) {
+  color: white !important;
+  font-size: 20px !important;
 }
 
 /* Специальные стили для кнопки Создать */
@@ -1141,11 +1221,13 @@ defineExpose({
   font-size: 20px !important;
 }
 
+.filter-autopilot :deep(.v-btn .v-icon),
 .filter-create :deep(.v-btn .v-icon),
 .filter-clear :deep(.v-btn .v-icon) {
   font-size: 20px !important;
 }
 
+.filter-autopilot :deep(.v-btn .v-btn__content),
 .filter-create :deep(.v-btn .v-btn__content),
 .filter-clear :deep(.v-btn .v-btn__content) {
   width: 100% !important;
@@ -1188,17 +1270,14 @@ defineExpose({
 
 @media (max-width: 600px) {
   .actions-container {
-    justify-content: space-between;
-    gap: 8px;
+    justify-content: flex-end;
+    gap: 6px;
   }
   
-  .actions-container .v-btn {
-    flex: 1;
-    min-width: 100px;
-  }
-  
-  .btn-text {
-    display: none;
+  .filter-autopilot,
+  .filter-create,
+  .filter-clear {
+    min-width: 44px !important;
   }
   
   .actions-container .v-btn {

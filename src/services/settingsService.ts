@@ -1309,10 +1309,42 @@ class SettingsService {
     }
   }
 
+  // ===== Общий API для интеграций =====
+
+  // Получение списка всех интеграций (настроенных и доступных)
+  async getIntegrationsList(): Promise<{type: string; configured: boolean; is_active: boolean}[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/integrations`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (!response.ok) {
+        console.error('Ошибка получения списка интеграций:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      return data.integrations || [];
+    } catch (error) {
+      console.error('Ошибка получения списка интеграций:', error);
+      return [];
+    }
+  }
+
   // ===== Axenta Cloud Integration API =====
 
   // Получение конфигурации Axenta интеграции
-  async getAxentaIntegrationConfig(): Promise<IntegrationWithSettings | null> {
+  async getAxentaIntegrationConfig(skipIfNotConfigured = false): Promise<IntegrationWithSettings | null> {
+    // Если skipIfNotConfigured = true, сначала проверяем через список интеграций
+    if (skipIfNotConfigured) {
+      const list = await this.getIntegrationsList();
+      const axenta = list.find(i => i.type === 'axenta_cloud');
+      if (!axenta || !axenta.configured) {
+        return null; // Не делаем запрос, если не настроена
+      }
+    }
+    
     try {
       const response = await fetch(`${API_BASE_URL}/api/axenta/config`, {
         method: 'GET',
@@ -1546,7 +1578,7 @@ class SettingsService {
   // Настройка Telegram интеграции
   async setupTelegramIntegration(settings: any): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/telegram/setup`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/telegram/setup`, {
         method: 'POST',
         headers: createHeaders(),
         body: JSON.stringify({
@@ -1590,7 +1622,7 @@ class SettingsService {
   // Обновление Telegram интеграции
   async updateTelegramIntegration(settings: any): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/telegram/setup`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/telegram/setup`, {
         method: 'PUT',
         headers: createHeaders(),
         body: JSON.stringify({
@@ -1632,7 +1664,7 @@ class SettingsService {
   }
 
   // Получение конфигурации Telegram интеграции
-  async getTelegramConfig(): Promise<{
+  async getTelegramConfig(skipIfNotConfigured = false): Promise<{
     bot_token?: string;
     default_chat_id?: string;
     parse_mode?: string;
@@ -1643,8 +1675,17 @@ class SettingsService {
     enabled?: boolean;
     is_active?: boolean;
   } | null> {
+    // Если skipIfNotConfigured = true, сначала проверяем через список интеграций
+    if (skipIfNotConfigured) {
+      const list = await this.getIntegrationsList();
+      const telegram = list.find(i => i.type === 'telegram');
+      if (!telegram || !telegram.configured) {
+        return null; // Не делаем запрос, если не настроена
+      }
+    }
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/api/telegram/config`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/telegram/config`, {
         method: 'GET',
         headers: createHeaders(),
       });
@@ -1679,7 +1720,7 @@ class SettingsService {
   // Тестирование подключения Telegram
   async testTelegramConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/telegram/test-connection`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/telegram/test-connection`, {
         method: 'POST',
         headers: createHeaders(),
       });
@@ -1710,7 +1751,7 @@ class SettingsService {
 
   async setupMaxIntegration(settings: any): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/max/setup`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/max/setup`, {
         method: 'POST',
         headers: createHeaders(),
         body: JSON.stringify({
@@ -1750,7 +1791,7 @@ class SettingsService {
 
   async updateMaxIntegration(settings: any): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/max/setup`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/max/setup`, {
         method: 'PUT',
         headers: createHeaders(),
         body: JSON.stringify({
@@ -1788,7 +1829,7 @@ class SettingsService {
     }
   }
 
-  async getMaxConfig(): Promise<{
+  async getMaxConfig(skipIfNotConfigured = false): Promise<{
     bot_token?: string;
     parse_mode?: string;
     webhook_url?: string;
@@ -1796,8 +1837,17 @@ class SettingsService {
     enabled?: boolean;
     is_active?: boolean;
   } | null> {
+    // Если skipIfNotConfigured = true, сначала проверяем через список интеграций
+    if (skipIfNotConfigured) {
+      const list = await this.getIntegrationsList();
+      const max = list.find(i => i.type === 'max');
+      if (!max || !max.configured) {
+        return null; // Не делаем запрос, если не настроена
+      }
+    }
+    
     try {
-      const response = await fetch(`${API_BASE_URL}/api/max/config`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/max/config`, {
         method: 'GET',
         headers: createHeaders(),
       });
@@ -1828,7 +1878,7 @@ class SettingsService {
 
   async testMaxConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/max/test-connection`, {
+      const response = await fetch(`${API_BASE_URL}/api/integrations/max/test-connection`, {
         method: 'POST',
         headers: createHeaders(),
       });

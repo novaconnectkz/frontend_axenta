@@ -303,7 +303,7 @@ const loadNumerators = async () => {
       const companyData = JSON.parse(companyStr);
       companyId = companyData.id || companyData.ID || null;
     } catch (e) {
-      console.warn('Invalid company data in localStorage:', e);
+      // Invalid company data in localStorage
     }
   }
   
@@ -370,7 +370,7 @@ const saveNumerator = async () => {
       const companyData = JSON.parse(companyStr);
       companyId = companyData.id || companyData.ID || null;
     } catch (e) {
-      console.warn('Invalid company data in localStorage:', e);
+      // Invalid company data in localStorage
     }
   }
   
@@ -393,17 +393,10 @@ const saveNumerator = async () => {
       company_id: Number(companyId) // Явно преобразуем в число
     };
     
-    console.log('📤 Отправляем данные на сервер:', JSON.stringify(formData, null, 2));
-    console.log('📤 company_id тип:', typeof formData.company_id, 'значение:', formData.company_id);
-    
     if (isEditing.value && editingNumerator.value) {
       await contractsService.updateContractNumerator(editingNumerator.value.id, formData);
     } else {
-      const result = await contractsService.createContractNumerator(formData);
-      // Проверяем company_id только если он неверный
-      if (result.company_id === 0) {
-        console.warn('⚠️ Numerator created with company_id=0, expected:', companyId);
-      }
+      await contractsService.createContractNumerator(formData);
     }
     await loadNumerators();
     closeDialog();

@@ -748,6 +748,15 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <!-- Диалог автопилота: предложение создать счет -->
+  <AutopilotInvoiceOfferDialog
+    v-model="showInvoiceOffer"
+    :subscription-id="autopilotSubscription?.id"
+    :contract-id="autopilotSubscription?.contract_id"
+    @create-invoice="handleCreateInvoice"
+    @later="handleInvoiceLater"
+  />
 </template>
 
 <script setup lang="ts">
@@ -758,19 +767,30 @@ import { accountsService, type Account } from '@/services/accountsService'
 import { getObjectsService } from '@/services/objectsService'
 import type { BillingPlan, CreateSubscriptionData, Subscription } from '@/types/billing'
 import type { Contract } from '@/types/contracts'
+import { useAutopilot } from '@/composables/useAutopilot'
+import AutopilotInvoiceOfferDialog from '@/components/Billing/AutopilotInvoiceOfferDialog.vue'
 
 interface Props {
   modelValue: boolean
   companyId: number | string
+  initialContractId?: number // Для автопилота: предвыбранный договор
 }
 
 interface Emits {
   (e: 'update:modelValue', value: boolean): void
   (e: 'created', subscription: Subscription): void
+  (e: 'create-invoice', data: { subscriptionId?: number; contractId?: number }): void
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
+
+// Автопилот
+const autopilot = useAutopilot()
+const { 
+  showInvoiceOffer, 
+  currentSubscription: autopilotSubscription 
+} = autopilot
 
 // Конвертируем companyId в число, если это строка
 const companyId = computed(() => {
@@ -1042,7 +1062,6 @@ const taxRate = computed(() => {
   if (typeof rate === 'string') return parseFloat(rate) || 20
   // Если это объект (Decimal), пробуем извлечь значение
   const parsed = parseFloat(rate) || 20
-  console.log('💰 Вычислен taxRate:', parsed, 'из', rate)
   return parsed
 })
 
@@ -1103,12 +1122,10 @@ const loadContracts = async () => {
     contracts.value = loadedContracts.filter(contract => {
       // Проверяем по ID
       if (seenIds.has(contract.id)) {
-        console.warn(`Дубликат договора по ID ${contract.id} пропущен`)
         return false
       }
       // Проверяем по номеру договора
       if (contract.number && seenNumbers.has(contract.number)) {
-        console.warn(`Дубликат договора по номеру ${contract.number} пропущен`)
         return false
       }
       seenIds.add(contract.id)
@@ -1117,8 +1134,6 @@ const loadContracts = async () => {
       }
       return true
     })
-    
-    console.log(`✅ Загружено ${contracts.value.length} уникальных договоров для создания подписки`)
   } catch (error: any) {
     console.error('Ошибка загрузки договоров:', error)
     errors.value.contract_id = 'Не удалось загрузить список договоров. Попробуйте обновить страницу.'
@@ -1132,14 +1147,11 @@ const loadPlans = async () => {
   loadingPlans.value = true
   try {
     plans.value = await billingService.getBillingPlans(companyId.value)
-    console.log('✅ Загружено тарифов:', plans.value.length)
-    console.log('📋 Доступные тарифы:', availablePlans.value)
     
     // Автовыбор первого тарифа, если он один
     if (availablePlans.value.length === 1 && !form.value.billing_plan_id) {
       form.value.billing_plan_id = availablePlans.value[0].id
       onPlanSelected(availablePlans.value[0].id)
-      console.log('✅ Автоматически выбран единственный доступный тариф:', availablePlans.value[0].id)
     }
   } catch (error) {
     console.error('❌ Ошибка загрузки планов:', error)
@@ -1151,10 +1163,6 @@ const loadPlans = async () => {
 const loadBillingSettings = async () => {
   try {
     billingSettings.value = await billingService.getBillingSettings(companyId.value)
-    console.log('📊 Загружены настройки биллинга:', billingSettings.value)
-    console.log('📊 default_tax_rate:', billingSettings.value?.default_tax_rate, 'type:', typeof billingSettings.value?.default_tax_rate)
-    console.log('📊 vat_rate_preset:', billingSettings.value?.vat_rate_preset)
-    console.log('📊 vat_rate_custom:', billingSettings.value?.vat_rate_custom)
     showVAT.value = billingSettings.value?.tax_included || false
   } catch (error) {
     console.error('Ошибка загрузки настроек:', error)
@@ -1194,17 +1202,12 @@ const checkTariffAccess = async () => {
 }
 
 const onContractSelected = async (contractId?: number | null) => {
-  console.log('📝 onContractSelected вызван, contractId:', contractId)
-  console.log('📝 form.contract_id текущее значение:', form.value.contract_id)
-  
   // v-model уже обновил form.contract_id, но на всякий случай синхронизируем
   if (contractId !== undefined && contractId !== null) {
     form.value.contract_id = contractId
-    console.log('✅ form.contract_id установлен на:', form.value.contract_id)
   } else if (contractId === null || contractId === undefined) {
     // Если значение очищено
     form.value.contract_id = undefined
-    console.log('⚠️ Договор очищен')
   }
   
   errors.value.contract_id = ''
@@ -1212,27 +1215,12 @@ const onContractSelected = async (contractId?: number | null) => {
   // Гарантируем, что hasTariffAccess обновлен
   await checkTariffAccess()
   await checkExistingSubscriptions()
-  
-  console.log('✅ После выбора договора: hasTariffAccess =', hasTariffAccess.value)
-  console.log('✅ canProceed для шага 1:', form.value.contract_id && hasTariffAccess.value)
-  
-  // Принудительно обновляем реактивность
-  if (form.value.contract_id && hasTariffAccess.value) {
-    console.log('✅ Условия для перехода на шаг 2 выполнены')
-  }
 }
 
 const onPlanSelected = (planId?: number) => {
-  console.log('📝 onPlanSelected вызван, planId:', planId)
-  console.log('📝 form.billing_plan_id до обновления:', form.value.billing_plan_id)
-  
   // Обновляем form.value.billing_plan_id, если planId передан
   if (planId !== undefined) {
     form.value.billing_plan_id = planId
-    console.log('✅ form.billing_plan_id обновлен на:', form.value.billing_plan_id)
-  } else {
-    // Если planId не передан, используем текущее значение из v-model
-    console.log('⚠️ planId не передан, используем текущее значение:', form.value.billing_plan_id)
   }
   
   // Устанавливаем период по умолчанию в зависимости от типа тарифа
@@ -1242,15 +1230,12 @@ const onPlanSelected = (planId?: number) => {
     if (billingPeriod === 'yearly') {
       // Для годовых тарифов - по умолчанию 1 год (12 месяцев)
       subscriptionMonths.value = 12
-      console.log('✅ Установлен период по умолчанию для годового тарифа: 12 месяцев (1 год)')
     } else if (billingPeriod === 'one-time') {
       // Для одноразовых - фиксированный период
       subscriptionMonths.value = 1
-      console.log('✅ Установлен период по умолчанию для одноразового тарифа: 1')
     } else {
       // Для месячных - по умолчанию 1 месяц
       subscriptionMonths.value = 1
-      console.log('✅ Установлен период по умолчанию для месячного тарифа: 1 месяц')
     }
   }
   
@@ -1272,7 +1257,6 @@ const calculateEndDate = () => {
   // Для одноразовых тарифов дата окончания = дата начала
   if (selectedPlan.value?.billing_period === 'one-time') {
     calculatedEndDate.value = form.value.start_date
-    console.log(`📅 Рассчитана дата окончания (одноразово): ${calculatedEndDate.value}`)
   } else {
     // Для месячных и годовых - добавляем месяцы
     endDate.setMonth(endDate.getMonth() + subscriptionMonths.value)
@@ -1280,11 +1264,6 @@ const calculateEndDate = () => {
     endDate.setDate(endDate.getDate() - 1)
     
     calculatedEndDate.value = endDate.toISOString().split('T')[0]
-    
-    const periodType = selectedPlan.value?.billing_period === 'yearly' 
-      ? `${subscriptionMonths.value / 12} лет` 
-      : `${subscriptionMonths.value} мес.`
-    console.log(`📅 Рассчитана дата окончания: ${calculatedEndDate.value} (${periodType})`)
   }
   
   // Обновляем общую стоимость при изменении периода
@@ -1304,23 +1283,19 @@ const calculateTotalPrice = () => {
   // Для месячных тарифов: цена за месяц × количество месяцев
   if (billingPeriod === 'monthly') {
     calculatedTotalPrice.value = planPrice * subscriptionMonths.value
-    console.log(`💰 Рассчитана стоимость (месячный): ${calculatedTotalPrice.value} (${planPrice} × ${subscriptionMonths.value} мес.)`)
   }
   // Для годовых тарифов: цена за год × количество лет
   else if (billingPeriod === 'yearly') {
     const years = subscriptionMonths.value / 12
     calculatedTotalPrice.value = planPrice * years
-    console.log(`💰 Рассчитана стоимость (годовой): ${calculatedTotalPrice.value} (${planPrice} × ${years} лет)`)
   }
   // Для одноразовых: фиксированная цена
   else if (billingPeriod === 'one-time') {
     calculatedTotalPrice.value = planPrice
-    console.log(`💰 Рассчитана стоимость (одноразово): ${calculatedTotalPrice.value}`)
   }
   // По умолчанию - считаем как месячный
   else {
     calculatedTotalPrice.value = planPrice * subscriptionMonths.value
-    console.log(`💰 Рассчитана стоимость (по умолчанию): ${calculatedTotalPrice.value}`)
   }
 }
 
@@ -1373,16 +1348,9 @@ const recalculatePrice = () => {
 }
 
 const nextStep = () => {
-  console.log('🔄 nextStep вызван, currentStep:', currentStep.value)
-  console.log('📋 canProceed:', canProceed.value)
-  console.log('📝 form.contract_id:', form.value.contract_id)
-  console.log('🔓 hasTariffAccess:', hasTariffAccess.value)
-  
   if (canProceed.value) {
     currentStep.value++
-    console.log('✅ Переход на шаг:', currentStep.value)
   } else {
-    console.warn('⚠️ Переход заблокирован. canProceed = false')
     // Показываем ошибку, если договор не выбран
     if (!form.value.contract_id) {
       errors.value.contract_id = 'Выберите договор для продолжения'
@@ -1449,21 +1417,16 @@ const createSubscription = async () => {
       subscriptionData.transfer_from_subscription_id = existingSubscriptions.value[0].id
     }
     
-    console.log('📤 Отправка данных подписки на сервер:')
-    console.log('  contract_id:', subscriptionData.contract_id)
-    console.log('  billing_plan_id:', subscriptionData.billing_plan_id)
-    console.log('  start_date:', subscriptionData.start_date)
-    console.log('  start_time:', subscriptionData.start_time)
-    console.log('  status:', subscriptionData.status)
-    console.log('  account_id:', subscriptionData.account_id)
-    console.log('  object_ids:', subscriptionData.object_ids)
-    console.log('  subscriptionData (полный):', subscriptionData)
-    console.log('  calculatedEndDate:', calculatedEndDate.value)
-    console.log('  subscriptionMonths:', subscriptionMonths.value)
-    
     const subscription = await billingService.createSubscription(subscriptionData)
     emit('created', subscription)
-    close()
+    
+    // Проверяем автопилот
+    if (billingSettings.value?.autopilot_enabled) {
+      // Показываем диалог автопилота
+      autopilot.offerInvoiceAfterSubscription(subscription);
+    } else {
+      close();
+    }
   } catch (error: any) {
     console.error('Ошибка создания подписки:', error)
     console.error('📥 Ответ сервера:', error.response?.data)
@@ -1478,6 +1441,9 @@ const createSubscription = async () => {
 }
 
 const close = () => {
+  // Сбрасываем состояние автопилота
+  autopilot.resetAutopilot();
+  
   show.value = false
   currentStep.value = 1
   form.value = {
@@ -1498,6 +1464,26 @@ const close = () => {
   accountObjects.value = []
   selectedObjects.value = []
   objectsSearchQuery.value = ''
+}
+
+// Обработчики автопилота
+const handleCreateInvoice = (data: { subscriptionId?: number; contractId?: number }) => {
+  // Закрываем диалог автопилота
+  autopilot.closeInvoiceOffer();
+  
+  // Закрываем мастер
+  close();
+  
+  // Эмитим событие создания счета
+  emit('create-invoice' as any, data);
+}
+
+const handleInvoiceLater = () => {
+  // Закрываем диалог автопилота
+  autopilot.closeInvoiceOffer();
+  
+  // Закрываем мастер
+  close();
   accountSearchQuery.value = ''
   contractSearchQuery.value = ''
   hasTariffAccess.value = true // Сбрасываем доступ к тарифам
@@ -1585,7 +1571,6 @@ const accountOptions = computed(() => {
   if (form.value.account_id && savedSelectedAccount.value) {
     const isInList = options.some(opt => opt.value === form.value.account_id)
     if (!isInList) {
-      console.log('📌 Добавляем сохраненную учетную запись в список опций:', savedSelectedAccount.value.name)
       options.unshift({
         value: savedSelectedAccount.value.id,
         title: savedSelectedAccount.value.name,
@@ -1627,7 +1612,6 @@ const loadAccounts = async (search = '') => {
       search: search || undefined 
     })
     accounts.value = response.results || []
-    console.log('📋 Загружено учетных записей:', accounts.value.length, search ? `(поиск: "${search}")` : '')
   } catch (error) {
     console.error('Ошибка загрузки учетных записей:', error)
     accounts.value = []
@@ -1644,33 +1628,19 @@ const loadAccountObjects = async (accountId: number) => {
     let account = accounts.value.find(acc => acc.id === accountId)
     if (!account && savedSelectedAccount.value?.id === accountId) {
       account = savedSelectedAccount.value
-      console.log('✅ Используем сохраненную учетную запись')
     }
     
     if (!account) {
-      console.warn('⚠️ Учетная запись не найдена:', accountId)
       accountObjects.value = []
       allAccountObjects.value = []
       return
     }
-    
-    console.log('📦 Загрузка объектов для учетной записи:', { 
-      id: account.id, 
-      name: account.name,
-      objectsTotal: account.objectsTotal 
-    })
     
     // Загружаем объекты через getObjects с фильтром по accountId
     const objectsService = getObjectsService()
     const response = await objectsService.getObjects(1, 100, {
       accountId: account.id,
       accountName: account.name
-    })
-    
-    console.log('📦 Ответ от getObjects:', {
-      response: response,
-      dataItems: response.data?.items,
-      itemsLength: response.data?.items?.length || 0
     })
     
     // Фильтруем только объекты без договоров
@@ -1683,25 +1653,6 @@ const loadAccountObjects = async (accountId: number) => {
       return false // Есть реальный contract_id - пропускаем
     })
     
-    console.log('📦 Объекты после фильтрации:', {
-      всегоОбъектов: allObjects.length,
-      безДоговоров: objectsWithoutContract.length,
-      сДоговорами: allObjects.length - objectsWithoutContract.length
-    })
-    
-    // Логируем первые несколько объектов для проверки
-    if (allObjects.length > 0) {
-      console.log('📦 Примеры объектов с contract_id:', 
-        allObjects.slice(0, 3).map((obj: any) => ({
-          id: obj.id,
-          name: obj.name,
-          contract_id: obj.contract_id,
-          contract_number: obj.contract_number,
-          isContractIdSameAsAccountId: obj.contract_id === account.id
-        }))
-      )
-    }
-    
     allAccountObjects.value = allObjects // Сохраняем все объекты
     accountObjects.value = objectsWithoutContract
   } catch (error) {
@@ -1713,7 +1664,7 @@ const loadAccountObjects = async (accountId: number) => {
   }
 }
 
-// Обработчики поиска договоров
+// Обработчик поиска договоров
 const handleContractSearch = (query: string) => {
   contractSearchQuery.value = query
 }
@@ -1741,18 +1692,13 @@ const contractFilter = (item: any, queryText: string, itemText: string) => {
   return searchText.includes(query)
 }
 
-// Обработчики
+// Обработчик поиска учетных записей
 const handleAccountSearch = (query: string) => {
-  console.log('🔍 handleAccountSearch вызван с query:', query)
   // accountSearchQuery уже обновлен через v-model:search, не нужно дублировать
   if (query && query.length >= 2) {
-    console.log('✅ Запускаем поиск с query:', query)
     loadAccounts(query)
   } else if (!query || query.length === 0) {
-    console.log('⚠️ Query пустой, загружаем все учетные записи')
     loadAccounts()
-  } else {
-    console.log('ℹ️ Query слишком короткий:', query.length, 'символов')
   }
 }
 
@@ -1763,20 +1709,16 @@ const handleAccountAutocompleteFocus = () => {
 }
 
 const onAccountSelected = (accountId: number | undefined) => {
-  console.log('🔄 onAccountSelected вызван с accountId:', accountId)
   if (accountId) {
-    console.log('✅ Загружаем объекты для учетной записи:', accountId)
     // Сохраняем выбранную учетную запись
     const account = accounts.value.find(acc => acc.id === accountId)
     if (account) {
       savedSelectedAccount.value = account
-      console.log('💾 Сохранили учетную запись:', account.name)
     }
     loadAccountObjects(accountId)
     // Сбрасываем предупреждения при смене учетной записи
     objectsInSubscriptionsWarning.value = []
   } else {
-    console.log('⚠️ accountId не указан, очищаем объекты')
     savedSelectedAccount.value = null
     accountObjects.value = []
     allAccountObjects.value = []
@@ -1810,7 +1752,6 @@ const checkObjectsInSubscriptions = async () => {
       }
 
       objectsInSubscriptionsWarning.value = subscriptionsWithSelectedObjects
-      console.log('⚠️ Найдено подписок с выбранными объектами:', subscriptionsWithSelectedObjects.length)
     } else {
       objectsInSubscriptionsWarning.value = []
     }
@@ -1864,17 +1805,14 @@ const checkSubscriptionConflict = () => {
   if (conflictingSubscriptions.length > 0) {
     const sub = conflictingSubscriptions[0]
     conflictingSubscriptionError.value = `Уже существует активная подписка с тарифом "${sub.billing_plan?.name}" и пересекающимся периодом. Измените тариф или период подписки.`
-    console.error('❌ Обнаружен конфликт подписок:', conflictingSubscriptions)
   }
 }
 
 // Автоматическая проверка доступа к тарифам при выборе договора
 watch(() => form.value.contract_id, async (newContractId) => {
   if (newContractId) {
-    console.log('👀 Watch: contract_id изменился на:', newContractId)
     await checkTariffAccess()
     await checkExistingSubscriptions()
-    console.log('✅ Watch: hasTariffAccess =', hasTariffAccess.value)
   } else {
     hasTariffAccess.value = true
     existingSubscriptions.value = []
@@ -1890,14 +1828,17 @@ watch(show, (isOpen) => {
     loadAccounts()
     // Инициализируем расчет дат при открытии
     calculateEndDate()
+    
+    // Если передан initialContractId (из автопилота), предзаполняем договор
+    if (props.initialContractId) {
+      form.value.contract_id = props.initialContractId;
+    }
   }
 })
 
 // Загрузка тарифов при переходе на шаг 2
 watch(currentStep, (step) => {
-  console.log('🔄 currentStep изменился на:', step)
   if (step === 2) {
-    console.log('📋 Загружаем тарифы для шага 2...')
     loadPlans()
     // Инициализируем расчет при входе на шаг 2
     calculateEndDate()

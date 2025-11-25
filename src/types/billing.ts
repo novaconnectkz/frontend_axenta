@@ -208,6 +208,7 @@ export interface BillingSettings {
   contract_numbering_method: string;
   contract_default_numerator_id?: number;
   bitrix24_deal_number_field?: string;
+  autopilot_enabled: boolean;
 }
 
 // Расчет биллинга

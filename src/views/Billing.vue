@@ -3,10 +3,12 @@
     <!-- Заголовок страницы -->
     <v-row class="mb-6">
       <v-col>
-        <h1 class="text-h3 font-weight-bold text-primary">Биллинг и договоры</h1>
-        <p class="text-h6 text-grey-darken-2 mt-2">
-          Управление договорами, тарифными планами, подписками и счетами
-        </p>
+        <div>
+          <h1 class="text-h3 font-weight-bold text-primary">Биллинг и договоры</h1>
+          <p class="text-h6 text-grey-darken-2 mt-2">
+            Управление договорами, тарифными планами, подписками и счетами
+          </p>
+        </div>
       </v-col>
     </v-row>
 
@@ -848,14 +850,9 @@
             <!-- Форма настроек -->
             <v-form v-model="settingsFormValid" v-else-if="billingSettings">
               <v-row>
-                <v-col cols="12" md="6">
-                  <h4 class="mb-4">Генерация счетов</h4>
-                  <v-switch
-                    v-model="billingSettings.auto_generate_invoices"
-                    label="Автоматическая генерация счетов"
-                    color="primary"
-                    :title="'По расписанию создаёт счета. Требует нумератора и реквизитов.'"
-                  ></v-switch>
+                <!-- Генерация счетов -->
+                <v-col cols="12" md="4">
+                  <h4 class="mb-3">Генерация счетов</h4>
                   
                   <v-text-field
                     v-model.number="billingSettings.invoice_generation_day"
@@ -863,7 +860,11 @@
                     type="number"
                     min="1"
                     max="28"
-                    hint="От 1 до 28"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    :title="'От 1 до 28'"
+                    class="mb-3"
                   ></v-text-field>
                   
                   <v-text-field
@@ -871,86 +872,60 @@
                     label="Срок оплаты (дней)"
                     type="number"
                     min="1"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="mb-3"
                   ></v-text-field>
 
-                  <div class="d-flex ga-2 mt-2">
-                    <v-btn
-                      color="primary"
-                      variant="outlined"
-                      prepend-icon="mdi-flask"
-                      @click="openDryRunDialog"
-                    >
-                      Тестовая генерация
-                    </v-btn>
-                  </div>
-                </v-col>
-                
-                <v-col cols="12" md="6">
-                  <h4 class="mb-4">Налоги и валюта</h4>
-                  <v-text-field
-                    v-model="billingSettings.default_tax_rate"
-                    label="Ставка НДС (%)"
-                    type="number"
-                    step="0.01"
-                  ></v-text-field>
-                  
                   <v-switch
-                    v-model="billingSettings.tax_included"
-                    label="НДС включен в цену"
+                    v-model="billingSettings.auto_generate_invoices"
+                    label="Автоматическая генерация"
                     color="primary"
-                    :title="'Итоговая цена указывается с НДС. Влияет на отображение и расчёты.'"
+                    density="compact"
+                    hide-details
                   ></v-switch>
-                  
-                  <v-select
-                    v-model="billingSettings.currency"
-                    :items="currencies"
-                    label="Валюта по умолчанию"
-                    :title="'Используется при создании новых тарифов и счетов. Существующие суммы не меняет.'"
-                  ></v-select>
                 </v-col>
                 
-                <v-col cols="12" md="6">
-                  <h4 class="mb-4">Уведомления</h4>
+                <!-- Уведомления -->
+                <v-col cols="12" md="4">
+                  <h4 class="mb-3">Уведомления</h4>
                   <v-text-field
                     v-model.number="billingSettings.notify_before_invoice"
-                    label="Уведомлять за дней до выставления счета"
+                    label="До выставления счета (дн.)"
                     type="number"
                     min="0"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="mb-3"
                   ></v-text-field>
                   
                   <v-text-field
                     v-model.number="billingSettings.notify_before_due"
-                    label="Уведомлять за дней до срока оплаты"
+                    label="До срока оплаты (дн.)"
                     type="number"
                     min="0"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="mb-3"
                   ></v-text-field>
                   
                   <v-text-field
                     v-model.number="billingSettings.notify_overdue"
-                    label="Уведомлять через дней после просрочки"
+                    label="После просрочки (дн.)"
                     type="number"
                     min="0"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
                   ></v-text-field>
-
-                  <div class="d-flex ga-2 mt-2">
-                    <v-btn
-                      color="primary"
-                      variant="outlined"
-                      prepend-icon="mdi-email-send"
-                      @click="openTestNotificationDialog"
-                    >
-                      Отправить тест
-                    </v-btn>
-                  </div>
                 </v-col>
                 
-                <v-col cols="12" md="6">
-                  <h4 class="mb-4">Льготные тарифы</h4>
-                  <v-switch
-                    v-model="billingSettings.enable_inactive_discounts"
-                    label="Включить льготы для неактивных объектов"
-                    color="primary"
-                  ></v-switch>
+                <!-- Льготные тарифы -->
+                <v-col cols="12" md="4">
+                  <h4 class="mb-3">Льготные тарифы</h4>
                   
                   <v-text-field
                     v-model="billingSettings.inactive_discount_ratio"
@@ -959,28 +934,53 @@
                     step="0.01"
                     min="0"
                     max="1"
-                    hint="От 0 до 1 (например, 0.5 = 50% скидка)"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    :title="'0.5 = 50% скидка'"
                     :disabled="!billingSettings.enable_inactive_discounts"
+                    class="mb-3"
                   ></v-text-field>
+
+                  <v-switch
+                    v-model="billingSettings.enable_inactive_discounts"
+                    label="Льготы для неактивных"
+                    color="primary"
+                    density="compact"
+                    hide-details
+                    class="mb-3"
+                  ></v-switch>
                   
                   <v-switch
                     v-model="billingSettings.allow_partial_payments"
-                    label="Разрешить частичные платежи"
+                    label="Частичные платежи"
                     color="primary"
-                    :title="'Счета можно закрывать частично. Требует совместимости тарифов/подписок.'"
+                    density="compact"
+                    hide-details
                   ></v-switch>
                 </v-col>
 
               </v-row>
 
-              <!-- Панель сохранения -->
-              <v-divider class="my-4"></v-divider>
-              <div v-if="settingsDirty" class="d-flex align-center justify-end ga-2">
-                <span class="text-grey">Изменения не сохранены</span>
-                <v-btn variant="text" @click="resetSettingsToInitial">Отменить</v-btn>
-                <v-btn color="primary" :loading="savingSettings" @click="saveSettings">Сохранить</v-btn>
-              </div>
-            </v-form>
+            <!-- Индикатор автосохранения -->
+            <v-divider class="my-4"></v-divider>
+            <div class="d-flex align-center justify-end ga-2">
+              <v-fade-transition>
+                <div v-if="savingSettings" class="d-flex align-center ga-2">
+                  <v-progress-circular indeterminate size="16" width="2" color="primary"></v-progress-circular>
+                  <span class="text-caption text-grey">Сохранение...</span>
+                </div>
+                <div v-else-if="settingsDirty" class="d-flex align-center ga-2">
+                  <v-icon size="16" color="grey">mdi-clock-outline</v-icon>
+                  <span class="text-caption text-grey">Автосохранение через мгновение...</span>
+                </div>
+                <div v-else class="d-flex align-center ga-2">
+                  <v-icon size="16" color="success">mdi-check-circle</v-icon>
+                  <span class="text-caption text-success">Все изменения сохранены</span>
+                </div>
+              </v-fade-transition>
+            </div>
+          </v-form>
             
             <!-- Сообщение об ошибке -->
             <div v-else class="text-center py-12">
@@ -1333,7 +1333,9 @@
     <SubscriptionWizard
       v-model="subscriptionWizardOpen"
       :company-id="currentCompanyId"
+      :initial-contract-id="filteredByContractId ?? undefined"
       @created="onSubscriptionCreated"
+      @create-invoice="onCreateInvoiceFromSubscription"
     />
 
     <!-- Диалог подписки (для редактирования) -->
@@ -1838,6 +1840,15 @@
       :additional-stats="currentMetricDetail?.additionalStats"
       :action-button="currentMetricDetail?.actionButton"
     />
+
+    <!-- Диалог автопилота: предложение отправить счет -->
+    <AutopilotSendInvoiceOfferDialog
+      v-model="showSendInvoiceOffer"
+      :invoice-id="autopilotInvoice?.id"
+      :invoice-number="autopilotInvoice?.number"
+      @send-invoice="handleSendInvoiceFromAutopilot"
+      @later="handleSendInvoiceLater"
+    />
   </v-container>
 </template>
 
@@ -1871,9 +1882,18 @@ import type {
 import type { ContractNumerator } from '@/types/contracts'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAutopilot } from '@/composables/useAutopilot'
+import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// Автопилот
+const autopilot = useAutopilot()
+const { 
+  showSendInvoiceOffer, 
+  currentInvoice: autopilotInvoice 
+} = autopilot
 
 // Реактивные данные
 const activeTab = ref((route.query.tab as string) || 'contracts') // Начинаем с договоров или из query
@@ -1901,7 +1921,6 @@ const currentCompanyId = ref(getCurrentCompanyId())
 let checkInterval: ReturnType<typeof setInterval> | null = null
 let handleStorageChange: ((e: StorageEvent) => void) | null = null
 let saveSettingsTimeout: ReturnType<typeof setTimeout> | null = null
-let isInitialLoad = true // Флаг для предотвращения сохранения при первоначальной загрузке
 
 // Очищаем ресурсы при размонтировании
 onUnmounted(() => {
@@ -1916,11 +1935,21 @@ onUnmounted(() => {
   if (checkInterval) {
     clearInterval(checkInterval)
   }
+  
+  // Сбрасываем состояние автопилота
+  autopilot.resetAutopilot();
 })
 
 onMounted(async () => {
   // Обновляем company_id при монтировании
   currentCompanyId.value = getCurrentCompanyId()
+  
+  // Сбрасываем автопилот при открытии страницы (если не идет активный процесс)
+  // Это предотвращает показ старых диалогов при возврате на страницу
+  const shouldOpenWizard = sessionStorage.getItem('autopilot_open_wizard');
+  if (shouldOpenWizard !== 'true') {
+    autopilot.resetAutopilot();
+  }
   
   // Загружаем данные при монтировании
   // loadDashboardData уже загружает plans и subscriptions, поэтому вызываем их отдельно только если нужно
@@ -1929,6 +1958,24 @@ onMounted(async () => {
     fetchInvoices(),
     fetchBillingSettings() // Загружает contractNumerators внутри
   ])
+  
+  // Проверяем автопилот из sessionStorage
+  const contractIdStr = sessionStorage.getItem('autopilot_contract_id');
+  
+  if (shouldOpenWizard === 'true' && contractIdStr) {
+    // Очищаем флаги
+    sessionStorage.removeItem('autopilot_open_wizard');
+    sessionStorage.removeItem('autopilot_contract_id');
+    
+    // Устанавливаем фильтр по договору и открываем мастер
+    filteredByContractId.value = parseInt(contractIdStr, 10);
+    activeTab.value = 'subscriptions';
+    
+    // Небольшая задержка для корректной отрисовки
+    setTimeout(() => {
+      openSubscriptionWizard();
+    }, 300);
+  }
   
   // Слушаем изменения в localStorage (на случай переключения компании)
   handleStorageChange = (e: StorageEvent) => {
@@ -2034,6 +2081,10 @@ const loadingSettings = ref(false)
 const savingPlan = ref(false)
 const savingSubscription = ref(false)
 const savingSettings = ref(false)
+
+// Автопилот
+const autopilotEnabled = ref(false)
+const savingAutopilot = ref(false)
 
 // Поиск и фильтрация
 const planSearchQuery = ref('')
@@ -2398,6 +2449,9 @@ const fetchBillingSettings = async () => {
   try {
     billingSettings.value = await billingService.getBillingSettings(currentCompanyId.value)
     
+    // Инициализируем состояние автопилота
+    autopilotEnabled.value = billingSettings.value?.autopilot_enabled || false
+    
     // Если способ нумерации = 'bitrix24' (отключен), сбрасываем на 'manual'
     if (billingSettings.value?.contract_numbering_method === 'bitrix24') {
       billingSettings.value.contract_numbering_method = 'manual'
@@ -2409,7 +2463,7 @@ const fetchBillingSettings = async () => {
     // Фиксируем исходный снапшот для dirty-check
     initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
   } catch (error) {
-    console.error('Ошибка при загрузке настроек:', error)
+    console.error('❌ Ошибка при загрузке настроек:', error)
   } finally {
     loadingSettings.value = false
   }
@@ -2555,17 +2609,47 @@ const openSubscriptionDialog = (subscription?: Subscription) => {
 }
 
 const onSubscriptionCreated = async (subscription: Subscription) => {
-  console.log('✅ Подписка создана, обновляем данные...', subscription)
   await fetchSubscriptions()
   await loadDashboardData()
   
   // Обновляем список договоров, так как подписка обновляет информацию в договоре
   if (contractsTabRef.value?.loadContracts) {
-    console.log('🔄 Обновляем список договоров после создания подписки')
     await contractsTabRef.value.loadContracts()
   }
   
-  subscriptionWizardOpen.value = false
+  // Очищаем фильтр по договору после создания подписки
+  filteredByContractId.value = null;
+  
+  // НЕ закрываем мастер здесь!
+  // Если автопилот включен - мастер останется открытым и покажет диалог создания счета
+  // Если автопилот выключен - мастер закроется в SubscriptionWizard.vue
+  // subscriptionWizardOpen.value = false - убрано!
+  
+  // ВАЖНО: Автопилот вызывается в SubscriptionWizard.vue после успешного создания подписки
+}
+
+// Обработчик создания счета из автопилота SubscriptionWizard
+const onCreateInvoiceFromSubscription = async (data: { subscriptionId?: number; contractId?: number }) => {
+  
+  // Находим подписку или договор
+  const contractId = data.contractId;
+  
+  if (contractId) {
+    // Открываем диалог создания счета
+    selectedContractId.value = contractId;
+    
+    // Устанавливаем период (текущий месяц)
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    
+    invoiceFormData.value = {
+      period_start: startOfMonth.toISOString().split('T')[0],
+      period_end: endOfMonth.toISOString().split('T')[0]
+    };
+    
+    generateInvoiceDialog.value = true;
+  }
 }
 
 const closeSubscriptionDialog = () => {
@@ -2707,6 +2791,23 @@ const handleInvoiceSent = async (updatedInvoice: Invoice) => {
   alert(`Счет ${updatedInvoice.number} успешно отправлен через: ${sentChannels}`)
 }
 
+// Обработчики автопилота для отправки счета
+const handleSendInvoiceFromAutopilot = (invoiceId: number) => {
+  // Закрываем диалог автопилота
+  autopilot.closeSendInvoiceOffer();
+  
+  // Находим счет
+  const invoice = invoices.value.find(inv => inv.id === invoiceId);
+  if (invoice) {
+    selectedInvoiceForSend.value = invoice;
+    sendInvoiceDialogOpen.value = true;
+  }
+};
+
+const handleSendInvoiceLater = () => {
+  autopilot.closeSendInvoiceOffer();
+};
+
 const generateInvoice = async () => {
   if (!selectedContractId.value || selectedSubscriptionIds.value.length === 0) {
     alert('Выберите договор и хотя бы одну подписку')
@@ -2734,10 +2835,15 @@ const generateInvoice = async () => {
   }
 
   try {
-    await billingService.generateInvoice(selectedContractId.value, periodData)
+    const createdInvoice = await billingService.generateInvoice(selectedContractId.value, periodData)
     await fetchInvoices()
     await loadDashboardData()
     closeGenerateInvoiceDialog()
+    
+    // Проверяем автопилот
+    if (billingSettings.value?.autopilot_enabled) {
+      autopilot.offerSendAfterInvoice(createdInvoice);
+    }
   } catch (error) {
     console.error('Ошибка при генерации счета:', error)
     alert('Ошибка при генерации счета')
@@ -2786,6 +2892,10 @@ const toggleAllSubscriptions = () => {
 const saveSettings = async () => {
   if (!billingSettings.value) return
 
+  console.log('🔄 Автосохранение настроек биллинга...');
+  console.log('  - contract_numbering_method:', billingSettings.value.contract_numbering_method);
+  console.log('  - autopilot_enabled:', billingSettings.value.autopilot_enabled);
+
   // Проверяем, что contract_numbering_method не равен 'bitrix24' перед сохранением
   if (billingSettings.value.contract_numbering_method === 'bitrix24') {
     billingSettings.value.contract_numbering_method = 'manual'
@@ -2796,8 +2906,9 @@ const saveSettings = async () => {
     await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
     // Не перезагружаем настройки после сохранения, чтобы не сбрасывать изменения
     initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
+    console.log('✅ Настройки успешно сохранены');
   } catch (error) {
-    console.error('Ошибка при сохранении настроек:', error)
+    console.error('❌ Ошибка при сохранении настроек:', error)
   } finally {
     savingSettings.value = false
   }
@@ -2813,6 +2924,35 @@ const resetSettingsToInitial = () => {
   }
 }
 
+// Обработчик переключения автопилота
+const onAutopilotToggle = async (value: boolean) => {
+  if (!billingSettings.value) {
+    console.error('❌ billingSettings.value is null')
+    autopilotEnabled.value = !value
+    return
+  }
+  
+  savingAutopilot.value = true
+  try {
+    // Обновляем настройки
+    billingSettings.value.autopilot_enabled = value
+    
+    await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
+    
+    // Обновляем снапшот после успешного сохранения
+    initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
+  } catch (error) {
+    console.error('Ошибка при сохранении настройки автопилота:', error)
+    // Откатываем изменение при ошибке
+    autopilotEnabled.value = !value
+    if (billingSettings.value) {
+      billingSettings.value.autopilot_enabled = !value
+    }
+  } finally {
+    savingAutopilot.value = false
+  }
+}
+
 // Watch на contract_numbering_method - запрещаем выбор 'bitrix24'
 watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
   if (newValue === 'bitrix24') {
@@ -2824,18 +2964,21 @@ watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
 })
 
 // Автосохранение настроек при изменении (оставляем, но с задержкой)
-watch(() => billingSettings.value, (newSettings) => {
-  if (!newSettings || !currentCompanyId.value) return
+watch(() => billingSettings.value?.contract_numbering_method, (newValue, oldValue) => {
+  if (!billingSettings.value || !currentCompanyId.value) return
   
-  // Пропускаем сохранение при первоначальной загрузке
-  if (isInitialLoad) {
-    isInitialLoad = false
+  // Пропускаем сохранение при первоначальной загрузке (когда oldValue undefined)
+  if (oldValue === undefined) {
+    console.log('⏭️ Пропускаем сохранение при первоначальной загрузке');
     return
   }
   
+  console.log(`📝 Изменен contract_numbering_method: ${oldValue} → ${newValue}`);
+  
   // Проверяем, что contract_numbering_method не равен 'bitrix24' перед сохранением
-  if (newSettings.contract_numbering_method === 'bitrix24') {
-    newSettings.contract_numbering_method = 'manual'
+  if (newValue === 'bitrix24') {
+    billingSettings.value.contract_numbering_method = 'manual'
+    return
   }
   
   // Отменяем предыдущий таймер, если есть
@@ -2845,19 +2988,12 @@ watch(() => billingSettings.value, (newSettings) => {
   
   // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
   saveSettingsTimeout = setTimeout(() => {
+    console.log('⏰ Таймер сработал, вызываем saveSettings()');
     saveSettings()
   }, 500)
-}, { deep: true })
-
-// Сбрасываем флаг после загрузки настроек
-watch(() => loadingSettings.value, (isLoading) => {
-  if (!isLoading && billingSettings.value) {
-    // Даем небольшую задержку, чтобы убедиться, что все данные загружены
-    setTimeout(() => {
-      isInitialLoad = false
-    }, 100)
-  }
 })
+
+// Удалено: watch на loadingSettings больше не нужен, так как используем отслеживание конкретного поля
 
 // Вспомогательные функции
 const formatCurrency = (amount: string | number, currency = 'RUB') => {
@@ -3574,23 +3710,12 @@ watch(() => route.query.tab, (newTab) => {
 
 // Отслеживаем параметры фильтрации по договору в URL
 watch(() => route.query.contract_id, (contractId) => {
-  console.log('🔗 Изменение параметра contract_id в URL:', {
-    contractId,
-    type: typeof contractId,
-    contractNumber: route.query.contract_number
-  })
-  
   if (contractId && typeof contractId === 'string') {
     filteredByContractId.value = parseInt(contractId, 10)
     filteredByContractNumber.value = (route.query.contract_number as string) || null
-    console.log('✅ Фильтр установлен:', {
-      id: filteredByContractId.value,
-      number: filteredByContractNumber.value
-    })
   } else {
     filteredByContractId.value = null
     filteredByContractNumber.value = null
-    console.log('❌ Фильтр сброшен')
   }
 }, { immediate: true })
 

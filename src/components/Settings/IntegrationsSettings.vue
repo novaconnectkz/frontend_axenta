@@ -407,6 +407,7 @@
               variant="outlined"
               hint="Токен бота, полученный от @BotFather в Telegram"
               persistent-hint
+              :loading="loadingPassword"
               class="mb-3"
             >
               <template #append-inner>
@@ -414,7 +415,8 @@
                   icon
                   variant="text"
                   size="small"
-                  @click="showToken = !showToken"
+                  @click="toggleTelegramToken"
+                  :disabled="loadingPassword"
                   class="mr-1"
                 >
                   <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
@@ -503,6 +505,7 @@
               variant="outlined"
               hint="Токен бота, полученный от @MasterBot в MAX"
               persistent-hint
+              :loading="loadingPassword"
               class="mb-3"
             >
               <template #append-inner>
@@ -510,7 +513,8 @@
                   icon
                   variant="text"
                   size="small"
-                  @click="showToken = !showToken"
+                  @click="toggleMaxToken"
+                  :disabled="loadingPassword"
                   class="mr-1"
                 >
                   <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
@@ -1025,19 +1029,113 @@ const toggleEmailPassword = async () => {
   }
 };
 
+// Метод для переключения видимости токена Telegram
+const toggleTelegramToken = async () => {
+  if (!showToken.value) {
+    // Показываем токен - загружаем реальный с сервера
+    loadingPassword.value = true;
+    try {
+      // Запрашиваем настройки с реальным токеном
+      const response = await fetch(`${config.backendUrl}/api/integrations/telegram/config?show_token=true`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('axenta_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.config && data.config.bot_token) {
+        // Обновляем токен в форме
+        editDialog.value.form.settings.bot_token = data.config.bot_token;
+        showToken.value = true;
+      } else {
+        showSnackbar('Не удалось загрузить токен', 'error');
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки токена:', error);
+      showSnackbar('Ошибка загрузки токена', 'error');
+    } finally {
+      loadingPassword.value = false;
+    }
+  } else {
+    // Скрываем токен - маскируем обратно
+    showToken.value = false;
+    // Загружаем настройки заново, чтобы вернуть замаскированный токен
+    try {
+      const config = await settingsService.getTelegramConfig();
+      if (config) {
+        editDialog.value.form.settings.bot_token = config.bot_token || '***';
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек:', error);
+    }
+  }
+};
+
+// Метод для переключения видимости токена MAX
+const toggleMaxToken = async () => {
+  if (!showToken.value) {
+    // Показываем токен - загружаем реальный с сервера
+    loadingPassword.value = true;
+    try {
+      // Запрашиваем настройки с реальным токеном
+      const response = await fetch(`${config.backendUrl}/api/integrations/max/config?show_token=true`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${localStorage.getItem('axenta_token')}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.config && data.config.bot_token) {
+        // Обновляем токен в форме
+        editDialog.value.form.settings.bot_token = data.config.bot_token;
+        showToken.value = true;
+      } else {
+        showSnackbar('Не удалось загрузить токен', 'error');
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки токена:', error);
+      showSnackbar('Ошибка загрузки токена', 'error');
+    } finally {
+      loadingPassword.value = false;
+    }
+  } else {
+    // Скрываем токен - маскируем обратно
+    showToken.value = false;
+    // Загружаем настройки заново, чтобы вернуть замаскированный токен
+    try {
+      const config = await settingsService.getMaxConfig();
+      if (config) {
+        editDialog.value.form.settings.bot_token = config.bot_token || '***';
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек:', error);
+    }
+  }
+};
+
 const loadIntegrations = async () => {
   loading.value = true;
   try {
     // Создаем список интеграций с демо данными
     const allIntegrations: IntegrationWithSettings[] = [];
     
-    // Пытаемся загрузить Axenta интеграцию
+    // Сначала получаем список всех интеграций (настроенных и доступных)
+    const integrationsList = await settingsService.getIntegrationsList();
+    const configuredMap = new Map(integrationsList.map(i => [i.type, i.configured]));
+    
+    // Пытаемся загрузить Axenta интеграцию (метод сам проверит, настроена ли она)
     let axentaIntegration = null;
     try {
-      axentaIntegration = await settingsService.getAxentaIntegrationConfig();
+      axentaIntegration = await settingsService.getAxentaIntegrationConfig(true);
     } catch (error) {
       // Игнорируем ошибки - интеграция просто не настроена
-      // Не логируем, чтобы не засорять консоль
+      console.error('Ошибка загрузки Axenta интеграции:', error);
     }
     
     // Axenta Cloud API (реальная интеграция)
@@ -1067,9 +1165,10 @@ const loadIntegrations = async () => {
       });
     }
     
-      // NovaConnect интеграция - загружаем из БД
-      try {
-        const novaConnectConfig = await settingsService.getNovaConnectConfig();
+      // NovaConnect интеграция - загружаем из БД только если настроена
+      if (configuredMap.get('novaconnect')) {
+        try {
+          const novaConnectConfig = await settingsService.getNovaConnectConfig();
         
         if (novaConnectConfig) {
           // Настройки найдены в БД
@@ -1119,11 +1218,35 @@ const loadIntegrations = async () => {
             },
           });
         }
-      } catch (error) {
-        console.error('Ошибка загрузки настроек NovaConnect из БД:', error);
-        // При ошибке сервера показываем пустую форму без использования localStorage
+        } catch (error) {
+          console.error('Ошибка загрузки настроек NovaConnect из БД:', error);
+          // При ошибке сервера показываем пустую форму без использования localStorage
+          allIntegrations.push({
+            id: 'novaconnect',
+            type: 'novaconnect',
+            name: 'NovaConnect',
+            description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
+            status: 'inactive',
+            enabled: false,
+            lastSync: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+            settings: {
+              api_url: 'https://api.novaconnect.kz/api',
+              token: '',
+              language: 'ru',
+              enabled: false,
+              webhook_url: '',
+              webhook_enabled: false,
+              sync_interval: 15,
+              auto_sync_enabled: false,
+            },
+          });
+        }
+      } else {
+        // Интеграция не настроена, добавляем заглушку
         allIntegrations.push({
-          id: 'novaconnect',
+          id: 'novaconnect-new',
           type: 'novaconnect',
           name: 'NovaConnect',
           description: 'Интеграция с API NovaConnect для управления SIM-картами, счетами и отчетами',
@@ -1193,9 +1316,9 @@ const loadIntegrations = async () => {
       },
     });
     
-    // Telegram интеграция - загружаем из БД
+    // Telegram интеграция - загружаем из БД (метод сам проверит, настроена ли она)
     try {
-      const telegramConfig = await settingsService.getTelegramConfig();
+      const telegramConfig = await settingsService.getTelegramConfig(true);
       
       if (telegramConfig) {
         // Настройки найдены в БД
@@ -1268,9 +1391,9 @@ const loadIntegrations = async () => {
       });
     }
     
-    // MAX Messenger интеграция
+    // MAX Messenger интеграция - загружаем из БД (метод сам проверит, настроена ли она)
     try {
-      const maxConfig = await settingsService.getMaxConfig();
+      const maxConfig = await settingsService.getMaxConfig(true);
       
       if (maxConfig) {
         allIntegrations.push({

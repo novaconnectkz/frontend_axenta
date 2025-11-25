@@ -806,11 +806,21 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Диалог автопилота: предложение создать подписку (только в режиме автопилота) -->
+    <AutopilotSubscriptionOfferDialog
+      v-if="isAutopilotMode"
+      v-model="showSubscriptionOffer"
+      :contract-id="autopilotContract?.id"
+      :contract-number="autopilotContract?.number"
+      @create-subscription="handleCreateSubscription"
+      @later="handleSubscriptionLater"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onActivated, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import type { 
   ContractForm,
@@ -831,9 +841,21 @@ import billingService from '@/services/billingService';
 import dadataService from '@/services/dadataService';
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
+import { useAutopilot } from '@/composables/useAutopilot';
+import AutopilotSubscriptionOfferDialog from '@/components/Billing/AutopilotSubscriptionOfferDialog.vue';
 
 const router = useRouter();
 const route = useRoute();
+
+// Автопилот (используется только если autopilot=true в query)
+const autopilot = useAutopilot();
+const { 
+  showSubscriptionOffer, 
+  currentContract: autopilotContract 
+} = autopilot;
+
+// Проверяем, запущен ли автопилот через кнопку
+const isAutopilotMode = computed(() => route.query.autopilot === 'true');
 
 // Reactive data
 const formRef = ref();
@@ -1216,9 +1238,23 @@ const saveContract = async () => {
     
     showSnackbarMessage('Договор успешно создан', 'success');
 
-    setTimeout(() => {
-      router.push('/billing');
-    }, 1500);
+    // Проверяем, запущен ли автопилот через кнопку "Запустить автопилот"
+    if (isAutopilotMode.value) {
+      console.log('🤖 Режим автопилота активен - показываем диалог создания подписки');
+      // Показываем диалог автопилота
+      autopilot.offerSubscriptionAfterContract({
+        id: createdContract.id,
+        number: createdContract.number,
+        title: createdContract.title,
+        client_name: createdContract.client_name,
+      } as any);
+    } else {
+      // Обычный режим - просто перенаправляем на страницу биллинга
+      console.log('📋 Обычный режим создания договора - редирект на /billing');
+      setTimeout(() => {
+        router.push('/billing');
+      }, 1500);
+    }
   } catch (error: any) {
     console.error('Error saving contract:', error);
     
@@ -1245,6 +1281,28 @@ const showSnackbarMessage = (text: string, color: string) => {
   snackbarText.value = text;
   snackbarColor.value = color;
   showSnackbar.value = true;
+};
+
+// Обработчики автопилота (используются только в режиме autopilot=true)
+const handleCreateSubscription = (contractId: number) => {
+  console.log('🚀 Автопилот: переход к созданию подписки для договора', contractId);
+  // Сохраняем contract_id в sessionStorage для предзаполнения мастера
+  sessionStorage.setItem('autopilot_contract_id', contractId.toString());
+  sessionStorage.setItem('autopilot_open_wizard', 'true');
+  
+  // Переходим на страницу биллинга
+  router.push({
+    path: '/billing',
+    query: {
+      tab: 'subscriptions'
+    }
+  });
+};
+
+const handleSubscriptionLater = () => {
+  console.log('⏭️ Автопилот: пропуск создания подписки');
+  // Переходим на страницу биллинга
+  router.push('/billing');
 };
 
 // Load billing settings
@@ -1844,6 +1902,20 @@ onMounted(async () => {
     loadBillingSettings(),
     loadNumerators(),
   ]);
+});
+
+// Перезагружаем настройки при возвращении на страницу
+onActivated(async () => {
+  // Перезагружаем настройки биллинга на случай, если они изменились
+  await loadBillingSettings();
+  await loadNumerators();
+});
+
+onUnmounted(() => {
+  // Сбрасываем состояние автопилота при уходе со страницы (если был в режиме автопилота)
+  if (isAutopilotMode.value) {
+    autopilot.resetAutopilot();
+  }
 });
 </script>
 

@@ -27,6 +27,10 @@ export interface Company {
   timezone: string;
   currency: string;
 
+  // Настройки налогов
+  default_tax_rate: number;
+  tax_included: boolean;
+
   // Статистика использования
   usage_stats?: CompanyUsageStats;
 }
@@ -66,6 +70,10 @@ export interface CompanyFormData {
   language: string;
   timezone: string;
   currency: string;
+
+  // Настройки налогов
+  default_tax_rate: number;
+  tax_included: boolean;
 }
 
 export interface CompanyFilters {
@@ -118,6 +126,8 @@ export const COMPANY_FORM_DEFAULTS: CompanyFormData = {
   language: "ru",
   timezone: "Europe/Moscow",
   currency: "RUB",
+  default_tax_rate: 20,
+  tax_included: false,
 };
 
 export const COMPANY_FILTERS_DEFAULTS: CompanyFilters = {

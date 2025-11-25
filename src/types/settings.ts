@@ -299,6 +299,8 @@ export interface SystemSettings {
   // Налоговые настройки
   vat_rate_preset?: "russia" | "kazakhstan" | "none" | "custom";
   vat_rate_custom?: number;
+  default_tax_rate?: number;
+  tax_included?: boolean;
 
   // Настройки резервного копирования
   backup_enabled: boolean;
@@ -388,6 +390,8 @@ export interface SystemSettingsForm {
   telegram_notifications_enabled: boolean;
   vat_rate_preset?: "russia" | "kazakhstan" | "none" | "custom";
   vat_rate_custom?: number;
+  default_tax_rate?: number;
+  tax_included?: boolean;
   backup_enabled: boolean;
   backup_schedule: string;
   backup_retention_days: number;
