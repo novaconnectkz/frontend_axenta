@@ -1276,17 +1276,23 @@
                   :rules="[v => (v !== null && v !== undefined && !isNaN(v) && v >= 0) || 'Цена должна быть положительным числом']"
                   required
                   density="compact"
+                  :suffix="companyCurrency"
                 ></v-text-field>
               </v-col>
-              <v-col cols="6" md="3">
-                <v-select
-                  v-model="editingPlan.currency"
-                  :items="currencies"
-                  label="Валюта"
+              <v-col cols="12">
+                <v-alert
+                  type="info"
+                  variant="tonal"
                   density="compact"
-                ></v-select>
+                  class="mb-2"
+                >
+                  <div class="d-flex align-center">
+                    <v-icon class="mr-2" size="small">mdi-information</v-icon>
+                    <span class="text-caption">Валюта {{ companyCurrency }} используется из настроек компании (Настройки → Компания → Валюта)</span>
+                  </div>
+                </v-alert>
               </v-col>
-              <v-col cols="6" md="9">
+              <v-col cols="12">
                 <v-select
                   v-model="editingPlan.billing_period"
                   :items="billingPeriods"
@@ -1927,6 +1933,7 @@ import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailD
 import { billingService } from '@/services/billingService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
+import { settingsService } from '@/services/settingsService'
 import type {
     BillingDashboardData,
     BillingPlan,
@@ -2003,6 +2010,20 @@ onUnmounted(() => {
   autopilot.resetAutopilot();
 })
 
+// Загрузка настроек компании для получения валюты
+const loadCompanySettings = async () => {
+  try {
+    const settings = await settingsService.getSystemSettings()
+    if (settings && settings.currency) {
+      companyCurrency.value = settings.currency
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки настроек компании:', error)
+    // Используем RUB по умолчанию
+    companyCurrency.value = 'RUB'
+  }
+}
+
 onMounted(async () => {
   // Обновляем company_id при монтировании
   currentCompanyId.value = getCurrentCompanyId()
@@ -2019,7 +2040,8 @@ onMounted(async () => {
   await Promise.all([
     loadDashboardData(), // Загружает plans и subscriptions внутри
     fetchInvoices(),
-    fetchBillingSettings() // Загружает contractNumerators внутри
+    fetchBillingSettings(), // Загружает contractNumerators внутри
+    loadCompanySettings() // Загружает валюту компании
   ])
   
   // Проверяем автопилот из sessionStorage
@@ -2190,6 +2212,9 @@ const paymentData = ref<ProcessPaymentData>({
   payment_method: 'bank_transfer',
   notes: ''
 })
+
+// Валюта из настроек компании
+const companyCurrency = ref('RUB')
 
 // Константы
 const currencies = ['RUB', 'USD', 'EUR']
@@ -2605,7 +2630,7 @@ const openPlanDialog = (plan?: BillingPlan) => {
       name: '',
       description: '',
       price: 0,
-      currency: 'RUB',
+      currency: companyCurrency.value, // Используем валюту из настроек компании
       billing_period: 'monthly',
       is_active: true
     }
