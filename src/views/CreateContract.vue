@@ -1351,13 +1351,39 @@ const loadNumerators = async () => {
   try {
     numerators.value = await contractsService.getContractNumerators(companyId);
     
+    console.log('📋 Загружено нумераторов:', numerators.value.length);
+    console.log('⚙️ Настройки биллинга:', {
+      method: billingSettings.value?.contract_numbering_method,
+      defaultNumeratorId: billingSettings.value?.contract_default_numerator_id
+    });
+    
     // Auto-select default numerator if exists and numbering method is 'numerator'
     // Генерация номера будет выполнена через watch после загрузки всех данных
     if (billingSettings.value?.contract_numbering_method === 'numerator') {
+      // Приоритет 1: используем contract_default_numerator_id из настроек
+      if (billingSettings.value.contract_default_numerator_id) {
+        const numeratorFromSettings = numerators.value.find(
+          n => n.id === billingSettings.value.contract_default_numerator_id
+        );
+        if (numeratorFromSettings) {
+          selectedNumeratorId.value = numeratorFromSettings.id;
+          console.log('🎯 Нумератор выбран из настроек:', numeratorFromSettings.name, 'ID:', numeratorFromSettings.id);
+          return; // Выходим, если нашли нумератор из настроек
+        } else {
+          console.warn('⚠️ Нумератор ID', billingSettings.value.contract_default_numerator_id, 'из настроек не найден в списке');
+        }
+      }
+      
+      // Приоритет 2: fallback на нумератор с флагом is_default
       const defaultNumerator = numerators.value.find(n => n.is_default);
       if (defaultNumerator) {
         selectedNumeratorId.value = defaultNumerator.id;
+        console.log('🎯 Нумератор выбран по флагу is_default:', defaultNumerator.name, 'ID:', defaultNumerator.id);
+      } else {
+        console.warn('⚠️ Не найден нумератор с is_default = true');
       }
+    } else {
+      console.log('ℹ️ Метод нумерации не "numerator", автовыбор пропущен');
     }
   } catch (error) {
     console.error('Error loading numerators:', error);
@@ -1897,11 +1923,10 @@ watch(() => selectedNumeratorId.value, async (newId) => {
 
 // Lifecycle
 onMounted(async () => {
-  // Удалено: обработка query параметра account_id - перенесена в подписки
-  await Promise.all([
-    loadBillingSettings(),
-    loadNumerators(),
-  ]);
+  // Сначала загружаем настройки биллинга, ПОТОМ нумераторы
+  // Это важно, т.к. loadNumerators использует billingSettings для выбора дефолтного нумератора
+  await loadBillingSettings();
+  await loadNumerators();
 });
 
 // Перезагружаем настройки при возвращении на страницу
