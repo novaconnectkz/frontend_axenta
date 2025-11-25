@@ -421,6 +421,164 @@
       </template>
     </v-snackbar>
 
+    <!-- Диалог детализации расчета стоимости -->
+    <v-dialog v-model="billingBreakdownDialog" max-width="1200px" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between pa-4">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-calculator" class="mr-3" color="primary" />
+            <div>
+              <div class="text-h6">Детализация расчета стоимости</div>
+              <div v-if="currentContractForBreakdown" class="text-caption text-grey">
+                Договор {{ currentContractForBreakdown.number }} • {{ currentContractForBreakdown.client_name }}
+              </div>
+            </div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="billingBreakdownDialog = false" />
+        </v-card-title>
+
+        <v-divider />
+
+        <v-card-text class="pa-0">
+          <!-- Загрузка -->
+          <div v-if="billingBreakdownLoading" class="text-center pa-8">
+            <v-progress-circular indeterminate color="primary" size="64" />
+            <div class="mt-4 text-grey">Загрузка данных...</div>
+          </div>
+
+          <!-- Данные -->
+          <div v-else-if="billingBreakdownData">
+            <!-- Общая информация о договоре -->
+            <v-card variant="flat" class="ma-4 mb-2" color="blue-lighten-5">
+              <v-card-text class="pa-4">
+                <v-row>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Период договора</div>
+                    <div class="text-body-1 font-weight-medium">
+                      {{ formatDate(billingBreakdownData.contract.start_date) }} - 
+                      {{ formatDate(billingBreakdownData.contract.end_date) }}
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Всего месяцев</div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ billingBreakdownData.summary.months_count }}
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Оплачено</div>
+                    <div class="text-h6 font-weight-bold text-success">
+                      {{ formatCurrency(billingBreakdownData.summary.total_paid) }}
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">К оплате</div>
+                    <div class="text-h6 font-weight-bold text-warning">
+                      {{ formatCurrency(billingBreakdownData.summary.total_future) }}
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <!-- Разбивка по месяцам -->
+            <div class="px-4 pb-4">
+              <div class="text-subtitle-1 font-weight-medium mb-3">Разбивка по месяцам</div>
+              
+              <v-expansion-panels variant="accordion" multiple>
+                <v-expansion-panel
+                  v-for="(month, index) in billingBreakdownData.monthly_charges"
+                  :key="index"
+                  :class="month.is_completed ? 'completed-month' : 'future-month'"
+                >
+                  <v-expansion-panel-title>
+                    <div class="d-flex align-center justify-space-between" style="width: 100%;">
+                      <div class="d-flex align-center">
+                        <v-icon 
+                          :icon="month.is_completed ? 'mdi-check-circle' : 'mdi-clock-outline'" 
+                          :color="month.is_completed ? 'success' : 'warning'"
+                          class="mr-3"
+                          size="small"
+                        />
+                        <div>
+                          <div class="font-weight-medium">{{ month.month_name }}</div>
+                          <div class="text-caption text-grey">
+                            {{ month.subscriptions.length }} подписок
+                          </div>
+                        </div>
+                      </div>
+                      <v-chip 
+                        :color="month.is_completed ? 'success' : 'warning'"
+                        variant="flat"
+                        size="small"
+                        class="mr-4"
+                      >
+                        {{ formatCurrency(month.total_amount) }}
+                      </v-chip>
+                    </div>
+                  </v-expansion-panel-title>
+
+                  <v-expansion-panel-text>
+                    <v-table density="compact" class="breakdown-table">
+                      <thead>
+                        <tr>
+                          <th class="text-left">Тариф</th>
+                          <th class="text-left">Период</th>
+                          <th class="text-center">Объекты</th>
+                          <th class="text-left">Расчет</th>
+                          <th class="text-right">Сумма</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(sub, subIndex) in month.subscriptions" :key="subIndex">
+                          <td>
+                            <div class="font-weight-medium">{{ sub.plan_name }}</div>
+                          </td>
+                          <td>
+                            <v-chip size="x-small" :color="sub.billing_period === 'yearly' ? 'purple' : 'blue'">
+                              {{ sub.billing_period === 'yearly' ? 'Годовой' : 'Месячный' }}
+                            </v-chip>
+                          </td>
+                          <td class="text-center">
+                            <v-chip size="x-small" variant="outlined">
+                              {{ sub.objects_count }}
+                            </v-chip>
+                          </td>
+                          <td>
+                            <span class="text-caption text-grey">
+                              {{ sub.description }}
+                            </span>
+                          </td>
+                          <td class="text-right font-weight-medium">
+                            {{ formatCurrency(sub.amount) }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </v-table>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </div>
+          </div>
+
+          <!-- Ошибка -->
+          <div v-else class="text-center pa-8">
+            <v-icon icon="mdi-alert-circle" color="error" size="64" />
+            <div class="mt-4 text-grey">Не удалось загрузить данные</div>
+          </div>
+        </v-card-text>
+
+        <v-divider />
+
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="outlined" @click="billingBreakdownDialog = false">
+            Закрыть
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </div>
 </template>
 
@@ -482,6 +640,12 @@ const snackbarColor = ref('success');
 
 // Автопилот
 const autopilotEnabled = ref(false);
+
+// Диалог детализации расчета
+const billingBreakdownDialog = ref(false);
+const billingBreakdownLoading = ref(false);
+const currentContractForBreakdown = ref<Contract | null>(null);
+const billingBreakdownData = ref<any>(null);
 
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
@@ -877,11 +1041,64 @@ const viewInvoices = (contract: Contract) => {
   // Здесь можно переключиться на вкладку "Счета" с фильтром по договору
 };
 
-const calculateCost = (contract: Contract) => {
-  const objectsCount = contract.objects?.length || 0;
-  const monthlyPrice = contract.tariff_plan?.price || 0;
-  const message = `Договор ${contract.number}: ${objectsCount} объектов × ${formatCurrency(monthlyPrice)}/мес`;
-  showSnackbarMessage(message, 'info');
+const calculateCost = async (contract: Contract) => {
+  currentContractForBreakdown.value = contract;
+  billingBreakdownDialog.value = true;
+  billingBreakdownLoading.value = true;
+  billingBreakdownData.value = null;
+
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+    
+    if (!token) {
+      throw new Error('Отсутствует токен авторизации');
+    }
+
+    let companyId = null;
+    if (companyData) {
+      try {
+        const company = JSON.parse(companyData);
+        companyId = company.id;
+      } catch (e) {
+        console.error('Ошибка парсинга данных компании:', e);
+      }
+    }
+
+    if (!companyId) {
+      throw new Error('Отсутствует ID компании');
+    }
+
+    const response = await fetch(
+      `http://localhost:8080/api/auth/billing/contracts/${contract.id}/breakdown`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'X-Tenant-ID': companyId,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Ошибка при загрузке детализации расчета');
+    }
+
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      billingBreakdownData.value = result.data;
+    } else {
+      throw new Error(result.error || 'Неизвестная ошибка');
+    }
+  } catch (error: any) {
+    console.error('Ошибка при загрузке детализации расчета:', error);
+    showSnackbarMessage(error.message || 'Ошибка при загрузке детализации расчета', 'error');
+    billingBreakdownDialog.value = false;
+  } finally {
+    billingBreakdownLoading.value = false;
+  }
 };
 
 
@@ -1838,5 +2055,60 @@ defineExpose({
     justify-content: stretch;
   }
 
+}
+
+/* Стили для диалога детализации расчета */
+.completed-month {
+  background-color: rgba(76, 175, 80, 0.05);
+}
+
+.future-month {
+  background-color: rgba(255, 152, 0, 0.05);
+}
+
+[data-theme="dark"] .completed-month {
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+[data-theme="dark"] .future-month {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.v-expansion-panel-title {
+  min-height: 64px !important;
+}
+
+.v-expansion-panel-text :deep(.v-expansion-panel-text__wrapper) {
+  padding: 16px;
+}
+
+.breakdown-table {
+  background: transparent !important;
+}
+
+.breakdown-table th {
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.6) !important;
+  padding: 12px 16px !important;
+}
+
+[data-theme="dark"] .breakdown-table th {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.breakdown-table td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="dark"] .breakdown-table td {
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.breakdown-table tbody tr:last-child td {
+  border-bottom: none !important;
 }
 </style>
