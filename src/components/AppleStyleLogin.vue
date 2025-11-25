@@ -195,6 +195,27 @@ const fieldErrors = ref<Record<string, string>>({
   password: '',
 });
 
+// Проверяем, был ли пользователь перенаправлен из-за истечения сессии
+onMounted(() => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const reason = urlParams.get('reason');
+  
+  if (reason === 'session_expired') {
+    error.value = 'Ваша сессия истекла. Пожалуйста, войдите заново.';
+    console.log('🔔 Пользователь перенаправлен на страницу входа: сессия истекла');
+    
+    // Очищаем параметр из URL для чистоты
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, document.title, newUrl);
+  }
+  
+  // Проверяем, есть ли сохраненный путь для редиректа после входа
+  const redirectPath = localStorage.getItem('redirect_after_login');
+  if (redirectPath) {
+    console.log('📍 После входа будет редирект на:', redirectPath);
+  }
+});
+
 // Валидация формы
 const isFormValid = computed(() => {
   return form.value.username.length >= 3 && form.value.password.length >= 3;
@@ -232,8 +253,16 @@ const handleLogin = async () => {
         password: form.value.password,
       });
       
-      // Перенаправляем на dashboard
-      await router.push('/dashboard');
+      // Проверяем, есть ли сохраненный путь для редиректа
+      const redirectPath = localStorage.getItem('redirect_after_login');
+      if (redirectPath) {
+        console.log('🔄 Перенаправление на сохраненный путь:', redirectPath);
+        localStorage.removeItem('redirect_after_login');
+        await router.push(redirectPath);
+      } else {
+        // Перенаправляем на dashboard
+        await router.push('/dashboard');
+      }
     } else {
       // Прямой запрос к API если auth context недоступен
       const response = await fetch(`${config.apiBaseUrl}/auth/login`, {
@@ -258,8 +287,16 @@ const handleLogin = async () => {
           localStorage.setItem('axenta_company', JSON.stringify(data.data.company));
         }
 
-        // Перенаправляем
-        window.location.href = '/dashboard';
+        // Проверяем, есть ли сохраненный путь для редиректа
+        const redirectPath = localStorage.getItem('redirect_after_login');
+        if (redirectPath) {
+          console.log('🔄 Перенаправление на сохраненный путь:', redirectPath);
+          localStorage.removeItem('redirect_after_login');
+          window.location.href = redirectPath;
+        } else {
+          // Перенаправляем
+          window.location.href = '/dashboard';
+        }
       } else {
         error.value = data.error || 'Ошибка авторизации';
       }

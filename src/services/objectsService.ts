@@ -61,12 +61,18 @@ export class ObjectsService {
         url: config.url,
         method: config.method,
         hasToken: !!token,
+        tokenLength: token ? token.length : 0,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : "ОТСУТСТВУЕТ",
         company: company ? "EXISTS" : "MISSING",
       });
 
-      if (token) {
+      if (!token) {
+        console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Токен отсутствует в localStorage!");
+        console.error("Проверьте, что пользователь авторизован");
+      } else {
         config.headers["authorization"] = `Token ${token}`;
         config.headers["Authorization"] = `Token ${token}`;
+        console.log("✅ Токен добавлен в заголовки запроса");
       }
 
       if (company) {
@@ -91,7 +97,40 @@ export class ObjectsService {
           message: error.message,
         });
 
-        // Не перенаправляем на логин при 401 - пусть fallback сработает
+        // Если получили 401, обрабатываем ошибку авторизации
+        if (error.response?.status === 401) {
+          const token = localStorage.getItem("axenta_token");
+          if (!token) {
+            console.error("❌ Ошибка 401: Токен отсутствует в localStorage");
+          } else {
+            console.error("❌ Ошибка 401: Токен присутствует, но недействителен");
+            console.error("Длина токена:", token.length);
+            console.error("Начало токена:", token.substring(0, 30));
+          }
+          
+          // Очищаем все данные авторизации
+          console.log("🧹 Очистка данных авторизации из-за ошибки 401");
+          localStorage.removeItem("axenta_token");
+          localStorage.removeItem("axenta_user");
+          localStorage.removeItem("axenta_company");
+          localStorage.removeItem("axenta_token_expiry");
+          
+          // Перенаправляем на страницу входа
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            console.log("🔄 Перенаправление на страницу входа из ObjectsService...");
+            
+            // Сохраняем текущий путь для редиректа после входа
+            const currentPath = window.location.pathname;
+            if (currentPath !== '/login' && currentPath !== '/' && currentPath !== '/dashboard') {
+              localStorage.setItem('redirect_after_login', currentPath);
+            }
+            
+            setTimeout(() => {
+              window.location.href = '/login?reason=session_expired';
+            }, 100);
+          }
+        }
+
         return Promise.reject(error);
       }
     );
@@ -759,6 +798,14 @@ export class ObjectsService {
     by_type: Record<string, number>;
     by_status: Record<string, number>;
   }> {
+    // КРИТИЧЕСКАЯ ПРОВЕРКА: Проверяем наличие токена перед любым запросом
+    const token = localStorage.getItem("axenta_token");
+    if (!token) {
+      console.error("❌ КРИТИЧЕСКАЯ ОШИБКА в getObjectsStats: Токен отсутствует!");
+      console.error("Убедитесь, что пользователь авторизован перед вызовом getObjectsStats");
+      throw new Error("Токен авторизации отсутствует. Пожалуйста, войдите в систему.");
+    }
+
     // Проверяем кеш, если не требуется принудительное обновление
     if (!forceRefresh && this.statsCache.data) {
       const now = Date.now();
@@ -781,6 +828,9 @@ export class ObjectsService {
     // Создаем новый Promise для запроса
     this.pendingStatsRequest = (async () => {
       try {
+        console.log("🚀 Выполняем запрос статистики объектов к /auth/cms/objects/stats");
+        console.log("🔐 Токен доступен, длина:", token.length);
+        
         // Пробуем аутентифицированный эндпоинт для статистики
         const response = await this.apiClient.get("/auth/cms/objects/stats");
       console.log("✅ Backend objects stats API response:", response.data);

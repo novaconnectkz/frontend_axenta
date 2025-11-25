@@ -159,10 +159,18 @@ export function useAuthProvider() {
   apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
-      if (error.response?.status === 401 && token.value) {
-        // Токен истек - выходим из системы (пользователь авторизуется заново)
-        console.log('🔄 Получен 401 Unauthorized, токен истек');
-        logout();
+      if (error.response?.status === 401) {
+        // Токен истек или недействителен - выходим из системы
+        console.error('❌ Ошибка 401 Unauthorized');
+        console.error('URL:', error.config?.url);
+        console.error('Токен в памяти:', token.value ? `EXISTS (${token.value.length} chars)` : 'ОТСУТСТВУЕТ');
+        
+        const storedToken = localStorage.getItem('axenta_token');
+        console.error('Токен в localStorage:', storedToken ? `EXISTS (${storedToken.length} chars)` : 'ОТСУТСТВУЕТ');
+        
+        // Очищаем данные и перенаправляем на логин
+        logout(true); // true = перенаправить на /login
+        
         return Promise.reject(new Error('Сессия истекла, требуется повторная авторизация'));
       }
       return Promise.reject(error);
@@ -545,7 +553,7 @@ export function useAuthProvider() {
     }
   };
 
-  const logout = () => {
+  const logout = (redirectToLogin: boolean = false) => {
     console.log("🚪 Axenta Cloud logout initiated...");
     
     user.value = null;
@@ -563,6 +571,21 @@ export function useAuthProvider() {
     localStorage.removeItem("demo_user");
     
     console.log("✅ Axenta Cloud logout completed");
+    
+    // Перенаправляем на страницу входа, если требуется
+    if (redirectToLogin && typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      console.log("🔄 Перенаправление на страницу входа...");
+      
+      // Сохраняем текущий путь для редиректа после входа
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/' && currentPath !== '/dashboard') {
+        localStorage.setItem('redirect_after_login', currentPath);
+      }
+      
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    }
   };
 
   const clearError = () => {
