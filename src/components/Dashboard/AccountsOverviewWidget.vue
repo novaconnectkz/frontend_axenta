@@ -7,6 +7,7 @@
     :dimensions="dimensions"
     :loading="loading"
     :error="error"
+    :has-data="!!data"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
@@ -154,7 +155,7 @@ export default defineComponent({
 
     const loadData = async () => {
       try {
-        // loading.value = true; // Убираем loading, чтобы не было размытия экрана
+        loading.value = true;
         error.value = null;
         const stats = await dashboardService.getStats();
         data.value = stats.accounts;
@@ -162,7 +163,7 @@ export default defineComponent({
         error.value = err.message || 'Ошибка загрузки данных учетных записей';
         console.error('Ошибка загрузки данных учетных записей:', err);
       } finally {
-        // loading.value = false; // Убираем loading состояние
+        loading.value = false;
       }
     };
 

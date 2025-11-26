@@ -7,6 +7,7 @@
     :dimensions="dimensions"
     :loading="loading"
     :error="error"
+    :has-data="!!data"
     @refresh="() => loadData(true)"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
@@ -167,7 +168,7 @@ export default defineComponent({
 
     const loadData = async (forceRefresh: boolean = false) => {
       try {
-        // loading.value = true; // Убираем loading, чтобы не было размытия экрана
+        loading.value = true;
         error.value = undefined;
         console.log('🔄 ObjectsOverviewWidget: Loading dashboard stats...', forceRefresh ? '(force refresh)' : '');
         const stats = await dashboardService.getStats(forceRefresh);
@@ -179,7 +180,7 @@ export default defineComponent({
         error.value = err.message || 'Ошибка загрузки данных объектов';
         console.error('❌ ObjectsOverviewWidget: Error loading objects data:', err);
       } finally {
-        // loading.value = false; // Убираем loading состояние
+        loading.value = false;
       }
     };
 

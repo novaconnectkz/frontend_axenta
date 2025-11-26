@@ -397,29 +397,36 @@ export const useDashboardStore = defineStore("dashboard", () => {
 
   const refreshAll = async () => {
     try {
-      // В mock режиме загружаем данные быстрее
-      if (dashboardService.isMockMode()) {
-        // Параллельно загружаем все данные без показа состояния загрузки
-        await Promise.all([
-          loadStats(),
-          loadRecentActivity(),
-          loadNotifications(),
-          loadLayouts(),
-        ]);
-      } else {
-        // В реальном режиме загружаем без loading индикации
-        // isLoading.value = true; // Убираем loading состояние
-        await Promise.all([
-          loadStats(),
-          loadRecentActivity(),
-          loadNotifications(),
-          loadLayouts(),
-        ]);
-        // isLoading.value = false; // Убираем loading состояние
-      }
+      // ✅ Приоритизированная загрузка для лучшей производительности
+      
+      // 1. КРИТИЧНО: Загружаем основную статистику первой
+      //    Это покажет основные виджеты пользователю быстрее
+      console.log('📊 Step 1: Loading critical stats...');
+      await loadStats();
+      
+      // 2. НЕКРИТИЧНО: Загружаем остальные данные параллельно
+      //    Используем allSettled чтобы одна ошибка не блокировала остальные
+      console.log('📊 Step 2: Loading non-critical data...');
+      const results = await Promise.allSettled([
+        loadRecentActivity(),
+        loadNotifications(),
+        loadLayouts(),
+      ]);
+      
+      // Логируем ошибки, но не прерываем работу
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const names = ['recentActivity', 'notifications', 'layouts'];
+          console.warn(`⚠️ Failed to load ${names[index]}:`, result.reason);
+        }
+      });
+      
+      console.log('✅ Dashboard refresh complete');
+      
     } catch (error) {
-      // isLoading.value = false; // Убираем loading состояние
-      throw error;
+      // Обрабатываем только критические ошибки (loadStats)
+      console.error('❌ Critical dashboard refresh error:', error);
+      // Не выбрасываем ошибку - даем пользователю работать с тем что есть
     }
   };
 

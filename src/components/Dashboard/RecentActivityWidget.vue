@@ -7,6 +7,7 @@
     :dimensions="dimensions"
     :loading="loading"
     :error="error"
+    :has-data="activities.length > 0"
     @refresh="loadData"
     @configure="$emit('configure')"
     @remove="$emit('remove')"
@@ -579,7 +580,7 @@ export default defineComponent({
 
     const loadData = async () => {
       try {
-        // loading.value = true; // Убираем loading, чтобы не было размытия экрана
+        loading.value = true;
         error.value = null;
         // Передаем включенные источники в запрос
         activities.value = await dashboardService.getRecentActivity(props.limit, enabledSources.value);
@@ -587,7 +588,7 @@ export default defineComponent({
         error.value = err.message || 'Ошибка загрузки активности';
         console.error('Ошибка загрузки активности:', err);
       } finally {
-        // loading.value = false; // Убираем loading состояние
+        loading.value = false;
       }
     };
 

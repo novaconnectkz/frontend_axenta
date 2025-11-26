@@ -1,5 +1,7 @@
 // import { useAuth } from "@/context/auth"; // Временно отключаем
 import { config } from "@/config/env";
+import API_TIMEOUTS from "@/config/timeouts";
+import { retryWithBackoff } from "@/utils/apiRetry";
 import type {
   ActivityItem,
   ChartData,
@@ -107,7 +109,7 @@ class DashboardService {
     const token = localStorage.getItem("axenta_token");
     return axios.create({
       baseURL: config.apiBaseUrl,
-      timeout: config.apiTimeout,
+      timeout: API_TIMEOUTS.QUICK, // Используем таймаут для быстрых операций (статистика)
       headers: {
         "Content-Type": "application/json",
         ...(token && { authorization: `Token ${token}` }),
@@ -169,92 +171,108 @@ class DashboardService {
           return result;
         }
 
-        let objectsStats;
-        let usersStats;
-        let accountsStats;
-        
-        // Получаем данные об объектах
-        if (this.useRealObjectsData) {
-          console.log("📊 Loading real objects data for dashboard...");
-          const objectsService = ObjectsService.getInstance();
-          // Используем forceRefresh чтобы получить актуальные данные
-          const realObjectsStats = await objectsService.getObjectsStats(forceRefresh);
-          console.log("📊 Real objects stats:", realObjectsStats);
-          console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
+        // ✅ Используем Promise.all с retry для параллельной загрузки данных
+        const [objectsStats, usersStats, accountsStats] = await Promise.all([
+          // Получаем данные об объектах с retry
+          this.useRealObjectsData 
+            ? retryWithBackoff(
+                async () => {
+                  console.log("📊 Loading real objects data for dashboard...");
+                  const objectsService = ObjectsService.getInstance();
+                  const realObjectsStats = await objectsService.getObjectsStats(forceRefresh);
+                  console.log("📊 Real objects stats:", realObjectsStats);
+                  console.log("🗑️ Количество удаленных объектов для дашборда:", realObjectsStats.deleted);
+                  return {
+                    total: realObjectsStats.total,
+                    active: realObjectsStats.active,
+                    inactive: realObjectsStats.inactive,
+                    scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
+                    deleted: realObjectsStats.deleted
+                  };
+                },
+                {
+                  maxRetries: 2,
+                  baseDelay: 500,
+                  onRetry: (attempt) => {
+                    console.log(`⚠️ Retry ${attempt} for objects stats`);
+                  }
+                }
+              )
+            : Promise.resolve(mockDashboardStats.objects),
           
-          objectsStats = {
-            total: realObjectsStats.total,
-            active: realObjectsStats.active,
-            inactive: realObjectsStats.inactive,
-            scheduled_for_deletion: realObjectsStats.scheduled_for_delete,
-            deleted: realObjectsStats.deleted
-          };
+          // Получаем данные о пользователях с retry
+          this.useRealUsersData
+            ? retryWithBackoff(
+                async () => {
+                  console.log("📊 Loading real users data...");
+                  const realUsersStats = await usersService.getUsersStats();
+                  console.log("📊 Real users stats:", realUsersStats);
+                  return {
+                    total: realUsersStats.total,
+                    active: realUsersStats.active,
+                    inactive: realUsersStats.inactive,
+                    admins: realUsersStats.admins,
+                    regular_users: realUsersStats.regular_users
+                  };
+                },
+                {
+                  maxRetries: 2,
+                  baseDelay: 500,
+                  onRetry: (attempt) => {
+                    console.log(`⚠️ Retry ${attempt} for users stats`);
+                  }
+                }
+              )
+            : Promise.resolve(mockDashboardStats.users),
           
-          console.log("📊 Objects stats для дашборда:", objectsStats);
-        } else {
-          objectsStats = mockDashboardStats.objects;
-        }
+          // Получаем данные об учетных записях с retry
+          this.useRealAccountsData
+            ? retryWithBackoff(
+                async () => {
+                  console.log("📊 Loading real accounts data...");
+                  const realAccountsStats = await accountsService.getAccountsStats(forceRefresh);
+                  console.log("📊 Real accounts stats:", realAccountsStats);
+                  return {
+                    total: realAccountsStats.total,
+                    active: realAccountsStats.active,
+                    blocked: realAccountsStats.blocked,
+                    clients: realAccountsStats.clients,
+                    partners: realAccountsStats.partners
+                  };
+                },
+                {
+                  maxRetries: 2,
+                  baseDelay: 500,
+                  onRetry: (attempt) => {
+                    console.log(`⚠️ Retry ${attempt} for accounts stats`);
+                  }
+                }
+              )
+            : Promise.resolve({
+                total: 0,
+                active: 0,
+                blocked: 0,
+                clients: 0,
+                partners: 0
+              })
+        ]);
         
-        // Получаем данные о пользователях
-        if (this.useRealUsersData) {
-          console.log("📊 Loading real users data...");
-          const realUsersStats = await usersService.getUsersStats();
-          console.log("📊 Real users stats:", realUsersStats);
-          
-          usersStats = {
-            total: realUsersStats.total,
-            active: realUsersStats.active,
-            inactive: realUsersStats.inactive,
-            admins: realUsersStats.admins,
-            regular_users: realUsersStats.regular_users
-          };
-        } else {
-          usersStats = mockDashboardStats.users;
-        }
-        
-        // Получаем данные об учетных записях
-        if (this.useRealAccountsData) {
-          console.log("📊 Loading real accounts data...");
-          const realAccountsStats = await accountsService.getAccountsStats(forceRefresh);
-          console.log("📊 Real accounts stats:", realAccountsStats);
-          
-          accountsStats = {
-            total: realAccountsStats.total,
-            active: realAccountsStats.active,
-            blocked: realAccountsStats.blocked,
-            clients: realAccountsStats.clients,
-            partners: realAccountsStats.partners
-          };
-        } else {
-          // Если используем mock данные
-          accountsStats = {
-            total: 0,
-            active: 0,
-            blocked: 0,
-            clients: 0,
-            partners: 0
-          };
-        }
-        
-        // Получаем данные биллинга
+        // Получаем данные биллинга с retry
         let billingStats;
         if (this.useRealBillingData) {
           console.log("📊 Loading real billing data...");
           console.log("🔧 useRealBillingData flag:", this.useRealBillingData);
-          try {
-            billingStats = await this.getRealBillingStats();
-            console.log("✅ Real billing stats loaded:", billingStats);
-          } catch (err: any) {
-            console.error("❌ Ошибка получения данных биллинга:", err);
-            console.error("Error details:", {
-              message: err.message,
-              response: err.response?.data,
-              status: err.response?.status
-            });
-            // НЕ используем fallback на mock данные - лучше показать ошибку
-            // чтобы пользователь знал, что данные не загрузились
-            throw new Error(`Не удалось загрузить данные биллинга: ${err.message || "Неизвестная ошибка"}`);
-          }
+          billingStats = await retryWithBackoff(
+            () => this.getRealBillingStats(),
+            {
+              maxRetries: 2,
+              baseDelay: 500,
+              onRetry: (attempt) => {
+                console.log(`⚠️ Retry ${attempt} for billing stats`);
+              }
+            }
+          );
+          console.log("✅ Real billing stats loaded:", billingStats);
         } else {
           console.log("⚠️ Используются mock данные биллинга (useRealBillingData = false)");
           billingStats = mockDashboardStats.billing;

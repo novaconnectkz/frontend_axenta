@@ -6,12 +6,20 @@
     <v-card
       :class="widgetClasses"
       :elevation="elevation"
-      :loading="loading"
     >
     <v-card-title v-if="showHeader" class="d-flex align-center justify-space-between">
       <div class="d-flex align-center">
         <v-icon v-if="icon" :icon="icon" class="me-2" />
         <span>{{ displayTitle }}</span>
+        <!-- Inline spinner при обновлении -->
+        <v-progress-circular
+          v-if="loading && hasData"
+          indeterminate
+          size="16"
+          width="2"
+          class="ml-2"
+          color="primary"
+        />
       </div>
       <div class="d-flex align-center">
         <!-- Дополнительные кнопки в header -->
@@ -23,7 +31,7 @@
           size="small"
           variant="text"
           @click="handleRefresh"
-          :disabled="loading"
+          :loading="loading"
         />
 
         <v-btn
@@ -55,15 +63,16 @@
         </v-btn>
       </div>
       
-      <!-- Убираем loading состояние, чтобы не было размытия -->
-      <!-- <div v-else-if="loading" class="loading-state">
+      <!-- Skeleton при первой загрузке (нет данных) -->
+      <div v-else-if="loading && !hasData" class="loading-state">
         <v-skeleton-loader
           :type="skeletonType"
           class="mx-auto"
         />
-      </div> -->
+      </div>
       
-      <div class="content">
+      <!-- Контент с плавной индикацией обновления -->
+      <div v-else :class="{ 'content-refreshing': loading && hasData }" class="content">
         <slot />
       </div>
     </v-card-text>
@@ -130,6 +139,11 @@ export default defineComponent({
     widgetId: {
       type: String,
       required: true
+    },
+    // Новый prop для определения наличия данных
+    hasData: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['refresh', 'configure', 'remove'],
@@ -139,7 +153,6 @@ export default defineComponent({
       'base-widget',
       `widget-${props.size}`,
       {
-        'widget-loading': props.loading,
         'widget-error': props.error
       }
     ]);
@@ -237,6 +250,38 @@ export default defineComponent({
   padding: 4px 0; /* Небольшие отступы для лучшего использования пространства */
 }
 
+/* Плавная индикация обновления вместо блокирующего spinner */
+.content-refreshing {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+  position: relative;
+}
+
+.content-refreshing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--v-theme-primary)),
+    transparent
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Компактный режим для содержимого виджетов */
 .widget-content :deep(.v-row) {
   margin: -4px !important; /* Уменьшаем отступы между рядами */
@@ -275,10 +320,6 @@ export default defineComponent({
 .widget-large .widget-content,
 .widget-extra-large .widget-content {
   height: 100%;
-}
-
-.widget-loading {
-  opacity: 0.7;
 }
 
 .widget-error {
