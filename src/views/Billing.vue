@@ -1668,6 +1668,92 @@
                     <strong>Период биллинга:</strong> {{ calculatedPeriod.start }} - {{ calculatedPeriod.end }}
                   </div>
                 </v-alert>
+
+                <!-- Ручной ввод суммы для hourly/daily/weekly тарифов -->
+                <v-card
+                  v-if="selectedSubscriptionIds.length > 0 && isShortPeriodTariff"
+                  variant="outlined"
+                  class="mt-3"
+                  color="warning"
+                >
+                  <v-card-text class="py-3">
+                    <div class="d-flex align-center mb-3">
+                      <v-icon icon="mdi-alert-circle" color="warning" size="small" class="mr-2"></v-icon>
+                      <span class="text-subtitle-2 font-weight-medium">Настройка суммы счета</span>
+                    </div>
+                    
+                    <v-alert
+                      type="info"
+                      variant="tonal"
+                      density="compact"
+                      class="mb-3"
+                    >
+                      <div class="text-caption">
+                        У выбранной подписки период биллинга: <strong>{{ selectedSubscriptionPlans.mainPlan?.billing_period === 'hourly' ? 'Часовой' : selectedSubscriptionPlans.mainPlan?.billing_period === 'daily' ? 'Дневной' : 'Недельный' }}</strong>.
+                        <br>
+                        Вы можете ввести сумму вручную или автоматически рассчитать на месяц.
+                      </div>
+                    </v-alert>
+
+                    <v-radio-group v-model="useAutoCalculation" density="compact" hide-details class="mb-3">
+                      <v-radio :value="false" color="primary">
+                        <template #label>
+                          <span class="text-body-2">Ввести сумму вручную</span>
+                        </template>
+                      </v-radio>
+                      <v-radio :value="true" color="primary">
+                        <template #label>
+                          <span class="text-body-2">Автоматический расчет на месяц</span>
+                        </template>
+                      </v-radio>
+                    </v-radio-group>
+
+                    <v-text-field
+                      v-if="!useAutoCalculation"
+                      v-model.number="customInvoiceAmount"
+                      label="Сумма счета"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      suffix="₽"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      required
+                    >
+                      <template #prepend-inner>
+                        <v-icon icon="mdi-currency-rub" size="small"></v-icon>
+                      </template>
+                    </v-text-field>
+
+                    <v-alert
+                      v-if="useAutoCalculation"
+                      type="success"
+                      variant="tonal"
+                      density="compact"
+                    >
+                      <div class="d-flex align-center justify-space-between">
+                        <div class="text-caption">
+                          <strong>Расчетная сумма на месяц:</strong>
+                        </div>
+                        <div class="text-h6 font-weight-bold">
+                          {{ formatPrice(calculatedMonthlyAmount, selectedSubscriptionPlans.mainPlan?.currency || 'RUB') }}
+                        </div>
+                      </div>
+                      <div class="text-caption mt-1 text-grey">
+                        <template v-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'hourly'">
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 24 часа × 30 дней
+                        </template>
+                        <template v-else-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'daily'">
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 30 дней
+                        </template>
+                        <template v-else-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'weekly'">
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 4 недели
+                        </template>
+                      </div>
+                    </v-alert>
+                  </v-card-text>
+                </v-card>
               </v-col>
             </v-row>
           </v-form>
@@ -2245,6 +2331,8 @@ const invoiceFormData = ref<GenerateInvoiceData>({
   period_start: '',
   period_end: ''
 })
+const customInvoiceAmount = ref<number | null>(null) // Ручная сумма для hourly/daily/weekly тарифов
+const useAutoCalculation = ref(false) // Автоматический расчет на месяц
 const paymentData = ref<ProcessPaymentData>({
   amount: '',
   payment_method: 'bank_transfer',
@@ -2486,6 +2574,35 @@ const selectedSubscriptionPlans = computed(() => {
     uniquePlans,
     hasDifferentPlans,
     mainPlan: uniquePlans.length > 0 ? uniquePlans[0] : null
+  }
+})
+
+// Проверка, является ли тариф hourly/daily/weekly
+const isShortPeriodTariff = computed(() => {
+  const mainPlan = selectedSubscriptionPlans.value.mainPlan
+  if (!mainPlan) return false
+  return ['hourly', 'daily', 'weekly'].includes(mainPlan.billing_period)
+})
+
+// Расчет суммы на месяц для коротких периодов
+const calculatedMonthlyAmount = computed(() => {
+  const mainPlan = selectedSubscriptionPlans.value.mainPlan
+  if (!mainPlan || !isShortPeriodTariff.value) return 0
+  
+  const price = mainPlan.price || 0
+  
+  switch (mainPlan.billing_period) {
+    case 'hourly':
+      // Часовой тариф: цена × 24 часа × 30 дней
+      return price * 24 * 30
+    case 'daily':
+      // Дневной тариф: цена × 30 дней
+      return price * 30
+    case 'weekly':
+      // Недельный тариф: цена × 4 недели
+      return price * 4
+    default:
+      return 0
   }
 })
 
@@ -3001,10 +3118,28 @@ const generateInvoice = async () => {
     ? new Date(Math.max(...endDates.map(d => d.getTime())))
     : new Date()
 
-  const periodData = {
+  const periodData: GenerateInvoiceData = {
     period_start: minStart.toISOString().split('T')[0],
     period_end: maxEnd.toISOString().split('T')[0]
   }
+  
+  // Добавляем ручную сумму для hourly/daily/weekly тарифов
+  if (isShortPeriodTariff.value) {
+    if (useAutoCalculation.value) {
+      // Автоматический расчет на месяц
+      periodData.custom_amount = calculatedMonthlyAmount.value
+      console.log('✅ Автоматический расчет на месяц:', periodData.custom_amount)
+    } else if (customInvoiceAmount.value !== null && customInvoiceAmount.value > 0) {
+      // Ручной ввод суммы
+      periodData.custom_amount = customInvoiceAmount.value
+      console.log('✅ Ручной ввод суммы:', periodData.custom_amount)
+    } else {
+      alert('Пожалуйста, укажите сумму счета или выберите автоматический расчет')
+      return
+    }
+  }
+
+  console.log('📤 Отправка данных для генерации счета:', periodData)
 
   try {
     const createdInvoice = await billingService.generateInvoice(selectedContractId.value, periodData)
@@ -3034,6 +3169,8 @@ const closeGenerateInvoiceDialog = () => {
   selectedContractId.value = null
   selectedSubscriptionIds.value = []
   contractSubscriptions.value = []
+  customInvoiceAmount.value = null
+  useAutoCalculation.value = false
   // Не сбрасываем selectedInvoiceNumeratorId чтобы сохранить выбор пользователя
 }
 

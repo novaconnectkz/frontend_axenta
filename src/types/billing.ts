@@ -3,7 +3,7 @@
  */
 
 // Базовые типы
-export type BillingPeriod = "monthly" | "yearly" | "one-time";
+export type BillingPeriod = "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "one-time";
 export type SubscriptionStatus =
   | "active"
   | "expired"
@@ -320,6 +320,7 @@ export interface UpdateBillingPlanData extends Partial<CreateBillingPlanData> {}
 export interface GenerateInvoiceData {
   period_start: string;
   period_end: string;
+  custom_amount?: number; // Ручной ввод суммы для hourly/daily/weekly тарифов
 }
 
 // Данные для обработки платежа
