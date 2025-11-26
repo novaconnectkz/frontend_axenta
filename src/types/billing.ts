@@ -209,6 +209,7 @@ export interface BillingSettings {
   contract_default_numerator_id?: number;
   bitrix24_deal_number_field?: string;
   autopilot_enabled: boolean;
+  min_days_for_full_month: number;
 }
 
 // Расчет биллинга

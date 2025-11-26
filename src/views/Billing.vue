@@ -962,6 +962,44 @@
 
               </v-row>
 
+              <!-- Дополнительная строка: Тарификация объектов -->
+              <v-row class="mt-4">
+                <v-col cols="12" md="4">
+                  <h4 class="mb-3">Тарификация объектов</h4>
+                  
+                  <v-text-field
+                    v-model.number="billingSettings.min_days_for_full_month"
+                    label="Мин. дней для полного месяца"
+                    type="number"
+                    min="1"
+                    max="31"
+                    density="compact"
+                    variant="outlined"
+                    hint="Если объект в подписке ≥ этого количества дней, списывается полный месяц"
+                    persistent-hint
+                  >
+                    <template #append-inner>
+                      <v-tooltip location="top" max-width="350">
+                        <template #activator="{ props }">
+                          <v-icon
+                            v-bind="props"
+                            color="primary"
+                            size="20"
+                          >
+                            mdi-information
+                          </v-icon>
+                        </template>
+                        <div class="text-caption pa-2">
+                          <strong>Пример:</strong> при значении 5 дней:<br>
+                          • Объект в системе 7 дней → полная стоимость месяца<br>
+                          • Объект в системе 3 дня → пропорционально (3/30)
+                        </div>
+                      </v-tooltip>
+                    </template>
+                  </v-text-field>
+                </v-col>
+              </v-row>
+
             <!-- Индикатор автосохранения -->
             <v-divider class="my-4"></v-divider>
             <div class="d-flex align-center justify-end ga-2">
@@ -2581,6 +2619,11 @@ const fetchBillingSettings = async () => {
     // Инициализируем состояние автопилота
     autopilotEnabled.value = billingSettings.value?.autopilot_enabled || false
     
+    // Устанавливаем значение по умолчанию для min_days_for_full_month, если оно не задано
+    if (billingSettings.value && (!billingSettings.value.min_days_for_full_month || billingSettings.value.min_days_for_full_month === 0)) {
+      billingSettings.value.min_days_for_full_month = 5
+    }
+    
     // Если способ нумерации = 'bitrix24' (отключен), сбрасываем на 'manual'
     if (billingSettings.value?.contract_numbering_method === 'bitrix24') {
       billingSettings.value.contract_numbering_method = 'manual'
@@ -3121,6 +3164,61 @@ watch(() => billingSettings.value?.contract_numbering_method, (newValue, oldValu
     saveSettings()
   }, 500)
 })
+
+// Автосохранение для минимального количества дней для полного месяца
+watch(() => billingSettings.value?.min_days_for_full_month, (newValue, oldValue) => {
+  if (!billingSettings.value || !currentCompanyId.value) return
+  
+  // Пропускаем сохранение при первоначальной загрузке
+  if (oldValue === undefined) {
+    return
+  }
+  
+  console.log(`📝 Изменен min_days_for_full_month: ${oldValue} → ${newValue}`);
+  
+  // Отменяем предыдущий таймер, если есть
+  if (saveSettingsTimeout) {
+    clearTimeout(saveSettingsTimeout)
+  }
+  
+  // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
+  saveSettingsTimeout = setTimeout(() => {
+    console.log('⏰ Таймер сработал, вызываем saveSettings()');
+    saveSettings()
+  }, 500)
+})
+
+// Универсальное автосохранение для всех остальных полей настроек биллинга
+watch(
+  () => billingSettings.value,
+  (newValue, oldValue) => {
+    if (!billingSettings.value || !currentCompanyId.value) return
+    
+    // Пропускаем сохранение при первоначальной загрузке
+    if (!oldValue || !initialSettingsSnapshot.value) {
+      return
+    }
+    
+    // Проверяем, что изменения есть (dirty check)
+    if (!settingsDirty.value) {
+      return
+    }
+    
+    console.log('📝 Изменены настройки биллинга');
+    
+    // Отменяем предыдущий таймер, если есть
+    if (saveSettingsTimeout) {
+      clearTimeout(saveSettingsTimeout)
+    }
+    
+    // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
+    saveSettingsTimeout = setTimeout(() => {
+      console.log('⏰ Таймер сработал, вызываем saveSettings()');
+      saveSettings()
+    }, 500)
+  },
+  { deep: true }
+)
 
 // Удалено: watch на loadingSettings больше не нужен, так как используем отслеживание конкретного поля
 
