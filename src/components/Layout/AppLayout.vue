@@ -373,6 +373,7 @@ import { getVersionString } from '@/utils/buildInfo';
 import UserAvatar from '@/components/Common/UserAvatar.vue';
 import HelpDialog from '@/components/Common/HelpDialog.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
+import { accountsService } from '@/services/accountsService';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -583,9 +584,31 @@ const goToMonitoring = () => {
   window.open('https://axenta.glonass-saratov.ru', '_blank');
 };
 
-const goToCMS = () => {
-  // Переход к CMS (текущее приложение)
-  router.push('/dashboard');
+const goToCMS = async () => {
+  try {
+    // Получаем ID текущего пользователя
+    const userId = auth.user.value?.id;
+    
+    if (!userId) {
+      showSnackbar('Не удалось определить ID пользователя', 'error');
+      return;
+    }
+
+    console.log('🔗 Вход в CMS для текущего пользователя:', userId);
+    
+    // Используем метод loginAs из accountsService
+    const result = await accountsService.loginAs(userId, 'cms');
+    
+    console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+    
+    // Открываем новую вкладку с URL для входа
+    window.open(result.redirectUrl, '_blank');
+    
+  } catch (error: any) {
+    console.error('❌ Ошибка входа в CMS:', error);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    showSnackbar(`Ошибка входа в CMS: ${errorMessage}`, 'error');
+  }
 };
 
 
