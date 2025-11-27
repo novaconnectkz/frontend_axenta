@@ -214,33 +214,13 @@
             </div>
           </template>
           <template v-else>
-            <!-- Тариф из договора (fallback) -->
-            <v-tooltip location="top">
-              <template #activator="{ props }">
-                <div v-bind="props" style="cursor: help;">
-                  <v-chip size="small" color="grey" variant="tonal">
-                    {{ item.tariff_plan?.name || 'Не указан' }}
-                  </v-chip>
-                  <div class="text-caption" v-if="item.tariff_plan?.price">
-                    {{ formatCurrency(item.tariff_plan?.price || 0) }}/мес
-                  </div>
-                </div>
-              </template>
-              <template #default>
-                <div class="tariff-tooltip">
-                  <div class="tariff-tooltip-title">Информация о тарифе:</div>
-                  <div class="tariff-tooltip-content">
-                    <div v-if="item.tariff_plan">
-                      <strong>{{ item.tariff_plan.name }}</strong>
-                      <div class="mt-1">Стоимость: {{ formatCurrency(item.tariff_plan.price) }}/мес</div>
-                    </div>
-                    <div v-else>
-                      Тарифный план не установлен. Он будет установлен при создании подписки.
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </v-tooltip>
+            <!-- Нет активных подписок - не показываем тариф -->
+            <v-chip size="small" color="grey" variant="tonal">
+              Не указан
+            </v-chip>
+            <div class="text-caption text-grey">
+              Нет подписок
+            </div>
           </template>
         </template>
 
@@ -249,8 +229,17 @@
           <v-tooltip location="top">
             <template #activator="{ props }">
               <div v-bind="props" style="cursor: help;">
+                <!-- Если нет активных подписок, не показываем период -->
+                <div v-if="contractTariffsMap.get(item.id)?.count === 0 || !contractTariffsMap.get(item.id)">
+                  <v-chip size="small" color="grey" variant="tonal">
+                    Не указан
+                  </v-chip>
+                  <div class="text-caption text-grey">
+                    Нет подписок
+                  </div>
+                </div>
                 <!-- Если период не установлен, показываем чип -->
-                <div v-if="!item.start_date && !item.end_date">
+                <div v-else-if="!item.start_date && !item.end_date">
                   <v-chip size="small" color="info" variant="tonal">
                     Не указан
                   </v-chip>
@@ -708,26 +697,24 @@ const filteredContracts = computed(() => {
 const calculateContractAmount = (contract: Contract): number => {
   // Если у договора уже есть заполненная стоимость (не 0), используем её
   const existingAmount = parseFloat(contract.total_amount || '0');
+  const objectsCount = contract.objects?.length || 0;
+  
   if (existingAmount > 0) {
     return existingAmount;
   }
 
-  // Рассчитываем стоимость на основе тарифного плана и объектов
+  // Если объектов нет, возвращаем 0 (независимо от наличия тарифного плана)
+  if (objectsCount === 0) {
+    return 0;
+  }
+
+  // Рассчитываем стоимость на основе тарифного плана и количества объектов
   if (!contract.tariff_plan || !contract.tariff_plan.price) {
     return 0;
   }
 
   const tariffPrice = contract.tariff_plan.price;
-  const objectsCount = contract.objects?.length || 0;
-
-  // Если есть объекты, рассчитываем стоимость: цена тарифа * количество объектов
-  // Если объектов нет, используем базовую цену тарифа
-  if (objectsCount > 0) {
-    return tariffPrice * objectsCount;
-  } else {
-    // Если объектов нет, но есть тариф, используем базовую цену тарифа
-    return tariffPrice;
-  }
+  return tariffPrice * objectsCount;
 };
 
 // Карта тарифов для каждого договора (из подписок)
@@ -1315,6 +1302,7 @@ const getPeriodTooltipText = (contract: Contract): string => {
 // Загрузка реальных договоров
 const loadSubscriptions = async () => {
   try {
+    console.log('🔄 ContractsTab: Загружаем подписки...');
     const companyData = localStorage.getItem('axenta_company');
     if (!companyData) {
       console.warn('⚠️ No company data found in localStorage');
@@ -1327,6 +1315,7 @@ const loadSubscriptions = async () => {
     const billingService = (await import('@/services/billingService')).default;
     const subscriptions = await billingService.getSubscriptions(companyId);
     contractSubscriptions.value = subscriptions || [];
+    console.log(`✅ ContractsTab: Загружено ${subscriptions?.length || 0} подписок`);
     
     // Логируем группировку по договорам для отладки
     const byContract = contractSubscriptions.value.reduce((acc, sub) => {
@@ -1357,6 +1346,7 @@ const loadSubscriptions = async () => {
 };
 
 const loadContracts = async () => {
+  console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
   loading.value = true;
   try {
     const contractsService = (await import('@/services/contractsService')).default;
@@ -1369,6 +1359,19 @@ const loadContracts = async () => {
       limit: 100,
     });
     contracts.value = response.contracts || [];
+    console.log(`✅ ContractsTab: Загружено ${contracts.value.length} договоров`);
+    
+    // Логируем данные первого договора для отладки
+    if (contracts.value.length > 0) {
+      const firstContract = contracts.value[0];
+      console.log('📋 Первый договор:', {
+        id: firstContract.id,
+        number: firstContract.number,
+        total_amount: firstContract.total_amount,
+        objects_count: firstContract.objects?.length || 0,
+        objects: firstContract.objects
+      });
+    }
     
     // Загружаем подписки для определения тарифов
     await loadSubscriptions();

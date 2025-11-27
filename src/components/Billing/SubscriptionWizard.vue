@@ -1002,12 +1002,12 @@ const canProceed = computed(() => {
   switch (currentStep.value) {
     case 1:
       // Проверяем, что договор выбран и есть доступ к тарифам
-      const canProceedStep1 = !!(form.value.contract_id && hasTariffAccess.value)
-      return canProceedStep1
+      return !!(form.value.contract_id && hasTariffAccess.value)
     case 2:
       return !!(form.value.billing_plan_id && form.value.billing_plan_id > 0)
     case 3:
-      return true // Учетная запись не обязательна
+      // Требуем учетную запись и хотя бы один выбранный объект
+      return !!(form.value.account_id && selectedObjects.value?.length > 0)
     case 4:
       // Блокируем переход на шаг 5, если есть конфликт подписок
       return !!form.value.start_date && !conflictingSubscriptionError.value

@@ -192,7 +192,10 @@ class BillingService {
     try {
       const response: AxiosResponse<SubscriptionsResponse> =
         await this.apiClient.get("/auth/billing/subscriptions", {
-          params: { company_id: companyId }
+          params: { 
+            company_id: companyId,
+            _t: Date.now() // Предотвращаем кеширование
+          }
         });
       return response.data.data || [];
     } catch (error) {

@@ -2899,6 +2899,7 @@ const openSubscriptionDialog = (subscription?: Subscription) => {
 
 const onSubscriptionCreated = async (subscription: Subscription) => {
   await fetchSubscriptions()
+  await fetchInvoices() // Обновляем счета после создания подписки
   await loadDashboardData()
   
   // Обновляем список договоров, так как подписка обновляет информацию в договоре
@@ -2958,7 +2959,14 @@ const saveSubscription = async () => {
       await billingService.createSubscription(editingSubscription.value as CreateSubscriptionData)
     }
     await fetchSubscriptions()
+    await fetchInvoices() // Обновляем счета после изменения подписки
     await loadDashboardData()
+    
+    // Обновляем список договоров, так как подписка обновляет информацию в договоре
+    if (contractsTabRef.value?.loadContracts) {
+      await contractsTabRef.value.loadContracts()
+    }
+    
     closeSubscriptionDialog()
   } catch (error) {
     console.error('Ошибка при сохранении подписки:', error)
@@ -2973,7 +2981,13 @@ const cancelSubscription = async (subscription: Subscription) => {
   try {
     await billingService.updateSubscription(subscription.id!, { status: 'cancelled' })
     await fetchSubscriptions()
+    await fetchInvoices() // Обновляем счета после отмены подписки
     await loadDashboardData()
+    
+    // Обновляем список договоров, так как отмена подписки влияет на объекты
+    if (contractsTabRef.value?.loadContracts) {
+      await contractsTabRef.value.loadContracts()
+    }
   } catch (error) {
     console.error('Ошибка при отмене подписки:', error)
   }
@@ -2983,11 +2997,27 @@ const deleteSubscription = async (subscription: Subscription) => {
   if (!confirm(`Вы уверены, что хотите удалить подписку? Это действие нельзя отменить.`)) return
 
   try {
-    console.log('🗑️ Удаление подписки:', subscription.id)
+    console.log('🗑️ Billing.vue: Удаление подписки:', subscription.id)
     await billingService.deleteSubscription(subscription.id!)
-    console.log('✅ Подписка удалена')
+    console.log('✅ Billing.vue: Подписка удалена, обновляем данные...')
+    
     await fetchSubscriptions()
+    console.log('✅ Billing.vue: Подписки обновлены')
+    
+    await fetchInvoices() // Обновляем счета после удаления подписки
+    console.log('✅ Billing.vue: Счета обновлены')
+    
     await loadDashboardData()
+    console.log('✅ Billing.vue: Dashboard обновлен')
+    
+    // Обновляем список договоров, так как удаление подписки отвязывает объекты
+    if (contractsTabRef.value?.loadContracts) {
+      console.log('🔄 Billing.vue: Обновляем ContractsTab...')
+      await contractsTabRef.value.loadContracts()
+      console.log('✅ Billing.vue: ContractsTab обновлен')
+    } else {
+      console.warn('⚠️ Billing.vue: contractsTabRef не доступен')
+    }
   } catch (error: any) {
     console.error('❌ Ошибка при удалении подписки:', error)
     const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении подписки'
