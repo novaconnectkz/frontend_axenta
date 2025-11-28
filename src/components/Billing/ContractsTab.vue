@@ -1733,7 +1733,6 @@ defineExpose({
   color: rgb(var(--v-theme-on-surface));
   line-height: 1.4;
   text-align: center;
-  max-width: 250px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

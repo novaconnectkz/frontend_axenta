@@ -74,7 +74,8 @@
                 
                 <v-autocomplete
                   v-model="form.contract_id"
-                  :items="contractOptions"
+                  v-model:search="contractSearchQuery"
+                  :items="filteredContractOptions"
                   item-title="title"
                   item-value="id"
                   label="Договор"
@@ -83,13 +84,10 @@
                   :error="!!errors.contract_id"
                   :error-messages="errors.contract_id"
                   placeholder="Начните вводить номер договора, название или клиента..."
-                  :search="contractSearchQuery"
-                  @update:search="handleContractSearch"
                   @update:model-value="onContractSelected"
                   no-data-text="Договоры не найдены"
                   loading-text="Загрузка договоров..."
                   :menu-props="{ maxHeight: 400 }"
-                  :custom-filter="contractFilter"
                 >
                   <template v-slot:item="{ props, item }">
                     <v-list-item v-bind="props" :title="item.raw.title" :subtitle="getStatusLabel(item.raw.status)">
@@ -974,6 +972,20 @@ const contractOptions = computed(() => {
   })
 })
 
+// Фильтрованный список договоров на основе поискового запроса
+const filteredContractOptions = computed(() => {
+  if (!contractSearchQuery.value || !contractSearchQuery.value.trim()) {
+    return contractOptions.value
+  }
+  
+  const query = contractSearchQuery.value.toLowerCase().trim()
+  
+  return contractOptions.value.filter(contract => {
+    // Поиск по searchText, который содержит номер, название, клиента и статус
+    return contract.searchText.includes(query)
+  })
+})
+
 const selectedContract = computed(() => {
   if (!form.value.contract_id) return null
   return contracts.value.find(c => c.id === form.value.contract_id)
@@ -1665,33 +1677,6 @@ const loadAccountObjects = async (accountId: number) => {
 }
 
 // Обработчик поиска договоров
-const handleContractSearch = (query: string) => {
-  contractSearchQuery.value = query
-}
-
-// Фильтр для поиска договоров (поиск по любым совпадениям: цифры, символы, буквы, целиком или частично)
-const contractFilter = (item: any, queryText: string, itemText: string) => {
-  if (!queryText || !queryText.trim()) return true
-  
-  // Проверяем, что item.raw существует
-  if (!item || !item.raw) return false
-  
-  const query = queryText.toLowerCase().trim()
-  
-  // Формируем searchText из всех доступных полей договора
-  const number = (item.raw.number || '').toLowerCase()
-  const title = (item.raw.title || '').toLowerCase()
-  const clientName = (item.raw.client_short_name || item.raw.client_name || '').toLowerCase()
-  const status = (item.raw.status || '').toLowerCase()
-  
-  // Объединяем все поля в одну строку для поиска
-  const searchText = `${number} ${title} ${clientName} ${status}`.trim()
-  
-  // Поиск по всем полям: номер, название, клиент, статус
-  // Поддерживает частичные совпадения (цифры, символы, буквы)
-  return searchText.includes(query)
-}
-
 // Обработчик поиска учетных записей
 const handleAccountSearch = (query: string) => {
   // accountSearchQuery уже обновлен через v-model:search, не нужно дублировать
