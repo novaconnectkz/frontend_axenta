@@ -271,7 +271,7 @@
 
         <!-- Стоимость -->
         <template #item.total_amount="{ item }">
-          <div class="text-right">
+          <div class="text-center">
             <div class="amount-value">
               {{ formatCurrency(calculateContractAmount(item), item.currency) }}
             </div>
@@ -614,15 +614,15 @@ const billingBreakdownData = ref<any>(null);
 
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px' },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px' },
-  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px' },
-  { title: 'Клиент', key: 'title', sortable: true, width: 'auto', minWidth: '150px' },
-  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px' },
-  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px' },
-  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'end' },
-  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'end' },
+  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px', align: 'center' },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px', align: 'center' },
+  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px', align: 'center' },
+  { title: 'Клиент', key: 'title', sortable: true, width: 'auto', minWidth: '150px', align: 'center' },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px', align: 'center' },
+  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px', align: 'center' },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'center' },
+  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px', align: 'center' },
+  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' },
 ];
 
 // Опции для фильтров
@@ -1671,18 +1671,19 @@ defineExpose({
   font-weight: 600;
   font-size: 0.8125rem;
   padding: 12px 16px !important;
+  text-align: center !important;
 }
 
 .contracts-table :deep(td) {
   padding: 8px 16px !important;
   vertical-align: middle;
+  text-align: center !important;
 }
 
 /* Оптимизация колонок для лучшего отображения */
 .contracts-table :deep(th:first-child),
 .contracts-table :deep(td:first-child) {
   padding-left: 16px !important;
-  text-align: center;
 }
 
 .contracts-table :deep(th:last-child),
@@ -1731,6 +1732,7 @@ defineExpose({
   font-weight: 500;
   color: rgb(var(--v-theme-on-surface));
   line-height: 1.4;
+  text-align: center;
   max-width: 250px;
   white-space: nowrap;
   overflow: hidden;
@@ -1749,6 +1751,7 @@ defineExpose({
   font-weight: 500;
   color: rgba(0, 0, 0, 0.7);
   white-space: nowrap;
+  text-align: center;
 }
 
 .amount-value {
@@ -1761,7 +1764,7 @@ defineExpose({
 .actions-cell {
   display: flex;
   gap: 2px;
-  justify-content: flex-end;
+  justify-content: center;
   align-items: center;
 }
 

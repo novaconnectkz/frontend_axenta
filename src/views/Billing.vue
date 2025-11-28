@@ -452,16 +452,21 @@
       <!-- Подписки -->
       <v-window-item value="subscriptions">
         <v-card>
-          <v-card-title>
+          <v-card-title class="d-flex align-center">
             <span>Подписки</span>
             <v-spacer></v-spacer>
-            <v-btn 
-              color="primary" 
-              @click="openSubscriptionWizard()"
-              prepend-icon="mdi-wizard-hat"
-            >
-              Создать подписку
-            </v-btn>
+            <v-tooltip location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-plus"
+                  color="primary"
+                  variant="flat"
+                  @click="openSubscriptionWizard()"
+                />
+              </template>
+              <span>Создать подписку</span>
+            </v-tooltip>
           </v-card-title>
           
           <v-card-text>
@@ -634,16 +639,21 @@
       <!-- Счета -->
       <v-window-item value="invoices">
         <v-card>
-          <v-card-title>
+          <v-card-title class="d-flex align-center">
             <span>Счета</span>
             <v-spacer></v-spacer>
-            <v-btn 
-              color="primary" 
-              @click="openGenerateInvoiceDialog"
-              prepend-icon="mdi-plus"
-            >
-              Сгенерировать счет
-            </v-btn>
+            <v-tooltip location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-plus"
+                  color="primary"
+                  variant="flat"
+                  @click="openGenerateInvoiceDialog"
+                />
+              </template>
+              <span>Сгенерировать счет</span>
+            </v-tooltip>
           </v-card-title>
           
           <v-card-text>
