@@ -322,44 +322,6 @@
         <!-- Действия -->
         <template #item.actions="{ item }">
           <div class="actions-cell">
-            <v-tooltip text="Просмотр">
-              <template #activator="{ props }">
-                <v-btn 
-                  v-bind="props"
-                  icon="mdi-eye" 
-                  size="small" 
-                  variant="text" 
-                  @click="viewContract(item)"
-                />
-              </template>
-            </v-tooltip>
-            
-            <v-tooltip text="Редактировать">
-              <template #activator="{ props }">
-                <v-btn 
-                  v-bind="props"
-                  icon="mdi-pencil" 
-                  size="small" 
-                  variant="text" 
-                  color="primary"
-                  @click="editContract(item)"
-                />
-              </template>
-            </v-tooltip>
-            
-            <v-tooltip text="Счета по договору">
-              <template #activator="{ props }">
-                <v-btn 
-                  v-bind="props"
-                  icon="mdi-file-document" 
-                  size="small" 
-                  variant="text" 
-                  color="primary"
-                  @click="viewInvoices(item)"
-                />
-              </template>
-            </v-tooltip>
-            
             <v-tooltip text="Рассчитать стоимость">
               <template #activator="{ props }">
                 <v-btn 
@@ -372,18 +334,31 @@
               </template>
             </v-tooltip>
             
-            <v-tooltip text="Удалить">
+            <v-menu location="bottom end">
               <template #activator="{ props }">
-                <v-btn 
+                <v-btn
                   v-bind="props"
-                  icon="mdi-delete" 
-                  size="small" 
-                  variant="text" 
-                  color="error"
-                  @click="deleteContract(item)"
+                  icon="mdi-dots-vertical"
+                  size="small"
+                  variant="text"
                 />
               </template>
-            </v-tooltip>
+              <v-list density="compact">
+                <v-list-item @click="editContract(item)">
+                  <template #prepend>
+                    <v-icon icon="mdi-pencil" size="small" />
+                  </template>
+                  <v-list-item-title>Редактировать</v-list-item-title>
+                </v-list-item>
+                
+                <v-list-item @click="deleteContract(item)">
+                  <template #prepend>
+                    <v-icon icon="mdi-delete" size="small" color="error" />
+                  </template>
+                  <v-list-item-title class="text-error">Удалить</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-menu>
           </div>
         </template>
       </v-data-table>
