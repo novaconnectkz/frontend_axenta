@@ -1030,6 +1030,25 @@ const viewInvoices = (contract: Contract) => {
 };
 
 const calculateCost = async (contract: Contract) => {
+  try {
+    // Проверяем наличие приложений к договору
+    const contractsService = (await import('@/services/contractsService')).default;
+    const appendices = await contractsService.getContractAppendices(contract.id);
+    
+    // Если приложений нет, показываем информационное сообщение
+    if (!appendices || appendices.length === 0) {
+      showSnackbarMessage(
+        'У договора еще нет приложений. Добавьте приложения к договору для расчета стоимости.',
+        'info'
+      );
+      return;
+    }
+  } catch (error: any) {
+    console.error('Ошибка при проверке приложений:', error);
+    showSnackbarMessage('Ошибка при проверке приложений к договору', 'error');
+    return;
+  }
+
   currentContractForBreakdown.value = contract;
   billingBreakdownDialog.value = true;
   billingBreakdownLoading.value = true;

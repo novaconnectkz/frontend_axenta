@@ -609,6 +609,24 @@ const openObjectsDialog = (contract: ContractWithRelations) => {
 
 const calculateCost = async (contract: ContractWithRelations) => {
   try {
+    // Проверяем наличие приложений к договору
+    let appendices = contract.appendices;
+    
+    // Если приложения не загружены, загружаем их
+    if (!appendices) {
+      appendices = await contractsService.getContractAppendices(contract.id);
+    }
+    
+    // Если приложений нет, показываем информационное сообщение
+    if (!appendices || appendices.length === 0) {
+      showSnackbarMessage(
+        'У договора еще нет приложений. Добавьте приложения к договору для расчета стоимости.',
+        'info'
+      );
+      return;
+    }
+    
+    // Продолжаем с расчетом стоимости
     const calculation = await contractsService.calculateContractCost(contract.id);
     const message = `
       Расчет стоимости договора ${contract.number}:
