@@ -173,6 +173,11 @@
               <AuditLogs />
             </div>
 
+            <!-- Корзина -->
+            <div v-if="activeTab === 'trash'">
+              <Trash />
+            </div>
+
             <!-- Документация -->
             <div v-if="activeTab === 'documentation'">
               <div class="documentation-section">
@@ -321,6 +326,7 @@ import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
 import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
+import Trash from '@/components/Settings/Trash.vue';
 
 // Импорт компонентов документации
 import ApiDocumentationTab from '@/components/Documentation/ApiDocumentationTab.vue';
@@ -342,6 +348,9 @@ import type {
     SystemHealth,
     UserDocumentation
 } from '@/types/documentation';
+
+// Импорт сервиса корзины
+import { trashService } from '@/services/trashService';
 
 // Ключ для сохранения порядка вкладок в localStorage
 const TABS_ORDER_KEY = 'axenta_settings_tabs_order';
@@ -390,6 +399,9 @@ const stats = ref({
     apiEndpoints: { total: 0, documented: 0 },
     userDocs: { total: 0, published: 0 },
     deployments: { total: 0, successful: 0 }
+  },
+  trash: {
+    canBeRestored: 0
   }
 });
 
@@ -492,6 +504,14 @@ const defaultTabs = [
     icon: 'mdi-file-document-outline',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
+  },
+  {
+    value: 'trash',
+    title: 'Корзина',
+    subtitle: 'Удаленные элементы',
+    icon: 'mdi-delete',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
   }
 ];
 
@@ -516,6 +536,10 @@ const tabs = computed(() => {
         break;
       case 'documentation':
         updatedTab.badge = stats.value.documentation.apiEndpoints.documented + stats.value.documentation.userDocs.published;
+        break;
+      case 'trash':
+        updatedTab.badge = stats.value.trash.canBeRestored > 0 ? stats.value.trash.canBeRestored : undefined;
+        updatedTab.badgeColor = stats.value.trash.canBeRestored > 0 ? 'warning' : 'primary';
         break;
     }
     
@@ -665,10 +689,11 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
 const loadStats = async () => {
   try {
     // Загружаем статистику для бейджей с таймаутом
-    const [integrations, notifications, templates] = await Promise.all([
+    const [integrations, notifications, templates, trashStats] = await Promise.all([
       withTimeout(settingsService.getIntegrations(), 3000),
       withTimeout(settingsService.getNotificationChannels(), 3000),
-      withTimeout(settingsService.getTemplates(), 3000)
+      withTimeout(settingsService.getTemplates(), 3000),
+      withTimeout(trashService.getTrashStats(), 3000).catch(() => ({ can_be_restored: 0 }))
     ]);
     
     stats.value = {
@@ -690,6 +715,9 @@ const loadStats = async () => {
         apiEndpoints: documentationStats.value.apiEndpoints,
         userDocs: documentationStats.value.userDocs,
         deployments: documentationStats.value.deployments
+      },
+      trash: {
+        canBeRestored: trashStats.can_be_restored || 0
       }
     };
   } catch (error) {
@@ -705,6 +733,9 @@ const loadStats = async () => {
         apiEndpoints: { total: 0, documented: 0 },
         userDocs: { total: 0, published: 0 },
         deployments: { total: 0, successful: 0 }
+      },
+      trash: {
+        canBeRestored: 0
       }
     };
   }

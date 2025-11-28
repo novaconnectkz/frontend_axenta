@@ -174,6 +174,25 @@ export type {
 // Типы dashboard (включает WarehouseStats)
 export type { WarehouseStats } from "@/types/dashboard";
 
+// Типы корзины
+export type {
+  DeletedItem,
+  EntityType,
+  PermanentlyDeleteResponse,
+  RestoreItemRequest,
+  RestoreItemResponse,
+  TrashFilter,
+  TrashListResponse,
+  TrashStats,
+  TrashStatsResponse,
+} from "@/types/trash";
+
+export {
+  EntityTypeColors,
+  EntityTypeIcons,
+  EntityTypeLabels,
+} from "@/types/trash";
+
 // Типы настроек и интеграций
 export {
   CURRENCY_OPTIONS,
