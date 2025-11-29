@@ -1258,6 +1258,7 @@ const createTestSnapshot = async () => {
   } catch (error: any) {
     console.error('Ошибка создания тестового снимка:', error);
     showSnackbarMessage(error.message || 'Ошибка создания снимка', 'error');
+  } finally {
     partnerStatsLoading.value = false;
   }
 };
