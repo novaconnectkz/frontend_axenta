@@ -1224,7 +1224,7 @@ const createTestSnapshot = async () => {
     const tenantId = company.id;
 
     const response = await fetch(
-      'http://localhost:8080/api/auth/contracts/partner-snapshots/create',
+      `${config.apiBaseUrl}/auth/contracts/partner-snapshots/create`,
       {
         method: 'POST',
         headers: {
@@ -1291,7 +1291,7 @@ const showPartnerStatistics = async (contract: Contract) => {
 
     // Запрашиваем снимки партнерского договора
     const response = await fetch(
-      `http://localhost:8080/api/auth/contracts/${contract.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+      `${config.apiBaseUrl}/auth/contracts/${contract.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
       {
         method: 'GET',
         headers: {
