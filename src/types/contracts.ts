@@ -76,6 +76,33 @@ export const NOTIFICATION_PERIOD_OPTIONS = [
   { value: 90, title: "90 дней" },
 ] as const;
 
+// Типы договоров
+export const CONTRACT_TYPES = {
+  CLIENT: "client",
+  PARTNER: "partner",
+} as const;
+
+export type ContractType =
+  (typeof CONTRACT_TYPES)[keyof typeof CONTRACT_TYPES];
+
+// Лейблы типов договоров
+export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
+  [CONTRACT_TYPES.CLIENT]: "Клиентский",
+  [CONTRACT_TYPES.PARTNER]: "Партнерский",
+};
+
+// Цвета типов договоров
+export const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
+  [CONTRACT_TYPES.CLIENT]: "primary",
+  [CONTRACT_TYPES.PARTNER]: "purple",
+};
+
+// Опции типов договоров
+export const CONTRACT_TYPE_OPTIONS = [
+  { value: CONTRACT_TYPES.CLIENT, title: CONTRACT_TYPE_LABELS[CONTRACT_TYPES.CLIENT] },
+  { value: CONTRACT_TYPES.PARTNER, title: CONTRACT_TYPE_LABELS[CONTRACT_TYPES.PARTNER] },
+] as const;
+
 // Типы клиентов
 export const CLIENT_TYPES = {
   ORGANIZATION: "organization",
@@ -168,6 +195,8 @@ export interface ContractForm {
   number: string;
   title: string;
   description?: string;
+  contract_type?: ContractType; // Тип договора: клиентский или партнерский
+  partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера
   client_type?: ClientType; // Тип клиента: организация, ИП, физическое лицо
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)

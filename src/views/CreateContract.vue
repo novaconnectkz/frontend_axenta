@@ -153,6 +153,127 @@
                 />
               </v-col>
             </v-row>
+
+            <!-- Тип договора -->
+            <v-row class="mt-2">
+              <v-col cols="12" md="4">
+                <label class="apple-input-label">Тип договора</label>
+                <v-select
+                  v-model="form.contract_type"
+                  :items="CONTRACT_TYPE_OPTIONS"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Типы договоров
+                        </div>
+                        <div class="text-caption">
+                          <strong>Клиентский:</strong> обычный договор с клиентом, используется подписка для тарификации<br><br>
+                          <strong>Партнерский:</strong> договор с партнером, все объекты из учетной записи партнера тарифицируются по указанному тарифному плану
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-select>
+              </v-col>
+
+              <!-- Поле для выбора учетной записи партнера (только для партнерских договоров) -->
+              <v-col v-if="form.contract_type === CONTRACT_TYPES.PARTNER" cols="12" md="8">
+                <label class="apple-input-label">Учетная запись партнера <span class="apple-input-required">*</span></label>
+                <v-autocomplete
+                  v-model="form.partner_company_id"
+                  :items="partnerCompanyOptions"
+                  :loading="loadingCompanies"
+                  variant="outlined"
+                  density="compact"
+                  :rules="form.contract_type === CONTRACT_TYPES.PARTNER ? [rules.required] : []"
+                  required
+                  hide-details="auto"
+                  clearable
+                  no-data-text="Партнерские компании не найдены"
+                  placeholder="Начните вводить название компании..."
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Учетная запись партнера
+                        </div>
+                        <div class="text-caption">
+                          Выберите учетную запись партнера. Все активные объекты из этой учетной записи будут автоматически тарифицироваться по выбранному тарифному плану.
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-autocomplete>
+              </v-col>
+            </v-row>
+
+            <!-- Тарифный план для партнерского договора -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+              <v-col cols="12" md="6">
+                <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
+                <v-select
+                  v-model="form.tariff_plan_id"
+                  :items="tariffPlanOptions"
+                  :loading="loadingTariffPlans"
+                  variant="outlined"
+                  density="compact"
+                  :rules="form.contract_type === CONTRACT_TYPES.PARTNER ? [rules.required] : []"
+                  required
+                  hide-details="auto"
+                  clearable
+                  no-data-text="Тарифные планы не найдены"
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Тарифный план
+                        </div>
+                        <div class="text-caption">
+                          Выберите тарифный план для партнерского договора. Все активные объекты из учетной записи партнера будут тарифицироваться согласно выбранному тарифному плану.
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-select>
+              </v-col>
+            </v-row>
           </div>
 
 
@@ -828,9 +949,12 @@ import type {
 import type { DaDataOrganization } from '@/services/dadataService';
 import {
   CONTRACT_STATUS_LABELS,
+  CONTRACT_TYPES,
+  CONTRACT_TYPE_OPTIONS,
   CLIENT_TYPE_OPTIONS,
   CLIENT_TYPES,
   type ClientType,
+  type ContractType,
 } from '@/types/contracts';
 import type { BillingPlan, BillingSettings } from '@/types/billing';
 import type { ContractNumerator } from '@/types/contracts';
@@ -839,6 +963,7 @@ import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import dadataService from '@/services/dadataService';
+import companiesService from '@/services/companiesService';
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 import { useAutopilot } from '@/composables/useAutopilot';
@@ -883,6 +1008,14 @@ const generatingNumber = ref(false);
 const billingSettings = ref<BillingSettings | null>(null);
 const loadingBillingSettings = ref(false);
 
+// Партнерские компании
+const partnerCompanies = ref<Array<{id: number; name: string}>>([]);
+const loadingCompanies = ref(false);
+
+// Тарифные планы
+const tariffPlans = ref<BillingPlan[]>([]);
+const loadingTariffPlans = ref(false);
+
 // Удалено: таблица объектов - перенесена в подписки
 
 // Snackbar
@@ -895,6 +1028,8 @@ const defaultForm: ContractForm = {
   number: '',
   title: '',
   description: '',
+  contract_type: CONTRACT_TYPES.CLIENT, // По умолчанию клиентский договор
+  partner_company_id: undefined,
   client_type: CLIENT_TYPES.ORGANIZATION,
   client_name: '',
   client_short_name: '',
@@ -957,6 +1092,22 @@ const numeratorOptions = computed(() => {
     title: numerator.name,
     subtitle: `${numerator.template} (Счетчик: ${numerator.counter_value})`,
     raw: numerator,
+  }));
+});
+
+// Опции партнерских компаний
+const partnerCompanyOptions = computed(() => {
+  return partnerCompanies.value.map(company => ({
+    value: company.id,
+    title: company.name,
+  }));
+});
+
+// Опции тарифных планов
+const tariffPlanOptions = computed(() => {
+  return tariffPlans.value.map(plan => ({
+    value: plan.id,
+    title: `${plan.name} - ${plan.price} ₽/${plan.billing_period === 'monthly' ? 'мес' : plan.billing_period === 'yearly' ? 'год' : plan.billing_period === 'daily' ? 'день' : plan.billing_period}`,
   }));
 });
 
@@ -1169,6 +1320,8 @@ const saveContract = async () => {
       number: form.value.number,
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
+      contract_type: form.value.contract_type || 'client',
+      partner_company_id: form.value.partner_company_id || undefined,
       client_type: form.value.client_type,
       client_name: form.value.client_name,
       client_short_name: form.value.client_short_name || '',
@@ -1201,6 +1354,11 @@ const saveContract = async () => {
       status: form.value.status || 'draft',
       notes: form.value.notes || '',
     };
+    
+    // Для партнерских договоров добавляем tariff_plan_id
+    if (form.value.contract_type === 'partner' && form.value.tariff_plan_id) {
+      contractData.tariff_plan_id = form.value.tariff_plan_id;
+    }
     
     // Добавляем company_id из localStorage
     const companyData = localStorage.getItem('axenta_company');
@@ -1390,6 +1548,44 @@ const loadNumerators = async () => {
     console.error('Error loading numerators:', error);
   } finally {
     loadingNumerators.value = false;
+  }
+};
+
+// Load partner companies
+const loadCompanies = async () => {
+  loadingCompanies.value = true;
+  try {
+    // Фильтруем только партнерские компании
+    const response = await companiesService.getCompanies({ type: 'partner' });
+    if (response.companies && Array.isArray(response.companies)) {
+      partnerCompanies.value = response.companies.map((company: any) => ({
+        id: company.id,
+        name: company.name,
+      }));
+      console.log('🏢 Загружено партнерских компаний:', partnerCompanies.value.length);
+    }
+  } catch (error) {
+    console.error('Error loading companies:', error);
+    showSnackbarMessage('Ошибка загрузки партнерских компаний', 'error');
+  } finally {
+    loadingCompanies.value = false;
+  }
+};
+
+// Load tariff plans
+const loadTariffPlans = async () => {
+  loadingTariffPlans.value = true;
+  try {
+    const response = await billingService.getBillingPlans();
+    if (response && Array.isArray(response)) {
+      tariffPlans.value = response;
+      console.log('💰 Загружено тарифных планов:', tariffPlans.value.length);
+    }
+  } catch (error) {
+    console.error('Error loading tariff plans:', error);
+    showSnackbarMessage('Ошибка загрузки тарифных планов', 'error');
+  } finally {
+    loadingTariffPlans.value = false;
   }
 };
 
@@ -1926,8 +2122,12 @@ watch(() => selectedNumeratorId.value, async (newId) => {
 onMounted(async () => {
   // Сначала загружаем настройки биллинга, ПОТОМ нумераторы
   // Это важно, т.к. loadNumerators использует billingSettings для выбора дефолтного нумератора
-  await loadBillingSettings();
-  await loadNumerators();
+  await Promise.all([
+    loadBillingSettings(),
+    loadCompanies(), // Загружаем список компаний для партнерских договоров
+    loadTariffPlans(), // Загружаем тарифные планы для партнерских договоров
+  ]);
+  await loadNumerators(); // Загружаем после настроек биллинга
 });
 
 // Перезагружаем настройки при возвращении на страницу

@@ -43,17 +43,17 @@
             />
           </v-col>
           
-          <v-col cols="6" md="2" class="expiring-filter-col">
-            <div class="expiring-filter-wrapper">
-              <v-switch
-                v-model="expiringFilter"
-                label="Истекающие"
-                density="compact"
-                hide-details
-                color="primary"
-                class="expiring-switch"
-              />
-            </div>
+          <v-col cols="6" md="2">
+            <v-select
+              v-model="contractTypeFilter"
+              :items="CONTRACT_TYPE_OPTIONS"
+              label="Тип договора"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+              rounded="lg"
+            />
           </v-col>
           
           <!-- Действия -->
@@ -170,14 +170,35 @@
           </v-chip>
         </template>
 
+        <!-- Тип договора -->
+        <template #item.contract_type="{ item }">
+          <v-chip 
+            size="small" 
+            :color="CONTRACT_TYPE_COLORS[(item.contract_type || 'client') as ContractType]"
+            variant="tonal"
+          >
+            {{ CONTRACT_TYPE_LABELS[(item.contract_type || 'client') as ContractType] }}
+          </v-chip>
+        </template>
+
         <!-- Клиент -->
         <template #item.title="{ item }">
-          <div class="contract-client">{{ item.client_short_name || item.client_name }}</div>
+          <div class="contract-client" lang="ru">{{ item.client_short_name || item.client_name }}</div>
         </template>
 
         <!-- Тарифный план -->
         <template #item.tariff_plan="{ item }">
-          <template v-if="contractTariffsMap.get(item.id)?.count > 1">
+          <!-- Для партнерских договоров показываем тариф из договора -->
+          <template v-if="item.contract_type === 'partner' && item.tariff_plan">
+            <v-chip size="small" color="purple" variant="tonal">
+              {{ item.tariff_plan.name }}
+            </v-chip>
+            <div class="text-caption">
+              {{ formatCurrency(item.tariff_plan.price || 0) }}/мес
+            </div>
+          </template>
+          <!-- Для клиентских договоров показываем тарифы из подписок -->
+          <template v-else-if="contractTariffsMap.get(item.id)?.count > 1">
             <!-- Несколько тарифов -->
             <v-tooltip location="top">
               <template #activator="{ props }">
@@ -229,8 +250,17 @@
           <v-tooltip location="top">
             <template #activator="{ props }">
               <div v-bind="props" style="cursor: help;">
+                <!-- Для партнерских договоров показываем период до конца года -->
+                <div v-if="item.contract_type === 'partner'">
+                  <div class="text-body-2">
+                    {{ getPartnerContractPeriod(item) }}
+                  </div>
+                  <div class="text-caption" style="color: #9c27b0;">
+                    Пролонгация
+                  </div>
+                </div>
                 <!-- Если нет активных подписок, не показываем период -->
-                <div v-if="contractTariffsMap.get(item.id)?.count === 0 || !contractTariffsMap.get(item.id)">
+                <div v-else-if="contractTariffsMap.get(item.id)?.count === 0 || !contractTariffsMap.get(item.id)">
                   <v-chip size="small" color="grey" variant="tonal">
                     Не указан
                   </v-chip>
@@ -543,6 +573,153 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог статистики партнерского договора -->
+    <v-dialog v-model="partnerStatsDialog" max-width="1200px" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center justify-space-between pa-4">
+          <div class="d-flex align-center">
+            <v-icon icon="mdi-chart-line" class="mr-3" color="purple" />
+            <div>
+              <div class="text-h6">Статистика партнерского договора</div>
+              <div v-if="currentPartnerContract" class="text-caption text-grey">
+                Договор {{ currentPartnerContract.number }} • {{ currentPartnerContract.client_name }}
+              </div>
+            </div>
+          </div>
+          <v-btn icon="mdi-close" variant="text" @click="partnerStatsDialog = false" />
+        </v-card-title>
+
+        <v-divider />
+
+        <v-card-text class="pa-0">
+          <!-- Загрузка -->
+          <div v-if="partnerStatsLoading" class="text-center pa-8">
+            <v-progress-circular indeterminate color="purple" size="64" />
+            <div class="mt-4 text-grey">Загрузка статистики...</div>
+          </div>
+
+          <!-- Данные -->
+          <div v-else-if="partnerStatsSummary && partnerSnapshots.length > 0">
+            <!-- Сводная информация -->
+            <v-card variant="flat" class="ma-4 mb-2" color="purple-lighten-5">
+              <v-card-text class="pa-4">
+                <v-row>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Всего дней</div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ partnerStatsSummary.total_days }}
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Среднее объектов</div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ partnerStatsSummary.avg_objects }}
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Месячный тариф</div>
+                    <div class="text-h6 font-weight-bold">
+                      {{ formatCurrency(partnerStatsSummary.monthly_price || 0) }}
+                    </div>
+                    <div class="text-caption text-grey">({{ (partnerStatsSummary.monthly_price / 30).toFixed(4) }} ₽/день)</div>
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <div class="text-caption text-grey mb-1">Общая стоимость</div>
+                    <div class="text-h6 font-weight-bold text-purple">
+                      {{ formatCurrencyPrecise(partnerStatsSummary.total_cost) }}
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <!-- Таблица снимков по дням -->
+            <div class="px-4 pb-4">
+              <div class="text-subtitle-1 font-weight-medium mb-3">Ежедневные снимки</div>
+              
+              <v-table density="compact" class="breakdown-table">
+                <thead>
+                  <tr>
+                    <th class="text-left">Дата</th>
+                    <th class="text-center">Всего объектов</th>
+                    <th class="text-center">Активных</th>
+                    <th class="text-right">Тариф (₽/мес)</th>
+                    <th class="text-right">Стоимость за день</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(snapshot, index) in partnerSnapshots" :key="index">
+                    <td>
+                      <div class="font-weight-medium">{{ formatDate(snapshot.snapshot_date) }}</div>
+                    </td>
+                    <td class="text-center">
+                      <v-chip size="x-small" variant="outlined">
+                        {{ snapshot.total_objects_count }}
+                      </v-chip>
+                    </td>
+                    <td class="text-center">
+                      <v-chip size="x-small" color="purple" variant="outlined">
+                        {{ snapshot.active_objects_count }}
+                      </v-chip>
+                    </td>
+                    <td class="text-right text-grey">
+                      <div>{{ formatCurrency(snapshot.monthly_price || 0) }}/мес</div>
+                      <div class="text-caption">({{ (snapshot.monthly_price / 30).toFixed(4) }} ₽/день)</div>
+                    </td>
+                    <td class="text-right font-weight-medium">
+                      {{ formatCurrencyPrecise(snapshot.daily_cost) }}
+                    </td>
+                  </tr>
+                  <tr class="font-weight-bold" style="background-color: #f5f5f5;">
+                    <td colspan="4" class="text-right">Итого:</td>
+                    <td class="text-right">
+                      {{ formatCurrencyPrecise(partnerStatsSummary.total_cost) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
+
+            <!-- Формула расчета -->
+            <v-alert variant="tonal" color="purple" class="ma-4">
+              <div class="text-subtitle-2 mb-2">Формула расчета:</div>
+              <div class="text-caption mb-2">
+                <strong>Дневная цена</strong> = Месячный тариф ÷ 30 дней (округляется до 4 знаков)
+              </div>
+              <div class="text-caption mb-2">
+                <strong>Стоимость за день</strong> = Дневная цена × Количество активных объектов (округляется до копеек)
+              </div>
+              <div class="text-caption">
+                <strong>Общая стоимость</strong> = Сумма всех дневных стоимостей за период
+              </div>
+            </v-alert>
+          </div>
+
+          <!-- Нет данных -->
+          <div v-else class="text-center pa-8">
+            <v-icon icon="mdi-information-outline" color="info" size="64" />
+            <div class="mt-4 text-grey mb-4">
+              Нет снимков для отображения.<br>
+              Снимки создаются автоматически каждый день в 00:00 UTC.
+            </div>
+            <v-btn color="purple" variant="outlined" @click="createTestSnapshot">
+              <v-icon icon="mdi-camera-plus" class="mr-2" />
+              Создать тестовый снимок
+            </v-btn>
+          </div>
+        </v-card-text>
+
+        <v-divider />
+
+        <v-card-actions class="pa-4">
+          <v-spacer />
+          <v-btn variant="outlined" @click="partnerStatsDialog = false">
+            Закрыть
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </div>
 </template>
 
@@ -551,6 +728,13 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
+import type { ContractType } from '@/types/contracts';
+import { 
+  CONTRACT_TYPES, 
+  CONTRACT_TYPE_LABELS, 
+  CONTRACT_TYPE_COLORS,
+  CONTRACT_TYPE_OPTIONS 
+} from '@/types/contracts';
 
 const router = useRouter();
 
@@ -571,6 +755,8 @@ interface Contract {
   sequential_number?: number; // Порядковый номер договора
   created_at?: string; // Дата создания
   title: string;
+  contract_type?: string; // Тип договора: client или partner
+  partner_company_id?: number; // Для партнерских договоров
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
   start_date: string;
@@ -596,7 +782,7 @@ const contractSubscriptions = ref<any[]>([]); // Подписки для все�
 const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
-const expiringFilter = ref(false);
+const contractTypeFilter = ref<string | null>(null);
 
 // Snackbar
 const showSnackbar = ref(false);
@@ -606,29 +792,38 @@ const snackbarColor = ref('success');
 // Автопилот
 const autopilotEnabled = ref(false);
 
-// Диалог детализации расчета
+// Диалог детализации расчета (для клиентских договоров)
 const billingBreakdownDialog = ref(false);
 const billingBreakdownLoading = ref(false);
 const currentContractForBreakdown = ref<Contract | null>(null);
 const billingBreakdownData = ref<any>(null);
 
+// Диалог статистики партнерского договора
+const partnerStatsDialog = ref(false);
+const partnerStatsLoading = ref(false);
+const currentPartnerContract = ref<Contract | null>(null);
+const partnerSnapshots = ref<any[]>([]);
+const partnerStatsSummary = ref<any>(null);
+
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px', align: 'center' },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px', align: 'center' },
-  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px', align: 'center' },
-  { title: 'Клиент', key: 'title', sortable: true, width: 'auto', minWidth: '150px', align: 'center' },
-  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px', align: 'center' },
-  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px', align: 'center' },
-  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'center' },
-  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px', align: 'center' },
-  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' },
+  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px', align: 'center' as const },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px', align: 'center' as const },
+  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
+  { title: 'Тип', key: 'contract_type', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
+  { title: 'Клиент', key: 'title', sortable: true, width: '260px', minWidth: '260px', align: 'center' as const },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px', align: 'center' as const },
+  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px', align: 'center' as const },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
+  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px', align: 'center' as const },
+  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' as const },
 ];
 
 // Опции для фильтров
 const statusOptions = [
   { value: 'draft', title: 'Черновик' },
   { value: 'active', title: 'Активный' },
+  { value: 'expiring', title: 'Истекающие' },
   { value: 'expired', title: 'Истекший' },
   { value: 'cancelled', title: 'Отмененный' },
   { value: 'suspended', title: 'Приостановленный' },
@@ -654,15 +849,20 @@ const filteredContracts = computed(() => {
   }
 
   if (statusFilter.value) {
-    result = result.filter(contract => contract.status === statusFilter.value);
+    if (statusFilter.value === 'expiring') {
+      // Специальная обработка для истекающих договоров
+      result = result.filter(contract => isExpiringSoon(contract));
+    } else {
+      result = result.filter(contract => contract.status === statusFilter.value);
+    }
   }
 
   if (activeFilter.value !== null) {
     result = result.filter(contract => contract.is_active === activeFilter.value);
   }
 
-  if (expiringFilter.value) {
-    result = result.filter(contract => isExpiringSoon(contract));
+  if (contractTypeFilter.value) {
+    result = result.filter(contract => (contract.contract_type || 'client') === contractTypeFilter.value);
   }
 
   return result;
@@ -767,7 +967,7 @@ const hasActiveFilters = computed(() => {
     searchQuery.value ||
     statusFilter.value ||
     activeFilter.value !== null ||
-    expiringFilter.value
+    contractTypeFilter.value
   );
 });
 
@@ -776,7 +976,7 @@ const getActiveFiltersCount = (): number => {
   if (searchQuery.value) count++;
   if (statusFilter.value) count++;
   if (activeFilter.value !== null) count++;
-  if (expiringFilter.value) count++;
+  if (contractTypeFilter.value) count++;
   return count;
 };
 
@@ -951,7 +1151,7 @@ const clearFilters = async () => {
   searchQuery.value = '';
   statusFilter.value = null;
   activeFilter.value = null;
-  expiringFilter.value = false;
+  contractTypeFilter.value = null;
   if (!demoMode.value) {
     await loadContracts();
   }
@@ -1004,7 +1204,132 @@ const viewInvoices = (contract: Contract) => {
   // Здесь можно переключиться на вкладку "Счета" с фильтром по договору
 };
 
+// Создать тестовый снимок для партнерских договоров
+const createTestSnapshot = async () => {
+  partnerStatsLoading.value = true;
+
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+    
+    if (!token) {
+      throw new Error('Отсутствует токен авторизации');
+    }
+
+    if (!companyData) {
+      throw new Error('Отсутствует информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const response = await fetch(
+      'http://localhost:8080/api/auth/contracts/partner-snapshots/create',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': String(tenantId)
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Ошибка создания снимков');
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      showSnackbarMessage(
+        `Снимки созданы: успешно ${data.success_count}, ошибок ${data.error_count}`,
+        'success'
+      );
+      
+      // Перезагружаем статистику
+      if (currentPartnerContract.value) {
+        await showPartnerStatistics(currentPartnerContract.value);
+      }
+    } else {
+      throw new Error('Неверный формат ответа от сервера');
+    }
+  } catch (error: any) {
+    console.error('Ошибка создания тестового снимка:', error);
+    showSnackbarMessage(error.message || 'Ошибка создания снимка', 'error');
+    partnerStatsLoading.value = false;
+  }
+};
+
+// Показать статистику для партнерского договора
+const showPartnerStatistics = async (contract: Contract) => {
+  currentPartnerContract.value = contract;
+  partnerStatsDialog.value = true;
+  partnerStatsLoading.value = true;
+  partnerSnapshots.value = [];
+  partnerStatsSummary.value = null;
+
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+    
+    if (!token) {
+      throw new Error('Отсутствует токен авторизации');
+    }
+
+    if (!companyData) {
+      throw new Error('Отсутствует информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    // Период - последние 30 дней или период договора
+    const endDate = new Date();
+    const startDate = contract.start_date ? new Date(contract.start_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Запрашиваем снимки партнерского договора
+    const response = await fetch(
+      `http://localhost:8080/api/auth/contracts/${contract.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': String(tenantId)
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Ошибка получения снимков: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'success' && data.snapshots) {
+      partnerSnapshots.value = data.snapshots;
+      partnerStatsSummary.value = data.summary;
+    } else {
+      throw new Error('Неверный формат ответа от сервера');
+    }
+  } catch (error: any) {
+    console.error('Ошибка загрузки статистики партнерского договора:', error);
+    showSnackbarMessage(error.message || 'Ошибка загрузки статистики', 'error');
+  } finally {
+    partnerStatsLoading.value = false;
+  }
+};
+
 const calculateCost = async (contract: Contract) => {
+  // Для партнерских договоров открываем специальную статистику
+  if (contract.contract_type === 'partner') {
+    showPartnerStatistics(contract);
+    return;
+  }
+
+  // Для клиентских договоров - текущая логика
   try {
     // Проверяем наличие приложений к договору
     const contractsService = (await import('@/services/contractsService')).default;
@@ -1020,8 +1345,9 @@ const calculateCost = async (contract: Contract) => {
     }
   } catch (error: any) {
     console.error('Ошибка при проверке приложений:', error);
-    showSnackbarMessage('Ошибка при проверке приложений к договору', 'error');
-    return;
+    // Для клиентских договоров продолжаем, даже если приложений нет
+    // showSnackbarMessage('Ошибка при проверке приложений к договору', 'error');
+    // return;
   }
 
   currentContractForBreakdown.value = contract;
@@ -1112,6 +1438,18 @@ const formatCurrency = (amount: string | number, currency = 'RUB'): string => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: currency,
+  }).format(value || 0);
+};
+
+// Форматирование с высокой точностью (для партнерских снимков)
+const formatCurrencyPrecise = (amount: string | number): string => {
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  // Показываем с 2 знаками после запятой, но без округления вверх
+  return new Intl.NumberFormat('ru-RU', {
+    style: 'currency',
+    currency: 'RUB',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value || 0);
 };
 
@@ -1266,7 +1604,51 @@ const getPeriodText = (contract: Contract): string => {
   }
 };
 
+// Получение периода для партнерского договора
+const getPartnerContractPeriod = (contract: Contract): string => {
+  // Если период установлен в базе, используем его
+  if (contract.start_date && contract.end_date) {
+    return formatPeriod(contract.start_date, contract.end_date);
+  }
+  
+  // Иначе рассчитываем автоматически: от даты создания до конца текущего года
+  const startDate = contract.created_at ? new Date(contract.created_at) : new Date();
+  const endOfYear = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
+  
+  const startStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const endStr = endOfYear.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  
+  return `${startStr} - ${endStr}`;
+};
+
 const getPeriodTooltipText = (contract: Contract): string => {
+  // Для партнерских договоров - специальный текст
+  if (contract.contract_type === 'partner') {
+    const now = new Date();
+    let endDate: Date;
+    
+    // Если период установлен в базе, используем его
+    if (contract.end_date) {
+      endDate = new Date(contract.end_date);
+      if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
+        // Если дата невалидна, рассчитываем до конца текущего года
+        const startDate = contract.created_at ? new Date(contract.created_at) : now;
+        endDate = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
+      }
+    } else {
+      // Если период не установлен, рассчитываем до конца текущего года
+      const startDate = contract.created_at ? new Date(contract.created_at) : now;
+      endDate = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
+    }
+    
+    const days = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (days > 0) {
+      return `Партнерский договор действует до конца года (${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}). Автоматическая пролонгация включена.`;
+    } else {
+      return `Партнерский договор с автоматической пролонгацией на следующий год.`;
+    }
+  }
+  
   // Если дата окончания не указана или невалидна
   if (!contract.end_date) {
     return 'Период действия договора не установлен. Он будет установлен при создании подписки.';
@@ -1348,7 +1730,6 @@ const loadContracts = async () => {
       search: searchQuery.value || undefined,
       status: statusFilter.value || undefined,
       is_active: activeFilter.value !== null ? activeFilter.value : undefined,
-      expiring: expiringFilter.value || undefined,
       page: 1,
       limit: 100,
     });
@@ -1361,11 +1742,22 @@ const loadContracts = async () => {
       console.log('📋 Первый договор:', {
         id: firstContract.id,
         number: firstContract.number,
+        contract_type: firstContract.contract_type,
+        partner_company_id: firstContract.partner_company_id,
         total_amount: firstContract.total_amount,
         objects_count: firstContract.objects?.length || 0,
         objects: firstContract.objects
       });
     }
+    
+    // Логируем все contract_type для отладки
+    const contractTypes = contracts.value.map(c => ({
+      number: c.number,
+      contract_type: c.contract_type || 'ОТСУТСТВУЕТ',
+      partner_company_id: c.partner_company_id || 'ОТСУТСТВУЕТ'
+    }));
+    console.log('🔍 Типы договоров:', contractTypes);
+    console.table(contractTypes);
     
     // Загружаем подписки для определения тарифов
     await loadSubscriptions();
@@ -1385,7 +1777,7 @@ const debouncedLoadContracts = debounce(async () => {
   }
 }, 300);
 
-watch([searchQuery, statusFilter, activeFilter, expiringFilter], () => {
+watch([searchQuery, statusFilter, activeFilter, contractTypeFilter], () => {
   debouncedLoadContracts();
 });
 
@@ -1733,9 +2125,16 @@ defineExpose({
   color: rgb(var(--v-theme-on-surface));
   line-height: 1.4;
   text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  -moz-hyphens: auto;
+  -ms-hyphens: auto;
+  max-width: 30ch;
+  margin: 0 auto;
+  overflow-wrap: break-word;
 }
 
 .sequential-number {

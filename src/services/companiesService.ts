@@ -80,6 +80,7 @@ export interface CompanyListParams {
   language?: string;
   currency?: string;
   include_usage?: boolean;
+  type?: string; // Тип компании: partner, client и т.д.
 }
 
 export interface CompanyListResponse {
@@ -134,6 +135,7 @@ class CompaniesService {
     if (params.language) queryParams.append("language", params.language);
     if (params.currency) queryParams.append("currency", params.currency);
     if (params.include_usage) queryParams.append("include_usage", "true");
+    if (params.type) queryParams.append("type", params.type);
 
     const query = queryParams.toString();
     const url = query ? `${this.basePath}?${query}` : this.basePath;
