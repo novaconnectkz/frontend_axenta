@@ -274,6 +274,84 @@
                 </v-select>
               </v-col>
             </v-row>
+
+            <!-- Настройка скидок для партнерского договора -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+              <v-col cols="12">
+                <v-card variant="outlined" color="success">
+                  <v-card-text class="pa-4">
+                    <div class="d-flex align-center mb-3">
+                      <v-icon icon="mdi-sale" color="success" class="mr-2" />
+                      <div class="text-subtitle-1 font-weight-medium">Настройка скидок</div>
+                    </div>
+
+                    <v-row>
+                      <v-col cols="12" md="4">
+                        <label class="apple-input-label">Тип скидки</label>
+                        <v-select
+                          v-model="form.discount_type"
+                          :items="discountTypeOptions"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                        >
+                          <template #append-inner>
+                            <v-tooltip location="top" :open-on-hover="true">
+                              <template #activator="{ props }">
+                                <v-icon
+                                  v-bind="props"
+                                  icon="mdi-information-outline"
+                                  color="success"
+                                  size="20"
+                                  class="cursor-help"
+                                  style="margin-right: 8px;"
+                                />
+                              </template>
+                              <div style="max-width: 400px; padding: 4px;">
+                                <div class="text-body-2 font-weight-medium mb-2">Типы скидок</div>
+                                <div class="text-caption">
+                                  <strong>Без скидки:</strong> полная стоимость без применения скидок<br><br>
+                                  <strong>Ручная скидка:</strong> устанавливается вручную (от 0 до 100%)<br><br>
+                                  <strong>Автоматическая скидка:</strong> рассчитывается на основе количества активных объектов:<br>
+                                  • ≥1000 объектов → 10%<br>
+                                  • ≥2000 объектов → 20%<br>
+                                  • ≥4000 объектов → 30%
+                                </div>
+                              </div>
+                            </v-tooltip>
+                          </template>
+                        </v-select>
+                      </v-col>
+
+                      <v-col v-if="form.discount_type === 'manual'" cols="12" md="4">
+                        <AppleInput
+                          v-model.number="form.manual_discount_percent"
+                          label="Процент скидки"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          suffix="%"
+                        >
+                          <template #append-inner>
+                            <div class="text-caption text-grey mr-2">0-100%</div>
+                          </template>
+                        </AppleInput>
+                      </v-col>
+
+                      <v-col v-if="form.discount_type === 'auto'" cols="12" md="8">
+                        <v-alert variant="tonal" color="success" density="compact">
+                          <div class="text-caption">
+                            <v-icon icon="mdi-information" size="small" class="mr-1" />
+                            Скидка будет автоматически рассчитываться при создании снимков на основе количества активных объектов
+                          </div>
+                        </v-alert>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </div>
 
 
@@ -1070,6 +1148,10 @@ const defaultForm: ContractForm = {
   notify_before: 30,
   notes: '',
   external_id: '',
+  // Скидки (для партнерских договоров)
+  discount_type: 'none',
+  manual_discount_percent: 0,
+  use_auto_discount: false,
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
@@ -1110,6 +1192,13 @@ const tariffPlanOptions = computed(() => {
     title: `${plan.name} - ${plan.price} ₽/${plan.billing_period === 'monthly' ? 'мес' : plan.billing_period === 'yearly' ? 'год' : plan.billing_period === 'daily' ? 'день' : plan.billing_period}`,
   }));
 });
+
+// Опции типов скидок
+const discountTypeOptions = [
+  { value: 'none', title: 'Без скидки' },
+  { value: 'manual', title: 'Ручная скидка' },
+  { value: 'auto', title: 'Автоматическая скидка' },
+];
 
 // Показывать выбор нумератора только если способ нумерации = "numerator"
 const showNumeratorSelection = computed(() => {

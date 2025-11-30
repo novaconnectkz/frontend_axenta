@@ -246,6 +246,11 @@ export interface ContractForm {
   notes?: string;
   external_id?: string;
   account_id?: number; // ID учетной записи Axenta для автоматической привязки объектов
+  
+  // Скидки (для партнерских договоров)
+  discount_type?: string; // none, manual, auto
+  manual_discount_percent?: number; // 0-100
+  use_auto_discount?: boolean; // Использовать автоматические скидки
 }
 
 // Договор с дополнительными полями и связями

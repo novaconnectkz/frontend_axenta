@@ -728,6 +728,7 @@
                     <th class="text-center">Всего объектов</th>
                     <th class="text-center">Активных</th>
                     <th class="text-right">Тариф (₽/мес)</th>
+                    <th class="text-center">Скидка</th>
                     <th class="text-right">Стоимость за день</th>
                   </tr>
                 </thead>
@@ -750,12 +751,33 @@
                       <div>{{ formatCurrency(snapshot.monthly_price || 0) }}/мес</div>
                       <div class="text-caption">({{ (snapshot.monthly_price / 30).toFixed(4) }} ₽/день)</div>
                     </td>
-                    <td class="text-right font-weight-medium">
-                      {{ formatCurrencyPrecise(snapshot.daily_cost) }}
+                    <td class="text-center">
+                      <div v-if="snapshot.discount_percent > 0" class="text-body-2">
+                        <v-chip size="small" color="success" variant="tonal">
+                          -{{ snapshot.discount_percent }}%
+                        </v-chip>
+                        <div class="text-caption text-grey mt-1">
+                          {{ formatCurrencyPrecise(snapshot.discount_amount || 0) }}
+                        </div>
+                      </div>
+                      <div v-else class="text-caption text-grey">—</div>
+                    </td>
+                    <td class="text-right">
+                      <div v-if="snapshot.discount_percent > 0">
+                        <div class="text-caption text-grey" style="text-decoration: line-through;">
+                          {{ formatCurrencyPrecise(snapshot.cost_before_discount || snapshot.daily_cost) }}
+                        </div>
+                        <div class="font-weight-medium text-success">
+                          {{ formatCurrencyPrecise(snapshot.daily_cost) }}
+                        </div>
+                      </div>
+                      <div v-else class="font-weight-medium">
+                        {{ formatCurrencyPrecise(snapshot.daily_cost) }}
+                      </div>
                     </td>
                   </tr>
                   <tr class="font-weight-bold" style="background-color: #f5f5f5;">
-                    <td colspan="4" class="text-right">Итого:</td>
+                    <td colspan="5" class="text-right">Итого:</td>
                     <td class="text-right">
                       {{ formatCurrencyPrecise(partnerStatsSummary.total_cost) }}
                     </td>

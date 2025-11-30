@@ -2460,10 +2460,12 @@ const filteredPlans = computed(() => {
 
 // Фильтрованные подписки (с учетом фильтра по договору)
 const filteredSubscriptions = computed(() => {
-  let filtered = subscriptions.value
+  // Сначала фильтруем удаленные подписки
+  let filtered = subscriptions.value.filter(sub => !sub.deleted_at)
 
   console.log('🔍 Фильтрация подписок:', {
     totalSubscriptions: subscriptions.value.length,
+    activeSubscriptions: filtered.length,
     filteredByContractId: filteredByContractId.value,
     filteredByContractNumber: filteredByContractNumber.value
   })
@@ -2870,6 +2872,16 @@ const deletePlan = async (plan: BillingPlan) => {
     await loadDashboardData()
   } catch (error: any) {
     console.error('Ошибка при удалении плана:', error)
+    
+    // Если план уже был удален (404), просто обновляем список
+    if (error.response?.status === 404) {
+      console.log('⚠️ План уже был удален, обновляем список...')
+      await fetchPlans()
+      await loadDashboardData()
+      alert('Тарифный план уже был удален ранее. Список обновлен.')
+      return
+    }
+    
     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Ошибка при удалении плана'
     console.error('Детали ошибки:', {
       status: error.response?.status,
@@ -3054,8 +3066,22 @@ const deleteSubscription = async (subscription: Subscription) => {
     }
   } catch (error: any) {
     console.error('❌ Ошибка при удалении подписки:', error)
+    const errorCode = error.response?.data?.code
     const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении подписки'
-    alert(`Ошибка: ${errorMessage}`)
+    
+    // Если подписка уже удалена, просто обновляем данные
+    if (errorCode === 'ALREADY_DELETED') {
+      console.log('⚠️ Подписка уже была удалена, обновляем список...')
+      await fetchSubscriptions()
+      await fetchInvoices()
+      await loadDashboardData()
+      if (contractsTabRef.value?.loadContracts) {
+        await contractsTabRef.value.loadContracts()
+      }
+      alert('Подписка уже была удалена ранее. Список обновлен.')
+    } else {
+      alert(`Ошибка: ${errorMessage}`)
+    }
   }
 }
 
