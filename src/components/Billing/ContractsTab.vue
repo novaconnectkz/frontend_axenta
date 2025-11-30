@@ -305,7 +305,12 @@
             <div class="amount-value">
               {{ formatCurrency(calculateContractAmount(item), item.currency) }}
             </div>
-            <v-tooltip location="top" :disabled="!item.objects || item.objects.length === 0">
+            <!-- Для партнерских договоров - только цифра без всплывающего списка -->
+            <div v-if="item.contract_type === 'partner'" class="text-caption objects-count">
+              {{ item.objects?.length || 0 }} объектов
+            </div>
+            <!-- Для клиентских договоров - с всплывающим списком объектов -->
+            <v-tooltip v-else location="top" :disabled="!item.objects || item.objects.length === 0">
               <template #activator="{ props }">
                 <div class="text-caption objects-count" v-bind="props" style="cursor: pointer;">
                   {{ item.objects?.length || 0 }} объектов

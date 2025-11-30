@@ -3445,11 +3445,10 @@ const handleContractsStatsUpdate = (stats: {
   total_amount: string
 }) => {
   contractsStats.value = stats
-  // Инвалидируем кэш при изменении данных
-  invalidateBillingCache()
+  // НЕ инвалидируем кэш автоматически - только если пользователь явно создал/удалил данные
 }
 
-// Функция для инвалидации кэша billing данных
+// Функция для инвалидации кэша billing данных (вызывается только при реальных изменениях)
 const invalidateBillingCache = () => {
   const cacheKey = `billing_dashboard_${currentCompanyId.value}`
   cacheService.remove(cacheKey)
