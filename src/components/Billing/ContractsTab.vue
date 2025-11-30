@@ -738,6 +738,11 @@ import {
 
 const router = useRouter();
 
+// Props
+const props = defineProps<{
+  subscriptions?: any[]
+}>();
+
 // Эмиты
 const emit = defineEmits<{
   (e: 'stats-updated', stats: {
@@ -778,7 +783,8 @@ interface Contract {
 const loading = ref(false);
 const demoMode = ref(false); // Отключен по умолчанию
 const contracts = ref<Contract[]>([]);
-const contractSubscriptions = ref<any[]>([]); // Подписки для всех договоров
+// Используем подписки из props или пустой массив
+const contractSubscriptions = computed(() => props.subscriptions || []);
 const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
@@ -1676,51 +1682,7 @@ const getPeriodTooltipText = (contract: Contract): string => {
   }
 };
 
-// Загрузка реальных договоров
-const loadSubscriptions = async () => {
-  try {
-    console.log('🔄 ContractsTab: Загружаем подписки...');
-    const companyData = localStorage.getItem('axenta_company');
-    if (!companyData) {
-      console.warn('⚠️ No company data found in localStorage');
-      return;
-    }
-    
-    const company = JSON.parse(companyData);
-    const companyId = parseInt(company.id, 10);
-    
-    const billingService = (await import('@/services/billingService')).default;
-    const subscriptions = await billingService.getSubscriptions(companyId);
-    contractSubscriptions.value = subscriptions || [];
-    console.log(`✅ ContractsTab: Загружено ${subscriptions?.length || 0} подписок`);
-    
-    // Логируем группировку по договорам для отладки
-    const byContract = contractSubscriptions.value.reduce((acc, sub) => {
-      const cId = sub.contract_id;
-      if (cId && sub.status && ['active', 'scheduled'].includes(sub.status)) {
-        if (!acc[cId]) {
-          acc[cId] = { count: 0, plans: [] };
-        }
-        acc[cId].count++;
-        if (sub.billing_plan) {
-          acc[cId].plans.push(sub.billing_plan.name);
-        }
-      }
-      return acc;
-    }, {} as Record<number, { count: number, plans: string[] }>);
-    
-    // Показываем только договоры с несколькими тарифами
-    const multiPlans = Object.entries(byContract).filter(([_, data]) => data.count > 1);
-    if (multiPlans.length > 0) {
-      console.log('🎯 Contracts with multiple plans:', 
-        Object.fromEntries(multiPlans)
-      );
-    }
-  } catch (error) {
-    console.error('❌ Error loading subscriptions:', error);
-    contractSubscriptions.value = [];
-  }
-};
+// Функция loadSubscriptions больше не нужна - подписки передаются через props из родительского компонента
 
 const loadContracts = async () => {
   console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
@@ -1760,8 +1722,7 @@ const loadContracts = async () => {
     console.log('🔍 Типы договоров:', contractTypes);
     console.table(contractTypes);
     
-    // Загружаем подписки для определения тарифов
-    await loadSubscriptions();
+    // Подписки теперь передаются через props из родительского компонента
   } catch (error) {
     console.error('Ошибка загрузки договоров:', error);
     showSnackbarMessage('Ошибка загрузки договоров', 'error');

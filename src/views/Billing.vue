@@ -446,7 +446,7 @@
     <v-window v-model="activeTab">
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
-        <ContractsTab ref="contractsTabRef" @stats-updated="handleContractsStatsUpdate" />
+        <ContractsTab ref="contractsTabRef" :subscriptions="subscriptions" @stats-updated="handleContractsStatsUpdate" />
       </v-window-item>
 
       <!-- Подписки -->
@@ -2651,36 +2651,13 @@ const loadDashboardData = async () => {
 const loadContractsStats = async () => {
   try {
     const stats = await contractsService.getContractStats()
-    // Применяем автоматический расчет стоимости, если нужно
-    // Получаем договоры для расчета
-    const { contracts } = await contractsService.getContracts({ limit: 1000 })
     
-    // Рассчитываем total_amount с учетом тарифных планов и объектов
-    const calculatedTotalAmount = contracts.reduce((sum, contract) => {
-      const existingAmount = parseFloat(contract.total_amount || '0')
-      if (existingAmount > 0) {
-        return sum + existingAmount
-      }
-      
-      // Автоматический расчет на основе тарифа и объектов
-      if (contract.tariff_plan?.price) {
-        const tariffPrice = contract.tariff_plan.price
-        const objectsCount = contract.objects?.length || 0
-        if (objectsCount > 0) {
-          return sum + (tariffPrice * objectsCount)
-        } else {
-          return sum + tariffPrice
-        }
-      }
-      
-      return sum
-    }, 0)
-    
+    // Используем данные из stats напрямую - они уже содержат все необходимое
     contractsStats.value = {
       total: stats.total,
       active: stats.active,
       expiring_soon: stats.expiring_soon,
-      total_amount: calculatedTotalAmount.toString()
+      total_amount: stats.total_amount || '0'
     }
     
     return stats
