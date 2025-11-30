@@ -56,7 +56,207 @@
                 />
               </v-col>
             </v-row>
+
+            <!-- Тип договора -->
+            <v-row class="mt-2">
+              <v-col cols="12" md="4">
+                <label class="apple-input-label">Тип договора</label>
+                <v-select
+                  v-model="form.contract_type"
+                  :items="CONTRACT_TYPE_OPTIONS"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Типы договоров
+                        </div>
+                        <div class="text-caption">
+                          <strong>Клиентский:</strong> обычный договор с клиентом, используется подписка для тарификации<br><br>
+                          <strong>Партнерский:</strong> договор с партнером, все объекты из учетной записи партнера тарифицируются по указанному тарифному плану
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-select>
+              </v-col>
+
+              <!-- Поле для выбора учетной записи партнера (только для партнерских договоров) -->
+              <v-col v-if="form.contract_type === CONTRACT_TYPES.PARTNER" cols="12" md="8">
+                <label class="apple-input-label">Учетная запись партнера <span class="apple-input-required">*</span></label>
+                <v-autocomplete
+                  v-model="form.partner_company_id"
+                  :items="partnerCompanyOptions"
+                  :loading="loadingCompanies"
+                  variant="outlined"
+                  density="compact"
+                  :rules="form.contract_type === CONTRACT_TYPES.PARTNER ? [rules.required] : []"
+                  required
+                  hide-details="auto"
+                  clearable
+                  no-data-text="Партнерские компании не найдены"
+                  placeholder="Начните вводить название компании..."
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Учетная запись партнера
+                        </div>
+                        <div class="text-caption">
+                          Выберите учетную запись партнера. Все активные объекты из этой учетной записи будут автоматически тарифицироваться по выбранному тарифному плану.
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-autocomplete>
+              </v-col>
+            </v-row>
+
+            <!-- Тарифный план для партнерского договора -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+              <v-col cols="12" md="6">
+                <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
+                <v-select
+                  v-model="form.tariff_plan_id"
+                  :items="tariffPlanOptions"
+                  :loading="loadingTariffPlans"
+                  variant="outlined"
+                  density="compact"
+                  :rules="form.contract_type === CONTRACT_TYPES.PARTNER ? [rules.required] : []"
+                  required
+                  hide-details="auto"
+                  clearable
+                  no-data-text="Тарифные планы не найдены"
+                >
+                  <template #append-inner>
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <v-icon
+                          v-bind="props"
+                          icon="mdi-information-outline"
+                          color="primary"
+                          size="20"
+                          class="cursor-help"
+                          style="margin-right: 8px;"
+                        />
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Тарифный план
+                        </div>
+                        <div class="text-caption">
+                          Выберите тарифный план для партнерского договора. Все активные объекты из учетной записи партнера будут тарифицироваться согласно выбранному тарифному плану.
+                        </div>
+                      </div>
+                    </v-tooltip>
+                  </template>
+                </v-select>
+              </v-col>
+            </v-row>
+
+            <!-- Настройка скидок для партнерского договора -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+              <v-col cols="12">
+                <v-card variant="outlined" color="success">
+                  <v-card-text class="pa-4">
+                    <div class="d-flex align-center mb-3">
+                      <v-icon icon="mdi-sale" color="success" class="mr-2" />
+                      <div class="text-subtitle-1 font-weight-medium">Настройка скидок</div>
+                    </div>
+
+                    <v-row>
+                      <v-col cols="12" md="4">
+                        <label class="apple-input-label">Тип скидки</label>
+                        <v-select
+                          v-model="form.discount_type"
+                          :items="discountTypeOptions"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                        >
+                          <template #append-inner>
+                            <v-tooltip location="top" :open-on-hover="true">
+                              <template #activator="{ props }">
+                                <v-icon
+                                  v-bind="props"
+                                  icon="mdi-information-outline"
+                                  color="success"
+                                  size="20"
+                                  class="cursor-help"
+                                  style="margin-right: 8px;"
+                                />
+                              </template>
+                              <div style="max-width: 400px; padding: 4px;">
+                                <div class="text-body-2 font-weight-medium mb-2">Типы скидок</div>
+                                <div class="text-caption">
+                                  <strong>Без скидки:</strong> полная стоимость без применения скидок<br><br>
+                                  <strong>Ручная скидка:</strong> устанавливается вручную (от 0 до 100%)<br><br>
+                                  <strong>Автоматическая скидка:</strong> рассчитывается на основе количества активных объектов:<br>
+                                  • ≥1000 объектов → 10%<br>
+                                  • ≥2000 объектов → 20%<br>
+                                  • ≥4000 объектов → 30%
+                                </div>
+                              </div>
+                            </v-tooltip>
+                          </template>
+                        </v-select>
+                      </v-col>
+
+                      <v-col v-if="form.discount_type === 'manual'" cols="12" md="4">
+                        <AppleInput
+                          v-model.number="form.manual_discount_percent"
+                          label="Процент скидки"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          suffix="%"
+                        >
+                          <template #append-inner>
+                            <div class="text-caption text-grey mr-2">0-100%</div>
+                          </template>
+                        </AppleInput>
+                      </v-col>
+
+                      <v-col v-if="form.discount_type === 'auto'" cols="12" md="8">
+                        <v-alert variant="tonal" color="success" density="compact">
+                          <div class="text-caption">
+                            <v-icon icon="mdi-information" size="small" class="mr-1" />
+                            Скидка будет автоматически рассчитываться при создании снимков на основе количества активных объектов
+                          </div>
+                        </v-alert>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
           </div>
+
 
           <!-- Информация о клиенте -->
           <div class="form-section">
@@ -511,12 +711,17 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import type { ContractForm, ContractWithRelations, ClientType } from '@/types/contracts';
+import type { BillingPlan } from '@/types/billing';
 import { 
   CONTRACT_STATUS_LABELS, 
   CLIENT_TYPE_OPTIONS,
   CLIENT_TYPES,
+  CONTRACT_TYPES,
+  CONTRACT_TYPE_OPTIONS,
 } from '@/types/contracts';
 import contractsService from '@/services/contractsService';
+import accountsService from '@/services/accountsService';
+import billingService from '@/services/billingService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 
 const router = useRouter();
@@ -541,6 +746,8 @@ const defaultForm: ContractForm = {
   number: '',
   title: '',
   description: '',
+  contract_type: CONTRACT_TYPES.CLIENT,
+  partner_company_id: undefined,
   client_type: CLIENT_TYPES.ORGANIZATION,
   client_name: '',
   client_short_name: '',
@@ -570,7 +777,13 @@ const defaultForm: ContractForm = {
   client_bank_correspondent_account: '',
   client_bank_account: '',
   client_bank_recipient: '',
+  tariff_plan_id: undefined,
+  discount_type: 'none',
+  manual_discount_percent: 0,
+  total_amount: '',
+  currency: 'RUB',
   status: 'draft',
+  is_active: true,
   account_id: undefined,
 };
 
@@ -581,6 +794,35 @@ const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]
   value,
   title,
 }));
+
+// Партнерские компании и тарифные планы
+const partnerCompanies = ref<any[]>([]);
+const loadingCompanies = ref(false);
+const tariffPlans = ref<BillingPlan[]>([]);
+const loadingTariffPlans = ref(false);
+
+// Опции для партнерских компаний
+const partnerCompanyOptions = computed(() => {
+  return partnerCompanies.value.map(company => ({
+    value: company.id,
+    title: `${company.name} (ID: ${company.id})`,
+  }));
+});
+
+// Опции тарифных планов
+const tariffPlanOptions = computed(() => {
+  return tariffPlans.value.map(plan => ({
+    value: plan.id,
+    title: `${plan.name} - ${plan.price} ₽/${plan.billing_period === 'monthly' ? 'мес' : plan.billing_period === 'yearly' ? 'год' : plan.billing_period === 'daily' ? 'день' : plan.billing_period}`,
+  }));
+});
+
+// Опции для типов скидок
+const discountTypeOptions = [
+  { value: 'none', title: 'Без скидки' },
+  { value: 'manual', title: 'Ручная скидка' },
+  { value: 'auto', title: 'Автоматическая скидка' },
+];
 
 // Computed для поля сайта
 const websiteValue = computed({
@@ -768,6 +1010,47 @@ const onClientTypeChange = (clientType: ClientType) => {
   }
 };
 
+// Загрузка партнерских компаний
+const loadPartnerCompanies = async () => {
+  loadingCompanies.value = true;
+  try {
+    const response = await accountsService.getAccounts();
+    
+    // Фильтруем только партнерские компании (где account_type === 'partner' или hierarchy содержит партнерские признаки)
+    const partnerAccounts = response.results.filter((account: any) => 
+      account.type === 'partner' || account.hierarchy?.includes('Партнер')
+    );
+    
+    partnerCompanies.value = partnerAccounts;
+    console.log('🏢 Загружено партнерских компаний:', partnerCompanies.value.length);
+  } catch (error: any) {
+    console.error('Ошибка загрузки партнерских компаний:', error);
+    showSnackbarMessage('Ошибка загрузки партнерских компаний', 'error');
+    partnerCompanies.value = [];
+  } finally {
+    loadingCompanies.value = false;
+  }
+};
+
+// Загрузка тарифных планов
+const loadTariffPlans = async () => {
+  loadingTariffPlans.value = true;
+  try {
+    const response = await billingService.getBillingPlans();
+    
+    if (response && Array.isArray(response)) {
+      tariffPlans.value = response;
+      console.log('💰 Загружено тарифных планов:', tariffPlans.value.length);
+    }
+  } catch (error: any) {
+    console.error('Ошибка загрузки тарифных планов:', error);
+    showSnackbarMessage('Ошибка загрузки тарифных планов', 'error');
+    tariffPlans.value = [];
+  } finally {
+    loadingTariffPlans.value = false;
+  }
+};
+
 const loadContract = async () => {
   const id = route.params.id;
   if (!id) {
@@ -795,6 +1078,8 @@ const loadContract = async () => {
       number: contract.number,
       title: contract.title,
       description: contract.description || '',
+      contract_type: contract.contract_type || CONTRACT_TYPES.CLIENT,
+      partner_company_id: contract.partner_company_id || undefined,
       client_type: (contract.client_type as ClientType) || CLIENT_TYPES.ORGANIZATION,
       client_name: contract.client_name,
       client_short_name: contract.client_short_name || '',
@@ -824,7 +1109,13 @@ const loadContract = async () => {
       client_bank_correspondent_account: contract.client_bank_correspondent_account || '',
       client_bank_account: contract.client_bank_account || '',
       client_bank_recipient: contract.client_bank_recipient || '',
+      tariff_plan_id: contract.tariff_plan_id || undefined,
+      discount_type: contract.discount_type || 'none',
+      manual_discount_percent: contract.manual_discount_percent || 0,
+      total_amount: contract.total_amount || '',
+      currency: contract.currency || 'RUB',
       status: contract.status,
+      is_active: contract.is_active !== undefined ? contract.is_active : true,
       account_id: undefined,
     };
     
@@ -848,6 +1139,8 @@ const saveContract = async () => {
       number: form.value.number,
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
+      contract_type: form.value.contract_type,
+      partner_company_id: form.value.partner_company_id || null,
       client_type: form.value.client_type,
       client_name: form.value.client_name,
       client_short_name: form.value.client_short_name || '',
@@ -877,6 +1170,9 @@ const saveContract = async () => {
       client_bank_correspondent_account: form.value.client_bank_correspondent_account || '',
       client_bank_account: form.value.client_bank_account || '',
       client_bank_recipient: form.value.client_bank_recipient || '',
+      tariff_plan_id: form.value.tariff_plan_id || null,
+      discount_type: form.value.discount_type || 'none',
+      manual_discount_percent: form.value.manual_discount_percent || 0,
       status: form.value.status || 'draft',
     };
     
@@ -919,7 +1215,11 @@ const showSnackbarMessage = (text: string, color: string) => {
 
 // Lifecycle
 onMounted(async () => {
-  await loadContract();
+  await Promise.all([
+    loadContract(),
+    loadPartnerCompanies(),
+    loadTariffPlans(),
+  ]);
 });
 </script>
 

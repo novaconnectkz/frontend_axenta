@@ -2850,6 +2850,10 @@ const savePlan = async () => {
     } else {
       await billingService.createBillingPlan(editingPlan.value as CreateBillingPlanData, currentCompanyId.value)
     }
+    
+    // Инвалидируем кэш перед загрузкой свежих данных
+    invalidateBillingCache()
+    
     await fetchPlans()
     await loadDashboardData()
     closePlanDialog()
@@ -2868,6 +2872,10 @@ const deletePlan = async (plan: BillingPlan) => {
   try {
     console.log('deletePlan: удаление плана', { planId: plan.id, companyId: currentCompanyId.value })
     await billingService.deleteBillingPlan(plan.id, currentCompanyId.value)
+    
+    // Инвалидируем кэш перед загрузкой свежих данных
+    invalidateBillingCache()
+    
     await fetchPlans()
     await loadDashboardData()
   } catch (error: any) {
@@ -2876,6 +2884,10 @@ const deletePlan = async (plan: BillingPlan) => {
     // Если план уже был удален (404), просто обновляем список
     if (error.response?.status === 404) {
       console.log('⚠️ План уже был удален, обновляем список...')
+      
+      // Инвалидируем кэш перед загрузкой свежих данных
+      invalidateBillingCache()
+      
       await fetchPlans()
       await loadDashboardData()
       alert('Тарифный план уже был удален ранее. Список обновлен.')
