@@ -47,7 +47,15 @@
           </v-card-title>
           <v-expand-transition>
             <v-card-text v-if="expandedCategories.basic">
-                <v-row no-gutters>
+                <!-- Skeleton loaders при загрузке -->
+                <v-row v-if="isLoadingDashboard" no-gutters>
+                  <v-col v-for="i in 6" :key="i" cols="6" sm="4" md="3" lg="2" class="pa-1">
+                    <v-skeleton-loader type="card" class="ma-1"></v-skeleton-loader>
+                  </v-col>
+                </v-row>
+                
+                <!-- Данные после загрузки -->
+                <v-row v-else no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
                     <BillingStatCard
                       :title="dashboardData?.widgets.total_revenue.title || 'Общий доход'"
@@ -2068,6 +2076,7 @@ import { billingService } from '@/services/billingService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
 import { settingsService } from '@/services/settingsService'
+import { cacheService } from '@/utils/cacheService'
 import type {
     BillingDashboardData,
     BillingPlan,
@@ -2228,6 +2237,8 @@ const subscriptions = ref<Subscription[]>([])
 const invoices = ref<Invoice[]>([])
 const billingSettings = ref<BillingSettings | null>(null)
 const initialSettingsSnapshot = ref<string>('') // JSON снапшот для dirty-check
+const isLoadingDashboard = ref(false) // Состояние загрузки для skeleton loaders
+const isLoadingContracts = ref(false)
 const contractsStats = ref<{
   total: number
   active: number
@@ -2618,20 +2629,45 @@ const calculatedMonthlyAmount = computed(() => {
 
 // Методы загрузки данных
 const loadDashboardData = async () => {
+  isLoadingDashboard.value = true
   try {
-    // Сначала загружаем статистику договоров, чтобы она была доступна для расчета дашборда
-    await loadContractsStats()
+    const cacheKey = `billing_dashboard_${currentCompanyId.value}`
     
-    // Затем загружаем планы, подписки и счета
-    const [plansData, subscriptionsData, invoicesData] = await Promise.all([
+    // Пытаемся получить данные из кэша
+    const cachedData = cacheService.get<{
+      plans: any[]
+      subscriptions: any[]
+      contractsStats: any
+      dashboardData: any
+    }>(cacheKey)
+    
+    if (cachedData) {
+      console.log('📦 Загружаем billing данные из кэша')
+      plans.value = cachedData.plans
+      subscriptions.value = cachedData.subscriptions
+      contractsStats.value = cachedData.contractsStats
+      dashboardData.value = cachedData.dashboardData
+      return
+    }
+    
+    console.log('🌐 Загружаем billing данные с сервера')
+    
+    // Стратегия прогрессивной загрузки для плохого интернета:
+    // 1. Загружаем критичные данные первыми (планы и подписки)
+    const [plansData, subscriptionsData] = await Promise.all([
       billingService.getBillingPlans(currentCompanyId.value),
-      billingService.getSubscriptions(currentCompanyId.value),
-      billingService.getInvoices({ company_id: currentCompanyId.value }).then(r => r.invoices)
+      billingService.getSubscriptions(currentCompanyId.value)
     ])
     
-    // Сохраняем в состояние компонента
+    // Сохраняем критичные данные сразу
     plans.value = plansData
     subscriptions.value = subscriptionsData
+    
+    // 2. Загружаем менее критичные данные параллельно
+    const [invoicesData] = await Promise.all([
+      billingService.getInvoices({ company_id: currentCompanyId.value }).then(r => r.invoices),
+      loadContractsStats() // Статистика договоров загружается параллельно
+    ])
     
     // Передаем уже загруженные данные в getBillingDashboardData, чтобы избежать дублирования
     // Также передаем количество активных договоров для расчета среднего дохода
@@ -2642,8 +2678,19 @@ const loadDashboardData = async () => {
       invoicesData,
       contractsStats.value?.active || 0
     )
+    
+    // Сохраняем данные в кэш на 3 минуты
+    cacheService.set(cacheKey, {
+      plans: plansData,
+      subscriptions: subscriptionsData,
+      contractsStats: contractsStats.value,
+      dashboardData: dashboardData.value
+    }, 3 * 60 * 1000) // 3 минуты
+    
   } catch (error) {
     console.error('Ошибка при загрузке данных дашборда:', error)
+  } finally {
+    isLoadingDashboard.value = false
   }
 }
 
@@ -3398,6 +3445,15 @@ const handleContractsStatsUpdate = (stats: {
   total_amount: string
 }) => {
   contractsStats.value = stats
+  // Инвалидируем кэш при изменении данных
+  invalidateBillingCache()
+}
+
+// Функция для инвалидации кэша billing данных
+const invalidateBillingCache = () => {
+  const cacheKey = `billing_dashboard_${currentCompanyId.value}`
+  cacheService.remove(cacheKey)
+  console.log('🗑️ Кэш billing данных инвалидирован')
 }
 
 // Функция для открытия диалога детальной информации о метрике

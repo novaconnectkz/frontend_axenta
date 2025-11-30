@@ -785,10 +785,22 @@ const demoMode = ref(false); // Отключен по умолчанию
 const contracts = ref<Contract[]>([]);
 // Используем подписки из props или пустой массив
 const contractSubscriptions = computed(() => props.subscriptions || []);
-const searchQuery = ref('');
+const searchQuery = ref(''); // Пользовательский ввод
+const debouncedSearchQuery = ref(''); // Дебаунсированное значение для фильтрации
 const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
 const contractTypeFilter = ref<string | null>(null);
+
+// Дебаунс для поискового запроса (500мс) для оптимизации при плохом интернете
+let searchDebounceTimer: number | null = null;
+watch(searchQuery, (newValue) => {
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+  }
+  searchDebounceTimer = window.setTimeout(() => {
+    debouncedSearchQuery.value = newValue;
+  }, 500); // 500мс задержка
+});
 
 // Snackbar
 const showSnackbar = ref(false);
@@ -844,8 +856,8 @@ const activeOptions = [
 const filteredContracts = computed(() => {
   let result = contracts.value;
 
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
+  if (debouncedSearchQuery.value) {
+    const query = debouncedSearchQuery.value.toLowerCase();
     result = result.filter(contract =>
       contract.number.toLowerCase().includes(query) ||
       contract.title.toLowerCase().includes(query) ||
