@@ -579,9 +579,9 @@
     </v-dialog>
 
     <!-- Диалог статистики партнерского договора -->
-    <v-dialog v-model="partnerStatsDialog" max-width="1200px" scrollable>
-      <v-card>
-        <v-card-title class="d-flex align-center justify-space-between pa-4">
+    <v-dialog v-model="partnerStatsDialog" max-width="1200px">
+      <v-card style="max-height: 90vh; display: flex; flex-direction: column;">
+        <v-card-title class="d-flex align-center justify-space-between pa-4" style="flex-shrink: 0;">
           <div class="d-flex align-center">
             <v-icon icon="mdi-chart-line" class="mr-3" color="purple" />
             <div>
@@ -596,47 +596,126 @@
 
         <v-divider />
 
-        <v-card-text class="pa-0">
-          <!-- Загрузка -->
-          <div v-if="partnerStatsLoading" class="text-center pa-8">
-            <v-progress-circular indeterminate color="purple" size="64" />
-            <div class="mt-4 text-grey">Загрузка статистики...</div>
-          </div>
+        <!-- Фильтр по периоду - ВСЕГДА ВИДИМ -->
+        <div style="flex-shrink: 0;">
+          <v-card-text class="pa-4 pb-0">
+            <v-row dense>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="partnerStatsStartDate"
+                  label="Дата начала"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  :clearable="true"
+                />
+              </v-col>
+              <v-col cols="12" md="4">
+                <v-text-field
+                  v-model="partnerStatsEndDate"
+                  label="Дата окончания"
+                  type="date"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  :clearable="true"
+                />
+              </v-col>
+              <v-col cols="12" md="4" class="d-flex align-center gap-2">
+                <v-btn
+                  color="purple"
+                  variant="flat"
+                  @click="loadPartnerStatistics"
+                  :disabled="partnerStatsLoading"
+                >
+                  <v-icon icon="mdi-refresh" class="mr-2" />
+                  Применить
+                </v-btn>
+                <v-btn
+                  color="purple"
+                  variant="outlined"
+                  @click="generateSnapshotsForPeriod"
+                  :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate"
+                >
+                  <v-icon icon="mdi-camera-plus" class="mr-2" />
+                  Создать снимки
+                </v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
 
-          <!-- Данные -->
-          <div v-else-if="partnerStatsSummary && partnerSnapshots.length > 0">
-            <!-- Сводная информация -->
-            <v-card variant="flat" class="ma-4 mb-2" color="purple-lighten-5">
-              <v-card-text class="pa-4">
-                <v-row>
-                  <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Всего дней</div>
-                    <div class="text-h6 font-weight-bold">
-                      {{ partnerStatsSummary.total_days }}
-                    </div>
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Среднее объектов</div>
-                    <div class="text-h6 font-weight-bold">
-                      {{ partnerStatsSummary.avg_objects }}
-                    </div>
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Месячный тариф</div>
-                    <div class="text-h6 font-weight-bold">
-                      {{ formatCurrency(partnerStatsSummary.monthly_price || 0) }}
-                    </div>
-                    <div class="text-caption text-grey">({{ (partnerStatsSummary.monthly_price / 30).toFixed(4) }} ₽/день)</div>
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Общая стоимость</div>
-                    <div class="text-h6 font-weight-bold text-purple">
-                      {{ formatCurrencyPrecise(partnerStatsSummary.total_cost) }}
-                    </div>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </v-card>
+          <v-divider class="mt-4" />
+        </div>
+
+        <!-- Прокручиваемый контент -->
+        <div style="flex: 1; overflow-y: auto;">
+          <v-card-text class="pa-0">
+          <!-- Прогресс-бар создания снимков -->
+          <v-progress-linear
+            v-if="isGeneratingSnapshots"
+            :model-value="snapshotsGenerationProgress"
+            color="purple"
+            height="6"
+            class="mb-0"
+          />
+
+          <!-- Сводная информация - ВСЕГДА ВИДНА -->
+          <v-card variant="flat" class="ma-4 mb-2" color="purple-lighten-5">
+            <v-card-text class="pa-4">
+              <v-row>
+                <v-col cols="12" md="3">
+                  <div class="text-caption text-grey mb-1">Всего дней</div>
+                  <div class="text-h6 font-weight-bold">
+                    {{ partnerStatsSummary?.total_days || 0 }}
+                  </div>
+                </v-col>
+                <v-col cols="12" md="3">
+                  <div class="text-caption text-grey mb-1">Среднее объектов</div>
+                  <div class="text-h6 font-weight-bold">
+                    {{ partnerStatsSummary?.avg_objects || 0 }}
+                  </div>
+                </v-col>
+                <v-col cols="12" md="3">
+                  <div class="text-caption text-grey mb-1">Месячный тариф</div>
+                  <div class="text-h6 font-weight-bold">
+                    {{ formatCurrency(partnerStatsSummary?.monthly_price || 0) }}
+                  </div>
+                  <div class="text-caption text-grey">({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(4) }} ₽/день)</div>
+                </v-col>
+                <v-col cols="12" md="3">
+                  <div class="text-caption text-grey mb-1">Общая стоимость</div>
+                  <div class="text-h6 font-weight-bold text-purple">
+                    {{ formatCurrencyPrecise(partnerStatsSummary?.total_cost || 0) }}
+                  </div>
+                </v-col>
+              </v-row>
+              
+              <!-- Индикатор загрузки / создания снимков -->
+              <v-row v-if="partnerStatsLoading || isGeneratingSnapshots" class="mt-2">
+                <v-col cols="12" class="text-center">
+                  <v-progress-circular 
+                    v-if="partnerStatsLoading && !isGeneratingSnapshots"
+                    indeterminate 
+                    color="purple" 
+                    size="32" 
+                    width="3"
+                  />
+                  <div class="mt-2 text-caption text-grey">
+                    <span v-if="isGeneratingSnapshots">
+                      Создание снимков... {{ snapshotsGenerationProgress }}%
+                    </span>
+                    <span v-else-if="partnerStatsLoading">
+                      Загрузка статистики...
+                    </span>
+                  </div>
+                </v-col>
+              </v-row>
+            </v-card-text>
+          </v-card>
+
+          <!-- Таблица снимков или сообщение об отсутствии данных -->
+          <div v-if="!partnerStatsLoading && partnerSnapshots.length > 0">
 
             <!-- Таблица снимков по дням -->
             <div class="px-4 pb-4">
@@ -658,14 +737,14 @@
                       <div class="font-weight-medium">{{ formatDate(snapshot.snapshot_date) }}</div>
                     </td>
                     <td class="text-center">
-                      <v-chip size="x-small" variant="outlined">
+                      <div class="text-h6 font-weight-bold">
                         {{ snapshot.total_objects_count }}
-                      </v-chip>
+                      </div>
                     </td>
                     <td class="text-center">
-                      <v-chip size="x-small" color="purple" variant="outlined">
+                      <div class="text-h6 font-weight-bold" style="color: #9c27b0;">
                         {{ snapshot.active_objects_count }}
-                      </v-chip>
+                      </div>
                     </td>
                     <td class="text-right text-grey">
                       <div>{{ formatCurrency(snapshot.monthly_price || 0) }}/мес</div>
@@ -701,22 +780,21 @@
           </div>
 
           <!-- Нет данных -->
-          <div v-else class="text-center pa-8">
+          <div v-else-if="!partnerStatsLoading && !isGeneratingSnapshots" class="text-center pa-8">
             <v-icon icon="mdi-information-outline" color="info" size="64" />
             <div class="mt-4 text-grey mb-4">
-              Нет снимков для отображения.<br>
-              Снимки создаются автоматически каждый день в 00:00 UTC.
+              Нет снимков для отображения за выбранный период.<br>
+              Создайте снимки, нажав на кнопку "Создать снимки" выше.
             </div>
-            <v-btn color="purple" variant="outlined" @click="createTestSnapshot">
-              <v-icon icon="mdi-camera-plus" class="mr-2" />
-              Создать тестовый снимок
-            </v-btn>
           </div>
-        </v-card-text>
+          </v-card-text>
+        </div>
+        <!-- Конец прокручиваемого контента -->
 
         <v-divider />
 
-        <v-card-actions class="pa-4">
+        <!-- Футер - ВСЕГДА ВИДИМ -->
+        <v-card-actions class="pa-4" style="flex-shrink: 0;">
           <v-spacer />
           <v-btn variant="outlined" @click="partnerStatsDialog = false">
             Закрыть
@@ -827,6 +905,14 @@ const partnerStatsLoading = ref(false);
 const currentPartnerContract = ref<Contract | null>(null);
 const partnerSnapshots = ref<any[]>([]);
 const partnerStatsSummary = ref<any>(null);
+
+// Период для статистики партнерского договора
+const partnerStatsStartDate = ref<string>('');
+const partnerStatsEndDate = ref<string>('');
+
+// Прогресс создания снимков
+const snapshotsGenerationProgress = ref<number>(0);
+const isGeneratingSnapshots = ref<boolean>(false);
 
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
@@ -1227,9 +1313,10 @@ const viewInvoices = (contract: Contract) => {
   // Здесь можно переключиться на вкладку "Счета" с фильтром по договору
 };
 
-// Создать тестовый снимок для партнерских договоров
+// Создать тестовый снимок для партнерских договоров (на сегодня)
 const createTestSnapshot = async () => {
-  partnerStatsLoading.value = true;
+  isGeneratingSnapshots.value = true;
+  snapshotsGenerationProgress.value = 0;
 
   try {
     const token = localStorage.getItem('axenta_token');
@@ -1246,6 +1333,13 @@ const createTestSnapshot = async () => {
     const company = JSON.parse(companyData);
     const tenantId = company.id;
 
+    // Симулируем прогресс
+    const progressInterval = setInterval(() => {
+      if (snapshotsGenerationProgress.value < 90) {
+        snapshotsGenerationProgress.value += 10;
+      }
+    }, 200);
+
     const response = await fetch(
       `${config.apiBaseUrl}/auth/contracts/partner-snapshots/create`,
       {
@@ -1258,6 +1352,9 @@ const createTestSnapshot = async () => {
       }
     );
 
+    clearInterval(progressInterval);
+    snapshotsGenerationProgress.value = 95;
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Ошибка создания снимков');
@@ -1266,15 +1363,18 @@ const createTestSnapshot = async () => {
     const data = await response.json();
     
     if (data.status === 'success') {
+      snapshotsGenerationProgress.value = 100;
+      
       showSnackbarMessage(
         `Снимки созданы: успешно ${data.success_count}, ошибок ${data.error_count}`,
         'success'
       );
       
+      // Небольшая задержка чтобы пользователь увидел 100%
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Перезагружаем статистику
-      if (currentPartnerContract.value) {
-        await showPartnerStatistics(currentPartnerContract.value);
-      }
+      await loadPartnerStatistics();
     } else {
       throw new Error('Неверный формат ответа от сервера');
     }
@@ -1282,7 +1382,8 @@ const createTestSnapshot = async () => {
     console.error('Ошибка создания тестового снимка:', error);
     showSnackbarMessage(error.message || 'Ошибка создания снимка', 'error');
   } finally {
-    partnerStatsLoading.value = false;
+    isGeneratingSnapshots.value = false;
+    snapshotsGenerationProgress.value = 0;
   }
 };
 
@@ -1290,6 +1391,25 @@ const createTestSnapshot = async () => {
 const showPartnerStatistics = async (contract: Contract) => {
   currentPartnerContract.value = contract;
   partnerStatsDialog.value = true;
+  
+  // Устанавливаем период по умолчанию
+  const endDate = new Date();
+  const startDate = contract.start_date ? new Date(contract.start_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  
+  // Форматируем даты для input type="date" (YYYY-MM-DD)
+  partnerStatsStartDate.value = startDate.toISOString().split('T')[0];
+  partnerStatsEndDate.value = endDate.toISOString().split('T')[0];
+  
+  // Загружаем статистику
+  await loadPartnerStatistics();
+};
+
+// Загрузить статистику партнерского договора за выбранный период
+const loadPartnerStatistics = async () => {
+  if (!currentPartnerContract.value) {
+    return;
+  }
+
   partnerStatsLoading.value = true;
   partnerSnapshots.value = [];
   partnerStatsSummary.value = null;
@@ -1309,13 +1429,13 @@ const showPartnerStatistics = async (contract: Contract) => {
     const company = JSON.parse(companyData);
     const tenantId = company.id;
 
-    // Период - последние 30 дней или период договора
-    const endDate = new Date();
-    const startDate = contract.start_date ? new Date(contract.start_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Используем выбранный период
+    const startDate = partnerStatsStartDate.value ? new Date(partnerStatsStartDate.value) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endDate = partnerStatsEndDate.value ? new Date(partnerStatsEndDate.value) : new Date();
 
     // Запрашиваем снимки партнерского договора
     const response = await fetch(
-      `${config.apiBaseUrl}/auth/contracts/${contract.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+      `${config.apiBaseUrl}/auth/contracts/${currentPartnerContract.value.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
       {
         method: 'GET',
         headers: {
@@ -1343,6 +1463,89 @@ const showPartnerStatistics = async (contract: Contract) => {
     showSnackbarMessage(error.message || 'Ошибка загрузки статистики', 'error');
   } finally {
     partnerStatsLoading.value = false;
+  }
+};
+
+// Создать снимки за выбранный период
+const generateSnapshotsForPeriod = async () => {
+  if (!currentPartnerContract.value || !partnerStatsStartDate.value || !partnerStatsEndDate.value) {
+    showSnackbarMessage('Выберите период для создания снимков', 'warning');
+    return;
+  }
+
+  isGeneratingSnapshots.value = true;
+  snapshotsGenerationProgress.value = 0;
+
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+    
+    if (!token) {
+      throw new Error('Отсутствует токен авторизации');
+    }
+
+    if (!companyData) {
+      throw new Error('Отсутствует информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    // Симулируем прогресс (так как backend создает все снимки за один запрос)
+    const progressInterval = setInterval(() => {
+      if (snapshotsGenerationProgress.value < 90) {
+        snapshotsGenerationProgress.value += 5;
+      }
+    }, 300);
+
+    const response = await fetch(
+      `${config.apiBaseUrl}/auth/contracts/${currentPartnerContract.value.id}/partner-snapshots/generate`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Token ${token}`,
+          'Content-Type': 'application/json',
+          'X-Tenant-ID': String(tenantId)
+        },
+        body: JSON.stringify({
+          start_date: partnerStatsStartDate.value,
+          end_date: partnerStatsEndDate.value
+        })
+      }
+    );
+
+    clearInterval(progressInterval);
+    snapshotsGenerationProgress.value = 95;
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Ошибка создания снимков');
+    }
+
+    const data = await response.json();
+    
+    if (data.status === 'success') {
+      snapshotsGenerationProgress.value = 100;
+      
+      showSnackbarMessage(
+        `Снимки созданы: успешно ${data.success_count}, ошибок ${data.error_count}`,
+        'success'
+      );
+      
+      // Небольшая задержка чтобы пользователь увидел 100%
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Перезагружаем статистику
+      await loadPartnerStatistics();
+    } else {
+      throw new Error('Неверный формат ответа от сервера');
+    }
+  } catch (error: any) {
+    console.error('Ошибка создания снимков за период:', error);
+    showSnackbarMessage(error.message || 'Ошибка создания снимков', 'error');
+  } finally {
+    isGeneratingSnapshots.value = false;
+    snapshotsGenerationProgress.value = 0;
   }
 };
 
