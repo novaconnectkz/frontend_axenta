@@ -57,13 +57,13 @@ class AccountsService {
   private static instance: AccountsService;
   private apiClient = axios.create({
     baseURL: config.backendUrl, // Используем переменную из .env
-    timeout: 30000,
+    timeout: config.apiTimeout, // Используем таймаут из конфигурации
   });
 
   // Отдельный клиент для Axenta Cloud API
   private axentaCloudClient = axios.create({
     baseURL: "https://axenta.cloud",
-    timeout: 30000,
+    timeout: config.apiTimeout, // Используем таймаут из конфигурации
   });
 
   // Кеширование статистики

@@ -52,8 +52,8 @@ export const config = {
   // Режим приложения
   appEnv: getEnvVar("VITE_APP_ENV", "development"),
 
-  // Таймаут для API запросов
-  apiTimeout: parseInt(getEnvVar("VITE_API_TIMEOUT", "30000")),
+  // Таймаут для API запросов (увеличен для обработки больших объемов данных)
+  apiTimeout: parseInt(getEnvVar("VITE_API_TIMEOUT", "180000")),
 
   // Базовый URL API
   get apiBaseUrl() {

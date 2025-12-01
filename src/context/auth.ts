@@ -126,7 +126,7 @@ export function useAuthProvider() {
   // Создаем axios instance с автоматическим добавлением токена
   const apiClient = axios.create({
     baseURL: config.apiBaseUrl,
-    timeout: 30000,
+    timeout: config.apiTimeout, // Используем таймаут из конфигурации
   });
 
   // Interceptor для автоматического добавления токена

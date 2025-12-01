@@ -5,7 +5,7 @@ import { config } from "@/config/env";
 // Создаем экземпляр axios с базовой конфигурацией
 export const apiClient = axios.create({
   baseURL: config.apiBaseUrl, // Используем конфигурацию из env
-  timeout: 10000, // Таймаут 10 секунд
+  timeout: config.apiTimeout, // Используем таймаут из конфигурации (по умолчанию 180 секунд)
   headers: {
     "Content-Type": "application/json",
   },
