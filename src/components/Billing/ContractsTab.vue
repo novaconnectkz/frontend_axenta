@@ -240,7 +240,7 @@
             <v-chip size="small" color="grey" variant="tonal">
               Не указан
             </v-chip>
-            <div class="text-caption text-grey">
+            <div class="text-caption text-medium-emphasis">
               Нет подписок
             </div>
           </template>
@@ -265,7 +265,7 @@
                   <v-chip size="small" color="grey" variant="tonal">
                     Не указан
                   </v-chip>
-                  <div class="text-caption text-grey">
+                  <div class="text-caption text-medium-emphasis">
                     Нет подписок
                   </div>
                 </div>
@@ -274,7 +274,7 @@
                   <v-chip size="small" color="info" variant="tonal">
                     Не указан
                   </v-chip>
-                  <div class="text-caption text-grey">
+                  <div class="text-caption text-medium-emphasis">
                     Период не установлен
                   </div>
                 </div>
@@ -405,7 +405,7 @@
       <v-card-text class="text-center pa-6">
         <v-icon icon="mdi-file-document-multiple" size="48" class="mb-3" color="grey" />
         <h3 class="mb-2">Нет договоров</h3>
-        <p class="text-grey mb-4">
+        <p class="text-medium-emphasis mb-4">
           Создайте первый договор для работы с биллингом
         </p>
       </v-card-text>
@@ -429,7 +429,7 @@
             <v-icon icon="mdi-calculator" class="mr-3" color="primary" />
             <div>
               <div class="text-h6">Детализация расчета стоимости</div>
-              <div v-if="currentContractForBreakdown" class="text-caption text-grey">
+              <div v-if="currentContractForBreakdown" class="text-caption text-medium-emphasis">
                 Договор {{ currentContractForBreakdown.number }} • {{ currentContractForBreakdown.client_name }}
               </div>
             </div>
@@ -443,7 +443,7 @@
           <!-- Загрузка -->
           <div v-if="billingBreakdownLoading" class="text-center pa-8">
             <v-progress-circular indeterminate color="primary" size="64" />
-            <div class="mt-4 text-grey">Загрузка данных...</div>
+            <div class="mt-4 text-medium-emphasis">Загрузка данных...</div>
           </div>
 
           <!-- Данные -->
@@ -453,26 +453,26 @@
               <v-card-text class="pa-4">
                 <v-row>
                   <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Период договора</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Период договора</div>
                     <div class="text-body-1 font-weight-medium">
                       {{ formatDate(billingBreakdownData.contract.start_date) }} - 
                       {{ formatDate(billingBreakdownData.contract.end_date) }}
                     </div>
                   </v-col>
                   <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Всего месяцев</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Всего месяцев</div>
                     <div class="text-h6 font-weight-bold">
                       {{ billingBreakdownData.summary.months_count }}
                     </div>
                   </v-col>
                   <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">Оплачено</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Оплачено</div>
                     <div class="text-h6 font-weight-bold text-success">
                       {{ formatCurrency(billingBreakdownData.summary.total_paid) }}
                     </div>
                   </v-col>
                   <v-col cols="12" md="3">
-                    <div class="text-caption text-grey mb-1">К оплате</div>
+                    <div class="text-caption text-medium-emphasis mb-1">К оплате</div>
                     <div class="text-h6 font-weight-bold text-warning">
                       {{ formatCurrency(billingBreakdownData.summary.total_future) }}
                     </div>
@@ -502,7 +502,7 @@
                         />
                         <div>
                           <div class="font-weight-medium">{{ month.month_name }}</div>
-                          <div class="text-caption text-grey">
+                          <div class="text-caption text-medium-emphasis">
                             {{ month.subscriptions.length }} подписок
                           </div>
                         </div>
@@ -545,7 +545,7 @@
                             </v-chip>
                           </td>
                           <td>
-                            <span class="text-caption text-grey">
+                            <span class="text-caption text-medium-emphasis">
                               {{ sub.description }}
                             </span>
                           </td>
@@ -564,7 +564,7 @@
           <!-- Ошибка -->
           <div v-else class="text-center pa-8">
             <v-icon icon="mdi-alert-circle" color="error" size="64" />
-            <div class="mt-4 text-grey">Не удалось загрузить данные</div>
+            <div class="mt-4 text-medium-emphasis">Не удалось загрузить данные</div>
           </div>
         </v-card-text>
 
@@ -587,7 +587,7 @@
             <v-icon icon="mdi-chart-line" class="mr-3" color="purple" />
             <div>
               <div class="text-h6">Статистика партнерского договора</div>
-              <div v-if="currentPartnerContract" class="text-caption text-grey">
+              <div v-if="currentPartnerContract" class="text-caption text-medium-emphasis">
                 Договор {{ currentPartnerContract.number }} • {{ currentPartnerContract.client_name }}
               </div>
             </div>
@@ -699,7 +699,7 @@
               height="8"
               rounded
             />
-            <div class="text-caption text-grey mt-1 text-center">
+            <div class="text-caption text-medium-emphasis mt-1 text-center">
               Пожалуйста, подождите. Запрашиваем данные из API...
             </div>
           </div>
@@ -709,7 +709,7 @@
             <v-card-text class="pa-4">
               <v-row dense>
                 <v-col cols="6" sm="4" md="2">
-                  <div class="text-caption text-grey mb-1">Всего дней</div>
+                  <div class="text-caption text-medium-emphasis mb-1">Всего дней</div>
                   <div class="text-subtitle-1 font-weight-bold">
                     {{ partnerStatsSummary?.total_days || 0 }}
                   </div>
@@ -717,7 +717,7 @@
                 
                 <!-- Среднее объектов с точной цифрой в подсказке -->
                 <v-col cols="6" sm="4" md="2">
-                  <div class="text-caption text-grey mb-1">Среднее объектов</div>
+                  <div class="text-caption text-medium-emphasis mb-1">Среднее объектов</div>
                   <v-tooltip location="bottom">
                     <template v-slot:activator="{ props }">
                       <div v-bind="props" class="text-subtitle-1 font-weight-bold" style="cursor: help;">
@@ -730,7 +730,7 @@
                 
                 <!-- Тариф за объект/период с точной цифрой в подсказке -->
                 <v-col cols="12" sm="4" md="3">
-                  <div class="text-caption text-grey mb-1">Тариф за объект/период</div>
+                  <div class="text-caption text-medium-emphasis mb-1">Тариф за объект/период</div>
                   <v-tooltip location="bottom">
                     <template v-slot:activator="{ props }">
                       <div v-bind="props" class="text-body-1 font-weight-bold text-primary" style="cursor: help;">
@@ -739,7 +739,7 @@
                     </template>
                     <span>Точное значение: {{ formatCurrencyExtraPrecise(partnerStatsSummary?.price_per_object_for_period || 0) }}</span>
                   </v-tooltip>
-                  <div class="text-caption text-grey">
+                  <div class="text-caption text-medium-emphasis">
                     за {{ partnerStatsSummary?.total_days || 0 }} дн.
                     <span v-if="hasDiscount" class="text-success ml-1">
                       (со скидкой)
@@ -748,12 +748,12 @@
                 </v-col>
                 <!-- Месячный тариф с точной цифрой в подсказке -->
                 <v-col cols="6" sm="6" md="2">
-                  <div class="text-caption text-grey mb-1">Месячный тариф</div>
+                  <div class="text-caption text-medium-emphasis mb-1">Месячный тариф</div>
                   <div>
                     <!-- Если есть скидка -->
                     <template v-if="hasDiscount">
                       <!-- Базовая цена зачеркнута -->
-                      <div class="text-caption text-decoration-line-through text-grey">
+                      <div class="text-caption text-decoration-line-through text-medium-emphasis">
                         {{ formatCurrency(partnerStatsSummary?.base_monthly_price || 0) }}
                       </div>
                       <!-- Эффективная цена после скидки (используем monthly_price из backend) -->
@@ -767,7 +767,7 @@
                       </v-tooltip>
                       <v-tooltip location="bottom">
                         <template v-slot:activator="{ props }">
-                          <div v-bind="props" class="text-caption text-grey" style="cursor: help;">
+                          <div v-bind="props" class="text-caption text-medium-emphasis" style="cursor: help;">
                             ({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(2) }} ₽/день)
                           </div>
                         </template>
@@ -791,7 +791,7 @@
                       </v-tooltip>
                       <v-tooltip location="bottom">
                         <template v-slot:activator="{ props }">
-                          <div v-bind="props" class="text-caption text-grey" style="cursor: help;">
+                          <div v-bind="props" class="text-caption text-medium-emphasis" style="cursor: help;">
                             ({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(2) }} ₽/день)
                           </div>
                         </template>
@@ -803,7 +803,7 @@
                 
                 <!-- Общая стоимость с точной цифрой в подсказке -->
                 <v-col cols="6" sm="6" md="3">
-                  <div class="text-caption text-grey mb-1">Общая стоимость</div>
+                  <div class="text-caption text-medium-emphasis mb-1">Общая стоимость</div>
                   <v-tooltip location="bottom">
                     <template v-slot:activator="{ props }">
                       <div v-bind="props" class="text-subtitle-1 font-weight-bold text-purple" style="cursor: help;">
@@ -828,7 +828,7 @@
                     size="32" 
                     width="3"
                   />
-                  <div class="mt-2 text-caption text-grey">
+                  <div class="mt-2 text-caption text-medium-emphasis">
                     <span v-if="isGeneratingSnapshots">
                       Создание снимков... {{ snapshotsGenerationProgress }}%
                     </span>
@@ -874,7 +874,7 @@
                         {{ snapshot.active_objects_count }}
                       </div>
                     </td>
-                    <td class="text-right text-grey">
+                    <td class="text-right text-medium-emphasis">
                       <div>{{ formatCurrency(snapshot.monthly_price || 0) }}/мес</div>
                       <div class="text-caption">({{ (snapshot.monthly_price / 30).toFixed(4) }} ₽/день)</div>
                     </td>
@@ -883,7 +883,7 @@
                         <v-chip size="small" color="success" variant="tonal">
                           -{{ formatCurrency(snapshot.discount_fixed) }}
                         </v-chip>
-                        <div class="text-caption text-grey mt-1">
+                        <div class="text-caption text-medium-emphasis mt-1">
                           Фиксированная
                         </div>
                       </div>
@@ -891,15 +891,15 @@
                         <v-chip size="small" color="success" variant="tonal">
                           -{{ snapshot.discount_percent }}%
                         </v-chip>
-                        <div class="text-caption text-grey mt-1">
+                        <div class="text-caption text-medium-emphasis mt-1">
                           {{ formatCurrencyPrecise(snapshot.discount_amount || 0) }}
                         </div>
                       </div>
-                      <div v-else class="text-caption text-grey">—</div>
+                      <div v-else class="text-caption text-medium-emphasis">—</div>
                     </td>
                     <td class="text-right">
                       <div v-if="snapshot.discount_percent > 0 || snapshot.discount_fixed > 0">
-                        <div class="text-caption text-grey" style="text-decoration: line-through;">
+                        <div class="text-caption text-medium-emphasis" style="text-decoration: line-through;">
                           {{ formatCurrencyPrecise(snapshot.cost_before_discount || snapshot.daily_cost) }}
                         </div>
                         <div class="font-weight-medium text-success">
@@ -911,7 +911,7 @@
                       </div>
                     </td>
                   </tr>
-                  <tr class="font-weight-bold" style="background-color: #f5f5f5;">
+                  <tr class="font-weight-bold total-row">
                     <td colspan="5" class="text-right">Итого:</td>
                     <td class="text-right">
                       {{ formatCurrencyPrecise(partnerStatsSummary.total_cost) }}
@@ -939,7 +939,7 @@
           <!-- Нет данных -->
           <div v-else-if="!partnerStatsLoading && !isGeneratingSnapshots" class="text-center pa-8">
             <v-icon icon="mdi-information-outline" color="info" size="64" />
-            <div class="mt-4 text-grey mb-4">
+            <div class="mt-4 text-medium-emphasis mb-4">
               Нет снимков для отображения за выбранный период.<br>
               Создайте снимки, нажав на кнопку "Создать снимки" выше.
             </div>
@@ -1967,14 +1967,14 @@ const isExpiringSoon = (contract: Contract): boolean => {
 const getPeriodClass = (contract: Contract): string => {
   // Если дата окончания не указана или невалидна, не применяем стиль
   if (!contract.end_date) {
-    return 'text-grey';
+    return 'text-medium-emphasis';
   }
   
   const endDate = new Date(contract.end_date);
   
   // Проверяем, что дата валидна и не является эпохой Unix
   if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
-    return 'text-grey';
+    return 'text-medium-emphasis';
   }
   
   const now = new Date();
@@ -2898,5 +2898,18 @@ defineExpose({
 
 .breakdown-table tbody tr:last-child td {
   border-bottom: none !important;
+}
+
+/* Стили для итоговой строки */
+.total-row {
+  background-color: #f5f5f5 !important;
+}
+
+[data-theme="dark"] .total-row {
+  background-color: #2c2c2e !important;
+}
+
+[data-theme="dark"] .total-row td {
+  color: #ffffff !important;
 }
 </style>
