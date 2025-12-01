@@ -97,6 +97,33 @@ export const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
   [CONTRACT_TYPES.PARTNER]: "purple",
 };
 
+// Типы скидок для партнерских договоров
+export const DISCOUNT_TYPES = {
+  NONE: "none",
+  MANUAL_PERCENT: "manual_percent",
+  MANUAL_FIXED: "manual_fixed",
+  AUTO: "auto",
+} as const;
+
+export type DiscountType =
+  (typeof DISCOUNT_TYPES)[keyof typeof DISCOUNT_TYPES];
+
+// Лейблы типов скидок
+export const DISCOUNT_TYPE_LABELS: Record<DiscountType, string> = {
+  [DISCOUNT_TYPES.NONE]: "Без скидки",
+  [DISCOUNT_TYPES.MANUAL_PERCENT]: "Процент (%)",
+  [DISCOUNT_TYPES.MANUAL_FIXED]: "Фиксированная (₽)",
+  [DISCOUNT_TYPES.AUTO]: "Автоматическая",
+};
+
+// Опции типов скидок
+export const DISCOUNT_TYPE_OPTIONS = [
+  { value: DISCOUNT_TYPES.NONE, title: DISCOUNT_TYPE_LABELS[DISCOUNT_TYPES.NONE] },
+  { value: DISCOUNT_TYPES.MANUAL_PERCENT, title: DISCOUNT_TYPE_LABELS[DISCOUNT_TYPES.MANUAL_PERCENT] },
+  { value: DISCOUNT_TYPES.MANUAL_FIXED, title: DISCOUNT_TYPE_LABELS[DISCOUNT_TYPES.MANUAL_FIXED] },
+  { value: DISCOUNT_TYPES.AUTO, title: DISCOUNT_TYPE_LABELS[DISCOUNT_TYPES.AUTO] },
+] as const;
+
 // Опции типов договоров
 export const CONTRACT_TYPE_OPTIONS = [
   { value: CONTRACT_TYPES.CLIENT, title: CONTRACT_TYPE_LABELS[CONTRACT_TYPES.CLIENT] },
@@ -248,8 +275,9 @@ export interface ContractForm {
   account_id?: number; // ID учетной записи Axenta для автоматической привязки объектов
   
   // Скидки (для партнерских договоров)
-  discount_type?: string; // none, manual, auto
-  manual_discount_percent?: number; // 0-100
+  discount_type?: string; // none, manual_percent, manual_fixed, auto
+  manual_discount_percent?: number; // 0-100 (процентная скидка)
+  manual_discount_fixed?: number; // Фиксированная скидка в рублях
   use_auto_discount?: boolean; // Использовать автоматические скидки
 }
 
@@ -464,3 +492,53 @@ export const RESET_PERIOD_OPTIONS = [
   { value: "yearly", title: "Ежегодно" },
   { value: "monthly", title: "Ежемесячно" },
 ] as const;
+
+// Партнерские снимки
+export interface PartnerDailySnapshot {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+  admin_account_id: number;
+  company_id: number;
+  contract_id: number;
+  snapshot_date: string;
+  partner_company_id: number;
+  tariff_plan_id: number;
+  monthly_price: number;
+  daily_price: number;
+  total_objects_count: number;
+  active_objects_count: number;
+  discount_type: string;
+  discount_percent: number;
+  discount_fixed: number; // Фиксированная скидка
+  cost_before_discount: number;
+  discount_amount: number;
+  daily_cost: number;
+  status: string;
+  notes?: string;
+}
+
+// Сводная информация по партнерским снимкам
+export interface PartnerSnapshotsSummary {
+  total_days: number;
+  total_cost: number;
+  avg_objects: number;
+  daily_price: number; // Реальная дневная цена С УЧЕТОМ скидки
+  monthly_price: number; // Реальная месячная цена С УЧЕТОМ скидки
+  total_objects: number;
+  price_per_object_for_period: number; // Реальная цена за объект/период С УЧЕТОМ скидки
+  base_monthly_price?: number; // Базовая месячная цена БЕЗ скидки (для отображения)
+  base_daily_price?: number; // Базовая дневная цена БЕЗ скидки (для отображения)
+  total_discount?: number; // Общая сумма скидки за период
+  discount_type?: DiscountType; // Тип скидки
+  avg_daily_discount?: number; // Средняя дневная скидка
+}
+
+// Ответ API для партнерских снимков
+export interface PartnerSnapshotsResponse {
+  status: "success" | "error";
+  snapshots: PartnerDailySnapshot[];
+  summary: PartnerSnapshotsSummary;
+  message?: string;
+}

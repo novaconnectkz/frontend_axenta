@@ -148,6 +148,11 @@
               <MonitoringSettings />
             </div>
 
+            <!-- История снимков -->
+            <div v-if="activeTab === 'snapshot-jobs'">
+              <SnapshotJobsHistory />
+            </div>
+
             <!-- Системные настройки -->
             <div v-if="activeTab === 'system'">
               <SystemSettingsForm />
@@ -324,6 +329,7 @@ import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';
 import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
+import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
 import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
 import Trash from '@/components/Settings/Trash.vue';
@@ -454,6 +460,14 @@ const defaultTabs = [
     title: 'Мониторинг',
     subtitle: 'Статус интеграций',
     icon: 'mdi-monitor-dashboard',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
+  },
+  {
+    value: 'snapshot-jobs',
+    title: 'История снимков',
+    subtitle: 'Автоматическое создание',
+    icon: 'mdi-camera-timer',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
   },

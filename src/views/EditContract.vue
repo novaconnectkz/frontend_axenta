@@ -214,8 +214,9 @@
                                 <div class="text-body-2 font-weight-medium mb-2">Типы скидок</div>
                                 <div class="text-caption">
                                   <strong>Без скидки:</strong> полная стоимость без применения скидок<br><br>
-                                  <strong>Ручная скидка:</strong> устанавливается вручную (от 0 до 100%)<br><br>
-                                  <strong>Автоматическая скидка:</strong> рассчитывается на основе количества активных объектов:<br>
+                                  <strong>Процент (%):</strong> устанавливается вручную (от 0 до 100%)<br><br>
+                                  <strong>Фиксированная (₽):</strong> фиксированная сумма скидки в рублях за день<br><br>
+                                  <strong>Автоматическая:</strong> рассчитывается на основе количества активных объектов:<br>
                                   • ≥1000 объектов → 10%<br>
                                   • ≥2000 объектов → 20%<br>
                                   • ≥4000 объектов → 30%
@@ -226,7 +227,8 @@
                         </v-select>
                       </v-col>
 
-                      <v-col v-if="form.discount_type === 'manual'" cols="12" md="4">
+                      <!-- Процентная скидка -->
+                      <v-col v-if="form.discount_type === 'manual_percent'" cols="12" md="4">
                         <AppleInput
                           v-model.number="form.manual_discount_percent"
                           label="Процент скидки"
@@ -238,6 +240,22 @@
                         >
                           <template #append-inner>
                             <div class="text-caption text-grey mr-2">0-100%</div>
+                          </template>
+                        </AppleInput>
+                      </v-col>
+
+                      <!-- Фиксированная скидка -->
+                      <v-col v-if="form.discount_type === 'manual_fixed'" cols="12" md="4">
+                        <AppleInput
+                          v-model.number="form.manual_discount_fixed"
+                          label="Фиксированная скидка"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          suffix="₽"
+                        >
+                          <template #append-inner>
+                            <div class="text-caption text-grey mr-2">в рублях</div>
                           </template>
                         </AppleInput>
                       </v-col>
@@ -718,6 +736,8 @@ import {
   CLIENT_TYPES,
   CONTRACT_TYPES,
   CONTRACT_TYPE_OPTIONS,
+  DISCOUNT_TYPE_OPTIONS,
+  DISCOUNT_TYPES,
 } from '@/types/contracts';
 import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
@@ -780,6 +800,7 @@ const defaultForm: ContractForm = {
   tariff_plan_id: undefined,
   discount_type: 'none',
   manual_discount_percent: 0,
+  manual_discount_fixed: 0,
   total_amount: '',
   currency: 'RUB',
   status: 'draft',
@@ -818,11 +839,10 @@ const tariffPlanOptions = computed(() => {
 });
 
 // Опции для типов скидок
-const discountTypeOptions = [
-  { value: 'none', title: 'Без скидки' },
-  { value: 'manual', title: 'Ручная скидка' },
-  { value: 'auto', title: 'Автоматическая скидка' },
-];
+const discountTypeOptions = DISCOUNT_TYPE_OPTIONS.map(option => ({
+  value: option.value,
+  title: option.title,
+}));
 
 // Computed для поля сайта
 const websiteValue = computed({
@@ -1112,6 +1132,7 @@ const loadContract = async () => {
       tariff_plan_id: contract.tariff_plan_id || undefined,
       discount_type: contract.discount_type || 'none',
       manual_discount_percent: contract.manual_discount_percent || 0,
+      manual_discount_fixed: contract.manual_discount_fixed || 0,
       total_amount: contract.total_amount || '',
       currency: contract.currency || 'RUB',
       status: contract.status,
@@ -1173,6 +1194,7 @@ const saveContract = async () => {
       tariff_plan_id: form.value.tariff_plan_id || null,
       discount_type: form.value.discount_type || 'none',
       manual_discount_percent: form.value.manual_discount_percent || 0,
+      manual_discount_fixed: form.value.manual_discount_fixed || 0,
       status: form.value.status || 'draft',
     };
     

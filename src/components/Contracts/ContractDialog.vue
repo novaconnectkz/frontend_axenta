@@ -277,6 +277,91 @@
               </v-row>
             </div>
 
+            <!-- Скидки (только для партнерских договоров) -->
+            <div class="form-section" v-if="isPartnerContract">
+              <h3 class="section-title">
+                <v-icon icon="mdi-percent" class="mr-2" />
+                Скидки
+              </h3>
+              
+              <v-row>
+                <v-col cols="12">
+                  <v-alert
+                    density="compact"
+                    type="info"
+                    variant="tonal"
+                    icon="mdi-information"
+                    class="mb-4"
+                  >
+                    Можно использовать только один тип скидки. Приоритет: фиксированная > процентная > автоматическая.
+                  </v-alert>
+                </v-col>
+              </v-row>
+
+              <v-row>
+                <v-col cols="12" md="6">
+                  <v-select
+                    v-model="form.discount_type"
+                    :items="discountTypeOptions"
+                    label="Тип скидки"
+                    variant="outlined"
+                    density="comfortable"
+                    prepend-icon="mdi-tag"
+                    hint="Выберите тип скидки для партнерского договора"
+                    persistent-hint
+                  />
+                </v-col>
+
+                <!-- Процентная скидка -->
+                <v-col cols="12" md="6" v-if="form.discount_type === 'manual_percent'">
+                  <AppleInput
+                    v-model="form.manual_discount_percent"
+                    label="Процент скидки"
+                    prepend-icon="mdi-percent"
+                    type="number"
+                    min="0"
+                    max="100"
+                    suffix="%"
+                    hint="0-100%"
+                    persistent-hint
+                    :rules="[
+                      (v) => v === undefined || v === null || v === '' || (Number(v) >= 0 && Number(v) <= 100) || 'Значение должно быть от 0 до 100'
+                    ]"
+                  />
+                </v-col>
+
+                <!-- Фиксированная скидка -->
+                <v-col cols="12" md="6" v-if="form.discount_type === 'manual_fixed'">
+                  <AppleInput
+                    v-model="form.manual_discount_fixed"
+                    label="Фиксированная скидка"
+                    prepend-icon="mdi-currency-rub"
+                    type="number"
+                    min="0"
+                    suffix="₽"
+                    hint="Сумма скидки в рублях"
+                    persistent-hint
+                    :rules="[rules.number]"
+                  />
+                </v-col>
+
+                <!-- Автоматическая скидка (только описание) -->
+                <v-col cols="12" v-if="form.discount_type === 'auto'">
+                  <v-alert
+                    density="compact"
+                    type="success"
+                    variant="tonal"
+                    icon="mdi-auto-fix"
+                  >
+                    <strong>Автоматическая скидка</strong> рассчитывается по количеству объектов:<br>
+                    • 1000+ объектов = 10%<br>
+                    • 2000+ объектов = 20%<br>
+                    • 4000+ объектов = 30%
+                  </v-alert>
+                </v-col>
+              </v-row>
+            </div>
+
           </v-container>
         </v-form>
       </v-card-text>
@@ -314,6 +399,7 @@ import {
   CONTRACT_STATUS_LABELS,
   CURRENCY_OPTIONS,
   NOTIFICATION_PERIOD_OPTIONS,
+  DISCOUNT_TYPE_OPTIONS,
 } from '@/types/contracts';
 import type { BillingPlan, BillingSettings } from '@/types/billing';
 import type { Account } from '@/services/accountsService';
@@ -405,6 +491,11 @@ const defaultForm: ContractForm = {
   client_address: '',
   status: 'draft',
   account_id: undefined,
+  // Скидки (для партнерских договоров)
+  discount_type: 'none',
+  manual_discount_percent: 0,
+  manual_discount_fixed: 0,
+  use_auto_discount: false,
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
@@ -460,6 +551,39 @@ watch(
   { immediate: false }
 );
 
+// Watch для очистки полей скидок при изменении типа
+watch(
+  () => form.value.discount_type,
+  (newType) => {
+    // Очищаем все поля скидок
+    if (newType !== 'manual_percent' && newType !== 'manual') {
+      form.value.manual_discount_percent = 0;
+    }
+    if (newType !== 'manual_fixed') {
+      form.value.manual_discount_fixed = 0;
+    }
+    if (newType !== 'auto') {
+      form.value.use_auto_discount = false;
+    } else {
+      form.value.use_auto_discount = true;
+    }
+  }
+);
+
+// Watch для сброса скидок при изменении типа договора
+watch(
+  () => form.value.contract_type,
+  (newType) => {
+    // Если переключились на не партнерский договор, сбрасываем скидки
+    if (newType !== 'partner') {
+      form.value.discount_type = 'none';
+      form.value.manual_discount_percent = 0;
+      form.value.manual_discount_fixed = 0;
+      form.value.use_auto_discount = false;
+    }
+  }
+);
+
 // Options
 const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]) => ({
   value,
@@ -493,6 +617,17 @@ const numeratorOptions = computed(() => {
     subtitle: `${numerator.template} (Счетчик: ${numerator.counter_value})`,
     raw: numerator,
   }));
+});
+
+// Опции типов скидок для партнерских договоров
+const discountTypeOptions = DISCOUNT_TYPE_OPTIONS.map(option => ({
+  value: option.value,
+  title: option.title,
+}));
+
+// Проверка: является ли договор партнерским
+const isPartnerContract = computed(() => {
+  return form.value.contract_type === 'partner';
 });
 
 // Показывать выбор нумератора только если способ нумерации = "numerator"
@@ -555,6 +690,11 @@ const fillForm = (contract: ContractWithRelations) => {
     client_address: contract.client_address || '',
     status: contract.status,
     account_id: undefined, // Не загружаем account_id при редактировании
+    // Скидки (для партнерских договоров)
+    discount_type: (contract as any).discount_type || 'none',
+    manual_discount_percent: (contract as any).manual_discount_percent || 0,
+    manual_discount_fixed: (contract as any).manual_discount_fixed || 0,
+    use_auto_discount: (contract as any).use_auto_discount || false,
   };
 };
 

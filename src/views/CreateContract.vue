@@ -311,8 +311,9 @@
                                 <div class="text-body-2 font-weight-medium mb-2">Типы скидок</div>
                                 <div class="text-caption">
                                   <strong>Без скидки:</strong> полная стоимость без применения скидок<br><br>
-                                  <strong>Ручная скидка:</strong> устанавливается вручную (от 0 до 100%)<br><br>
-                                  <strong>Автоматическая скидка:</strong> рассчитывается на основе количества активных объектов:<br>
+                                  <strong>Процент (%):</strong> устанавливается вручную (от 0 до 100%)<br><br>
+                                  <strong>Фиксированная (₽):</strong> фиксированная сумма скидки в рублях за день<br><br>
+                                  <strong>Автоматическая:</strong> рассчитывается на основе количества активных объектов:<br>
                                   • ≥1000 объектов → 10%<br>
                                   • ≥2000 объектов → 20%<br>
                                   • ≥4000 объектов → 30%
@@ -323,7 +324,8 @@
                         </v-select>
                       </v-col>
 
-                      <v-col v-if="form.discount_type === 'manual'" cols="12" md="4">
+                      <!-- Процентная скидка -->
+                      <v-col v-if="form.discount_type === 'manual_percent'" cols="12" md="4">
                         <AppleInput
                           v-model.number="form.manual_discount_percent"
                           label="Процент скидки"
@@ -335,6 +337,22 @@
                         >
                           <template #append-inner>
                             <div class="text-caption text-grey mr-2">0-100%</div>
+                          </template>
+                        </AppleInput>
+                      </v-col>
+
+                      <!-- Фиксированная скидка -->
+                      <v-col v-if="form.discount_type === 'manual_fixed'" cols="12" md="4">
+                        <AppleInput
+                          v-model.number="form.manual_discount_fixed"
+                          label="Фиксированная скидка"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          suffix="₽"
+                        >
+                          <template #append-inner>
+                            <div class="text-caption text-grey mr-2">в рублях</div>
                           </template>
                         </AppleInput>
                       </v-col>
@@ -1031,6 +1049,8 @@ import {
   CONTRACT_TYPE_OPTIONS,
   CLIENT_TYPE_OPTIONS,
   CLIENT_TYPES,
+  DISCOUNT_TYPE_OPTIONS,
+  DISCOUNT_TYPES,
   type ClientType,
   type ContractType,
 } from '@/types/contracts';
@@ -1151,6 +1171,7 @@ const defaultForm: ContractForm = {
   // Скидки (для партнерских договоров)
   discount_type: 'none',
   manual_discount_percent: 0,
+  manual_discount_fixed: 0,
   use_auto_discount: false,
 };
 
@@ -1194,11 +1215,10 @@ const tariffPlanOptions = computed(() => {
 });
 
 // Опции типов скидок
-const discountTypeOptions = [
-  { value: 'none', title: 'Без скидки' },
-  { value: 'manual', title: 'Ручная скидка' },
-  { value: 'auto', title: 'Автоматическая скидка' },
-];
+const discountTypeOptions = DISCOUNT_TYPE_OPTIONS.map(option => ({
+  value: option.value,
+  title: option.title,
+}));
 
 // Показывать выбор нумератора только если способ нумерации = "numerator"
 const showNumeratorSelection = computed(() => {

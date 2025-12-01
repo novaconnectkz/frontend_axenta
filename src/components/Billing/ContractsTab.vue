@@ -599,48 +599,78 @@
         <!-- Фильтр по периоду - ВСЕГДА ВИДИМ -->
         <div style="flex-shrink: 0;">
           <v-card-text class="pa-4 pb-0">
-            <v-row dense>
-              <v-col cols="12" md="4">
+            <!-- Компактная строка: даты + кнопки -->
+            <v-row dense align="center">
+              <!-- Дата начала -->
+              <v-col cols="12" sm="6" md="2">
                 <v-text-field
                   v-model="partnerStatsStartDate"
-                  label="Дата начала"
+                  label="Начало"
                   type="date"
                   variant="outlined"
                   density="compact"
                   hide-details
-                  :clearable="true"
                 />
               </v-col>
-              <v-col cols="12" md="4">
+              
+              <!-- Дата окончания -->
+              <v-col cols="12" sm="6" md="2">
                 <v-text-field
                   v-model="partnerStatsEndDate"
-                  label="Дата окончания"
+                  label="Конец"
                   type="date"
                   variant="outlined"
                   density="compact"
                   hide-details
-                  :clearable="true"
                 />
               </v-col>
-              <v-col cols="12" md="4" class="d-flex align-center gap-2">
-                <v-btn
-                  color="purple"
-                  variant="flat"
-                  @click="loadPartnerStatistics"
-                  :disabled="partnerStatsLoading"
-                >
-                  <v-icon icon="mdi-refresh" class="mr-2" />
-                  Применить
-                </v-btn>
-                <v-btn
-                  color="purple"
-                  variant="outlined"
-                  @click="generateSnapshotsForPeriod"
-                  :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate"
-                >
-                  <v-icon icon="mdi-camera-plus" class="mr-2" />
-                  Создать снимки
-                </v-btn>
+              
+              <!-- Кнопки действий -->
+              <v-col cols="12" md="8" class="d-flex align-center gap-2 flex-wrap">
+                <!-- Получить данные за выбранный период (из БД) -->
+                <v-tooltip location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      color="purple"
+                      size="small"
+                      @click="loadPartnerStatistics"
+                      :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate || isGeneratingSnapshots"
+                      :loading="partnerStatsLoading"
+                    >
+                      <v-icon icon="mdi-database-search" size="small" />
+                      <span class="ml-1">{{ partnerStatsLoading ? 'Загрузка...' : 'Получить данные' }}</span>
+                    </v-btn>
+                  </template>
+                  <div class="pa-2">
+                    <strong>Получить данные за период</strong><br/>
+                    Загружает сохраненные ежедневные снимки<br/>
+                    из базы данных (исторические данные)
+                  </div>
+                </v-tooltip>
+                
+                <!-- Создать снимки вручную (запрос к Axenta API) -->
+                <v-tooltip location="bottom">
+                  <template v-slot:activator="{ props }">
+                    <v-btn
+                      v-bind="props"
+                      color="orange"
+                      variant="outlined"
+                      size="small"
+                      @click="generateSnapshotsForPeriod"
+                      :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate || isGeneratingSnapshots"
+                      :loading="isGeneratingSnapshots"
+                    >
+                      <v-icon icon="mdi-camera-plus" size="small" />
+                      <span class="ml-1">{{ isGeneratingSnapshots ? 'Создаю...' : 'Создать снимки' }}</span>
+                    </v-btn>
+                  </template>
+                  <div class="pa-2">
+                    <strong>Создать снимки вручную</strong><br/>
+                    Запрашивает актуальные данные из Axenta Cloud<br/>
+                    API в реальном времени (может перезаписать сегодня)
+                  </div>
+                </v-tooltip>
               </v-col>
             </v-row>
           </v-card-text>
@@ -652,41 +682,137 @@
         <div style="flex: 1; overflow-y: auto;">
           <v-card-text class="pa-0">
           <!-- Прогресс-бар создания снимков -->
-          <v-progress-linear
-            v-if="isGeneratingSnapshots"
-            :model-value="snapshotsGenerationProgress"
-            color="purple"
-            height="6"
-            class="mb-0"
-          />
+          <div v-if="isGeneratingSnapshots" class="pa-4 bg-purple-lighten-5">
+            <div class="d-flex align-center justify-space-between mb-2">
+              <div class="text-body-2 font-weight-medium">
+                <v-icon icon="mdi-camera-plus" color="purple" size="small" class="mr-2" />
+                Создание снимков из Axenta Cloud...
+              </div>
+              <div class="text-caption text-purple font-weight-bold">
+                {{ Math.round(snapshotsGenerationProgress) }}%
+              </div>
+            </div>
+            <v-progress-linear
+              :model-value="snapshotsGenerationProgress"
+              color="purple"
+              height="8"
+              rounded
+            />
+            <div class="text-caption text-grey mt-1 text-center">
+              Пожалуйста, подождите. Запрашиваем данные из API...
+            </div>
+          </div>
 
           <!-- Сводная информация - ВСЕГДА ВИДНА -->
           <v-card variant="flat" class="ma-4 mb-2" color="purple-lighten-5">
             <v-card-text class="pa-4">
-              <v-row>
-                <v-col cols="12" md="3">
+              <v-row dense>
+                <v-col cols="6" sm="4" md="2">
                   <div class="text-caption text-grey mb-1">Всего дней</div>
-                  <div class="text-h6 font-weight-bold">
+                  <div class="text-subtitle-1 font-weight-bold">
                     {{ partnerStatsSummary?.total_days || 0 }}
                   </div>
                 </v-col>
-                <v-col cols="12" md="3">
+                
+                <!-- Среднее объектов с точной цифрой в подсказке -->
+                <v-col cols="6" sm="4" md="2">
                   <div class="text-caption text-grey mb-1">Среднее объектов</div>
-                  <div class="text-h6 font-weight-bold">
-                    {{ partnerStatsSummary?.avg_objects || 0 }}
+                  <v-tooltip location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props" class="text-subtitle-1 font-weight-bold" style="cursor: help;">
+                        {{ (partnerStatsSummary?.avg_objects || 0).toFixed(2) }}
+                      </div>
+                    </template>
+                    <span>Точное значение: {{ partnerStatsSummary?.avg_objects || 0 }}</span>
+                  </v-tooltip>
+                </v-col>
+                
+                <!-- Тариф за объект/период с точной цифрой в подсказке -->
+                <v-col cols="12" sm="4" md="3">
+                  <div class="text-caption text-grey mb-1">Тариф за объект/период</div>
+                  <v-tooltip location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props" class="text-body-1 font-weight-bold text-primary" style="cursor: help;">
+                        {{ (partnerStatsSummary?.price_per_object_for_period || 0).toFixed(2) }} ₽
+                      </div>
+                    </template>
+                    <span>Точное значение: {{ formatCurrencyExtraPrecise(partnerStatsSummary?.price_per_object_for_period || 0) }}</span>
+                  </v-tooltip>
+                  <div class="text-caption text-grey">
+                    за {{ partnerStatsSummary?.total_days || 0 }} дн.
+                    <span v-if="hasDiscount" class="text-success ml-1">
+                      (со скидкой)
+                    </span>
                   </div>
                 </v-col>
-                <v-col cols="12" md="3">
+                <!-- Месячный тариф с точной цифрой в подсказке -->
+                <v-col cols="6" sm="6" md="2">
                   <div class="text-caption text-grey mb-1">Месячный тариф</div>
-                  <div class="text-h6 font-weight-bold">
-                    {{ formatCurrency(partnerStatsSummary?.monthly_price || 0) }}
+                  <div>
+                    <!-- Если есть скидка -->
+                    <template v-if="hasDiscount">
+                      <!-- Базовая цена зачеркнута -->
+                      <div class="text-caption text-decoration-line-through text-grey">
+                        {{ formatCurrency(partnerStatsSummary?.base_monthly_price || 0) }}
+                      </div>
+                      <!-- Эффективная цена после скидки (используем monthly_price из backend) -->
+                      <v-tooltip location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <div v-bind="props" class="text-subtitle-1 font-weight-bold text-success" style="cursor: help;">
+                            {{ formatCurrency(partnerStatsSummary?.monthly_price || 0) }}
+                          </div>
+                        </template>
+                        <span>Точное значение: {{ partnerStatsSummary?.monthly_price || 0 }} ₽</span>
+                      </v-tooltip>
+                      <v-tooltip location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <div v-bind="props" class="text-caption text-grey" style="cursor: help;">
+                            ({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(2) }} ₽/день)
+                          </div>
+                        </template>
+                        <span>Точная дневная цена: {{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(6) }} ₽/день</span>
+                      </v-tooltip>
+                      <!-- Для фиксированной скидки дополнительно показываем сумму скидки -->
+                      <div v-if="partnerStatsSummary?.discount_type === 'manual_fixed'" class="text-caption text-success">
+                        -{{ formatCurrency(partnerStatsSummary?.avg_daily_discount || 0) }} ₽/день
+                      </div>
+                    </template>
+                    
+                    <!-- Без скидки -->
+                    <template v-else>
+                      <v-tooltip location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <div v-bind="props" class="text-subtitle-1 font-weight-bold" style="cursor: help;">
+                            {{ formatCurrency(partnerStatsSummary?.monthly_price || 0) }}
+                          </div>
+                        </template>
+                        <span>Точное значение: {{ partnerStatsSummary?.monthly_price || 0 }} ₽</span>
+                      </v-tooltip>
+                      <v-tooltip location="bottom">
+                        <template v-slot:activator="{ props }">
+                          <div v-bind="props" class="text-caption text-grey" style="cursor: help;">
+                            ({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(2) }} ₽/день)
+                          </div>
+                        </template>
+                        <span>Точная дневная цена: {{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(6) }} ₽/день</span>
+                      </v-tooltip>
+                    </template>
                   </div>
-                  <div class="text-caption text-grey">({{ ((partnerStatsSummary?.monthly_price || 0) / 30).toFixed(4) }} ₽/день)</div>
                 </v-col>
-                <v-col cols="12" md="3">
+                
+                <!-- Общая стоимость с точной цифрой в подсказке -->
+                <v-col cols="6" sm="6" md="3">
                   <div class="text-caption text-grey mb-1">Общая стоимость</div>
-                  <div class="text-h6 font-weight-bold text-purple">
-                    {{ formatCurrencyPrecise(partnerStatsSummary?.total_cost || 0) }}
+                  <v-tooltip location="bottom">
+                    <template v-slot:activator="{ props }">
+                      <div v-bind="props" class="text-subtitle-1 font-weight-bold text-purple" style="cursor: help;">
+                        {{ formatCurrency(partnerStatsSummary?.total_cost || 0) }}
+                      </div>
+                    </template>
+                    <span>Точное значение: {{ formatCurrencyPrecise(partnerStatsSummary?.total_cost || 0) }}</span>
+                  </v-tooltip>
+                  <div v-if="hasDiscount" class="text-caption text-success">
+                    Скидка: -{{ formatCurrency(partnerStatsSummary?.total_discount || 0) }}
                   </div>
                 </v-col>
               </v-row>
@@ -752,7 +878,15 @@
                       <div class="text-caption">({{ (snapshot.monthly_price / 30).toFixed(4) }} ₽/день)</div>
                     </td>
                     <td class="text-center">
-                      <div v-if="snapshot.discount_percent > 0" class="text-body-2">
+                      <div v-if="snapshot.discount_fixed > 0" class="text-body-2">
+                        <v-chip size="small" color="success" variant="tonal">
+                          -{{ formatCurrency(snapshot.discount_fixed) }}
+                        </v-chip>
+                        <div class="text-caption text-grey mt-1">
+                          Фиксированная
+                        </div>
+                      </div>
+                      <div v-else-if="snapshot.discount_percent > 0" class="text-body-2">
                         <v-chip size="small" color="success" variant="tonal">
                           -{{ snapshot.discount_percent }}%
                         </v-chip>
@@ -763,7 +897,7 @@
                       <div v-else class="text-caption text-grey">—</div>
                     </td>
                     <td class="text-right">
-                      <div v-if="snapshot.discount_percent > 0">
+                      <div v-if="snapshot.discount_percent > 0 || snapshot.discount_fixed > 0">
                         <div class="text-caption text-grey" style="text-decoration: line-through;">
                           {{ formatCurrencyPrecise(snapshot.cost_before_discount || snapshot.daily_cost) }}
                         </div>
@@ -833,7 +967,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
-import type { ContractType } from '@/types/contracts';
+import type { ContractType, PartnerSnapshotsSummary } from '@/types/contracts';
 import { 
   CONTRACT_TYPES, 
   CONTRACT_TYPE_LABELS, 
@@ -926,11 +1060,16 @@ const partnerStatsDialog = ref(false);
 const partnerStatsLoading = ref(false);
 const currentPartnerContract = ref<Contract | null>(null);
 const partnerSnapshots = ref<any[]>([]);
-const partnerStatsSummary = ref<any>(null);
+const partnerStatsSummary = ref<PartnerSnapshotsSummary | null>(null);
 
 // Период для статистики партнерского договора
 const partnerStatsStartDate = ref<string>('');
 const partnerStatsEndDate = ref<string>('');
+
+// Проверка наличия скидки
+const hasDiscount = computed(() => {
+  return (partnerStatsSummary.value?.total_discount || 0) > 0;
+});
 
 // Прогресс создания снимков
 const snapshotsGenerationProgress = ref<number>(0);
@@ -1474,6 +1613,11 @@ const loadPartnerStatistics = async () => {
 
     const data = await response.json();
     
+    console.log('📊 Партнерская статистика получена:', data.summary);
+    console.log('💰 price_per_object_for_period:', data.summary?.price_per_object_for_period);
+    console.log('📅 monthly_price:', data.summary?.monthly_price, typeof data.summary?.monthly_price);
+    console.log('🔢 total_days:', data.summary?.total_days);
+    
     if (data.status === 'success' && data.snapshots) {
       partnerSnapshots.value = data.snapshots;
       partnerStatsSummary.value = data.summary;
@@ -1549,13 +1693,20 @@ const generateSnapshotsForPeriod = async () => {
     if (data.status === 'success') {
       snapshotsGenerationProgress.value = 100;
       
-      showSnackbarMessage(
-        `Снимки созданы: успешно ${data.success_count}, ошибок ${data.error_count}`,
-        'success'
-      );
+      // Формируем детальное сообщение
+      const totalDays = data.success_count + data.error_count;
+      let message = `✅ Снимки успешно созданы!\n\n`;
+      message += `📊 Обработано дней: ${totalDays}\n`;
+      message += `✓ Успешно: ${data.success_count}\n`;
+      
+      if (data.error_count > 0) {
+        message += `✗ Ошибок: ${data.error_count}`;
+      }
+      
+      showSnackbarMessage(message, data.error_count > 0 ? 'warning' : 'success');
       
       // Небольшая задержка чтобы пользователь увидел 100%
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Перезагружаем статистику
       await loadPartnerStatistics();
@@ -1564,7 +1715,7 @@ const generateSnapshotsForPeriod = async () => {
     }
   } catch (error: any) {
     console.error('Ошибка создания снимков за период:', error);
-    showSnackbarMessage(error.message || 'Ошибка создания снимков', 'error');
+    showSnackbarMessage(`❌ Ошибка создания снимков\n\n${error.message}`, 'error');
   } finally {
     isGeneratingSnapshots.value = false;
     snapshotsGenerationProgress.value = 0;
@@ -1700,6 +1851,15 @@ const formatCurrencyPrecise = (amount: string | number): string => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(value || 0);
+};
+
+// Форматирование с максимальной точностью (для тарифа за объект/период)
+// Показываем столько знаков, сколько нужно для точного расчета
+const formatCurrencyExtraPrecise = (amount: string | number): string => {
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  // Используем toFixed для точности, затем добавляем валюту
+  const formatted = (value || 0).toFixed(6);
+  return `${formatted} ₽`;
 };
 
 const formatCurrencyShort = (amount: string | number): string => {
