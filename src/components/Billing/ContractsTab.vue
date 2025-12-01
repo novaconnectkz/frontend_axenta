@@ -137,6 +137,7 @@
         :headers="headers"
         :items="filteredContracts"
         :loading="loading"
+        :sort-by="[{ key: 'created_at', order: 'desc' }]"
         class="contracts-table"
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."

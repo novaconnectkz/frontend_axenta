@@ -188,7 +188,7 @@
             </template>
             <template v-else>
               <!-- Тариф из договора (fallback) -->
-              <v-chip size="small" color="grey" variant="tonal">
+              <v-chip size="small" variant="tonal">
                 {{ item.tariff_plan?.name || 'Не указан' }}
               </v-chip>
               <div class="tariff-price" v-if="item.tariff_plan?.price">
@@ -1111,6 +1111,35 @@ onMounted(async () => {
   .page-actions {
     flex-direction: column;
   }
+}
+
+/* Темная тема */
+[data-theme="dark"] .contracts-table :deep(.v-data-table) {
+  background-color: #1e1e1e !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .contracts-table :deep(thead) {
+  background-color: #2c2c2e !important;
+}
+
+[data-theme="dark"] .contracts-table :deep(th) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .contracts-table :deep(td) {
+  color: #ffffff !important;
+  border-color: #3a3a3c !important;
+}
+
+[data-theme="dark"] .contracts-table :deep(tr:hover) {
+  background-color: #2c2c2e !important;
+}
+
+[data-theme="dark"] .tariff-price,
+[data-theme="dark"] .period-dates {
+  color: rgba(255, 255, 255, 0.7);
 }
 </style>
 

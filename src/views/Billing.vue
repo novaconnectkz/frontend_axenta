@@ -5,7 +5,7 @@
       <v-col>
         <div>
           <h1 class="text-h3 font-weight-bold text-primary">Биллинг и договоры</h1>
-          <p class="text-h6 text-grey-darken-2 mt-2">
+          <p class="text-h6 text-medium-emphasis mt-2">
             Управление договорами, тарифными планами, подписками и счетами
           </p>
         </div>

@@ -18,7 +18,6 @@
         </div>
         <v-icon 
           size="16" 
-          color="grey" 
           class="expand-icon"
           :class="{ 'rotated': isExpanded }"
           @click.stop="toggleExpand"
@@ -226,6 +225,18 @@ const formattedValue = computed(() => {
 
 [data-theme="dark"] .stat-additional {
   color: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] .expand-icon {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-theme="dark"] .billing-stat-card:hover {
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .billing-stat-card.expanded {
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
 }
 </style>
 
