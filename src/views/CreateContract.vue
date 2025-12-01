@@ -193,7 +193,12 @@
 
               <!-- Поле для выбора учетной записи партнера (только для партнерских договоров) -->
               <v-col v-if="form.contract_type === CONTRACT_TYPES.PARTNER" cols="12" md="8">
-                <label class="apple-input-label">Учетная запись партнера <span class="apple-input-required">*</span></label>
+                <label class="apple-input-label">
+                  Учетная запись партнера <span class="apple-input-required">*</span>
+                  <span v-if="partnerCompanies.length > 0" class="text-caption text-medium-emphasis ml-2">
+                    (доступно: {{ partnerCompanies.length }})
+                  </span>
+                </label>
                 <v-autocomplete
                   v-model="form.partner_company_id"
                   :items="partnerCompanyOptions"
@@ -1664,14 +1669,59 @@ const loadNumerators = async () => {
 const loadCompanies = async () => {
   loadingCompanies.value = true;
   try {
-    // Фильтруем только партнерские компании
-    const response = await companiesService.getCompanies({ type: 'partner' });
-    if (response.companies && Array.isArray(response.companies)) {
-      partnerCompanies.value = response.companies.map((company: any) => ({
-        id: company.id,
-        name: company.name,
-      }));
-      console.log('🏢 Загружено партнерских компаний:', partnerCompanies.value.length);
+    // Запрашиваем всех партнеров одним запросом (без ограничения по количеству)
+    console.log('🔍 Запрос ВСЕХ партнерских компаний с type=partner (limit=10000)...');
+    
+    const response = await companiesService.getCompanies({ 
+      type: 'partner',
+      limit: 10000  // Очень большой лимит чтобы получить всех за раз
+    });
+    
+    const allCompanies = response.companies || [];
+    console.log('📦 Полный ответ от API:', response);
+    console.log('📊 Всего партнеров от API:', allCompanies.length);
+    
+    // Получаем имя текущей компании из localStorage
+    const currentCompanyStr = localStorage.getItem('axenta_company');
+    const currentCompany = currentCompanyStr ? JSON.parse(currentCompanyStr) : null;
+    const currentCompanyName = currentCompany?.name || '';
+    
+    console.log('🏢 Текущая компания:', currentCompanyName);
+    
+    // Фильтруем только прямых потомков текущей компании
+    // Формат hierarchy: "GLOMOS > Партнер1" (прямой потомок) или "GLOMOS > Партнер1 > Партнер2" (внук)
+    const filteredCompanies = allCompanies.filter((company: any) => {
+      const hierarchy = company.hierarchy || '';
+      // Разбиваем иерархию на части
+      const parts = hierarchy.split(' > ').map(p => p.trim());
+      
+      // Показываем только те записи, где:
+      // 1. Первый уровень = текущая компания
+      // 2. Это прямой потомок (всего 2 уровня в иерархии)
+      const isDirectChild = parts.length === 2 && parts[0] === currentCompanyName;
+      
+      return isDirectChild;
+    });
+    
+    partnerCompanies.value = filteredCompanies.map((company: any) => ({
+      id: company.id,
+      name: company.name,
+    }));
+    
+    console.log('🎯 Отфильтровано прямых потомков:', partnerCompanies.value.length);
+    console.log('🏢 Загружено партнерских компаний:', partnerCompanies.value.length);
+    console.log('📋 Список партнеров (первые 10):', partnerCompanies.value.slice(0, 10));
+    
+    // Проверяем есть ли партнер 1715
+    const partner1715 = filteredCompanies.find((c: any) => c.id === 1715);
+    if (partner1715) {
+      console.log('✅ Партнер 1715 найден:', partner1715.name, '| ID:', partner1715.id);
+    } else {
+      console.warn('⚠️ Партнер 1715 не найден среди прямых потомков');
+      const partner1715All = allCompanies.find((c: any) => c.id === 1715);
+      if (partner1715All) {
+        console.log('🔍 Партнер 1715 в полном списке:', partner1715All.name, '| Иерархия:', partner1715All.hierarchy);
+      }
     }
   } catch (error) {
     console.error('Error loading companies:', error);
