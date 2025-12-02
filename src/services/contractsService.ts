@@ -156,6 +156,20 @@ class ContractsService {
   }
 
   /**
+   * 🚀 Получить статистику договора (Progressive Loading)
+   * Быстрая загрузка количества объектов для ленивой загрузки
+   */
+  async getContractStats(id: number): Promise<{ contract_id: number; objects_count: number }> {
+    const response = await this.apiClient.get(`/auth/contracts/${id}/stats`);
+    // Обрабатываем оба формата ответа: { data: { contract_id, objects_count } } и { contract_id, objects_count }
+    const data = response.data.data || response.data;
+    return {
+      contract_id: data.contract_id || id,
+      objects_count: data.objects_count ?? 0,
+    };
+  }
+
+  /**
    * Создать новый договор
    */
   async createContract(data: ContractForm): Promise<ContractWithRelations> {
@@ -272,9 +286,9 @@ class ContractsService {
   }
 
   /**
-   * Получить статистику договоров
+   * Получить общую статистику всех договоров (сводка)
    */
-  async getContractStats(): Promise<ContractStats> {
+  async getContractsStatsSummary(): Promise<ContractStats> {
     // Временно создаем статистику на основе полученных данных
     try {
       const { contracts } = await this.getContracts();

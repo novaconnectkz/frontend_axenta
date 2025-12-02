@@ -142,7 +142,8 @@
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
         density="compact"
-        :items-per-page="-1"
+        v-model:items-per-page="itemsPerPage"
+        :items-per-page-options="[10, 25, 50, 100]"
         :height="600"
         fixed-header
         @scroll="onTableScroll"
@@ -1049,10 +1050,21 @@ const contractSubscriptions = computed(() => props.subscriptions || []);
 
 // 📊 Пагинация для виртуального скроллинга
 const currentPage = ref(1);
-const itemsPerPage = ref(50); // Загружаем по 50 записей за раз
+// Загружаем itemsPerPage из localStorage или используем 10 по умолчанию
+const savedItemsPerPage = localStorage.getItem('contracts_items_per_page');
+const itemsPerPage = ref(savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 10);
 const totalContracts = ref(0);
+
+// Сохраняем itemsPerPage в localStorage при изменении
+watch(itemsPerPage, (newValue) => {
+  localStorage.setItem('contracts_items_per_page', String(newValue));
+});
 const hasMoreContracts = ref(true);
 const loadingMore = ref(false);
+
+// 🚀 Progressive Loading - статистика объектов
+const statsLoading = ref(false);
+const statsLoadedMap = ref<Map<number, boolean>>(new Map());
 const searchQuery = ref(''); // Пользовательский ввод
 const debouncedSearchQuery = ref(''); // Дебаунсированное значение для фильтрации
 const statusFilter = ref<string | null>(null);
@@ -2114,24 +2126,28 @@ const getPeriodTooltipText = (contract: Contract): string => {
 
 // Функция loadSubscriptions больше не нужна - подписки передаются через props из родительского компонента
 
-const loadContracts = async (resetPagination = true) => {
+const loadContracts = async (resetPagination = true, skipStats = true) => {
   console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
   
   if (resetPagination) {
     loading.value = true;
     currentPage.value = 1;
     contracts.value = [];
+    statsLoadedMap.value.clear();
   }
   
   try {
     const contractsService = (await import('@/services/contractsService')).default;
+    
+    // 🚀 Progressive Loading: сначала загружаем без статистики (быстро)
     const response = await contractsService.getContracts({
       search: searchQuery.value || undefined,
       status: statusFilter.value || undefined,
       is_active: activeFilter.value !== null ? activeFilter.value : undefined,
       page: currentPage.value,
       limit: itemsPerPage.value,
-    });
+      skip_stats: skipStats ? 'true' : undefined, // 🚀 Пропуск статистики для быстрой загрузки
+    } as any);
     
     // При первой загрузке заменяем, при догрузке - добавляем
     if (resetPagination) {
@@ -2144,6 +2160,11 @@ const loadContracts = async (resetPagination = true) => {
     hasMoreContracts.value = contracts.value.length < totalContracts.value;
     
     console.log(`✅ ContractsTab: Загружено ${response.contracts?.length || 0} договоров (всего: ${contracts.value.length} из ${totalContracts.value})`);
+    
+    // 🚀 Progressive Loading: загружаем статистику в фоне
+    if (skipStats && response.contracts?.length) {
+      loadContractsStats(response.contracts);
+    }
     
     // Логируем данные первого договора для отладки
     if (contracts.value.length > 0) {
@@ -2189,7 +2210,63 @@ const loadMore = async () => {
   loadingMore.value = true;
   currentPage.value += 1;
   
-  await loadContracts(false); // false = не сбрасывать пагинацию
+  await loadContracts(false, true); // false = не сбрасывать пагинацию, true = skip_stats
+};
+
+// 🚀 Progressive Loading: загрузка статистики в фоне
+const loadContractsStats = async (contractsList: Contract[]) => {
+  if (statsLoading.value) return;
+  
+  statsLoading.value = true;
+  console.log('📊 Progressive Loading: загружаем статистику для', contractsList.length, 'договоров...');
+  
+  try {
+    const contractsService = (await import('@/services/contractsService')).default;
+    
+    // Загружаем статистику параллельно (по 5 одновременно)
+    const batchSize = 5;
+    for (let i = 0; i < contractsList.length; i += batchSize) {
+      const batch = contractsList.slice(i, i + batchSize);
+      
+      await Promise.all(
+        batch.map(async (contract) => {
+          // Пропускаем если уже загружено
+          if (statsLoadedMap.value.get(contract.id)) return;
+          
+          try {
+            const stats = await contractsService.getContractStats(contract.id);
+            
+            // Обновляем договор в списке
+            const idx = contracts.value.findIndex(c => c.id === contract.id);
+            if (idx !== -1) {
+              // Создаем массив объектов нужной длины
+              const fakeObjects = Array.from({ length: stats.objects_count }, (_, j) => ({
+                id: j + 1,
+                name: `Object ${j + 1}`,
+                company_id: contract.partner_company_id || 0,
+              }));
+              
+              contracts.value[idx] = {
+                ...contracts.value[idx],
+                objects: fakeObjects as any,
+              };
+              
+              statsLoadedMap.value.set(contract.id, true);
+              console.log(`📊 Статистика загружена: договор ${contract.id} → ${stats.objects_count} объектов (partner_company_id: ${contract.partner_company_id})`);
+            }
+          } catch (err) {
+            console.warn(`⚠️ Не удалось загрузить статистику для договора ${contract.id}:`, err);
+          }
+        })
+      );
+    }
+    
+    console.log('✅ Progressive Loading: статистика загружена для всех договоров');
+  } catch (error) {
+    console.error('❌ Ошибка загрузки статистики:', error);
+  } finally {
+    statsLoading.value = false;
+  }
 };
 
 // 📜 Обработчик скроллинга таблицы

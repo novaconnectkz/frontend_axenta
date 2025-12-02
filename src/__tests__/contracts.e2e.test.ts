@@ -341,7 +341,7 @@ describe("Contract Service Integration", () => {
       "@/services/contractsService"
     );
 
-    const stats = await contractsService.getContractStats();
+    const stats = await contractsService.getContractsStatsSummary();
 
     expect(stats).toHaveProperty("total");
     expect(stats).toHaveProperty("active");

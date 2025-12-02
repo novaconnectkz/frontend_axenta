@@ -2699,7 +2699,7 @@ const loadDashboardData = async () => {
 // Функция для загрузки статистики договоров
 const loadContractsStats = async () => {
   try {
-    const stats = await contractsService.getContractStats()
+    const stats = await contractsService.getContractsStatsSummary()
     
     // Используем данные из stats напрямую - они уже содержат все необходимое
     contractsStats.value = {
