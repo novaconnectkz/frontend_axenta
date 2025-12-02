@@ -142,11 +142,12 @@
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
         density="compact"
-        v-model:items-per-page="itemsPerPage"
+        :items-per-page="itemsPerPage"
         :items-per-page-options="[10, 25, 50, 100]"
         :height="600"
         fixed-header
         @scroll="onTableScroll"
+        @update:items-per-page="onItemsPerPageChange"
       >
         <!-- Порядковый номер -->
         <template #item.sequential_number="{ index }">
@@ -1055,10 +1056,11 @@ const savedItemsPerPage = localStorage.getItem('contracts_items_per_page');
 const itemsPerPage = ref(savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 10);
 const totalContracts = ref(0);
 
-// Сохраняем itemsPerPage в localStorage при изменении
-watch(itemsPerPage, (newValue) => {
-  localStorage.setItem('contracts_items_per_page', String(newValue));
-});
+// Обработчик изменения количества записей на странице
+const onItemsPerPageChange = (value: number) => {
+  itemsPerPage.value = value;
+  localStorage.setItem('contracts_items_per_page', String(value));
+};
 const hasMoreContracts = ref(true);
 const loadingMore = ref(false);
 
