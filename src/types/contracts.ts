@@ -87,8 +87,8 @@ export type ContractType =
 
 // Лейблы типов договоров
 export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
-  [CONTRACT_TYPES.CLIENT]: "Клиентский",
-  [CONTRACT_TYPES.PARTNER]: "Партнерский",
+  [CONTRACT_TYPES.CLIENT]: "Клиент",
+  [CONTRACT_TYPES.PARTNER]: "Партнер",
 };
 
 // Цвета типов договоров

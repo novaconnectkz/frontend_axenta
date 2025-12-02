@@ -131,18 +131,21 @@
       </v-card-text>
     </v-card>
 
-    <!-- Таблица договоров -->
+    <!-- Таблица договоров с виртуальным скроллингом -->
     <v-card variant="outlined" v-if="filteredContracts.length > 0">
       <v-data-table
         :headers="headers"
         :items="filteredContracts"
-        :loading="loading"
+        :loading="loading || loadingMore"
         :sort-by="[{ key: 'created_at', order: 'desc' }]"
         class="contracts-table"
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
         density="compact"
-        :items-per-page="10"
+        :items-per-page="-1"
+        :height="600"
+        fixed-header
+        @scroll="onTableScroll"
       >
         <!-- Порядковый номер -->
         <template #item.sequential_number="{ index }">
@@ -160,15 +163,21 @@
 
         <!-- Номер договора -->
         <template #item.number="{ item }">
-          <v-chip 
-            size="small" 
-            :color="getStatusColor(item.status)"
-            variant="tonal"
-            style="cursor: pointer;"
-            @click="navigateToSubscriptions(item)"
-          >
-            {{ item.number }}
-          </v-chip>
+          <v-tooltip location="top">
+            <template #activator="{ props }">
+              <v-chip 
+                v-bind="props"
+                size="small" 
+                :color="getStatusColor(item.status)"
+                variant="tonal"
+                style="cursor: pointer;"
+                @click="navigateToSubscriptions(item)"
+              >
+                {{ item.number }}
+              </v-chip>
+            </template>
+            <span>{{ getStatusLabel(item.status) }}</span>
+          </v-tooltip>
         </template>
 
         <!-- Тип договора -->
@@ -305,9 +314,14 @@
           <div class="text-center">
             <!-- Для партнерских договоров - только количество объектов -->
             <template v-if="item.contract_type === 'partner'">
-              <div class="amount-value">
-                {{ item.objects?.length || 0 }} объектов
-              </div>
+              <v-tooltip location="top">
+                <template #activator="{ props }">
+                  <div class="amount-value" v-bind="props" style="cursor: help;">
+                    {{ item.objects?.length || 0 }}
+                  </div>
+                </template>
+                <span>объекты</span>
+              </v-tooltip>
             </template>
             <!-- Для клиентских договоров - стоимость и количество объектов -->
             <template v-else>
@@ -315,14 +329,14 @@
                 {{ formatCurrency(calculateContractAmount(item), item.currency) }}
               </div>
               <!-- С всплывающим списком объектов -->
-              <v-tooltip location="top" :disabled="!item.objects || item.objects.length === 0">
+              <v-tooltip location="top">
                 <template #activator="{ props }">
-                  <div class="text-caption objects-count" v-bind="props" style="cursor: pointer;">
-                    {{ item.objects?.length || 0 }} объектов
+                  <div class="text-caption objects-count" v-bind="props" style="cursor: help;">
+                    {{ item.objects?.length || 0 }}
                   </div>
                 </template>
               <template #default>
-                <div class="objects-tooltip">
+                <div v-if="item.objects && item.objects.length > 0" class="objects-tooltip">
                   <div class="objects-tooltip-title">Привязанные объекты:</div>
                   <div class="objects-tooltip-list">
                     <div 
@@ -338,26 +352,13 @@
                         Объект #{{ obj.id }}
                       </span>
                     </div>
-                    <div v-if="!item.objects || item.objects.length === 0" class="objects-tooltip-empty">
-                      Нет привязанных объектов
-                    </div>
                   </div>
                 </div>
+                <div v-else>объекты</div>
               </template>
             </v-tooltip>
             </template>
           </div>
-        </template>
-
-        <!-- Статус -->
-        <template #item.status="{ item }">
-          <v-chip 
-            :color="getStatusColor(item.status)"
-            size="small"
-            variant="tonal"
-          >
-            {{ getStatusLabel(item.status) }}
-          </v-chip>
         </template>
 
         <!-- Действия -->
@@ -403,6 +404,21 @@
           </div>
         </template>
       </v-data-table>
+      
+      <!-- Индикатор загрузки следующей страницы -->
+      <v-card-text v-if="loadingMore" class="text-center pa-4">
+        <v-progress-circular indeterminate color="primary" size="32" width="3" />
+        <div class="text-caption text-medium-emphasis mt-2">
+          Загрузка договоров... ({{ contracts.length }} из {{ totalContracts }})
+        </div>
+      </v-card-text>
+      
+      <!-- Сообщение о полной загрузке -->
+      <v-card-text v-else-if="!hasMoreContracts && contracts.length > 0" class="text-center pa-2">
+        <div class="text-caption text-medium-emphasis">
+          ✅ Все договоры загружены ({{ contracts.length }})
+        </div>
+      </v-card-text>
     </v-card>
 
     <!-- Пустое состояние -->
@@ -1030,6 +1046,13 @@ const demoMode = ref(false); // Отключен по умолчанию
 const contracts = ref<Contract[]>([]);
 // Используем подписки из props или пустой массив
 const contractSubscriptions = computed(() => props.subscriptions || []);
+
+// 📊 Пагинация для виртуального скроллинга
+const currentPage = ref(1);
+const itemsPerPage = ref(50); // Загружаем по 50 записей за раз
+const totalContracts = ref(0);
+const hasMoreContracts = ref(true);
+const loadingMore = ref(false);
 const searchQuery = ref(''); // Пользовательский ввод
 const debouncedSearchQuery = ref(''); // Дебаунсированное значение для фильтрации
 const statusFilter = ref<string | null>(null);
@@ -1084,14 +1107,13 @@ const isGeneratingSnapshots = ref<boolean>(false);
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
   { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px', align: 'center' as const },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '110px', minWidth: '100px', align: 'center' as const },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '100px', minWidth: '90px', align: 'center' as const },
   { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
-  { title: 'Тип', key: 'contract_type', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
+  { title: 'Тип', key: 'contract_type', sortable: true, width: '100px', minWidth: '90px', align: 'center' as const },
   { title: 'Клиент', key: 'title', sortable: true, width: '260px', minWidth: '260px', align: 'center' as const },
-  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '150px', minWidth: '130px', align: 'center' as const },
-  { title: 'Период', key: 'period', sortable: false, width: '160px', minWidth: '140px', align: 'center' as const },
-  { title: 'Сумма', key: 'total_amount', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
-  { title: 'Статус', key: 'status', sortable: true, width: '120px', minWidth: '100px', align: 'center' as const },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '130px', minWidth: '115px', align: 'center' as const },
+  { title: 'Период', key: 'period', sortable: false, width: '140px', minWidth: '125px', align: 'center' as const },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '85px', minWidth: '75px', align: 'center' as const },
   { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' as const },
 ];
 
@@ -2092,20 +2114,36 @@ const getPeriodTooltipText = (contract: Contract): string => {
 
 // Функция loadSubscriptions больше не нужна - подписки передаются через props из родительского компонента
 
-const loadContracts = async () => {
+const loadContracts = async (resetPagination = true) => {
   console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
-  loading.value = true;
+  
+  if (resetPagination) {
+    loading.value = true;
+    currentPage.value = 1;
+    contracts.value = [];
+  }
+  
   try {
     const contractsService = (await import('@/services/contractsService')).default;
     const response = await contractsService.getContracts({
       search: searchQuery.value || undefined,
       status: statusFilter.value || undefined,
       is_active: activeFilter.value !== null ? activeFilter.value : undefined,
-      page: 1,
-      limit: 100,
+      page: currentPage.value,
+      limit: itemsPerPage.value,
     });
-    contracts.value = response.contracts || [];
-    console.log(`✅ ContractsTab: Загружено ${contracts.value.length} договоров`);
+    
+    // При первой загрузке заменяем, при догрузке - добавляем
+    if (resetPagination) {
+      contracts.value = response.contracts || [];
+    } else {
+      contracts.value = [...contracts.value, ...(response.contracts || [])];
+    }
+    
+    totalContracts.value = response.total || 0;
+    hasMoreContracts.value = contracts.value.length < totalContracts.value;
+    
+    console.log(`✅ ContractsTab: Загружено ${response.contracts?.length || 0} договоров (всего: ${contracts.value.length} из ${totalContracts.value})`);
     
     // Логируем данные первого договора для отладки
     if (contracts.value.length > 0) {
@@ -2137,13 +2175,42 @@ const loadContracts = async () => {
     contracts.value = [];
   } finally {
     loading.value = false;
+    loadingMore.value = false;
+  }
+};
+
+// 🚀 Функция для догрузки данных при скроллинге
+const loadMore = async () => {
+  if (loadingMore.value || !hasMoreContracts.value) {
+    return;
+  }
+  
+  console.log('📜 Догружаем следующую страницу договоров...');
+  loadingMore.value = true;
+  currentPage.value += 1;
+  
+  await loadContracts(false); // false = не сбрасывать пагинацию
+};
+
+// 📜 Обработчик скроллинга таблицы
+const onTableScroll = (event: Event) => {
+  const target = event.target as HTMLElement;
+  const scrollTop = target.scrollTop;
+  const scrollHeight = target.scrollHeight;
+  const clientHeight = target.clientHeight;
+  
+  // Загружаем следующую страницу, когда пользователь прокрутил 80% таблицы
+  const scrollPercentage = (scrollTop + clientHeight) / scrollHeight;
+  
+  if (scrollPercentage > 0.8 && hasMoreContracts.value && !loadingMore.value) {
+    loadMore();
   }
 };
 
 // Отслеживание изменений фильтров для автоматической перезагрузки
 const debouncedLoadContracts = debounce(async () => {
   if (!demoMode.value) {
-    await loadContracts();
+    await loadContracts(true); // true = сбросить пагинацию
   }
 }, 300);
 
