@@ -137,7 +137,7 @@
         :headers="headers"
         :items="filteredContracts"
         :loading="loading || loadingMore"
-        :sort-by="[{ key: 'created_at', order: 'desc' }]"
+        v-model:sort-by="sortBy"
         class="contracts-table"
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
@@ -148,6 +148,7 @@
         fixed-header
         @scroll="onTableScroll"
         @update:items-per-page="onItemsPerPageChange"
+        @update:sort-by="onSortChange"
       >
         <!-- Порядковый номер -->
         <template #item.sequential_number="{ index }">
@@ -1056,10 +1057,22 @@ const savedItemsPerPage = localStorage.getItem('contracts_items_per_page');
 const itemsPerPage = ref(savedItemsPerPage ? parseInt(savedItemsPerPage, 10) : 10);
 const totalContracts = ref(0);
 
+// 🔄 Серверная сортировка
+type SortItem = { key: string; order: 'asc' | 'desc' };
+const sortBy = ref<SortItem[]>([{ key: 'created_at', order: 'desc' }]);
+
+// Обработчик изменения сортировки - перезагрузка данных с сервера
+const onSortChange = (newSort: SortItem[]) => {
+  console.log('🔄 Сортировка изменена:', newSort);
+  sortBy.value = newSort;
+  loadContracts(true, true); // Перезагружаем с сервера с новой сортировкой
+};
+
 // Обработчик изменения количества записей на странице
 const onItemsPerPageChange = (value: number) => {
   itemsPerPage.value = value;
   localStorage.setItem('contracts_items_per_page', String(value));
+  loadContracts(true, true);
 };
 const hasMoreContracts = ref(true);
 const loadingMore = ref(false);
@@ -2149,6 +2162,9 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
       page: currentPage.value,
       limit: itemsPerPage.value,
       skip_stats: skipStats ? 'true' : undefined, // 🚀 Пропуск статистики для быстрой загрузки
+      // 🔄 Серверная сортировка
+      sort_by: sortBy.value[0]?.key || 'created_at',
+      sort_order: sortBy.value[0]?.order || 'desc',
     } as any);
     
     // При первой загрузке заменяем, при догрузке - добавляем
