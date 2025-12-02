@@ -303,20 +303,24 @@
         <!-- Стоимость -->
         <template #item.total_amount="{ item }">
           <div class="text-center">
-            <div class="amount-value">
-              {{ formatCurrency(calculateContractAmount(item), item.currency) }}
-            </div>
-            <!-- Для партнерских договоров - только цифра без всплывающего списка -->
-            <div v-if="item.contract_type === 'partner'" class="text-caption objects-count">
-              {{ item.objects?.length || 0 }} объектов
-            </div>
-            <!-- Для клиентских договоров - с всплывающим списком объектов -->
-            <v-tooltip v-else location="top" :disabled="!item.objects || item.objects.length === 0">
-              <template #activator="{ props }">
-                <div class="text-caption objects-count" v-bind="props" style="cursor: pointer;">
-                  {{ item.objects?.length || 0 }} объектов
-                </div>
-              </template>
+            <!-- Для партнерских договоров - только количество объектов -->
+            <template v-if="item.contract_type === 'partner'">
+              <div class="amount-value">
+                {{ item.objects?.length || 0 }} объектов
+              </div>
+            </template>
+            <!-- Для клиентских договоров - стоимость и количество объектов -->
+            <template v-else>
+              <div class="amount-value">
+                {{ formatCurrency(calculateContractAmount(item), item.currency) }}
+              </div>
+              <!-- С всплывающим списком объектов -->
+              <v-tooltip location="top" :disabled="!item.objects || item.objects.length === 0">
+                <template #activator="{ props }">
+                  <div class="text-caption objects-count" v-bind="props" style="cursor: pointer;">
+                    {{ item.objects?.length || 0 }} объектов
+                  </div>
+                </template>
               <template #default>
                 <div class="objects-tooltip">
                   <div class="objects-tooltip-title">Привязанные объекты:</div>
@@ -341,6 +345,7 @@
                 </div>
               </template>
             </v-tooltip>
+            </template>
           </div>
         </template>
 

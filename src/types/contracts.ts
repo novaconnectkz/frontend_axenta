@@ -162,6 +162,8 @@ export interface ContractBase {
   title: string;
   description?: string;
   company_id: number;
+  contract_type?: ContractType; // Тип договора: клиентский или партнерский
+  partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера
   client_type?: ClientType; // Тип клиента
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)

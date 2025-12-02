@@ -139,6 +139,19 @@
           </div>
         </template>
 
+        <!-- Тип договора -->
+        <template #item.contract_type="{ item }">
+          <v-chip 
+            v-if="item.contract_type"
+            size="small" 
+            :color="CONTRACT_TYPE_COLORS[item.contract_type]" 
+            variant="tonal"
+          >
+            {{ CONTRACT_TYPE_LABELS[item.contract_type] }}
+          </v-chip>
+          <span v-else class="text-grey">—</span>
+        </template>
+
         <!-- Название и клиент -->
         <template #item.title="{ item }">
           <div class="contract-info">
@@ -213,12 +226,21 @@
         <!-- Стоимость -->
         <template #item.total_amount="{ item }">
           <div class="amount-info">
-            <div class="amount-value">
-              {{ formatCurrency(item.total_amount, item.currency) }}
-            </div>
-            <div class="amount-objects">
-              {{ item.objects?.length || 0 }} объектов
-            </div>
+            <!-- Для партнерских договоров показываем только количество объектов -->
+            <template v-if="item.contract_type === 'partner'">
+              <div class="amount-value">
+                {{ item.objects?.length || 0 }} объектов
+              </div>
+            </template>
+            <!-- Для клиентских договоров показываем стоимость и количество объектов -->
+            <template v-else>
+              <div class="amount-value">
+                {{ formatCurrency(item.total_amount, item.currency) }}
+              </div>
+              <div class="amount-objects">
+                {{ item.objects?.length || 0 }} объектов
+              </div>
+            </template>
           </div>
         </template>
 
@@ -274,6 +296,8 @@ import type { BillingPlan } from '@/types/billing';
 import type {
     CONTRACT_STATUS_COLORS,
     CONTRACT_STATUS_LABELS,
+    CONTRACT_TYPE_COLORS,
+    CONTRACT_TYPE_LABELS,
     ContractFilters,
     ContractStats,
     ContractWithRelations,
@@ -331,10 +355,11 @@ const tableHeaders = [
   { title: '№', key: 'sequential_number', sortable: true, width: '80px' },
   { title: 'Дата', key: 'created_at', sortable: true, width: '140px' },
   { title: 'Номер', key: 'number', sortable: true, width: '120px' },
-  { title: 'Название / Клиент', key: 'title', sortable: true },
-  { title: 'Тарифный план', key: 'tariff_plan', sortable: false, width: '180px' },
-  { title: 'Период действия', key: 'period', sortable: false, width: '200px' },
-  { title: 'Стоимость', key: 'total_amount', sortable: true, width: '150px' },
+  { title: 'Тип', key: 'contract_type', sortable: true, width: '130px' },
+  { title: 'Клиент', key: 'title', sortable: true },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '180px' },
+  { title: 'Период', key: 'period', sortable: false, width: '200px' },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '150px' },
   { title: 'Статус', key: 'status', sortable: true, width: '120px' },
   { title: 'Действия', key: 'actions', sortable: false, width: '200px' },
 ];
@@ -489,6 +514,19 @@ const loadContracts = async () => {
       const response = await contractsService.getContracts(filters.value);
       contracts.value = response.contracts;
       console.log('✅ Real contracts loaded:', contracts.value.length);
+      
+      // Отладка: проверяем contract_type для каждого договора
+      contracts.value.forEach((contract, index) => {
+        if (index < 5) { // Выводим первые 5 для отладки
+          console.log(`📋 Contract ${index + 1}:`, {
+            number: contract.number,
+            contract_type: contract.contract_type,
+            partner_company_id: contract.partner_company_id,
+            total_amount: contract.total_amount,
+            objects_count: contract.objects?.length || 0
+          });
+        }
+      });
       
       // Загружаем подписки для определения тарифов
       await loadSubscriptions();
