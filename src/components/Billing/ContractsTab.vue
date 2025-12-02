@@ -138,16 +138,20 @@
         :items="filteredContracts"
         :loading="loading || loadingMore"
         v-model:sort-by="sortBy"
+        v-model:page="currentPage"
         class="contracts-table"
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
         density="compact"
-        :items-per-page="itemsPerPage"
-        :items-per-page-options="[10, 25, 50, 100]"
+        :items-per-page="hasSearch ? -1 : itemsPerPage"
+        :items-per-page-options="hasSearch ? [] : [10, 25, 50, 100]"
+        :server-items-length="hasSearch ? filteredContracts.length : totalContracts"
         :height="600"
         fixed-header
+        hide-default-footer
         @scroll="onTableScroll"
         @update:items-per-page="onItemsPerPageChange"
+        @update:page="onPageChange"
         @update:sort-by="onSortChange"
       >
         <!-- Порядковый номер -->
@@ -168,16 +172,16 @@
         <template #item.number="{ item }">
           <v-tooltip location="top">
             <template #activator="{ props }">
-              <v-chip 
+          <v-chip 
                 v-bind="props"
-                size="small" 
-                :color="getStatusColor(item.status)"
-                variant="tonal"
-                style="cursor: pointer;"
-                @click="navigateToSubscriptions(item)"
-              >
-                {{ item.number }}
-              </v-chip>
+            size="small" 
+            :color="getStatusColor(item.status)"
+            variant="tonal"
+            style="cursor: pointer;"
+            @click="navigateToSubscriptions(item)"
+          >
+            {{ item.number }}
+          </v-chip>
             </template>
             <span>{{ getStatusLabel(item.status) }}</span>
           </v-tooltip>
@@ -321,7 +325,7 @@
                 <template #activator="{ props }">
                   <div class="amount-value" v-bind="props" style="cursor: help;">
                     {{ item.objects?.length || 0 }}
-                  </div>
+              </div>
                 </template>
                 <span>объекты</span>
               </v-tooltip>
@@ -355,8 +359,8 @@
                         Объект #{{ obj.id }}
                       </span>
                     </div>
+                    </div>
                   </div>
-                </div>
                 <div v-else>объекты</div>
               </template>
             </v-tooltip>
@@ -407,6 +411,59 @@
           </div>
         </template>
       </v-data-table>
+      
+      <!-- Компактная пагинация справа (как на /accounts) -->
+      <div v-if="!hasSearch && totalContracts > 0" class="compact-pagination">
+        <v-select
+          v-model="itemsPerPage"
+          :items="[10, 25, 50, 100]"
+          variant="outlined"
+          density="compact"
+          class="items-select"
+          @update:model-value="onItemsPerPageChange"
+          hide-details
+        />
+        <span class="range-info">
+          {{ itemsPerPage > 0 && itemsPerPage < 100000 
+            ? `${(currentPage - 1) * itemsPerPage + 1}-${Math.min(currentPage * itemsPerPage, totalContracts)} из ${totalContracts}` 
+            : `Все ${totalContracts} записей` }}
+        </span>
+        <div class="nav-controls">
+          <v-btn
+            icon="mdi-page-first"
+            variant="text"
+            size="x-small"
+            :disabled="currentPage === 1 || loading"
+            @click="currentPage = 1; onPageChange(1)"
+            title="Первая"
+          />
+          <v-btn
+            icon="mdi-chevron-left"
+            variant="text"
+            size="x-small"
+            :disabled="currentPage === 1 || loading"
+            @click="currentPage--; onPageChange(currentPage)"
+            title="Предыдущая"
+          />
+          <span class="page-info">{{ currentPage }} / {{ Math.ceil(totalContracts / itemsPerPage) || 1 }}</span>
+          <v-btn
+            icon="mdi-chevron-right"
+            variant="text"
+            size="x-small"
+            :disabled="currentPage * itemsPerPage >= totalContracts || loading"
+            @click="currentPage++; onPageChange(currentPage)"
+            title="Следующая"
+          />
+          <v-btn
+            icon="mdi-page-last"
+            variant="text"
+            size="x-small"
+            :disabled="currentPage * itemsPerPage >= totalContracts || loading"
+            @click="currentPage = Math.ceil(totalContracts / itemsPerPage); onPageChange(currentPage)"
+            title="Последняя"
+          />
+        </div>
+      </div>
       
       <!-- Индикатор загрузки следующей страницы -->
       <v-card-text v-if="loadingMore" class="text-center pa-4">
@@ -1068,10 +1125,21 @@ const onSortChange = (newSort: SortItem[]) => {
   loadContracts(true, true); // Перезагружаем с сервера с новой сортировкой
 };
 
+// Обработчик изменения страницы - загрузка данных с сервера
+const onPageChange = (page: number) => {
+  console.log('📄 Страница изменена:', page);
+  // Не загружаем, если это поиск (все результаты уже загружены)
+  if (!hasSearch.value) {
+    currentPage.value = page;
+    loadContracts(true, true); // Перезагружаем с сервера с новой страницей
+  }
+};
+
 // Обработчик изменения количества записей на странице
 const onItemsPerPageChange = (value: number) => {
   itemsPerPage.value = value;
   localStorage.setItem('contracts_items_per_page', String(value));
+  currentPage.value = 1; // Сбрасываем на первую страницу
   loadContracts(true, true);
 };
 const hasMoreContracts = ref(true);
@@ -1095,6 +1163,11 @@ watch(searchQuery, (newValue) => {
   searchDebounceTimer = window.setTimeout(() => {
     debouncedSearchQuery.value = newValue;
   }, 500); // 500мс задержка
+});
+
+// 🔍 При изменении debouncedSearchQuery загружаем договоры с сервера
+watch(debouncedSearchQuery, () => {
+  loadContracts(true, true); // Перезагружаем с сервера с поисковым запросом
 });
 
 // Snackbar
@@ -1160,18 +1233,23 @@ const activeOptions = [
 ];
 
 // Вычисляемые свойства
+const hasSearch = computed(() => {
+  return debouncedSearchQuery.value && debouncedSearchQuery.value.trim().length > 0;
+});
+
 const filteredContracts = computed(() => {
   let result = contracts.value;
 
-  if (debouncedSearchQuery.value) {
-    const query = debouncedSearchQuery.value.toLowerCase();
-    result = result.filter(contract =>
-      contract.number.toLowerCase().includes(query) ||
-      contract.title.toLowerCase().includes(query) ||
-      contract.client_name.toLowerCase().includes(query) ||
-      (contract.client_short_name && contract.client_short_name.toLowerCase().includes(query))
-    );
-  }
+  // 🔍 Поиск теперь работает на сервере, клиентская фильтрация не нужна
+  // if (debouncedSearchQuery.value) {
+  //   const query = debouncedSearchQuery.value.toLowerCase();
+  //   result = result.filter(contract =>
+  //     contract.number.toLowerCase().includes(query) ||
+  //     contract.title.toLowerCase().includes(query) ||
+  //     contract.client_name.toLowerCase().includes(query) ||
+  //     (contract.client_short_name && contract.client_short_name.toLowerCase().includes(query))
+  //   );
+  // }
 
   if (statusFilter.value) {
     if (statusFilter.value === 'expiring') {
@@ -2145,7 +2223,7 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
   console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
   
   if (resetPagination) {
-    loading.value = true;
+  loading.value = true;
     currentPage.value = 1;
     contracts.value = [];
     statsLoadedMap.value.clear();
@@ -2154,13 +2232,17 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
   try {
     const contractsService = (await import('@/services/contractsService')).default;
     
+    // 🔍 При поиске загружаем ВСЕ договоры (без пагинации), иначе используем обычную пагинацию
+    const limit = hasSearch.value ? 1000 : itemsPerPage.value; // При поиске загружаем до 1000 договоров
+    const page = hasSearch.value ? 1 : currentPage.value; // При поиске всегда первая страница
+    
     // 🚀 Progressive Loading: сначала загружаем без статистики (быстро)
     const response = await contractsService.getContracts({
-      search: searchQuery.value || undefined,
+      search: debouncedSearchQuery.value || undefined,
       status: statusFilter.value || undefined,
       is_active: activeFilter.value !== null ? activeFilter.value : undefined,
-      page: currentPage.value,
-      limit: itemsPerPage.value,
+      page: page,
+      limit: limit,
       skip_stats: skipStats ? 'true' : undefined, // 🚀 Пропуск статистики для быстрой загрузки
       // 🔄 Серверная сортировка
       sort_by: sortBy.value[0]?.key || 'created_at',
@@ -2169,7 +2251,7 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
     
     // При первой загрузке заменяем, при догрузке - добавляем
     if (resetPagination) {
-      contracts.value = response.contracts || [];
+    contracts.value = response.contracts || [];
     } else {
       contracts.value = [...contracts.value, ...(response.contracts || [])];
     }
@@ -2289,6 +2371,12 @@ const loadContractsStats = async (contractsList: Contract[]) => {
 
 // 📜 Обработчик скроллинга таблицы
 const onTableScroll = (event: Event) => {
+  // Отключаем скроллинг для догрузки, если используется пагинация через кнопки (нет поиска)
+  // При поиске все результаты уже загружены, скроллинг не нужен
+  if (!hasSearch.value) {
+    return; // Используем пагинацию через кнопки
+  }
+  
   const target = event.target as HTMLElement;
   const scrollTop = target.scrollTop;
   const scrollHeight = target.scrollHeight;
@@ -3078,5 +3166,135 @@ defineExpose({
 
 [data-theme="dark"] .total-row td {
   color: #ffffff !important;
+}
+
+/* Стили для компактной пагинации (как на /accounts) */
+.compact-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 20px 24px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-height: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 0 16px;
+}
+
+.items-select {
+  min-width: 60px !important;
+  width: fit-content !important;
+  max-width: 120px !important;
+  flex-shrink: 0;
+  height: 40px;
+}
+
+.items-select :deep(.v-field) {
+  min-width: 50px !important;
+  width: auto !important;
+}
+
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.items-select :deep(.v-field__append-inner) {
+  padding-left: 4px !important;
+}
+
+.items-select :deep(.v-select__selection) {
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+.range-info {
+  font-size: 0.9rem;
+  color: #555;
+  flex-shrink: 0;
+  min-width: 120px;
+  text-align: center;
+  font-weight: 600;
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+
+.page-info {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: center;
+  padding: 8px 12px;
+  background-color: #e8e8e8;
+  border-radius: 6px;
+}
+
+.nav-controls .v-btn {
+  min-width: 32px !important;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: white;
+  border: 1px solid #ddd;
+}
+
+/* Темная тема для пагинации */
+[data-theme="dark"] .compact-pagination {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+
+[data-theme="dark"] .range-info {
+  color: #8e8e93;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .page-info {
+  color: #ffffff;
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls {
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .nav-controls .v-btn:hover {
+  background-color: #3a3a3c;
+}
+
+[data-theme="dark"] .items-select :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .items-select :deep(.v-field__input) {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .items-select :deep(.v-label) {
+  color: #8e8e93 !important;
 }
 </style>
