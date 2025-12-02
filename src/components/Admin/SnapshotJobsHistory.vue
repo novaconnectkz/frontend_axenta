@@ -99,6 +99,9 @@
           <div class="text-caption">
             <div>✓ {{ item.success_count }} / ✗ {{ item.error_count }}</div>
             <div class="text-grey">{{ item.total_contracts }} договоров</div>
+            <div class="text-grey" v-if="item.total_objects">
+              {{ formatNumber(item.total_objects) }} объектов
+            </div>
           </div>
         </template>
 
@@ -151,6 +154,10 @@
               </div>
               <div v-else class="text-grey">—</div>
             </v-col>
+            <v-col cols="6" v-if="selectedJob.scheduled_time">
+              <div class="text-caption text-grey">Запустил</div>
+              <div>{{ selectedJob.triggered_by || 'cron' }}</div>
+            </v-col>
             <v-col cols="6">
               <div class="text-caption text-grey">Длительность</div>
               <div v-if="selectedJob.duration_seconds">
@@ -183,6 +190,18 @@
             <v-col cols="3">
               <div class="text-caption text-error">Ошибок</div>
               <div class="text-h6 text-error">{{ selectedJob.error_count }}</div>
+            </v-col>
+          </v-row>
+          
+          <!-- Статистика объектов -->
+          <v-row dense class="mt-2" v-if="selectedJob.total_objects">
+            <v-col cols="6">
+              <div class="text-caption text-grey">Всего объектов</div>
+              <div class="text-h6">{{ formatNumber(selectedJob.total_objects) }}</div>
+            </v-col>
+            <v-col cols="6">
+              <div class="text-caption text-grey">Активных объектов</div>
+              <div class="text-h6">{{ formatNumber(selectedJob.active_objects) }}</div>
             </v-col>
           </v-row>
 
@@ -399,6 +418,10 @@ const formatDuration = (seconds: number): string => {
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours} ч ${minutes} мин`;
   }
+};
+
+const formatNumber = (num: number): string => {
+  return num.toLocaleString('ru-RU');
 };
 
 onMounted(() => {
