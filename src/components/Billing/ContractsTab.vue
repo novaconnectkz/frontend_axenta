@@ -1688,7 +1688,9 @@ const showPartnerStatistics = async (contract: Contract) => {
   
   // Устанавливаем период по умолчанию
   const endDate = new Date();
-  const startDate = contract.start_date ? new Date(contract.start_date) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // Начало всегда первый день текущего месяца
+  const now = new Date();
+  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
   
   // Форматируем даты для input type="date" (YYYY-MM-DD)
   partnerStatsStartDate.value = startDate.toISOString().split('T')[0];
@@ -1724,7 +1726,10 @@ const loadPartnerStatistics = async () => {
     const tenantId = company.id;
 
     // Используем выбранный период
-    const startDate = partnerStatsStartDate.value ? new Date(partnerStatsStartDate.value) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // Если дата начала не установлена, используем первый день текущего месяца
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startDate = partnerStatsStartDate.value ? new Date(partnerStatsStartDate.value) : firstDayOfMonth;
     const endDate = partnerStatsEndDate.value ? new Date(partnerStatsEndDate.value) : new Date();
 
     // Запрашиваем снимки партнерского договора
