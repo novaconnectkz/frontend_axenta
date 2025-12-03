@@ -2276,6 +2276,14 @@ watch(() => selectedNumeratorId.value, async (newId) => {
   }
 });
 
+// Автоматическая установка типа скидки "Автоматическая" при переключении на тип договора "Партнер"
+watch(() => form.value.contract_type, (newType) => {
+  if (newType === CONTRACT_TYPES.PARTNER) {
+    // При переключении на тип "Партнер" устанавливаем тип скидки "Автоматическая"
+    form.value.discount_type = DISCOUNT_TYPES.AUTO;
+  }
+});
+
 
 // Lifecycle
 onMounted(async () => {
