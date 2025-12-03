@@ -1861,7 +1861,8 @@ const generateSnapshotsForPeriod = async () => {
       snapshotsGenerationProgress.value = 100;
       
       // Формируем детальное сообщение
-      const totalDays = data.success_count + data.error_count;
+      // Используем period_days из ответа backend (точное количество дней в периоде)
+      const totalDays = data.period_days || (data.success_count + data.error_count);
       let message = `✅ Снимки успешно созданы!\n\n`;
       message += `📊 Обработано дней: ${totalDays}\n`;
       message += `✓ Успешно: ${data.success_count}\n`;
