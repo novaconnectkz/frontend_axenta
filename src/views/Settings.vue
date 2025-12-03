@@ -360,6 +360,8 @@ import { trashService } from '@/services/trashService';
 
 // Ключ для сохранения порядка вкладок в localStorage
 const TABS_ORDER_KEY = 'axenta_settings_tabs_order';
+// Ключ для сохранения активной вкладки в localStorage
+const ACTIVE_TAB_KEY = 'axenta_settings_active_tab';
 
 // Router
 const route = useRoute();
@@ -608,6 +610,25 @@ const resetTabsOrder = () => {
   sortedTabs.value = [...defaultTabs];
   localStorage.removeItem(TABS_ORDER_KEY);
   showSnackbar('Порядок сброшен', 'info', 2000);
+};
+
+// Сохранение активной вкладки в localStorage
+const saveActiveTab = (tab: string) => {
+  try {
+    localStorage.setItem(ACTIVE_TAB_KEY, tab);
+  } catch (error) {
+    console.error('Ошибка сохранения активной вкладки:', error);
+  }
+};
+
+// Загрузка активной вкладки из localStorage
+const loadActiveTab = (): string | null => {
+  try {
+    return localStorage.getItem(ACTIVE_TAB_KEY);
+  } catch (error) {
+    console.error('Ошибка загрузки активной вкладки:', error);
+    return null;
+  }
 };
 
 // Текущая вкладка
@@ -906,12 +927,22 @@ onMounted(async () => {
   // Загружаем сохраненный порядок вкладок
   loadTabsOrder();
   
-  // Проверяем query параметр tab из URL
+  // Проверяем query параметр tab из URL (приоритет выше, чем сохраненное значение)
   if (route.query.tab) {
     const tabValue = route.query.tab as string;
     const tabExists = defaultTabs.some(t => t.value === tabValue);
     if (tabExists) {
       activeTab.value = tabValue;
+      saveActiveTab(tabValue);
+    }
+  } else {
+    // Если нет query параметра, загружаем сохраненную вкладку
+    const savedTab = loadActiveTab();
+    if (savedTab) {
+      const tabExists = defaultTabs.some(t => t.value === savedTab);
+      if (tabExists) {
+        activeTab.value = savedTab;
+      }
     }
   }
   
@@ -920,8 +951,11 @@ onMounted(async () => {
   await loadStats();
 });
 
-// Загружаем данные документации при переключении на вкладку
+// Сохраняем активную вкладку при её изменении
 watch(activeTab, (newTab) => {
+  saveActiveTab(newTab);
+  
+  // Загружаем данные документации при переключении на вкладку
   if (newTab === 'documentation') {
     loadApiDocumentation();
     loadUserDocumentation();
