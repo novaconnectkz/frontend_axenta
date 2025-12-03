@@ -634,9 +634,11 @@ const executePermanentDelete = async () => {
     detailsDialog.value = false;
     itemToDelete.value = null;
     await Promise.all([loadItems(), loadStats()]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Ошибка окончательного удаления:', error);
-    showSnackbar('Ошибка окончательного удаления', 'error');
+    const errorMessage = error?.response?.data?.error || error?.message || 'Ошибка окончательного удаления';
+    console.error('Детали ошибки:', error?.response?.data);
+    showSnackbar(errorMessage, 'error');
   }
 };
 
