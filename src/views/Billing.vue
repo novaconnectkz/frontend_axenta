@@ -478,6 +478,20 @@
           </v-card-title>
           
           <v-card-text>
+            <!-- Поиск -->
+            <div class="mb-4">
+              <v-text-field
+                v-model="subscriptionSearchQuery"
+                placeholder="Поиск по клиенту, договору, тарифному плану..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                @input="debouncedSubscriptionSearch"
+                class="search-field"
+              />
+            </div>
+
             <!-- Фильтр по договору (если активен) -->
             <v-alert
               v-if="filteredByContractId"
@@ -665,6 +679,20 @@
           </v-card-title>
           
           <v-card-text>
+            <!-- Поиск -->
+            <div class="mb-4">
+              <v-text-field
+                v-model="invoiceSearchQuery"
+                placeholder="Поиск по номеру счета, клиенту, договору..."
+                prepend-inner-icon="mdi-magnify"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                @input="debouncedInvoiceSearch"
+                class="search-field"
+              />
+            </div>
+
             <!-- Фильтры счетов -->
             <v-row class="mb-4">
               <v-col cols="12" md="4">
@@ -2097,6 +2125,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAutopilot } from '@/composables/useAutopilot'
 import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
+import { debounce } from 'lodash-es'
 
 const route = useRoute()
 const router = useRouter()
@@ -2319,6 +2348,8 @@ const savingAutopilot = ref(false)
 // Поиск и фильтрация
 const planSearchQuery = ref('')
 const planStatusFilter = ref<boolean | null>(null)
+const subscriptionSearchQuery = ref('')
+const invoiceSearchQuery = ref('')
 const invoiceStatusFilter = ref<InvoiceStatus | null>(null)
 const invoiceDateStart = ref('')
 const invoiceDateEnd = ref('')
@@ -2458,7 +2489,7 @@ const filteredPlans = computed(() => {
   return filtered
 })
 
-// Фильтрованные подписки (с учетом фильтра по договору)
+// Фильтрованные подписки (с учетом фильтра по договору и поиска)
 const filteredSubscriptions = computed(() => {
   // Сначала фильтруем удаленные подписки
   let filtered = subscriptions.value.filter(sub => !sub.deleted_at)
@@ -2467,7 +2498,8 @@ const filteredSubscriptions = computed(() => {
     totalSubscriptions: subscriptions.value.length,
     activeSubscriptions: filtered.length,
     filteredByContractId: filteredByContractId.value,
-    filteredByContractNumber: filteredByContractNumber.value
+    filteredByContractNumber: filteredByContractNumber.value,
+    searchQuery: subscriptionSearchQuery.value
   })
 
   // Применяем фильтр по договору, если он установлен
@@ -2483,6 +2515,25 @@ const filteredSubscriptions = computed(() => {
     console.log(`✅ Отфильтровано подписок: ${filtered.length} из ${subscriptions.value.length}`)
   } else {
     console.log(`✅ Фильтр не применен, показываем все подписки: ${filtered.length}`)
+  }
+
+  // Применяем поиск, если он установлен
+  if (subscriptionSearchQuery.value && subscriptionSearchQuery.value.trim() !== '') {
+    const query = subscriptionSearchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(sub => {
+      // Поиск по клиенту
+      const clientName = sub.contract?.client_name?.toLowerCase() || ''
+      const clientShortName = sub.contract?.client_short_name?.toLowerCase() || ''
+      // Поиск по номеру договора
+      const contractNumber = sub.contract?.number?.toLowerCase() || ''
+      // Поиск по тарифному плану
+      const planName = sub.billing_plan?.name?.toLowerCase() || ''
+      
+      return clientName.includes(query) || 
+             clientShortName.includes(query) || 
+             contractNumber.includes(query) || 
+             planName.includes(query)
+    })
   }
 
   return filtered
@@ -2507,6 +2558,25 @@ const filteredInvoices = computed(() => {
     )
   }
 
+  // Применяем поиск, если он установлен
+  if (invoiceSearchQuery.value && invoiceSearchQuery.value.trim() !== '') {
+    const query = invoiceSearchQuery.value.toLowerCase().trim()
+    filtered = filtered.filter(invoice => {
+      // Поиск по номеру счета
+      const invoiceNumber = invoice.number?.toLowerCase() || ''
+      // Поиск по клиенту
+      const clientName = invoice.contract?.client_name?.toLowerCase() || ''
+      const clientShortName = invoice.contract?.client_short_name?.toLowerCase() || ''
+      // Поиск по номеру договора
+      const contractNumber = invoice.contract?.number?.toLowerCase() || ''
+      
+      return invoiceNumber.includes(query) || 
+             clientName.includes(query) || 
+             clientShortName.includes(query) || 
+             contractNumber.includes(query)
+    })
+  }
+
   return filtered
 })
 
@@ -2523,6 +2593,18 @@ const contractSelectItems = computed(() =>
     value: contract.id
   }))
 )
+
+// Debounced поиск для подписок
+const debouncedSubscriptionSearch = debounce(() => {
+  // Поиск работает через computed свойство filteredSubscriptions
+  // Здесь можно добавить дополнительную логику, если нужно
+}, 500)
+
+// Debounced поиск для счетов
+const debouncedInvoiceSearch = debounce(() => {
+  // Поиск работает через computed свойство filteredInvoices
+  // Здесь можно добавить дополнительную логику, если нужно
+}, 500)
 
 // Computed для работы с подписками в диалоге генерации счета
 const allSubscriptionsSelected = computed(() => {
