@@ -571,10 +571,12 @@ class BillingService {
         totalRevenue += totalAmount;
         paidInvoicesCount++;
         
-        // Доход за текущий месяц
-        const invoiceDate = invoice.invoice_date ? new Date(invoice.invoice_date) : new Date(invoice.created_at);
-        if (invoiceDate.getMonth() === currentMonth && invoiceDate.getFullYear() === currentYear) {
-          monthlyRevenue += totalAmount;
+        // Доход за текущий месяц (по дате оплаты)
+        if (invoice.paid_at) {
+          const paidDate = new Date(invoice.paid_at);
+          if (paidDate.getMonth() === currentMonth && paidDate.getFullYear() === currentYear) {
+            monthlyRevenue += totalAmount;
+          }
         }
 
         // Средний срок оплаты

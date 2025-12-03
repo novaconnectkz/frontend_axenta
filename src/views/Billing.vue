@@ -3664,14 +3664,14 @@ const getMetricDetail = (metricKey: string, widget: any) => {
         ],
         tableData: invoices.value
           .filter(inv => {
-            if (inv.status !== 'paid') return false
-            const invoiceDate = new Date(inv.invoice_date || inv.created_at)
+            if (inv.status !== 'paid' || !inv.paid_at) return false
+            const paidDate = new Date(inv.paid_at)
             const now = new Date()
-            return invoiceDate.getMonth() === now.getMonth() && invoiceDate.getFullYear() === now.getFullYear()
+            return paidDate.getMonth() === now.getMonth() && paidDate.getFullYear() === now.getFullYear()
           })
           .map(inv => ({
             number: inv.number,
-            date: inv.invoice_date || inv.created_at,
+            date: inv.paid_at || inv.invoice_date || inv.created_at,
             amount: parseFloat(inv.total_amount)
           }))
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
