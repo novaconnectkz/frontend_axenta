@@ -1686,12 +1686,12 @@ const showPartnerStatistics = async (contract: Contract) => {
   currentPartnerContract.value = contract;
   partnerStatsDialog.value = true;
   
-  // Устанавливаем период по умолчанию - текущий месяц
+  // Устанавливаем период по умолчанию - от начала месяца до текущей даты
   const now = new Date();
   // Начало всегда первый день текущего месяца
   const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  // Конец всегда последний день текущего месяца
-  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  // Конец всегда текущая дата
+  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   // Форматируем даты для input type="date" (YYYY-MM-DD) в локальном времени
   const formatDateForInput = (date: Date): string => {
