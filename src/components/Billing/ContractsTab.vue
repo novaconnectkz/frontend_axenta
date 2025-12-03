@@ -1686,15 +1686,23 @@ const showPartnerStatistics = async (contract: Contract) => {
   currentPartnerContract.value = contract;
   partnerStatsDialog.value = true;
   
-  // Устанавливаем период по умолчанию
-  const endDate = new Date();
-  // Начало всегда первый день текущего месяца
+  // Устанавливаем период по умолчанию - текущий месяц
   const now = new Date();
+  // Начало всегда первый день текущего месяца
   const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Конец всегда последний день текущего месяца
+  const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   
-  // Форматируем даты для input type="date" (YYYY-MM-DD)
-  partnerStatsStartDate.value = startDate.toISOString().split('T')[0];
-  partnerStatsEndDate.value = endDate.toISOString().split('T')[0];
+  // Форматируем даты для input type="date" (YYYY-MM-DD) в локальном времени
+  const formatDateForInput = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  partnerStatsStartDate.value = formatDateForInput(startDate);
+  partnerStatsEndDate.value = formatDateForInput(endDate);
   
   // Загружаем статистику
   await loadPartnerStatistics();
