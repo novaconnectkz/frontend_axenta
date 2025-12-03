@@ -5,11 +5,21 @@
       История автоматических снимков
       <v-spacer />
       <v-btn
+        color="primary"
+        prepend-icon="mdi-database-plus"
+        size="small"
+        @click="showCreateDialog = true"
+        :loading="creating"
+      >
+        Создать снимки
+      </v-btn>
+      <v-btn
         icon="mdi-refresh"
         size="small"
         variant="text"
         @click="loadJobs"
         :loading="loading"
+        class="ml-2"
       />
     </v-card-title>
 
@@ -245,11 +255,147 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- Диалог создания снимков за период -->
+    <v-dialog v-model="showCreateDialog" max-width="600">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-database-plus" class="mr-2" />
+          Создать снимки из Axenta
+          <v-spacer />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="showCreateDialog = false"
+          />
+        </v-card-title>
+
+        <v-card-text>
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Выберите период для запроса данных из Axenta Cloud. Система создаст снимки за каждую дату в указанном периоде.
+          </div>
+
+          <v-row>
+            <v-col cols="12">
+              <v-radio-group v-model="requestMode" inline>
+                <v-radio
+                  label="Одна дата"
+                  value="single"
+                  density="compact"
+                />
+                <v-radio
+                  label="Период"
+                  value="period"
+                  density="compact"
+                />
+              </v-radio-group>
+            </v-col>
+          </v-row>
+
+          <!-- Выбор одной даты -->
+          <v-row v-if="requestMode === 'single'">
+            <v-col cols="12">
+              <v-text-field
+                v-model="singleDate"
+                label="Дата"
+                type="date"
+                variant="outlined"
+                :max="todayDate"
+                :rules="[rules.required, rules.dateFormat]"
+                hint="Выберите дату для создания снимка"
+                persistent-hint
+              />
+            </v-col>
+          </v-row>
+
+          <!-- Выбор периода -->
+          <v-row v-if="requestMode === 'period'">
+            <v-col cols="6">
+              <v-text-field
+                v-model="periodStartDate"
+                label="Дата начала"
+                type="date"
+                variant="outlined"
+                :max="periodEndDate || todayDate"
+                :rules="[rules.required, rules.dateFormat]"
+                hint="Начало периода"
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model="periodEndDate"
+                label="Дата окончания"
+                type="date"
+                variant="outlined"
+                :min="periodStartDate"
+                :max="todayDate"
+                :rules="[rules.required, rules.dateFormat, rules.periodValid]"
+                hint="Конец периода"
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" v-if="periodDays > 0">
+              <v-alert
+                type="info"
+                density="compact"
+                variant="tonal"
+              >
+                Выбранный период: {{ periodDays }} {{ getDaysLabel(periodDays) }}
+              </v-alert>
+            </v-col>
+          </v-row>
+
+          <v-alert
+            v-if="periodDays > 90"
+            type="warning"
+            density="compact"
+            class="mt-2"
+          >
+            Внимание: период превышает 90 дней. Выберите меньший период.
+          </v-alert>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="showCreateDialog = false"
+            :disabled="creating"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="createSnapshots"
+            :loading="creating"
+            :disabled="!isFormValid"
+          >
+            Создать
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Snackbar для уведомлений -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="top right"
+    >
+      {{ snackbar.text }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">
+          Закрыть
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { config } from '@/config/env';
 
@@ -294,6 +440,22 @@ const stats = ref<SnapshotJobStats | null>(null);
 const itemsPerPage = ref(10);
 const detailsDialog = ref(false);
 const selectedJob = ref<SnapshotJob | null>(null);
+
+// Диалог создания снимков
+const showCreateDialog = ref(false);
+const creating = ref(false);
+const requestMode = ref<'single' | 'period'>('single');
+const singleDate = ref('');
+const periodStartDate = ref('');
+const periodEndDate = ref('');
+
+// Snackbar для уведомлений
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'info',
+  timeout: 5000
+});
 
 const headers = [
   { title: 'ID', key: 'id', width: '60px' },
@@ -422,6 +584,135 @@ const formatDuration = (seconds: number): string => {
 
 const formatNumber = (num: number): string => {
   return num.toLocaleString('ru-RU');
+};
+
+// Вычисляемые свойства для валидации формы
+const todayDate = computed(() => {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+});
+
+const periodDays = computed(() => {
+  if (!periodStartDate.value || !periodEndDate.value) return 0;
+  const start = new Date(periodStartDate.value);
+  const end = new Date(periodEndDate.value);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // +1 потому что включаем обе даты
+});
+
+const isFormValid = computed(() => {
+  if (requestMode.value === 'single') {
+    return singleDate.value !== '' && singleDate.value <= todayDate.value;
+  } else {
+    return periodStartDate.value !== '' && 
+           periodEndDate.value !== '' && 
+           periodStartDate.value <= periodEndDate.value &&
+           periodEndDate.value <= todayDate.value &&
+           periodDays.value <= 90;
+  }
+});
+
+// Правила валидации
+const rules = {
+  required: (value: string) => !!value || 'Обязательное поле',
+  dateFormat: (value: string) => {
+    if (!value) return true;
+    const date = new Date(value);
+    return !isNaN(date.getTime()) || 'Неверный формат даты';
+  },
+  periodValid: (value: string) => {
+    if (!value || !periodStartDate.value) return true;
+    const start = new Date(periodStartDate.value);
+    const end = new Date(value);
+    return end >= start || 'Дата окончания должна быть позже или равна дате начала';
+  },
+};
+
+const getDaysLabel = (days: number): string => {
+  if (days === 1) return 'день';
+  if (days >= 2 && days <= 4) return 'дня';
+  return 'дней';
+};
+
+// Создание снимков
+const createSnapshots = async () => {
+  if (!isFormValid.value) return;
+
+  creating.value = true;
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) {
+      throw new Error('Отсутствует токен авторизации или информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    let requestBody: any = {};
+
+    if (requestMode.value === 'single') {
+      requestBody.date = singleDate.value;
+    } else {
+      requestBody.date_from = periodStartDate.value;
+      requestBody.date_to = periodEndDate.value;
+    }
+
+    const response = await axios.post(
+      `${config.apiBaseUrl}/auth/snapshot-jobs/trigger`,
+      requestBody,
+      {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'X-Tenant-ID': String(tenantId),
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 'success') {
+      // Закрываем диалог
+      showCreateDialog.value = false;
+      
+      // Сбрасываем форму
+      requestMode.value = 'single';
+      singleDate.value = '';
+      periodStartDate.value = '';
+      periodEndDate.value = '';
+
+      // Показываем сообщение об успехе
+      showSnackbar(
+        response.data.message || 'Запрос на создание снимков принят. Проверьте историю через несколько минут.',
+        'success'
+      );
+      
+      // Обновляем список задач через небольшую задержку
+      setTimeout(() => {
+        loadJobs();
+        loadStats();
+      }, 2000);
+    } else {
+      throw new Error(response.data.message || 'Ошибка создания снимков');
+    }
+  } catch (error: any) {
+    console.error('Ошибка создания снимков:', error);
+    const errorMessage = error.response?.data?.message || error.message || 'Ошибка создания снимков';
+    showSnackbar(errorMessage, 'error');
+  } finally {
+    creating.value = false;
+  }
+};
+
+// Показать snackbar
+const showSnackbar = (text: string, color: 'success' | 'error' | 'info' | 'warning' = 'info', timeout: number = 5000) => {
+  snackbar.value = {
+    show: true,
+    text,
+    color,
+    timeout
+  };
 };
 
 onMounted(() => {
