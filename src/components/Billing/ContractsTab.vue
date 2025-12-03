@@ -1729,8 +1729,29 @@ const loadPartnerStatistics = async () => {
     // Если дата начала не установлена, используем первый день текущего месяца
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startDate = partnerStatsStartDate.value ? new Date(partnerStatsStartDate.value) : firstDayOfMonth;
-    const endDate = partnerStatsEndDate.value ? new Date(partnerStatsEndDate.value) : new Date();
+    
+    // Правильно формируем даты в UTC, чтобы избежать проблем с часовыми поясами
+    let startDate: Date;
+    if (partnerStatsStartDate.value) {
+      // Парсим дату в формате YYYY-MM-DD и создаем начало дня в UTC
+      const [year, month, day] = partnerStatsStartDate.value.split('-').map(Number);
+      startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    } else {
+      // Первый день текущего месяца в UTC
+      const utcFirstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+      startDate = utcFirstDay;
+    }
+    
+    let endDate: Date;
+    if (partnerStatsEndDate.value) {
+      // Парсим дату в формате YYYY-MM-DD и создаем конец дня в UTC (23:59:59)
+      const [year, month, day] = partnerStatsEndDate.value.split('-').map(Number);
+      endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+    } else {
+      // Конец текущего дня в UTC
+      const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+      endDate = utcNow;
+    }
 
     // Запрашиваем снимки партнерского договора
     const response = await fetch(
