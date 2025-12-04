@@ -393,6 +393,15 @@
                 />
               </template>
               <v-list density="compact">
+                <v-list-item @click="calculateCost(item)">
+                  <template #prepend>
+                    <v-icon icon="mdi-calculator" size="small" />
+                  </template>
+                  <v-list-item-title>Рассчитать стоимость</v-list-item-title>
+                </v-list-item>
+                
+                <v-divider />
+                
                 <v-list-item @click="editContract(item)">
                   <template #prepend>
                     <v-icon icon="mdi-pencil" size="small" />
@@ -525,6 +534,19 @@
           <div v-if="billingBreakdownLoading" class="text-center pa-8">
             <v-progress-circular indeterminate color="primary" size="64" />
             <div class="mt-4 text-medium-emphasis">Загрузка данных...</div>
+          </div>
+
+          <!-- Ошибка -->
+          <div v-else-if="!billingBreakdownData && !billingBreakdownLoading" class="text-center pa-8">
+            <v-icon icon="mdi-alert-circle" size="64" color="error" class="mb-4" />
+            <div class="text-h6 mb-2">Не удалось загрузить данные</div>
+            <div class="text-body-2 text-medium-emphasis mb-4">
+              Проверьте, что у договора указаны даты начала и окончания, и есть активные подписки.
+            </div>
+            <v-btn color="primary" @click="calculateCost(currentContractForBreakdown)">
+              <v-icon icon="mdi-refresh" class="mr-2" />
+              Попробовать снова
+            </v-btn>
           </div>
 
           <!-- Данные -->
@@ -1897,27 +1919,7 @@ const calculateCost = async (contract: Contract) => {
     return;
   }
 
-  // Для клиентских договоров - текущая логика
-  try {
-    // Проверяем наличие приложений к договору
-    const contractsService = (await import('@/services/contractsService')).default;
-    const appendices = await contractsService.getContractAppendices(contract.id);
-    
-    // Если приложений нет, показываем информационное сообщение
-    if (!appendices || appendices.length === 0) {
-      showSnackbarMessage(
-        'У договора еще нет приложений. Добавьте приложения к договору для расчета стоимости.',
-        'info'
-      );
-      return;
-    }
-  } catch (error: any) {
-    console.error('Ошибка при проверке приложений:', error);
-    // Для клиентских договоров продолжаем, даже если приложений нет
-    // showSnackbarMessage('Ошибка при проверке приложений к договору', 'error');
-    // return;
-  }
-
+  // Для клиентских договоров - открываем диалог расчета стоимости
   currentContractForBreakdown.value = contract;
   billingBreakdownDialog.value = true;
   billingBreakdownLoading.value = true;
@@ -1958,7 +1960,9 @@ const calculateCost = async (contract: Contract) => {
     );
 
     if (!response.ok) {
-      throw new Error('Ошибка при загрузке детализации расчета');
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.error || `Ошибка ${response.status}: ${response.statusText}`;
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
@@ -1970,8 +1974,10 @@ const calculateCost = async (contract: Contract) => {
     }
   } catch (error: any) {
     console.error('Ошибка при загрузке детализации расчета:', error);
-    showSnackbarMessage(error.message || 'Ошибка при загрузке детализации расчета', 'error');
-    billingBreakdownDialog.value = false;
+    const errorMessage = error.message || 'Ошибка при загрузке детализации расчета';
+    showSnackbarMessage(errorMessage, 'error');
+    // Не закрываем диалог, чтобы пользователь мог увидеть ошибку
+    // billingBreakdownDialog.value = false;
   } finally {
     billingBreakdownLoading.value = false;
   }

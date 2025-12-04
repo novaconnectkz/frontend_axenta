@@ -668,6 +668,19 @@
               <template #activator="{ props }">
                 <v-btn
                   v-bind="props"
+                  icon="mdi-cash"
+                  color="primary"
+                  variant="flat"
+                  class="mr-2"
+                  @click="openManualPaymentDialog(null)"
+                />
+              </template>
+              <span>Внести платёж вручную</span>
+            </v-tooltip>
+            <v-tooltip location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
                   icon="mdi-plus"
                   color="primary"
                   variant="flat"
@@ -807,69 +820,17 @@
               <!-- Действия -->
               <template v-slot:item.actions="{ item }">
                 <div class="actions-cell">
-                  <v-tooltip text="Просмотр">
+                  <v-tooltip text="Оплатить полностью">
                     <template #activator="{ props }">
                       <v-btn 
+                        v-if="getOutstandingAmount(item) > 0 && item.status !== 'paid' && item.status !== 'cancelled'"
                         v-bind="props"
-                        icon="mdi-eye" 
+                        icon="mdi-cash" 
                         size="small" 
                         variant="text" 
-                        @click="viewInvoice(item)" 
-                      />
-                    </template>
-                  </v-tooltip>
-                  
-                  <v-tooltip text="Отправить счёт клиенту">
-                    <template #activator="{ props }">
-                      <v-btn 
-                        v-if="item.status === 'draft'"
-                        v-bind="props"
-                        icon="mdi-send" 
-                        size="small" 
-                        variant="text" 
-                        color="primary"
-                        @click="sendInvoiceToClient(item)" 
-                      />
-                    </template>
-                  </v-tooltip>
-                  
-                  <v-tooltip text="Обработать платёж">
-                    <template #activator="{ props }">
-                      <v-btn 
-                        v-if="item.status !== 'paid' && item.status !== 'cancelled'"
-                        v-bind="props"
-                        icon="mdi-credit-card" 
-                        size="small" 
-                        variant="text" 
-                        @click="processPaymentDialog(item)" 
-                      />
-                    </template>
-                  </v-tooltip>
-                  
-                  <v-tooltip text="Отменить счёт">
-                    <template #activator="{ props }">
-                      <v-btn 
-                        v-if="item.status !== 'cancelled'"
-                        v-bind="props"
-                        icon="mdi-cancel" 
-                        size="small" 
-                        variant="text" 
-                        color="warning"
-                        @click="cancelInvoiceConfirm(item)" 
-                      />
-                    </template>
-                  </v-tooltip>
-                  
-                  <v-tooltip text="Удалить счёт">
-                    <template #activator="{ props }">
-                      <v-btn 
-                        v-if="item.status !== 'paid'"
-                        v-bind="props"
-                        icon="mdi-delete" 
-                        size="small" 
-                        variant="text" 
-                        color="error"
-                        @click="deleteInvoiceConfirm(item)" 
+                        color="success"
+                        @click="payInvoiceFull(item)" 
+                        :loading="payingInvoiceId === item.id"
                       />
                     </template>
                   </v-tooltip>
@@ -2039,18 +2000,51 @@
             <h4 class="mb-2">Примечания</h4>
             <p>{{ selectedInvoice.notes }}</p>
           </div>
+
+          <v-divider class="my-4"></v-divider>
+
+          <!-- История оплат -->
+          <h4 class="mb-2">История оплат</h4>
+          <div v-if="selectedInvoice.paid_amount && parseFloat(selectedInvoice.paid_amount) > 0" class="mb-4">
+            <p v-if="selectedInvoice.paid_at">
+              <strong>{{ formatDate(selectedInvoice.paid_at) }}</strong> 
+              {{ formatCurrency(selectedInvoice.paid_amount) }} 
+              <span class="text-caption text-medium-emphasis">(ручной платёж)</span>
+            </p>
+            <p v-else class="text-medium-emphasis">История платежей будет доступна после загрузки данных</p>
+          </div>
+          <p v-else class="text-medium-emphasis">Платежей пока нет</p>
         </v-card-text>
 
         <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="invoiceViewDialog = false">Закрыть</v-btn>
           <v-btn 
             v-if="selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled'"
+            prepend-icon="mdi-cash"
             color="primary"
-            @click="processPaymentDialog(selectedInvoice); invoiceViewDialog = false"
+            @click="openManualPaymentDialog(selectedInvoice); invoiceViewDialog = false"
           >
-            Обработать платеж
+            Внести платёж вручную
           </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn 
+            v-if="selectedInvoice.status !== 'cancelled'"
+            prepend-icon="mdi-cancel"
+            color="warning"
+            variant="outlined"
+            @click="cancelInvoiceConfirm(selectedInvoice); invoiceViewDialog = false"
+          >
+            Отменить счёт
+          </v-btn>
+          <v-btn 
+            v-if="selectedInvoice.status !== 'paid'"
+            prepend-icon="mdi-delete"
+            color="error"
+            variant="outlined"
+            @click="deleteInvoiceConfirm(selectedInvoice); invoiceViewDialog = false"
+          >
+            Удалить счёт
+          </v-btn>
+          <v-btn variant="text" @click="invoiceViewDialog = false">Закрыть</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -2060,6 +2054,14 @@
       v-model="sendInvoiceDialogOpen"
       :invoice="selectedInvoiceForSend"
       @sent="handleInvoiceSent"
+    />
+
+    <!-- Диалог ручного платежа -->
+    <ManualPaymentDialog
+      v-model="manualPaymentDialogOpen"
+      :invoice="selectedInvoiceForPayment"
+      :invoices="selectedInvoiceForPayment ? null : filteredInvoices"
+      @payment-added="handleManualPaymentAdded"
     />
 
     <!-- Диалог детальной информации о метрике -->
@@ -2078,6 +2080,7 @@
       :detail-table-data="currentMetricDetail?.tableData"
       :additional-stats="currentMetricDetail?.additionalStats"
       :action-button="currentMetricDetail?.actionButton"
+      @invoice-paid="handleInvoicePaid"
     />
 
     <!-- Диалог автопилота: предложение отправить счет -->
@@ -2098,6 +2101,7 @@ import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vu
 import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
+import ManualPaymentDialog from '@/components/Billing/ManualPaymentDialog.vue'
 import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
 import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
 import { billingService } from '@/services/billingService'
@@ -2337,6 +2341,7 @@ const loadingPlans = ref(false)
 const loadingSubscriptions = ref(false)
 const loadingInvoices = ref(false)
 const loadingSettings = ref(false)
+const payingInvoiceId = ref<number | null>(null)
 const savingPlan = ref(false)
 const savingSubscription = ref(false)
 const savingSettings = ref(false)
@@ -2368,6 +2373,8 @@ const paymentDialog = ref(false)
 const invoiceViewDialog = ref(false)
 const sendInvoiceDialogOpen = ref(false)
 const selectedInvoiceForSend = ref<Invoice | null>(null)
+const manualPaymentDialogOpen = ref(false)
+const selectedInvoiceForPayment = ref<Invoice | null>(null)
 
 // Формы
 const planFormValid = ref(false)
@@ -2461,7 +2468,7 @@ const invoiceHeaders = [
   { title: 'Срок оплаты', key: 'due_date', sortable: true, align: 'center' },
   { title: 'Сумма', key: 'total_amount', sortable: true, align: 'center' },
   { title: 'Статус', key: 'status', sortable: true, align: 'center' },
-  { title: 'Действия', key: 'actions', sortable: false, align: 'center' }
+  { title: '', key: 'actions', sortable: false, align: 'center', width: '60px' }
 ]
 
 // Вычисляемые свойства
@@ -2712,26 +2719,33 @@ const calculatedMonthlyAmount = computed(() => {
 })
 
 // Методы загрузки данных
-const loadDashboardData = async () => {
+const loadDashboardData = async (forceRefresh: boolean = false) => {
   isLoadingDashboard.value = true
   try {
     const cacheKey = `billing_dashboard_${currentCompanyId.value}`
     
-    // Пытаемся получить данные из кэша
-    const cachedData = cacheService.get<{
-      plans: any[]
-      subscriptions: any[]
-      contractsStats: any
-      dashboardData: any
-    }>(cacheKey)
+    // Если принудительное обновление, очищаем кэш
+    if (forceRefresh) {
+      cacheService.remove(cacheKey)
+    }
     
-    if (cachedData) {
-      console.log('📦 Загружаем billing данные из кэша')
-      plans.value = cachedData.plans
-      subscriptions.value = cachedData.subscriptions
-      contractsStats.value = cachedData.contractsStats
-      dashboardData.value = cachedData.dashboardData
-      return
+    // Пытаемся получить данные из кэша (если не принудительное обновление)
+    if (!forceRefresh) {
+      const cachedData = cacheService.get<{
+        plans: any[]
+        subscriptions: any[]
+        contractsStats: any
+        dashboardData: any
+      }>(cacheKey)
+      
+      if (cachedData) {
+        console.log('📦 Загружаем billing данные из кэша')
+        plans.value = cachedData.plans
+        subscriptions.value = cachedData.subscriptions
+        contractsStats.value = cachedData.contractsStats
+        dashboardData.value = cachedData.dashboardData
+        return
+      }
     }
     
     console.log('🌐 Загружаем billing данные с сервера')
@@ -3264,6 +3278,79 @@ const handleInvoiceSent = async (updatedInvoice: Invoice) => {
   alert(`Счет ${updatedInvoice.number} успешно отправлен через: ${sentChannels}`)
 }
 
+// Методы для ручного платежа
+const openManualPaymentDialog = (invoice: Invoice | null) => {
+  selectedInvoiceForPayment.value = invoice
+  manualPaymentDialogOpen.value = true
+}
+
+// Вычисление остатка к доплате
+const getOutstandingAmount = (invoice: Invoice): number => {
+  const total = parseFloat(invoice.total_amount || '0')
+  const paid = parseFloat(invoice.paid_amount || '0')
+  return Math.max(0, total - paid)
+}
+
+// Полная оплата счета
+const payInvoiceFull = async (invoice: Invoice) => {
+  const outstanding = getOutstandingAmount(invoice)
+  
+  if (outstanding <= 0) {
+    alert('Счет уже полностью оплачен')
+    return
+  }
+
+  if (!confirm(`Оплатить счет ${invoice.number} на сумму ${formatCurrency(outstanding)}?`)) {
+    return
+  }
+
+  payingInvoiceId.value = invoice.id
+
+  try {
+    await billingService.addManualPayment(invoice.id, {
+      amount: outstanding.toString(),
+      payment_method: 'manual',
+      notes: `Полная оплата счета ${invoice.number}`
+    })
+
+    // Обновляем данные
+    await fetchInvoices()
+    await loadDashboardData(true)
+    
+    alert(`Счет ${invoice.number} успешно оплачен на сумму ${formatCurrency(outstanding)}`)
+  } catch (error: any) {
+    console.error('Ошибка при оплате счета:', error)
+    alert(error.message || 'Ошибка при оплате счета')
+  } finally {
+    payingInvoiceId.value = null
+  }
+}
+
+const handleInvoicePaid = async (invoiceId: number) => {
+  // Обновляем данные после оплаты счета
+  await fetchInvoices()
+  await loadDashboardData(true) // Принудительное обновление для актуальных метрик
+  
+  // Обновляем детальную информацию метрики, если диалог открыт
+  if (metricDetailDialog.value && currentMetricDetail.value?.metricKey === 'outstanding_amount') {
+    const detail = getMetricDetail('outstanding_amount', dashboardData.value?.widgets.outstanding_amount)
+    currentMetricDetail.value = detail
+  }
+}
+
+const handleManualPaymentAdded = async (updatedInvoice: Invoice) => {
+  console.log('✅ Ручной платёж успешно добавлен к счету:', updatedInvoice.number)
+  
+  // Обновляем список счетов
+  await fetchInvoices()
+  
+  // Принудительно перезагружаем данные дашборда (с очисткой кэша)
+  await loadDashboardData(true)
+  
+  manualPaymentDialogOpen.value = false
+  selectedInvoiceForPayment.value = null
+}
+
 // Обработчики автопилота для отправки счета
 const handleSendInvoiceFromAutopilot = (invoiceId: number) => {
   // Закрываем диалог автопилота
@@ -3686,11 +3773,13 @@ const getMetricDetail = (metricKey: string, widget: any) => {
           { title: 'Оплачено', key: 'paid_amount', sortable: true },
           { title: 'К доплате', key: 'outstanding', sortable: true },
           { title: 'Статус', key: 'status', sortable: true },
-          { title: 'Срок оплаты', key: 'due_date', sortable: true }
+          { title: 'Срок оплаты', key: 'due_date', sortable: true },
+          { title: 'Действия', key: 'actions', sortable: false, width: '120px' }
         ],
         tableData: invoices.value
           .filter(inv => inv.status !== 'paid' && inv.status !== 'cancelled')
           .map(inv => ({
+            id: inv.id,
             number: inv.number,
             total_amount: parseFloat(inv.total_amount),
             paid_amount: parseFloat(inv.paid_amount),

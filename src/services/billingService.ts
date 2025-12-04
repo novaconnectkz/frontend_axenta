@@ -26,6 +26,7 @@ import type {
   InvoiceStatus,
   InvoicesFilter,
   InvoicesResponse,
+  ManualPaymentData,
   ProcessPaymentData,
   Subscription,
   SubscriptionResponse,
@@ -359,6 +360,23 @@ class BillingService {
     );
     if (!response.data.data) {
       throw new Error("Ошибка отправки счета");
+    }
+    return response.data.data;
+  }
+
+  /**
+   * Добавить ручной платеж к счету
+   */
+  async addManualPayment(
+    invoiceId: number,
+    data: ManualPaymentData
+  ): Promise<Invoice> {
+    const response: AxiosResponse<InvoiceResponse> = await this.apiClient.post(
+      `/auth/billing/invoices/${invoiceId}/manual-payment`,
+      data
+    );
+    if (!response.data.data) {
+      throw new Error("Ошибка добавления ручного платежа");
     }
     return response.data.data;
   }

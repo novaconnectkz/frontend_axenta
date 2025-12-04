@@ -330,6 +330,13 @@ export interface ProcessPaymentData {
   notes?: string;
 }
 
+// Данные для ручного платежа
+export interface ManualPaymentData {
+  amount: string;
+  payment_date?: string; // YYYY-MM-DD
+  comment?: string;
+}
+
 // Данные для отмены счета
 export interface CancelInvoiceData {
   reason: string;

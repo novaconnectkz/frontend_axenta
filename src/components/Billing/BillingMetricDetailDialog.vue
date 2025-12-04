@@ -78,6 +78,37 @@
             <template v-slot:item.date="{ item }">
               <span v-if="item.date">{{ formatDate(item.date) }}</span>
             </template>
+            <template v-slot:item.total_amount="{ item }">
+              <span v-if="item.total_amount !== undefined">
+                {{ formatCurrency(item.total_amount) }}
+              </span>
+            </template>
+            <template v-slot:item.paid_amount="{ item }">
+              <span v-if="item.paid_amount !== undefined">
+                {{ formatCurrency(item.paid_amount) }}
+              </span>
+            </template>
+            <template v-slot:item.outstanding="{ item }">
+              <span v-if="item.outstanding !== undefined">
+                {{ formatCurrency(item.outstanding) }}
+              </span>
+            </template>
+            <template v-slot:item.due_date="{ item }">
+              <span v-if="item.due_date">{{ formatDate(item.due_date) }}</span>
+            </template>
+            <template v-slot:item.actions="{ item }">
+              <v-btn
+                v-if="item.id && item.outstanding > 0 && item.status !== 'paid' && item.status !== 'cancelled'"
+                color="success"
+                size="small"
+                variant="flat"
+                @click="handlePayInvoice(item)"
+                :loading="payingInvoiceId === item.id"
+              >
+                <v-icon icon="mdi-cash" size="small" class="mr-1" />
+                Оплатить
+              </v-btn>
+            </template>
           </v-data-table>
 
           <!-- Дополнительная статистика -->
@@ -137,12 +168,18 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import billingService from '@/services/billingService'
 
 interface DetailTableItem {
   [key: string]: any
+  id?: number
   amount?: number
+  total_amount?: number
+  paid_amount?: number
+  outstanding?: number
   status?: string
   date?: string
+  due_date?: string
 }
 
 interface AdditionalStat {
@@ -179,7 +216,10 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
+  'invoice-paid': [invoiceId: number]
 }>()
+
+const payingInvoiceId = ref<number | null>(null)
 
 const dialog = computed({
   get: () => props.modelValue,
@@ -271,6 +311,45 @@ const getStatusLabel = (status: string): string => {
     expired: 'Истекший'
   }
   return labels[status] || status
+}
+
+const handlePayInvoice = async (item: DetailTableItem) => {
+  if (!item.id || !item.outstanding) {
+    return
+  }
+
+  if (!confirm(`Оплатить счет на сумму ${formatCurrency(item.outstanding)}?`)) {
+    return
+  }
+
+  payingInvoiceId.value = item.id
+
+  try {
+    await billingService.addManualPayment(item.id, {
+      amount: item.outstanding.toString(),
+      payment_method: 'manual',
+      notes: `Оплата счета ${item.number || item.id}`
+    })
+
+    // Эмитим событие для обновления данных
+    emit('invoice-paid', item.id)
+    
+    // Обновляем статус в локальных данных
+    if (item.status) {
+      if (item.outstanding >= (item.total_amount || 0)) {
+        item.status = 'paid'
+      } else {
+        item.status = 'partially_paid'
+      }
+      item.paid_amount = (item.paid_amount || 0) + item.outstanding
+      item.outstanding = 0
+    }
+  } catch (error: any) {
+    console.error('Ошибка при оплате счета:', error)
+    alert(error.message || 'Ошибка при оплате счета')
+  } finally {
+    payingInvoiceId.value = null
+  }
 }
 </script>
 
