@@ -5,6 +5,21 @@
       История автоматических снимков
       <v-spacer />
       <v-btn
+        icon="mdi-cog"
+        size="small"
+        variant="text"
+        @click="showSettingsDialog = true"
+        title="Настройки"
+      />
+      <v-btn
+        icon="mdi-delete-sweep"
+        size="small"
+        variant="text"
+        color="error"
+        @click="showClearDialog = true"
+        title="Очистить историю"
+      />
+      <v-btn
         color="primary"
         prepend-icon="mdi-database-plus"
         size="small"
@@ -377,6 +392,125 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог настроек -->
+    <v-dialog v-model="showSettingsDialog" max-width="600" @update:model-value="onSettingsDialogOpen">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-cog" class="mr-2" />
+          Настройки истории снимков
+          <v-spacer />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="showSettingsDialog = false"
+          />
+        </v-card-title>
+
+        <v-card-text>
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Настройте токен для доступа к Axenta Cloud API. Этот токен будет использоваться для автоматического создания снимков объектов.
+          </div>
+
+          <v-text-field
+            v-model="settingsForm.axentaToken"
+            label="Токен авторизации Axenta"
+            :type="showToken ? 'text' : 'password'"
+            variant="outlined"
+            :rules="[rules.required]"
+            hint="Введите токен для доступа к Axenta Cloud API. Нажмите на иконку глаза, чтобы показать/скрыть токен."
+            persistent-hint
+            :append-inner-icon="showToken ? 'mdi-eye-off' : 'mdi-eye'"
+            @click:append-inner="showToken = !showToken"
+            placeholder="Вставьте или введите токен авторизации"
+            autocomplete="off"
+            class="mb-4"
+          />
+
+          <v-switch
+            v-model="settingsForm.isActive"
+            label="Активна"
+            color="primary"
+            hint="Включить автоматическое создание снимков"
+            persistent-hint
+          />
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="showSettingsDialog = false"
+            :disabled="savingSettings"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="primary"
+            @click="saveSettings"
+            :loading="savingSettings"
+            :disabled="!settingsForm.axentaToken"
+          >
+            Сохранить
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог подтверждения очистки -->
+    <v-dialog v-model="showClearDialog" max-width="500">
+      <v-card>
+        <v-card-title class="d-flex align-center text-error">
+          <v-icon icon="mdi-alert" class="mr-2" />
+          Очистить историю снимков
+        </v-card-title>
+
+        <v-card-text>
+          <div class="text-body-1 mb-4">
+            Вы уверены, что хотите удалить <strong>всю</strong> историю автоматических снимков?
+          </div>
+          <v-alert type="warning" density="compact" class="mb-4">
+            Это действие удалит:
+            <ul class="mt-2 mb-0">
+              <li>Все задачи создания снимков (snapshot_jobs)</li>
+              <li>Все ежедневные снимки партнеров (partner_daily_snapshots)</li>
+              <li>Все снимки объектов Axenta (axenta_object_snapshots)</li>
+              <li>Все снимки аккаунтов Axenta (axenta_account_snapshots)</li>
+            </ul>
+            <strong>Это действие нельзя отменить!</strong>
+          </v-alert>
+          <div class="text-caption text-medium-emphasis">
+            Для подтверждения введите "ОЧИСТИТЬ" в поле ниже:
+          </div>
+          <v-text-field
+            v-model="clearConfirmText"
+            label="Подтверждение"
+            variant="outlined"
+            class="mt-2"
+            :rules="[rules.clearConfirm]"
+          />
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="showClearDialog = false; clearConfirmText = ''"
+            :disabled="clearing"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="clearAllHistory"
+            :loading="clearing"
+            :disabled="clearConfirmText !== 'ОЧИСТИТЬ'"
+          >
+            Очистить всё
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar для уведомлений -->
     <v-snackbar
       v-model="snackbar.show"
@@ -448,6 +582,20 @@ const requestMode = ref<'single' | 'period'>('single');
 const singleDate = ref('');
 const periodStartDate = ref('');
 const periodEndDate = ref('');
+
+// Диалог настроек
+const showSettingsDialog = ref(false);
+const savingSettings = ref(false);
+const showToken = ref(false);
+const settingsForm = ref({
+  axentaToken: '',
+  isActive: true,
+});
+
+// Диалог очистки истории
+const showClearDialog = ref(false);
+const clearing = ref(false);
+const clearConfirmText = ref('');
 
 // Snackbar для уведомлений
 const snackbar = ref({
@@ -627,12 +775,149 @@ const rules = {
     const end = new Date(value);
     return end >= start || 'Дата окончания должна быть позже или равна дате начала';
   },
+  clearConfirm: (value: string) => {
+    return value === 'ОЧИСТИТЬ' || 'Введите "ОЧИСТИТЬ" для подтверждения';
+  },
+};
+
+// Загрузка настроек
+const loadSettings = async () => {
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) return;
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const response = await axios.get(`${config.apiBaseUrl}/auth/snapshot-settings`, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'X-Tenant-ID': String(tenantId),
+      },
+    });
+
+    if (response.data.status === 'success' && response.data.settings) {
+      const tokenValue = response.data.settings.axenta_token;
+      // Загружаем токен в поле (теперь API возвращает полный токен)
+      settingsForm.value.axentaToken = tokenValue || '';
+      settingsForm.value.isActive = response.data.settings.is_active ?? true;
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки настроек:', error);
+  }
+};
+
+// Сохранение настроек
+const saveSettings = async () => {
+  if (!settingsForm.value.axentaToken) {
+    showSnackbar('Введите токен авторизации', 'error');
+    return;
+  }
+
+  savingSettings.value = true;
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) {
+      throw new Error('Отсутствует токен авторизации или информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const response = await axios.post(
+      `${config.apiBaseUrl}/auth/snapshot-settings`,
+      {
+        axenta_token: settingsForm.value.axentaToken,
+        is_active: settingsForm.value.isActive,
+      },
+      {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'X-Tenant-ID': String(tenantId),
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 'success') {
+      showSnackbar('Настройки успешно сохранены', 'success');
+      showSettingsDialog.value = false;
+    } else {
+      throw new Error(response.data.message || 'Ошибка сохранения настроек');
+    }
+  } catch (error: any) {
+    console.error('Ошибка сохранения настроек:', error);
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка сохранения настроек';
+    showSnackbar(errorMessage, 'error');
+  } finally {
+    savingSettings.value = false;
+  }
 };
 
 const getDaysLabel = (days: number): string => {
   if (days === 1) return 'день';
   if (days >= 2 && days <= 4) return 'дня';
   return 'дней';
+};
+
+// Очистка всей истории снимков
+const clearAllHistory = async () => {
+  if (clearConfirmText.value !== 'ОЧИСТИТЬ') {
+    showSnackbar('Введите "ОЧИСТИТЬ" для подтверждения', 'error');
+    return;
+  }
+
+  clearing.value = true;
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) {
+      throw new Error('Отсутствует токен авторизации или информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const response = await axios.delete(
+      `${config.apiBaseUrl}/auth/snapshot-jobs/clear-all`,
+      {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'X-Tenant-ID': String(tenantId),
+        },
+      }
+    );
+
+    if (response.data.status === 'success') {
+      const deleted = response.data.deleted;
+      showSnackbar(
+        `История очищена: ${deleted.jobs} задач, ${deleted.partner_snapshots} снимков партнеров, ${deleted.object_snapshots} снимков объектов, ${deleted.account_snapshots} снимков аккаунтов. Всего: ${deleted.total} записей`,
+        'success',
+        8000
+      );
+      showClearDialog.value = false;
+      clearConfirmText.value = '';
+      
+      // Обновляем список задач
+      setTimeout(() => {
+        loadJobs();
+        loadStats();
+      }, 1000);
+    } else {
+      throw new Error(response.data.message || 'Ошибка очистки истории');
+    }
+  } catch (error: any) {
+    console.error('Ошибка очистки истории:', error);
+    const errorMessage = error.response?.data?.message || error.message || 'Ошибка очистки истории';
+    showSnackbar(errorMessage, 'error');
+  } finally {
+    clearing.value = false;
+  }
 };
 
 // Создание снимков
@@ -715,9 +1000,19 @@ const showSnackbar = (text: string, color: 'success' | 'error' | 'info' | 'warni
   };
 };
 
+// Обработчик открытия диалога настроек
+const onSettingsDialogOpen = (value: boolean) => {
+  if (value) {
+    // При открытии диалога загружаем настройки и сбрасываем состояние показа токена
+    showToken.value = false;
+    loadSettings();
+  }
+};
+
 onMounted(() => {
   loadJobs();
   loadStats();
+  loadSettings();
 });
 </script>
 

@@ -129,6 +129,50 @@
         </v-col>
       </v-row>
 
+      <!-- Настройки синхронизации AxentaSync -->
+      <v-row class="mt-4">
+        <v-col cols="12">
+          <v-card variant="outlined" class="axenta-sync-settings">
+            <v-card-title class="d-flex align-center">
+              <v-icon icon="mdi-cloud-sync" class="mr-2" />
+              Синхронизация Axenta Cloud
+            </v-card-title>
+            <v-card-text>
+              <div class="settings-section">
+                <p class="text-body-2 text-medium-emphasis mb-4">
+                  Настройка интервала автоматической синхронизации данных из Axenta Cloud API.
+                  Синхронизация загружает аккаунты и объекты для всех компаний.
+                </p>
+                
+                <v-select
+                  v-model.number="axentaSyncInterval"
+                  :items="axentaSyncIntervalOptions"
+                  :loading="loadingAxentaSync"
+                  :disabled="loadingAxentaSync"
+                  label="Интервал синхронизации Axenta Cloud"
+                  variant="outlined"
+                  density="compact"
+                  hint="Интервал синхронизации данных из Axenta Cloud API"
+                  persistent-hint
+                  class="mb-3"
+                  @update:model-value="updateAxentaSyncInterval"
+                />
+
+                <v-alert
+                  v-if="axentaSyncInfo"
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mt-3"
+                >
+                  {{ axentaSyncInfo }}
+                </v-alert>
+              </div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+
       <!-- Дополнительная информация -->
       <v-row class="mt-4">
         <v-col cols="12">
@@ -154,6 +198,14 @@
                     <li><strong>1 минута</strong> - для обычной работы</li>
                     <li><strong>5 минут</strong> - для экономии трафика</li>
                   </ul>
+
+                  <h4 class="mt-4">Синхронизация Axenta Cloud:</h4>
+                  <ul>
+                    <li>Синхронизация загружает все аккаунты и объекты из Axenta Cloud API</li>
+                    <li>Рекомендуемый интервал: <strong>5-15 минут</strong> для снижения нагрузки на API</li>
+                    <li>Изменение интервала применяется сразу без перезапуска бекенда</li>
+                    <li>Только суперадмин может изменять настройки синхронизации</li>
+                  </ul>
                 </div>
               </v-expansion-panel-text>
             </v-expansion-panel>
@@ -175,8 +227,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
+import { apiClient } from '@/services/api';
 // import { useSnackbar } from '@/composables/useSnackbar'; // Removed - using local snackbar
 
 // Локальный snackbar
@@ -191,6 +244,66 @@ const showSnackbar = (text: string, color = 'success', timeout = 3000) => {
   snackbar.value = { show: true, text, color, timeout };
 };
 const autoRefresh = useAxentaAutoRefresh();
+
+// Настройки синхронизации AxentaSync
+const axentaSyncInterval = ref(5);
+const loadingAxentaSync = ref(false);
+const axentaSyncInfo = ref<string | null>(null);
+
+// Опции интервалов для синхронизации AxentaSync (в минутах)
+const axentaSyncIntervalOptions = [
+  { title: '1 минута', value: 1 },
+  { title: '5 минут', value: 5 },
+  { title: '10 минут', value: 10 },
+  { title: '15 минут', value: 15 },
+  { title: '30 минут', value: 30 },
+  { title: '60 минут', value: 60 },
+];
+
+// Загрузка текущих настроек синхронизации AxentaSync
+const loadAxentaSyncSettings = async () => {
+  try {
+    loadingAxentaSync.value = true;
+    const response = await apiClient.get('/auth/system/axenta-sync-settings');
+    if (response.data?.status === 'success' && response.data?.data?.sync_interval) {
+      axentaSyncInterval.value = response.data.data.sync_interval;
+      axentaSyncInfo.value = `Текущий интервал: ${axentaSyncInterval.value} минут`;
+    }
+  } catch (error: any) {
+    console.error('Ошибка загрузки настроек синхронизации AxentaSync:', error);
+    if (error.response?.status !== 403) {
+      showSnackbar('Ошибка загрузки настроек синхронизации', 'error');
+    }
+  } finally {
+    loadingAxentaSync.value = false;
+  }
+};
+
+// Обновление интервала синхронизации AxentaSync
+const updateAxentaSyncInterval = async (newInterval: number) => {
+  try {
+    loadingAxentaSync.value = true;
+    const response = await apiClient.put('/auth/system/axenta-sync-settings', {
+      sync_interval: newInterval,
+    });
+    
+    if (response.data?.status === 'success') {
+      axentaSyncInterval.value = newInterval;
+      axentaSyncInfo.value = `Интервал обновлен на ${newInterval} минут`;
+      showSnackbar(`Интервал синхронизации AxentaSync изменен на ${newInterval} минут`, 'success');
+    } else {
+      throw new Error(response.data?.error || 'Ошибка обновления');
+    }
+  } catch (error: any) {
+    console.error('Ошибка обновления интервала синхронизации AxentaSync:', error);
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка обновления интервала';
+    showSnackbar(errorMessage, 'error');
+    // Возвращаем предыдущее значение
+    await loadAxentaSyncSettings();
+  } finally {
+    loadingAxentaSync.value = false;
+  }
+};
 
 // Локальные состояния
 const loading = ref(false);
@@ -289,6 +402,11 @@ const formatDate = (date: Date) => {
     second: '2-digit'
   }).format(date);
 };
+
+// Загружаем настройки при монтировании компонента
+onMounted(() => {
+  loadAxentaSyncSettings();
+});
 </script>
 
 <style scoped>
@@ -367,6 +485,10 @@ const formatDate = (date: Date) => {
 .info-content li {
   margin-bottom: 4px;
   color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.axenta-sync-settings {
+  background: rgba(var(--v-theme-surface-variant), 0.3);
 }
 
 @media (max-width: 960px) {
