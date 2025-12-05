@@ -726,6 +726,7 @@
                   variant="outlined"
                   density="compact"
                   hide-details
+                  :max="maxEndDate"
                 />
               </v-col>
               
@@ -739,7 +740,7 @@
                       color="purple"
                       size="small"
                       @click="loadPartnerStatistics"
-                      :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate || isGeneratingSnapshots"
+                      :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate"
                       :loading="partnerStatsLoading"
                     >
                       <v-icon icon="mdi-database-search" size="small" />
@@ -752,29 +753,6 @@
                     из базы данных (исторические данные)
                   </div>
                 </v-tooltip>
-                
-                <!-- Создать снимки вручную (запрос к Axenta API) -->
-                <v-tooltip location="bottom">
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      color="orange"
-                      variant="outlined"
-                      size="small"
-                      @click="generateSnapshotsForPeriod"
-                      :disabled="partnerStatsLoading || !partnerStatsStartDate || !partnerStatsEndDate || isGeneratingSnapshots"
-                      :loading="isGeneratingSnapshots"
-                    >
-                      <v-icon icon="mdi-camera-plus" size="small" />
-                      <span class="ml-1">{{ isGeneratingSnapshots ? 'Создаю...' : 'Создать снимки' }}</span>
-                    </v-btn>
-                  </template>
-                  <div class="pa-2">
-                    <strong>Создать снимки вручную</strong><br/>
-                    Запрашивает актуальные данные из Axenta Cloud<br/>
-                    API в реальном времени (может перезаписать сегодня)
-                  </div>
-                </v-tooltip>
               </v-col>
             </v-row>
           </v-card-text>
@@ -785,27 +763,6 @@
         <!-- Прокручиваемый контент -->
         <div style="flex: 1; overflow-y: auto;">
           <v-card-text class="pa-0">
-          <!-- Прогресс-бар создания снимков -->
-          <div v-if="isGeneratingSnapshots" class="pa-4 bg-purple-lighten-5">
-            <div class="d-flex align-center justify-space-between mb-2">
-              <div class="text-body-2 font-weight-medium">
-                <v-icon icon="mdi-camera-plus" color="purple" size="small" class="mr-2" />
-                Создание снимков из Axenta Cloud...
-              </div>
-              <div class="text-caption text-purple font-weight-bold">
-                {{ Math.round(snapshotsGenerationProgress) }}%
-              </div>
-            </div>
-            <v-progress-linear
-              :model-value="snapshotsGenerationProgress"
-              color="purple"
-              height="8"
-              rounded
-            />
-            <div class="text-caption text-medium-emphasis mt-1 text-center">
-              Пожалуйста, подождите. Запрашиваем данные из API...
-            </div>
-          </div>
 
           <!-- Сводная информация - ВСЕГДА ВИДНА -->
           <v-card variant="flat" class="ma-4 mb-2" color="purple-lighten-5">
@@ -921,23 +878,17 @@
                 </v-col>
               </v-row>
               
-              <!-- Индикатор загрузки / создания снимков -->
-              <v-row v-if="partnerStatsLoading || isGeneratingSnapshots" class="mt-2">
+              <!-- Индикатор загрузки -->
+              <v-row v-if="partnerStatsLoading" class="mt-2">
                 <v-col cols="12" class="text-center">
                   <v-progress-circular 
-                    v-if="partnerStatsLoading && !isGeneratingSnapshots"
                     indeterminate 
                     color="purple" 
                     size="32" 
                     width="3"
                   />
                   <div class="mt-2 text-caption text-medium-emphasis">
-                    <span v-if="isGeneratingSnapshots">
-                      Создание снимков... {{ snapshotsGenerationProgress }}%
-                    </span>
-                    <span v-else-if="partnerStatsLoading">
-                      Загрузка статистики...
-                    </span>
+                    Загрузка статистики...
                   </div>
                 </v-col>
               </v-row>
@@ -1040,11 +991,11 @@
           </div>
 
           <!-- Нет данных -->
-          <div v-else-if="!partnerStatsLoading && !isGeneratingSnapshots" class="text-center pa-8">
+          <div v-else-if="!partnerStatsLoading" class="text-center pa-8">
             <v-icon icon="mdi-information-outline" color="info" size="64" />
             <div class="mt-4 text-medium-emphasis mb-4">
               Нет снимков для отображения за выбранный период.<br>
-              Создайте снимки, нажав на кнопку "Создать снимки" выше.
+              Данные будут доступны после создания снимков через систему автоматического создания снимков.
             </div>
           </div>
           </v-card-text>
@@ -1216,6 +1167,28 @@ const partnerStatsSummary = ref<PartnerSnapshotsSummary | null>(null);
 // Период для статистики партнерского договора
 const partnerStatsStartDate = ref<string>('');
 const partnerStatsEndDate = ref<string>('');
+
+// Максимальная дата для выбора окончания периода (вчерашний день)
+// Если сегодня 06.12, то доступна дата 05.12 (вчера)
+const maxEndDate = computed(() => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Устанавливаем начало дня
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1); // Вчерашний день
+  // Форматируем в YYYY-MM-DD с учетом локального времени
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
+
+// Автоматически корректируем дату окончания, если она превышает максимальную
+watch([partnerStatsEndDate, maxEndDate], ([endDate, maxDate]) => {
+  if (endDate && maxDate && endDate > maxDate) {
+    // Если выбранная дата больше максимальной, устанавливаем максимальную дату
+    partnerStatsEndDate.value = maxDate;
+  }
+}, { immediate: true });
 
 // Проверка наличия скидки
 const hasDiscount = computed(() => {
@@ -1708,26 +1681,13 @@ const showPartnerStatistics = async (contract: Contract) => {
   currentPartnerContract.value = contract;
   partnerStatsDialog.value = true;
   
-  // Устанавливаем период по умолчанию - от начала месяца до текущей даты
-  const now = new Date();
-  // Начало всегда первый день текущего месяца
-  const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-  // Конец всегда текущая дата
-  const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Очищаем поля дат - пользователь должен выбрать период вручную
+  partnerStatsStartDate.value = '';
+  partnerStatsEndDate.value = '';
   
-  // Форматируем даты для input type="date" (YYYY-MM-DD) в локальном времени
-  const formatDateForInput = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-  partnerStatsStartDate.value = formatDateForInput(startDate);
-  partnerStatsEndDate.value = formatDateForInput(endDate);
-  
-  // Загружаем статистику
-  await loadPartnerStatistics();
+  // Очищаем предыдущие данные - пользователь должен нажать кнопку "Получить данные"
+  partnerSnapshots.value = [];
+  partnerStatsSummary.value = null;
 };
 
 // Загрузить статистику партнерского договора за выбранный период
@@ -1756,36 +1716,37 @@ const loadPartnerStatistics = async () => {
     const tenantId = company.id;
 
     // Используем выбранный период
-    // Если дата начала не установлена, используем первый день текущего месяца
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    // Правильно формируем даты в UTC, чтобы избежать проблем с часовыми поясами
+    // Парсим даты в формате YYYY-MM-DD и создаем даты в локальном времени
+    // Это важно, чтобы выбранная дата (например, 5 декабря) не смещалась из-за часового пояса
     let startDate: Date;
     if (partnerStatsStartDate.value) {
-      // Парсим дату в формате YYYY-MM-DD и создаем начало дня в UTC
+      // Парсим дату в формате YYYY-MM-DD и создаем начало дня в локальном времени
       const [year, month, day] = partnerStatsStartDate.value.split('-').map(Number);
-      startDate = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+      startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
     } else {
-      // Первый день текущего месяца в UTC
-      const utcFirstDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
-      startDate = utcFirstDay;
+      throw new Error('Необходимо указать дату начала периода');
     }
     
     let endDate: Date;
     if (partnerStatsEndDate.value) {
-      // Парсим дату в формате YYYY-MM-DD и создаем конец дня в UTC (23:59:59)
+      // Парсим дату в формате YYYY-MM-DD и создаем конец дня в локальном времени (23:59:59)
       const [year, month, day] = partnerStatsEndDate.value.split('-').map(Number);
-      endDate = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
+      endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
     } else {
-      // Конец текущего дня в UTC
-      const utcNow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
-      endDate = utcNow;
+      throw new Error('Необходимо указать дату окончания периода');
     }
 
     // Запрашиваем снимки партнерского договора
+    // Отправляем даты в формате YYYY-MM-DD, чтобы избежать проблем с часовыми поясами
+    const formatDateForQuery = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     const response = await fetch(
-      `${config.apiBaseUrl}/auth/contracts/${currentPartnerContract.value.id}/partner-snapshots?start_date=${startDate.toISOString()}&end_date=${endDate.toISOString()}`,
+      `${config.apiBaseUrl}/auth/contracts/${currentPartnerContract.value.id}/partner-snapshots?start_date=${formatDateForQuery(startDate)}&end_date=${formatDateForQuery(endDate)}`,
       {
         method: 'GET',
         headers: {
@@ -1808,7 +1769,16 @@ const loadPartnerStatistics = async () => {
     console.log('🔢 total_days:', data.summary?.total_days);
     
     if (data.status === 'success' && data.snapshots) {
-      partnerSnapshots.value = data.snapshots;
+      // Фильтруем снимки по выбранному периоду на фронтенде для гарантии
+      // (на случай, если бэкенд вернул данные за другие даты)
+      const filteredSnapshots = data.snapshots.filter((snapshot: any) => {
+        if (!snapshot.snapshot_date) return false;
+        const snapshotDate = new Date(snapshot.snapshot_date);
+        // Проверяем, что дата снимка находится в выбранном диапазоне
+        return snapshotDate >= startDate && snapshotDate <= endDate;
+      });
+      
+      partnerSnapshots.value = filteredSnapshots;
       partnerStatsSummary.value = data.summary;
     } else {
       throw new Error('Неверный формат ответа от сервера');
