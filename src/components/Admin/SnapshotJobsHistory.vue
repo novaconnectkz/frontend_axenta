@@ -99,6 +99,13 @@
           </v-chip>
         </template>
 
+        <!-- Дата снимка -->
+        <template v-slot:item.snapshot_date="{ item }">
+          <div class="text-body-2">
+            {{ formatSnapshotDate(item.date_from, item.date_to) }}
+          </div>
+        </template>
+
         <!-- Тип задачи -->
         <template v-slot:item.job_type="{ item }">
           <v-chip size="small" variant="tonal">
@@ -167,6 +174,10 @@
             <v-col cols="6">
               <div class="text-caption text-grey">Тип задачи</div>
               <div>{{ getJobTypeLabel(selectedJob.job_type) }}</div>
+            </v-col>
+            <v-col cols="6">
+              <div class="text-caption text-grey">Дата снимка</div>
+              <div>{{ formatSnapshotDate(selectedJob.date_from, selectedJob.date_to) }}</div>
             </v-col>
             <v-col cols="6">
               <div class="text-caption text-grey">Начало</div>
@@ -541,6 +552,8 @@ interface SnapshotJob {
   started_at: string;
   finished_at?: string;
   duration_seconds?: number;
+  date_from: string; // Дата начала периода снимка
+  date_to: string;   // Дата окончания периода снимка
   total_companies: number;
   total_contracts: number;
   success_count: number;
@@ -611,6 +624,7 @@ const headers = [
   { title: 'ID', key: 'id', width: '60px' },
   { title: 'Статус', key: 'status', width: '120px' },
   { title: 'Тип', key: 'job_type', width: '150px' },
+  { title: 'Дата снимка', key: 'snapshot_date', width: '130px' },
   { title: 'Начало', key: 'started_at', width: '180px' },
   { title: 'Длительность', key: 'duration_seconds', width: '120px' },
   { title: 'Статистика', key: 'stats', width: '150px', sortable: false },
@@ -723,6 +737,52 @@ const formatDateTime = (dateStr: string): string => {
     }).format(date);
   } catch (error) {
     console.error('Ошибка форматирования даты:', error);
+    return '—';
+  }
+};
+
+const formatSnapshotDate = (dateFrom: string, dateTo: string): string => {
+  if (!dateFrom) return '—';
+  try {
+    const fromDate = new Date(dateFrom);
+    const toDate = dateTo ? new Date(dateTo) : null;
+    
+    // Если даты одинаковые, показываем одну дату
+    if (toDate && fromDate.toDateString() === toDate.toDateString()) {
+      return new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: companyTimezone.value,
+      }).format(fromDate);
+    }
+    
+    // Если разные даты, показываем диапазон
+    if (toDate) {
+      const fromStr = new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: companyTimezone.value,
+      }).format(fromDate);
+      const toStr = new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: companyTimezone.value,
+      }).format(toDate);
+      return `${fromStr} - ${toStr}`;
+    }
+    
+    // Только одна дата
+    return new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: companyTimezone.value,
+    }).format(fromDate);
+  } catch (error) {
+    console.error('Ошибка форматирования даты снимка:', error);
     return '—';
   }
 };
