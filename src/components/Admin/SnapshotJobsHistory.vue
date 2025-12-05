@@ -128,12 +128,8 @@
 
         <!-- Статистика -->
         <template v-slot:item.stats="{ item }">
-          <div class="text-caption">
-            <div>✓ {{ item.success_count }} / ✗ {{ item.error_count }}</div>
-            <div class="text-grey">{{ item.total_contracts }} договоров</div>
-            <div class="text-grey" v-if="item.total_objects">
-              {{ formatNumber(item.total_objects) }} объектов
-            </div>
+          <div class="text-caption" v-if="item.total_objects">
+            {{ formatNumber(item.total_objects) }} объектов
           </div>
         </template>
 
@@ -208,29 +204,9 @@
 
           <v-divider class="my-4" />
 
-          <!-- Статистика -->
-          <div class="text-subtitle-2 mb-2">Статистика</div>
-          <v-row dense>
-            <v-col cols="3">
-              <div class="text-caption text-grey">Компаний</div>
-              <div class="text-h6">{{ selectedJob.total_companies }}</div>
-            </v-col>
-            <v-col cols="3">
-              <div class="text-caption text-grey">Договоров</div>
-              <div class="text-h6">{{ selectedJob.total_contracts }}</div>
-            </v-col>
-            <v-col cols="3">
-              <div class="text-caption text-success">Успешно</div>
-              <div class="text-h6 text-success">{{ selectedJob.success_count }}</div>
-            </v-col>
-            <v-col cols="3">
-              <div class="text-caption text-error">Ошибок</div>
-              <div class="text-h6 text-error">{{ selectedJob.error_count }}</div>
-            </v-col>
-          </v-row>
-          
           <!-- Статистика объектов -->
-          <v-row dense class="mt-2" v-if="selectedJob.total_objects">
+          <div class="text-subtitle-2 mb-2">Статистика</div>
+          <v-row dense v-if="selectedJob.total_objects">
             <v-col cols="6">
               <div class="text-caption text-grey">Всего объектов</div>
               <div class="text-h6">{{ formatNumber(selectedJob.total_objects) }}</div>
