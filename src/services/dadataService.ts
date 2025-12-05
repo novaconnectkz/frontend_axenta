@@ -323,6 +323,7 @@ class DaDataService {
     client_address?: string;
     client_legal_address?: string;
     client_postal_address?: string;
+    client_registration_address?: string; // Адрес регистрации (для ИП)
     client_phone?: string;
     client_email?: string;
     client_ogrn?: string;
@@ -401,10 +402,16 @@ class DaDataService {
     // Извлекаем адреса
     let legalAddress = '';
     let postalAddress = '';
+    let registrationAddress = ''; // Адрес регистрации (для ИП) - используем unrestricted_value
     if (typeof address === 'object' && address !== null) {
-      const addressValue = address.value || address.unrestricted_value || '';
-      legalAddress = addressValue;
-      postalAddress = addressValue; // По умолчанию почтовый адрес = юридический, если не указан отдельно
+      const addressValue = address.value || '';
+      const unrestrictedValue = address.unrestricted_value || '';
+      
+      // Для адреса регистрации используем unrestricted_value (полный адрес)
+      registrationAddress = unrestrictedValue || addressValue;
+      
+      legalAddress = addressValue || unrestrictedValue;
+      postalAddress = addressValue || unrestrictedValue; // По умолчанию почтовый адрес = юридический, если не указан отдельно
       
       // Если есть data с подробной информацией об адресе
       if (address.data) {
@@ -427,11 +434,16 @@ class DaDataService {
           const fullAddress = addressParts.join(', ');
           legalAddress = fullAddress;
           postalAddress = fullAddress;
+          // Для адреса регистрации также используем полный адрес, если unrestricted_value не указан
+          if (!registrationAddress) {
+            registrationAddress = fullAddress;
+          }
         }
       }
     } else if (typeof address === 'string') {
       legalAddress = address;
       postalAddress = address;
+      registrationAddress = address;
     }
 
     // Извлекаем ОГРН
@@ -473,6 +485,7 @@ class DaDataService {
       client_address: legalAddress, // Для обратной совместимости
       client_legal_address: legalAddress,
       client_postal_address: postalAddress,
+      client_registration_address: registrationAddress, // Адрес регистрации (для ИП) - из unrestricted_value
       client_phone: clientPhone,
       client_email: clientEmail,
       client_ogrn: ogrn,

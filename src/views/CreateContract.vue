@@ -400,7 +400,7 @@
                 />
               </v-col>
               
-              <v-col cols="12" :md="form.client_type === CLIENT_TYPES.ORGANIZATION ? 5 : 10">
+              <v-col cols="12" :md="(form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) ? 5 : 10">
                 <AppleInput
                   v-model="form.client_name"
                   :label="form.client_type === CLIENT_TYPES.PHYSICAL_PERSON ? 'ФИО клиента' : 'Полное наименование клиента'"
@@ -409,12 +409,12 @@
                 />
               </v-col>
               
-              <!-- Сокращенное название для организаций -->
-              <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION" cols="12" md="5">
+              <!-- Сокращенное название для организаций и ИП -->
+              <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR" cols="12" md="5">
                 <AppleInput
                   v-model="form.client_short_name"
                   label="Сокращенное название с ОПФ"
-                  hint="Автоматически заполняется при выборе организации по ИНН"
+                  hint="Автоматически заполняется при выборе организации/ИП по ИНН"
                 />
               </v-col>
             </v-row>
@@ -471,12 +471,15 @@
                   </div>
                     <!-- Выпадающее меню с результатами -->
                     <v-menu
+                      v-if="form.client_type === CLIENT_TYPES.ORGANIZATION"
                       v-model="showOrganizationMenu"
                       :activator="innAutocompleteRef"
                       location="bottom"
                       :max-height="400"
                       eager
-                      offset-y
+                      :offset="4"
+                      strategy="absolute"
+                      :close-on-content-click="false"
                     >
                       <v-list v-if="organizationSuggestions.length > 0" density="compact">
                         <v-list-item
@@ -527,20 +530,85 @@
             <template v-if="form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR">
               <v-row>
                 <v-col cols="12" md="6">
-                  <div style="position: relative;" ref="innAutocompleteRef">
+                  <div style="position: relative;" ref="innAutocompleteRefIP" class="inn-field-container">
                     <AppleInput
                       ref="innInputRef"
                       :model-value="form.client_inn"
                       @update:modelValue="handleInnUpdate"
                       label="ИНН"
                       :rules="[rules.inn]"
-                      hint="12 цифр"
+                      :loading="loadingOrganizationData"
+                      hint="Введите ИНН (12 цифр) или ОГРНИП (13 цифр) для автозаполнения"
                       persistent-hint
                       @valueChange="handleInnUpdate"
                       @input="handleInnUpdate"
                       @focus="handleInnFocus"
                       @blur="handleInnBlur"
                     />
+                    <v-tooltip location="top" :open-on-hover="true">
+                      <template #activator="{ props }">
+                        <div
+                          v-bind="props"
+                          class="inn-info-icon-wrapper"
+                        >
+                          <v-icon
+                            icon="mdi-information-outline"
+                            color="primary"
+                            size="20"
+                          />
+                        </div>
+                      </template>
+                      <div style="max-width: 320px; padding: 4px;">
+                        <div class="text-body-2 font-weight-medium mb-2">
+                          Автоматическое заполнение реквизитов ИП
+                        </div>
+                        <div class="text-caption">
+                          Введите ИНН (12 цифр) или ОГРНИП (13 цифр), и система автоматически заполнит:
+                          <ul class="mt-2 mb-2 pl-3" style="text-align: left; line-height: 1.6;">
+                            <li>Наименование ИП</li>
+                            <li>ИНН, ОГРНИП</li>
+                            <li>Адрес регистрации</li>
+                            <li>Контактные данные (телефон, email, сайт)</li>
+                          </ul>
+                          <strong>После ввода появится список с найденным ИП - выберите его из списка для автозаполнения.</strong>
+                        </div>
+                      </div>
+                    </v-tooltip>
+                    <!-- Выпадающее меню с результатами для ИП -->
+                    <v-menu
+                      v-model="showOrganizationMenu"
+                      :activator="innAutocompleteRefIP"
+                      location="bottom"
+                      :max-height="400"
+                      eager
+                      :offset="4"
+                      strategy="absolute"
+                      :close-on-content-click="false"
+                    >
+                      <v-list v-if="organizationSuggestions.length > 0" density="compact">
+                        <v-list-item
+                          v-for="(suggestion, index) in organizationSuggestions"
+                          :key="index"
+                          @click="onOrganizationSelect(suggestion)"
+                          class="cursor-pointer"
+                        >
+                          <template #prepend>
+                            <v-avatar size="small" color="primary">
+                              <v-icon icon="mdi-account-tie" />
+                            </v-avatar>
+                          </template>
+                          <v-list-item-title>{{ suggestion.name }}</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <span v-if="suggestion.inn">ИНН: {{ suggestion.inn }}</span>
+                          </v-list-item-subtitle>
+                        </v-list-item>
+                      </v-list>
+                      <v-list v-else-if="loadingOrganizationData" density="compact">
+                        <v-list-item>
+                          <v-list-item-title>Поиск ИП...</v-list-item-title>
+                        </v-list-item>
+                      </v-list>
+                    </v-menu>
                   </div>
                 </v-col>
                 
@@ -1096,6 +1164,7 @@ const innSearchQuery = ref<string>('');
 const organizationSuggestions = ref<Array<{name: string; inn: string; kpp?: string; raw: DaDataOrganization}>>([]);
 const innSearchTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 const innAutocompleteRef = ref<any>(null);
+const innAutocompleteRefIP = ref<any>(null); // Отдельный ref для ИП
 const innInputRef = ref<any>(null);
 const showOrganizationMenu = ref(false);
 const loadingBankData = ref(false);
@@ -1882,9 +1951,13 @@ const handleInnValueChanged = (value: string) => {
       }
     }
   } else if (clientType === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
-    // Для ИП: 12 цифр ИНН или 13 ОГРНИП (поиск не выполняем)
+    // Для ИП: 12 цифр ИНН или 13 ОГРНИП - выполняем поиск
     if (actualValue === '') {
-      // Очистка при пустом значении
+      organizationSuggestions.value = [];
+      showOrganizationMenu.value = false;
+    } else {
+      // Выполняем поиск для ИП
+      onInnSearch(actualValue);
     }
   }
 };
@@ -1907,6 +1980,7 @@ watch(
 // Обработчик фокуса на поле ИНН
 const handleInnFocus = () => {
   if (organizationSuggestions.value.length > 0) {
+    console.log('📋 Фокус на поле ИНН, показываем меню');
     showOrganizationMenu.value = true;
   }
 };
@@ -2055,9 +2129,13 @@ const fillBankData = (bankData: any) => {
 
 // Обработчик потери фокуса
 const handleInnBlur = () => {
+  // Увеличиваем задержку, чтобы пользователь успел кликнуть на предложение
   setTimeout(() => {
-    showOrganizationMenu.value = false;
-  }, 200);
+    // Проверяем, не кликнул ли пользователь на элемент меню
+    if (!document.activeElement?.closest('.v-menu__content')) {
+      showOrganizationMenu.value = false;
+    }
+  }, 300);
 };
 
 // Обработчик фокуса на поле БИК
@@ -2098,10 +2176,11 @@ const onBankSelect = (suggestion: {name: string; bik: string; correspondentAccou
   bankSuggestions.value = [];
 };
 
-// Поиск организаций по ИНН/ОГРН с debounce (только для организаций)
+// Поиск организаций по ИНН/ОГРН с debounce (для организаций и ИП)
 const onInnSearch = (value: string | null) => {
-  // Поиск работает только для организаций
-  if (form.value.client_type !== CLIENT_TYPES.ORGANIZATION) {
+  // Поиск работает для организаций и ИП
+  if (form.value.client_type !== CLIENT_TYPES.ORGANIZATION && 
+      form.value.client_type !== CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
     return;
   }
   
@@ -2120,8 +2199,8 @@ const onInnSearch = (value: string | null) => {
   
   const cleanValue = searchValue.trim().replace(/\s+/g, '');
   
-  // Для организаций: 10 цифр ИНН или 13 ОГРН
-  if (!/^\d{10}$|^\d{13}$/.test(cleanValue)) {
+  // Валидация: ИНН организации (10 цифр), ИНН ИП (12 цифр) или ОГРН/ОГРНИП (13 цифр)
+  if (!/^\d{10}$|^\d{12}$|^\d{13}$/.test(cleanValue)) {
     organizationSuggestions.value = [];
     return;
   }
@@ -2140,13 +2219,25 @@ const searchOrganizations = async (query: string) => {
     if (orgData) {
       const extractedData = dadataService.extractOrganizationData(orgData);
       
+      // Проверяем тип организации из ответа Dadata
+      const data = (orgData as any).data || orgData;
+      const orgType = data?.type;
+      
+      // Автоматически определяем тип клиента, если он не установлен или если найден ИП
+      if (orgType === 'INDIVIDUAL' && form.value.client_type !== CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+        // Если найден ИП, но тип клиента не установлен как ИП, предлагаем установить
+        form.value.client_type = CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR;
+      } else if (orgType && orgType !== 'INDIVIDUAL' && form.value.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+        // Если найдена организация, но тип клиента установлен как ИП, меняем на организацию
+        form.value.client_type = CLIENT_TYPES.ORGANIZATION;
+      }
+      
       // Получаем название организации из данных
       let orgName = extractedData.client_name || '';
       if (!orgName && orgData.value) {
         orgName = orgData.value;
       }
       if (!orgName) {
-        const data = (orgData as any).data;
         if (data?.name) {
           if (typeof data.name === 'object') {
             orgName = data.name.full_with_opf || data.name.full || data.name.short_with_opf || data.name.short || '';
@@ -2167,8 +2258,16 @@ const searchOrganizations = async (query: string) => {
       
       await nextTick();
       
+      // Показываем меню с предложениями для выбора пользователем
       if (organizationSuggestions.value.length > 0) {
+        // Не заполняем автоматически - показываем меню для выбора
+        console.log('📋 Показываем меню с предложениями:', organizationSuggestions.value.length, 'элементов');
+        console.log('📋 Первое предложение:', organizationSuggestions.value[0]);
+        console.log('📋 Тип клиента:', form.value.client_type);
+        console.log('📋 innAutocompleteRef:', innAutocompleteRef.value);
+        console.log('📋 innAutocompleteRefIP:', innAutocompleteRefIP.value);
         showOrganizationMenu.value = true;
+        console.log('📋 showOrganizationMenu установлен в:', showOrganizationMenu.value);
       }
     } else {
       organizationSuggestions.value = [];
@@ -2190,6 +2289,17 @@ const onOrganizationSelect = (selected: any) => {
     const orgData: DaDataOrganization = selected.raw;
     const extractedData = dadataService.extractOrganizationData(orgData);
     
+    // Проверяем тип организации из ответа Dadata
+    const data = (orgData as any).data || orgData;
+    const orgType = data?.type;
+    
+    // Автоматически устанавливаем тип клиента, если найден ИП
+    if (orgType === 'INDIVIDUAL') {
+      form.value.client_type = CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR;
+    } else if (orgType && orgType !== 'INDIVIDUAL') {
+      form.value.client_type = CLIENT_TYPES.ORGANIZATION;
+    }
+    
     // Основные данные
     if (extractedData.client_name) {
       form.value.client_name = extractedData.client_name;
@@ -2203,8 +2313,12 @@ const onOrganizationSelect = (selected: any) => {
       form.value.client_inn = extractedData.client_inn;
     }
     
-    if (extractedData.client_kpp) {
+    // КПП заполняем только для организаций (у ИП нет КПП)
+    if (extractedData.client_kpp && form.value.client_type === CLIENT_TYPES.ORGANIZATION) {
       form.value.client_kpp = extractedData.client_kpp;
+    } else if (form.value.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+      // Очищаем КПП для ИП
+      form.value.client_kpp = '';
     }
     
     // Адреса
@@ -2214,6 +2328,11 @@ const onOrganizationSelect = (selected: any) => {
     
     if (extractedData.client_postal_address) {
       form.value.client_postal_address = extractedData.client_postal_address;
+    }
+    
+    // Для ИП заполняем адрес регистрации из unrestricted_value
+    if (form.value.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR && extractedData.client_registration_address) {
+      form.value.client_registration_address = extractedData.client_registration_address;
     }
     
     // Для обратной совместимости сохраняем в старом поле адреса
@@ -2231,8 +2350,13 @@ const onOrganizationSelect = (selected: any) => {
     }
     
     // Дополнительные реквизиты
+    // Для ИП заполняем ОГРНИП, для организаций - ОГРН
     if (extractedData.client_ogrn) {
-      form.value.client_ogrn = extractedData.client_ogrn;
+      if (form.value.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) {
+        form.value.client_ogrnip = extractedData.client_ogrn;
+      } else {
+        form.value.client_ogrn = extractedData.client_ogrn;
+      }
     }
     
     if (extractedData.client_okpo) {
