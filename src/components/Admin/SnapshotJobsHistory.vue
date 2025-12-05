@@ -532,6 +532,7 @@
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { config } from '@/config/env';
+import { settingsService } from '@/services/settingsService';
 
 interface SnapshotJob {
   id: number;
@@ -574,6 +575,7 @@ const stats = ref<SnapshotJobStats | null>(null);
 const itemsPerPage = ref(10);
 const detailsDialog = ref(false);
 const selectedJob = ref<SnapshotJob | null>(null);
+const companyTimezone = ref<string>('Europe/Moscow'); // Часовой пояс компании по умолчанию
 
 // Диалог создания снимков
 const showCreateDialog = ref(false);
@@ -706,14 +708,23 @@ const getJobTypeLabel = (jobType: string): string => {
 
 const formatDateTime = (dateStr: string): string => {
   if (!dateStr) return '—';
-  const date = new Date(dateStr);
-  return date.toLocaleString('ru-RU', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  try {
+    // Создаем дату из строки (предполагается, что это UTC или ISO формат)
+    const date = new Date(dateStr);
+    
+    // Форматируем время с учетом часового пояса компании
+    return new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: companyTimezone.value,
+    }).format(date);
+  } catch (error) {
+    console.error('Ошибка форматирования даты:', error);
+    return '—';
+  }
 };
 
 const formatDuration = (seconds: number): string => {
@@ -1009,10 +1020,25 @@ const onSettingsDialogOpen = (value: boolean) => {
   }
 };
 
+// Загрузка часового пояса компании
+const loadCompanyTimezone = async () => {
+  try {
+    const settings = await settingsService.getSystemSettings();
+    if (settings && settings.timezone) {
+      companyTimezone.value = settings.timezone;
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки часового пояса компании:', error);
+    // Используем значение по умолчанию
+    companyTimezone.value = 'Europe/Moscow';
+  }
+};
+
 onMounted(() => {
   loadJobs();
   loadStats();
   loadSettings();
+  loadCompanyTimezone();
 });
 </script>
 
