@@ -723,8 +723,28 @@ const getJobTypeLabel = (jobType: string): string => {
 const formatDateTime = (dateStr: string): string => {
   if (!dateStr) return '—';
   try {
-    // Создаем дату из строки (предполагается, что это UTC или ISO формат)
+    // Go сериализует time.Time в RFC3339 формат
+    // PostgreSQL хранит время в часовом поясе Europe/Moscow (UTC+3)
+    // Go при сериализации в JSON использует MarshalJSON, который возвращает RFC3339
+    // Если время имеет локацию, оно сериализуется с указанием часового пояса (например, "2025-12-05T12:17:18+03:00")
+    // Если локация не указана или UTC, сериализуется как "2025-12-05T12:17:18Z"
+    
+    // Парсим дату - JavaScript new Date() правильно обрабатывает RFC3339
     const date = new Date(dateStr);
+    
+    // Если дата невалидна, возвращаем прочерк
+    if (isNaN(date.getTime())) {
+      console.warn('Невалидная дата:', dateStr);
+      return '—';
+    }
+    
+    // ВАЖНО: JavaScript Date всегда хранит время в UTC внутренне
+    // Когда мы парсим "2025-12-05T12:17:18+03:00", JavaScript конвертирует это в UTC (09:17:18Z)
+    // Когда мы парсим "2025-12-05T12:17:18Z", JavaScript хранит это как UTC (12:17:18Z)
+    
+    // Intl.DateTimeFormat конвертирует из UTC (внутреннее представление) в указанный часовой пояс
+    // Если время было в MSK (12:17+03:00), оно стало UTC (09:17Z), и конвертация обратно в MSK даст 12:17 - правильно
+    // Если время было в UTC (12:17Z), конвертация в MSK даст 15:17 - правильно
     
     // Форматируем время с учетом часового пояса компании
     return new Intl.DateTimeFormat('ru-RU', {
@@ -736,7 +756,7 @@ const formatDateTime = (dateStr: string): string => {
       timeZone: companyTimezone.value,
     }).format(date);
   } catch (error) {
-    console.error('Ошибка форматирования даты:', error);
+    console.error('Ошибка форматирования даты:', error, dateStr);
     return '—';
   }
 };
