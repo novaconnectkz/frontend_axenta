@@ -30,6 +30,14 @@
         title="Загрузить объекты"
       />
       <v-btn
+        icon="mdi-account-group"
+        size="small"
+        variant="text"
+        color="success"
+        @click="showPartnerSnapshotsDialog = true"
+        title="Создать партнёрские снимки за период"
+      />
+      <v-btn
         icon="mdi-refresh"
         size="small"
         variant="text"
@@ -273,6 +281,130 @@
         <v-card-actions>
           <v-spacer />
           <v-btn @click="detailsDialog = false">Закрыть</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог создания партнёрских снимков за период -->
+    <v-dialog v-model="showPartnerSnapshotsDialog" max-width="600">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon icon="mdi-account-group" class="mr-2" />
+          Создать партнёрские снимки за период
+          <v-spacer />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            @click="showPartnerSnapshotsDialog = false"
+          />
+        </v-card-title>
+
+        <v-card-text>
+          <div class="text-body-2 text-medium-emphasis mb-4">
+            Создаст снимки для всех активных партнёрских договоров за указанный период.
+          </div>
+
+          <!-- Выбор источника данных -->
+          <v-row>
+            <v-col cols="12">
+              <div class="text-body-2 font-weight-medium mb-2">Источник данных:</div>
+              <v-radio-group v-model="partnerDataSource" inline density="compact">
+                <v-radio
+                  label="Из БД (быстро, использует сохраненные данные)"
+                  value="db"
+                  density="compact"
+                />
+                <v-radio
+                  label="Из Axenta API (медленно, запрашивает актуальные данные)"
+                  value="api"
+                  density="compact"
+                />
+              </v-radio-group>
+              <v-alert
+                v-if="partnerDataSource === 'db'"
+                type="info"
+                density="compact"
+                variant="tonal"
+                class="mt-2"
+              >
+                Используются данные из базы данных (axenta_object_snapshots). Быстро и не нагружает API.
+              </v-alert>
+              <v-alert
+                v-if="partnerDataSource === 'api'"
+                type="warning"
+                density="compact"
+                variant="tonal"
+                class="mt-2"
+              >
+                Данные будут запрошены из Axenta Cloud API. Это может занять больше времени.
+              </v-alert>
+            </v-col>
+          </v-row>
+
+          <v-row>
+            <v-col cols="6">
+              <v-text-field
+                v-model="partnerPeriodStartDate"
+                label="Дата начала"
+                type="date"
+                variant="outlined"
+                :max="partnerPeriodEndDate || todayDate"
+                :rules="[rules.required, rules.dateFormat]"
+                hint="Начало периода"
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="6">
+              <v-text-field
+                v-model="partnerPeriodEndDate"
+                label="Дата окончания"
+                type="date"
+                variant="outlined"
+                :min="partnerPeriodStartDate"
+                :max="todayDate"
+                :rules="[rules.required, rules.dateFormat, rules.periodValid]"
+                hint="Конец периода"
+                persistent-hint
+              />
+            </v-col>
+            <v-col cols="12" v-if="partnerPeriodDays > 0">
+              <v-alert
+                type="info"
+                density="compact"
+                variant="tonal"
+              >
+                Выбранный период: {{ partnerPeriodDays }} {{ getDaysLabel(partnerPeriodDays) }}
+              </v-alert>
+            </v-col>
+          </v-row>
+
+          <v-alert
+            v-if="partnerPeriodDays > 90"
+            type="warning"
+            density="compact"
+            class="mt-2"
+          >
+            Внимание: период превышает 90 дней. Выберите меньший период.
+          </v-alert>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn
+            variant="text"
+            @click="showPartnerSnapshotsDialog = false"
+            :disabled="creatingPartnerSnapshots"
+          >
+            Отмена
+          </v-btn>
+          <v-btn
+            color="success"
+            @click="createPartnerSnapshots"
+            :loading="creatingPartnerSnapshots"
+            :disabled="!isPartnerFormValid"
+          >
+            Создать для всех партнёров
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -592,6 +724,12 @@ const companyTimezone = ref<string>('Europe/Moscow'); // Часовой пояс
 const showCreateDialog = ref(false);
 const creating = ref(false);
 const loadingObjects = ref(false);
+// Диалог создания партнёрских снимков
+const showPartnerSnapshotsDialog = ref(false);
+const creatingPartnerSnapshots = ref(false);
+const partnerPeriodStartDate = ref('');
+const partnerPeriodEndDate = ref('');
+const partnerDataSource = ref<'db' | 'api'>('db'); // Источник данных: БД или API
 const loadProgressStatus = ref({
   is_loading: false,
   progress: 0,
@@ -919,6 +1057,23 @@ const periodDays = computed(() => {
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays + 1; // +1 потому что включаем обе даты
+});
+
+const partnerPeriodDays = computed(() => {
+  if (!partnerPeriodStartDate.value || !partnerPeriodEndDate.value) return 0;
+  const start = new Date(partnerPeriodStartDate.value);
+  const end = new Date(partnerPeriodEndDate.value);
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays + 1; // +1 потому что включаем обе даты
+});
+
+const isPartnerFormValid = computed(() => {
+  return partnerPeriodStartDate.value !== '' && 
+         partnerPeriodEndDate.value !== '' && 
+         partnerPeriodStartDate.value <= partnerPeriodEndDate.value &&
+         partnerPeriodEndDate.value <= todayDate.value &&
+         partnerPeriodDays.value <= 90;
 });
 
 const isFormValid = computed(() => {
@@ -1319,6 +1474,73 @@ const createSnapshots = async () => {
     showSnackbar(errorMessage, 'error');
   } finally {
     creating.value = false;
+  }
+};
+
+// Создание партнёрских снимков для всех договоров за период
+const createPartnerSnapshots = async () => {
+  if (!isPartnerFormValid.value) return;
+
+  creatingPartnerSnapshots.value = true;
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) {
+      throw new Error('Отсутствует токен авторизации или информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const requestBody = {
+      mode: 'partner_all',
+      date_from: partnerPeriodStartDate.value,
+      date_to: partnerPeriodEndDate.value,
+      data_source: partnerDataSource.value, // 'db' или 'api'
+    };
+
+    const response = await axios.post(
+      `${config.apiBaseUrl}/auth/snapshot-jobs/trigger`,
+      requestBody,
+      {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'X-Tenant-ID': String(tenantId),
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 'success') {
+      // Закрываем диалог
+      showPartnerSnapshotsDialog.value = false;
+      
+      // Сбрасываем форму
+      partnerPeriodStartDate.value = '';
+      partnerPeriodEndDate.value = '';
+      partnerDataSource.value = 'db'; // Сбрасываем на значение по умолчанию
+
+      // Показываем сообщение об успехе
+      showSnackbar(
+        response.data.message || 'Запрос на создание партнёрских снимков принят. Проверьте историю через несколько минут.',
+        'success'
+      );
+      
+      // Обновляем список задач через небольшую задержку
+      setTimeout(() => {
+        loadJobs();
+        loadStats();
+      }, 2000);
+    } else {
+      throw new Error(response.data.message || 'Ошибка создания партнёрских снимков');
+    }
+  } catch (error: any) {
+    console.error('Ошибка создания партнёрских снимков:', error);
+    const errorMessage = error.response?.data?.message || error.message || 'Ошибка создания партнёрских снимков';
+    showSnackbar(errorMessage, 'error');
+  } finally {
+    creatingPartnerSnapshots.value = false;
   }
 };
 
