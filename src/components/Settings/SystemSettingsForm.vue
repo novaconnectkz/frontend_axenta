@@ -421,6 +421,9 @@ const snackbar = ref({
 
 // Опции для селектов
 const timezoneOptions = [
+  { value: 'UTC', title: 'UTC (UTC+0)' },
+  { value: 'Europe/Berlin', title: 'UTC+1' },
+  { value: 'Europe/Kaliningrad', title: 'Калининград (UTC+2)' },
   { value: 'Europe/Moscow', title: 'Москва (UTC+3)' },
   { value: 'Europe/Samara', title: 'Самара (UTC+4)' },
   { value: 'Asia/Yekaterinburg', title: 'Екатеринбург (UTC+5)' },

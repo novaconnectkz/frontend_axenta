@@ -423,6 +423,9 @@ export interface IntegrationStatusResponse {
 
 // Опции часовых поясов
 export const TIMEZONE_OPTIONS = [
+  { value: "UTC", label: "UTC (UTC+0)" },
+  { value: "Europe/Berlin", label: "UTC+1" },
+  { value: "Europe/Kaliningrad", label: "Калининград (UTC+2)" },
   { value: "Europe/Moscow", label: "Москва (UTC+3)" },
   { value: "Europe/Samara", label: "Самара (UTC+4)" },
   { value: "Asia/Yekaterinburg", label: "Екатеринбург (UTC+5)" },
