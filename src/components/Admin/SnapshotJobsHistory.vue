@@ -20,14 +20,15 @@
         title="Очистить историю"
       />
       <v-btn
-        color="primary"
-        prepend-icon="mdi-database-plus"
+        icon="mdi-database-import"
         size="small"
-        @click="showCreateDialog = true"
-        :loading="creating"
-      >
-        Создать снимки
-      </v-btn>
+        variant="text"
+        color="primary"
+        @click="loadAllObjects"
+        :loading="loadingObjects"
+        :disabled="loadingObjects"
+        title="Загрузить объекты"
+      />
       <v-btn
         icon="mdi-refresh"
         size="small"
@@ -37,6 +38,37 @@
         class="ml-2"
       />
     </v-card-title>
+
+    <!-- Индикатор загрузки объектов -->
+    <v-card-text v-if="loadingObjects || loadProgressStatus.is_loading" class="pa-3">
+      <div class="mb-2">
+        <div class="d-flex align-center justify-space-between mb-1">
+          <span class="text-body-2 font-weight-medium text-primary">
+            {{ loadProgressStatus.status === 'loading' ? 'Загрузка объектов из Axenta API...' : 
+               loadProgressStatus.status === 'saving' ? 'Сохранение объектов в БД...' : 
+               'Загрузка объектов...' }}
+          </span>
+          <span class="text-body-2 font-weight-bold text-primary">
+            {{ Math.round(loadProgressStatus.progress) }}%
+          </span>
+        </div>
+        <v-progress-linear
+          :model-value="loadProgressStatus.progress"
+          color="primary"
+          height="8"
+          rounded
+          class="mb-1"
+        />
+        <div class="d-flex align-center justify-space-between">
+          <span class="text-caption text-grey">
+            {{ loadProgressStatus.loaded }} из {{ loadProgressStatus.total }} объектов
+            <span v-if="loadProgressStatus.current_page > 0">
+              (страница {{ loadProgressStatus.current_page }}{{ loadProgressStatus.total_pages > 0 ? ` из ${loadProgressStatus.total_pages}` : '' }})
+            </span>
+          </span>
+        </div>
+      </div>
+    </v-card-text>
 
     <!-- Статистика -->
     <v-card-text v-if="stats">
@@ -87,6 +119,7 @@
         :items-per-page="itemsPerPage"
         @update:options="loadJobs"
         density="compact"
+        class="no-word-wrap-table"
       >
         <!-- Статус -->
         <template v-slot:item.status="{ item }">
@@ -99,10 +132,10 @@
           </v-chip>
         </template>
 
-        <!-- Дата снимка -->
+        <!-- Дата Биллинга -->
         <template v-slot:item.snapshot_date="{ item }">
           <div class="text-body-2">
-            {{ formatSnapshotDate(item.date_from, item.date_to) }}
+            {{ formatBillingDate(item.billing_date ?? item.date_from) }}
           </div>
         </template>
 
@@ -116,14 +149,6 @@
         <!-- Дата/время -->
         <template v-slot:item.started_at="{ item }">
           {{ formatDateTime(item.started_at) }}
-        </template>
-
-        <!-- Длительность -->
-        <template v-slot:item.duration_seconds="{ item }">
-          <span v-if="item.duration_seconds">
-            {{ formatDuration(item.duration_seconds) }}
-          </span>
-          <span v-else class="text-grey">—</span>
         </template>
 
         <!-- Статистика -->
@@ -172,11 +197,11 @@
               <div>{{ getJobTypeLabel(selectedJob.job_type) }}</div>
             </v-col>
             <v-col cols="6">
-              <div class="text-caption text-grey">Дата снимка</div>
-              <div>{{ formatSnapshotDate(selectedJob.date_from, selectedJob.date_to) }}</div>
+              <div class="text-caption text-grey">Дата Биллинга</div>
+              <div>{{ formatBillingDate(selectedJob.billing_date ?? selectedJob.date_from) }}</div>
             </v-col>
             <v-col cols="6">
-              <div class="text-caption text-grey">Начало</div>
+              <div class="text-caption text-grey">Дата загрузки</div>
               <div>{{ formatDateTime(selectedJob.started_at) }}</div>
             </v-col>
             <v-col cols="6">
@@ -189,12 +214,6 @@
             <v-col cols="6" v-if="selectedJob.scheduled_time">
               <div class="text-caption text-grey">Запустил</div>
               <div>{{ selectedJob.triggered_by || 'cron' }}</div>
-            </v-col>
-            <v-col cols="6">
-              <div class="text-caption text-grey">Длительность</div>
-              <div v-if="selectedJob.duration_seconds">
-                {{ formatDuration(selectedJob.duration_seconds) }}
-              </div>
             </v-col>
             <v-col cols="6">
               <div class="text-caption text-grey">Запустил</div>
@@ -516,7 +535,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import axios from 'axios';
 import { config } from '@/config/env';
 import { settingsService } from '@/services/settingsService';
@@ -530,8 +549,11 @@ interface SnapshotJob {
   duration_seconds?: number;
   date_from: string; // Дата начала периода снимка
   date_to: string;   // Дата окончания периода снимка
+  billing_date?: string; // Дата Биллинга (для типа billing_start = 2024-03-14 13:12:04)
   total_companies: number;
   total_contracts: number;
+  total_objects?: number; // Общее количество объектов
+  active_objects?: number; // Количество активных объектов
   success_count: number;
   error_count: number;
   error_message?: string;
@@ -569,6 +591,17 @@ const companyTimezone = ref<string>('Europe/Moscow'); // Часовой пояс
 // Диалог создания снимков
 const showCreateDialog = ref(false);
 const creating = ref(false);
+const loadingObjects = ref(false);
+const loadProgressStatus = ref({
+  is_loading: false,
+  progress: 0,
+  loaded: 0,
+  total: 0,
+  current_page: 0,
+  total_pages: 0,
+  status: 'idle'
+});
+let progressPollInterval: ReturnType<typeof setInterval> | null = null;
 const requestMode = ref<'single' | 'period'>('single');
 const singleDate = ref('');
 const periodStartDate = ref('');
@@ -600,9 +633,8 @@ const headers = [
   { title: 'ID', key: 'id', width: '60px' },
   { title: 'Статус', key: 'status', width: '120px' },
   { title: 'Тип', key: 'job_type', width: '150px' },
-  { title: 'Дата снимка', key: 'snapshot_date', width: '130px' },
-  { title: 'Начало', key: 'started_at', width: '180px' },
-  { title: 'Длительность', key: 'duration_seconds', width: '120px' },
+  { title: 'Дата Биллинга', key: 'snapshot_date', width: '130px' },
+  { title: 'Дата загрузки', key: 'started_at', width: '180px' },
   { title: 'Статистика', key: 'stats', width: '150px', sortable: false },
   { title: '', key: 'actions', width: '60px', sortable: false },
 ];
@@ -632,6 +664,19 @@ const loadJobs = async () => {
     });
 
     jobs.value = response.data.jobs || [];
+    
+    // Отладочное логирование для проверки billing_date
+    if (jobs.value.length > 0) {
+      const billingStartJob = jobs.value.find((j: SnapshotJob) => j.job_type === 'billing_start');
+      if (billingStartJob) {
+        console.log('🔍 Billing Start Job:', {
+          id: billingStartJob.id,
+          job_type: billingStartJob.job_type,
+          billing_date: billingStartJob.billing_date,
+          date_from: billingStartJob.date_from,
+        });
+      }
+    }
   } catch (error) {
     console.error('Ошибка загрузки истории задач:', error);
   } finally {
@@ -692,6 +737,7 @@ const getJobTypeLabel = (jobType: string): string => {
     daily_auto: 'Авто (ежедневно)',
     manual: 'Вручную',
     scheduled: 'По расписанию',
+    billing_start: 'billing_start',
   };
   return labels[jobType] || jobType;
 };
@@ -737,6 +783,61 @@ const formatDateTime = (dateStr: string): string => {
     }).format(date);
   } catch (error) {
     console.error('Ошибка форматирования даты:', error, dateStr);
+    return '—';
+  }
+};
+
+const formatBillingDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '—';
+  try {
+    // Логируем для отладки
+    if (dateStr.includes('2024-03-14')) {
+      console.log('🔍 Форматируем дату биллинга:', dateStr);
+    }
+    // Парсим дату - может быть в формате "2024-03-14T13:12:04Z" или "2024-03-14"
+    let date: Date;
+    
+    // Go сериализует time.Time в RFC3339 формат: "2024-03-14T13:12:04Z"
+    if (dateStr.includes('T') || dateStr.includes('Z') || dateStr.includes('+') || dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+      // Есть указание времени или часового пояса - парсим как есть
+      date = new Date(dateStr);
+    } else {
+      // Только дата - интерпретируем как UTC
+      date = new Date(dateStr + 'T00:00:00Z');
+    }
+    
+    // Если дата невалидна, возвращаем прочерк
+    if (isNaN(date.getTime())) {
+      console.warn('Невалидная дата:', dateStr);
+      return '—';
+    }
+    
+    // Всегда показываем дату и время для billing_date (особенно для billing_start)
+    // Проверяем, есть ли время в исходной строке
+    const hasTime = dateStr.includes('T') && (dateStr.includes(':') || dateStr.includes('Z'));
+    
+    if (hasTime) {
+      // Показываем дату и время
+      return new Intl.DateTimeFormat('ru-RU', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: companyTimezone.value,
+      }).format(date);
+    }
+    
+    // Только дата (fallback)
+    return new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: companyTimezone.value,
+    }).format(date);
+  } catch (error) {
+    console.error('Ошибка форматирования даты биллинга:', error, dateStr);
     return '—';
   }
 };
@@ -991,6 +1092,166 @@ const clearAllHistory = async () => {
   }
 };
 
+// Загрузка всех объектов из Axenta в БД
+const loadAllObjects = async () => {
+  loadingObjects.value = true;
+  try {
+    const token = localStorage.getItem('axenta_token');
+    const companyData = localStorage.getItem('axenta_company');
+
+    if (!token || !companyData) {
+      throw new Error('Отсутствует токен авторизации или информация о компании');
+    }
+
+    const company = JSON.parse(companyData);
+    const tenantId = company.id;
+
+    const response = await axios.post(
+      `${config.apiBaseUrl}/auth/snapshots/load-all-current`,
+      {},
+      {
+        headers: {
+          'Authorization': `Token ${token}`,
+          'X-Tenant-ID': String(tenantId),
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (response.data.status === 'success') {
+      showSnackbar(
+        response.data.message || 'Загрузка объектов запущена в фоновом режиме',
+        'success'
+      );
+      
+      // Инициализируем статус загрузки
+      loadProgressStatus.value = {
+        is_loading: true,
+        progress: 0,
+        loaded: 0,
+        total: 0,
+        current_page: 0,
+        total_pages: 0,
+        status: 'loading'
+      };
+      
+      // Начинаем периодический опрос статуса загрузки
+      startProgressPolling();
+      
+      // Обновляем список задач и статистику через небольшую задержку
+      setTimeout(() => {
+        loadJobs();
+        loadStats();
+      }, 2000);
+      
+      // Держим кнопку неактивной еще 300 секунд (5 минут) после запуска загрузки
+      // чтобы предотвратить повторные клики во время фоновой загрузки
+      // Но если загрузка завершится раньше, кнопка разблокируется через опрос статуса
+      setTimeout(() => {
+        if (loadingObjects.value) {
+          loadingObjects.value = false;
+          stopProgressPolling();
+        }
+      }, 300000);
+    } else {
+      throw new Error(response.data.error || 'Ошибка при запуске загрузки объектов');
+    }
+  } catch (error: any) {
+    console.error('Ошибка загрузки объектов:', error);
+    const errorMessage = error.response?.data?.error || error.message || 'Ошибка при загрузке объектов';
+    showSnackbar(errorMessage, 'error');
+    loadingObjects.value = false;
+    stopProgressPolling();
+  }
+};
+
+// Опрос статуса загрузки
+const startProgressPolling = () => {
+  // Очищаем предыдущий интервал, если есть
+  if (progressPollInterval) {
+    clearInterval(progressPollInterval);
+  }
+  
+  // Опрашиваем статус каждые 2 секунды
+  progressPollInterval = setInterval(async () => {
+    try {
+      const token = localStorage.getItem('axenta_token');
+      const companyData = localStorage.getItem('axenta_company');
+      
+      if (!token || !companyData) {
+        return;
+      }
+      
+      const company = JSON.parse(companyData);
+      const tenantId = company.id;
+      
+      const response = await axios.get(
+        `${config.apiBaseUrl}/auth/snapshots/load-progress`,
+        {
+          headers: {
+            'Authorization': `Token ${token}`,
+            'X-Tenant-ID': String(tenantId),
+          },
+        }
+      );
+      
+      if (response.data.status === 'success' && response.data.data) {
+        const progress = response.data.data;
+        loadProgressStatus.value = {
+          is_loading: progress.is_loading,
+          progress: progress.progress || 0,
+          loaded: progress.loaded || 0,
+          total: progress.total || 0,
+          current_page: progress.current_page || 0,
+          total_pages: progress.total_pages || 0,
+          status: progress.status || 'idle'
+        };
+        
+        // Если загрузка завершена или произошла ошибка, останавливаем опрос
+        if (progress.status === 'completed' || progress.status === 'error' || !progress.is_loading) {
+          loadingObjects.value = false;
+          stopProgressPolling();
+          
+          if (progress.status === 'completed') {
+            showSnackbar('Загрузка объектов завершена успешно', 'success');
+            // Обновляем список задач и статистику
+            setTimeout(() => {
+              loadJobs();
+              loadStats();
+            }, 2000); // Увеличиваем задержку, чтобы БД успела обновиться
+          } else if (progress.status === 'error') {
+            showSnackbar(progress.error_message || 'Ошибка при загрузке объектов', 'error');
+          }
+          
+          // Сбрасываем статус через небольшую задержку
+          setTimeout(() => {
+            loadProgressStatus.value = {
+              is_loading: false,
+              progress: 0,
+              loaded: 0,
+              total: 0,
+              current_page: 0,
+              total_pages: 0,
+              status: 'idle'
+            };
+          }, 3000);
+        }
+      }
+    } catch (error: any) {
+      console.error('Ошибка получения статуса загрузки:', error);
+      // Не показываем ошибку пользователю, просто логируем
+    }
+  }, 2000); // Опрашиваем каждые 2 секунды
+};
+
+// Остановка опроса статуса
+const stopProgressPolling = () => {
+  if (progressPollInterval) {
+    clearInterval(progressPollInterval);
+    progressPollInterval = null;
+  }
+};
+
 // Создание снимков
 const createSnapshots = async () => {
   if (!isFormValid.value) return;
@@ -1100,5 +1361,39 @@ onMounted(() => {
   loadSettings();
   loadCompanyTimezone();
 });
+
+// Очищаем интервал при размонтировании компонента
+onBeforeUnmount(() => {
+  stopProgressPolling();
+});
 </script>
+
+<style scoped>
+/* Предотвращение переноса слов в таблице */
+:deep(.no-word-wrap-table) {
+  white-space: nowrap;
+}
+
+:deep(.no-word-wrap-table th),
+:deep(.no-word-wrap-table td) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Для заголовков таблицы */
+:deep(.no-word-wrap-table .v-data-table__th) {
+  white-space: nowrap;
+}
+
+/* Для ячеек таблицы */
+:deep(.no-word-wrap-table .v-data-table__td) {
+  white-space: nowrap;
+}
+
+/* Для чипов и других элементов внутри ячеек */
+:deep(.no-word-wrap-table .v-chip) {
+  white-space: nowrap;
+}
+</style>
 
