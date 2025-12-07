@@ -140,10 +140,15 @@
           </v-chip>
         </template>
 
-        <!-- Дата Биллинга -->
+        <!-- Период снимка (начало - конец) -->
         <template v-slot:item.snapshot_date="{ item }">
           <div class="text-body-2">
-            {{ formatBillingDate(item.billing_date ?? item.date_from) }}
+            <div v-if="item.date_from && item.date_to && item.date_from !== item.date_to">
+              {{ formatDateOnly(item.date_from) }} - {{ formatDateOnly(item.date_to) }}
+            </div>
+            <div v-else>
+              {{ formatDateOnly(item.date_from || item.billing_date) }}
+            </div>
           </div>
         </template>
 
@@ -205,8 +210,13 @@
               <div>{{ getJobTypeLabel(selectedJob.job_type) }}</div>
             </v-col>
             <v-col cols="6">
-              <div class="text-caption text-grey">Дата Биллинга</div>
-              <div>{{ formatBillingDate(selectedJob.billing_date ?? selectedJob.date_from) }}</div>
+              <div class="text-caption text-grey">Период</div>
+              <div v-if="selectedJob.date_from && selectedJob.date_to && selectedJob.date_from !== selectedJob.date_to">
+                {{ formatDateOnly(selectedJob.date_from) }} - {{ formatDateOnly(selectedJob.date_to) }}
+              </div>
+              <div v-else>
+                {{ formatDateOnly(selectedJob.date_from || selectedJob.billing_date) }}
+              </div>
             </v-col>
             <v-col cols="6">
               <div class="text-caption text-grey">Дата загрузки</div>
@@ -771,7 +781,7 @@ const headers = [
   { title: 'ID', key: 'id', width: '60px' },
   { title: 'Статус', key: 'status', width: '120px' },
   { title: 'Тип', key: 'job_type', width: '150px' },
-  { title: 'Дата Биллинга', key: 'snapshot_date', width: '130px' },
+  { title: 'Период', key: 'snapshot_date', width: '180px' },
   { title: 'Дата загрузки', key: 'started_at', width: '180px' },
   { title: 'Статистика', key: 'stats', width: '150px', sortable: false },
   { title: '', key: 'actions', width: '60px', sortable: false },
@@ -1042,6 +1052,35 @@ const formatDuration = (seconds: number): string => {
 
 const formatNumber = (num: number): string => {
   return num.toLocaleString('ru-RU');
+};
+
+// Форматирование только даты (без времени)
+const formatDateOnly = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '—';
+  try {
+    // Парсим дату
+    let date: Date;
+    if (dateStr.includes('T') || dateStr.includes('Z') || dateStr.includes('+') || dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+      date = new Date(dateStr);
+    } else {
+      date = new Date(dateStr + 'T00:00:00Z');
+    }
+    
+    if (isNaN(date.getTime())) {
+      return '—';
+    }
+    
+    // Форматируем только дату (без времени)
+    return new Intl.DateTimeFormat('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      timeZone: companyTimezone.value,
+    }).format(date);
+  } catch (error) {
+    console.error('Ошибка форматирования даты:', error, dateStr);
+    return '—';
+  }
 };
 
 // Вычисляемые свойства для валидации формы
