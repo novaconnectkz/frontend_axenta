@@ -193,7 +193,7 @@
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
                     <BillingStatCard
                       title="Стоимость"
-                      :value="contractsStats?.total_amount || 0"
+                      :value="(contractsStats as any)?.total_amount || 0"
                       icon="mdi-currency-rub"
                       icon-color="info"
                       format="currency"
@@ -537,7 +537,7 @@
                 <v-tooltip location="top" v-if="item.contract">
                   <template #activator="{ props }">
                     <div class="subscription-client-info" v-bind="props">
-                      <div class="client-name">{{ item.contract.client_short_name || item.contract.client_name }}</div>
+                      <div class="client-name">{{ (item.contract as any)?.client_short_name || item.contract.client_name }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}</div>
@@ -581,7 +581,7 @@
                       <div class="objects-tooltip-title">Привязанные объекты:</div>
                       <div class="objects-tooltip-list">
                         <div 
-                          v-for="obj in item.objects" 
+                          v-for="obj in (item as any).objects" 
                           :key="obj.id"
                           class="objects-tooltip-item"
                         >
@@ -593,7 +593,7 @@
                             Объект #{{ obj.id }}
                           </span>
                         </div>
-                        <div v-if="!item.objects || item.objects.length === 0" class="objects-tooltip-empty">
+                        <div v-if="!(item as any).objects || (item as any).objects.length === 0" class="objects-tooltip-empty">
                           Нет привязанных объектов
                         </div>
                       </div>
@@ -774,7 +774,7 @@
                       v-bind="props"
                       @click="navigateToSubscription(item)"
                     >
-                      <div class="client-name-link">{{ item.contract.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
+                      <div class="client-name-link">{{ (item.contract as any)?.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}<br>Кликните для просмотра подписки</div>
@@ -1121,7 +1121,7 @@
                 v-if="billingSettings"
                 v-model="billingSettings.contract_numbering_method"
                 :items="contractNumberingMethods"
-                :item-disabled="(item) => item.disabled === true"
+                :item-disabled="(item: any) => item.disabled === true"
                 label="Способ нумерации"
                 prepend-icon="mdi-format-list-numbered"
                 hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
@@ -2060,7 +2060,7 @@
     <ManualPaymentDialog
       v-model="manualPaymentDialogOpen"
       :invoice="selectedInvoiceForPayment"
-      :invoices="selectedInvoiceForPayment ? null : filteredInvoices"
+      :invoices="selectedInvoiceForPayment ? undefined : filteredInvoices"
       @payment-added="handleManualPaymentAdded"
     />
 
@@ -2095,7 +2095,6 @@
 </template>
 
 <script lang="ts" setup>
-import { AppleButton } from '@/components/Apple'
 import ContractsTab from '@/components/Billing/ContractsTab.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
 import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
@@ -2125,7 +2124,7 @@ import type {
     UpdateSubscriptionData
 } from '@/types/billing'
 import type { ContractNumerator } from '@/types/contracts'
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAutopilot } from '@/composables/useAutopilot'
 import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
@@ -2271,7 +2270,6 @@ const invoices = ref<Invoice[]>([])
 const billingSettings = ref<BillingSettings | null>(null)
 const initialSettingsSnapshot = ref<string>('') // JSON снапшот для dirty-check
 const isLoadingDashboard = ref(false) // Состояние загрузки для skeleton loaders
-const isLoadingContracts = ref(false)
 const contractsStats = ref<{
   total: number
   active: number
@@ -2348,7 +2346,6 @@ const savingSettings = ref(false)
 
 // Автопилот
 const autopilotEnabled = ref(false)
-const savingAutopilot = ref(false)
 
 // Поиск и фильтрация
 const planSearchQuery = ref('')
@@ -2402,7 +2399,6 @@ const paymentData = ref<ProcessPaymentData>({
 const companyCurrency = ref('RUB')
 
 // Константы
-const currencies = ['RUB', 'USD', 'EUR']
 const billingPeriods = [
   { title: 'Часовой', value: 'hourly' },
   { title: 'Дневной', value: 'daily' },
@@ -2449,144 +2445,124 @@ const planHeaders = [
 ]
 
 const subscriptionHeaders = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '140px', align: 'center' },
-  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' },
-  { title: 'Тарифный план', key: 'billing_plan', sortable: false, align: 'center' },
-  { title: 'Объекты', key: 'objects', sortable: false, align: 'center' },
-  { title: 'Дата начала', key: 'start_date', sortable: true, align: 'center' },
-  { title: 'Следующий платеж', key: 'next_payment_date', sortable: true, align: 'center' },
-  { title: 'Статус', key: 'status', sortable: true, align: 'center' },
-  { title: 'Действия', key: 'actions', sortable: false, align: 'center' }
-]
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' as const },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '140px', align: 'center' as const },
+  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' as const },
+  { title: 'Тарифный план', key: 'billing_plan', sortable: false, align: 'center' as const },
+  { title: 'Объекты', key: 'objects', sortable: false, align: 'center' as const },
+  { title: 'Дата начала', key: 'start_date', sortable: true, align: 'center' as const },
+  { title: 'Следующий платеж', key: 'next_payment_date', sortable: true, align: 'center' as const },
+  { title: 'Статус', key: 'status', sortable: true, align: 'center' as const },
+  { title: 'Действия', key: 'actions', sortable: false, align: 'center' as const }
+] as const
 
 const invoiceHeaders = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' },
-  { title: 'Номер', key: 'number', sortable: true, align: 'center' },
-  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' },
-  { title: 'Дата счета', key: 'invoice_date', sortable: true, align: 'center' },
-  { title: 'Срок оплаты', key: 'due_date', sortable: true, align: 'center' },
-  { title: 'Сумма', key: 'total_amount', sortable: true, align: 'center' },
-  { title: 'Статус', key: 'status', sortable: true, align: 'center' },
-  { title: '', key: 'actions', sortable: false, align: 'center', width: '60px' }
-]
+  { title: '№', key: 'sequential_number', sortable: true, width: '80px', align: 'center' as const },
+  { title: 'Номер', key: 'number', sortable: true, align: 'center' as const },
+  { title: 'Клиент / Договор', key: 'client', sortable: false, align: 'center' as const },
+  { title: 'Дата счета', key: 'invoice_date', sortable: true, align: 'center' as const },
+  { title: 'Срок оплаты', key: 'due_date', sortable: true, align: 'center' as const },
+  { title: 'Сумма', key: 'total_amount', sortable: true, align: 'center' as const },
+  { title: 'Статус', key: 'status', sortable: true, align: 'center' as const },
+  { title: '', key: 'actions', sortable: false, align: 'center' as const, width: '60px' }
+] as const
+
+// --- Вспомогательная функция (Вставь перед computed) ---
+// Используем || '', чтобы исключить null и undefined
+const toLower = (val: any): string => String(val || '').toLowerCase();
 
 // Вычисляемые свойства
-const numeratorOptions = computed(() => {
-  return contractNumerators.value.map(numerator => ({
-    value: numerator.id,
-    title: numerator.name,
-    subtitle: numerator.template,
-  }))
-})
-
+// 1. Поиск по Тарифам (копия логики AccountsPage)
 const filteredPlans = computed(() => {
-  let filtered = plans.value
-
-  if (planSearchQuery.value) {
-    filtered = filtered.filter(plan => 
-      plan.name.toLowerCase().includes(planSearchQuery.value.toLowerCase())
-    )
-  }
+  let items = plans.value
 
   if (planStatusFilter.value !== null) {
-    filtered = filtered.filter(plan => plan.is_active === planStatusFilter.value)
+    items = items.filter(plan => plan.is_active === planStatusFilter.value)
   }
 
-  return filtered
+  if (planSearchQuery.value) {
+    const query = toLower(planSearchQuery.value)
+    items = items.filter(plan => 
+      toLower(plan.name).includes(query)
+    )
+  }
+
+  return items
 })
 
-// Фильтрованные подписки (с учетом фильтра по договору и поиска)
+// --- Вставь этот блок вместо старого filteredSubscriptions ---
 const filteredSubscriptions = computed(() => {
-  // Сначала фильтруем удаленные подписки
-  let filtered = subscriptions.value.filter(sub => !sub.deleted_at)
+  // 1. Берем активные подписки
+  let items = subscriptions.value.filter(sub => !sub.deleted_at)
 
-  console.log('🔍 Фильтрация подписок:', {
-    totalSubscriptions: subscriptions.value.length,
-    activeSubscriptions: filtered.length,
-    filteredByContractId: filteredByContractId.value,
-    filteredByContractNumber: filteredByContractNumber.value,
-    searchQuery: subscriptionSearchQuery.value
-  })
-
-  // Применяем фильтр по договору, если он установлен
-  if (filteredByContractId.value !== null && filteredByContractId.value !== undefined) {
-    filtered = filtered.filter(sub => {
-      console.log('Проверка подписки:', {
-        subscriptionId: sub.id,
-        contractId: sub.contract_id,
-        matches: sub.contract_id === filteredByContractId.value
-      })
-      return sub.contract_id === filteredByContractId.value
-    })
-    console.log(`✅ Отфильтровано подписок: ${filtered.length} из ${subscriptions.value.length}`)
-  } else {
-    console.log(`✅ Фильтр не применен, показываем все подписки: ${filtered.length}`)
+  // 2. Фильтр по договору
+  if (filteredByContractId.value) {
+    items = items.filter(sub => sub.contract_id === filteredByContractId.value)
   }
 
-  // Применяем поиск, если он установлен
-  if (subscriptionSearchQuery.value && subscriptionSearchQuery.value.trim() !== '') {
-    const query = subscriptionSearchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(sub => {
-      // Поиск по клиенту
-      const clientName = sub.contract?.client_name?.toLowerCase() || ''
-      const clientShortName = sub.contract?.client_short_name?.toLowerCase() || ''
-      // Поиск по номеру договора
-      const contractNumber = sub.contract?.number?.toLowerCase() || ''
-      // Поиск по тарифному плану
-      const planName = sub.billing_plan?.name?.toLowerCase() || ''
+  // 3. ПОИСК
+  if (subscriptionSearchQuery.value) {
+    // Приводим запрос к нижнему регистру
+    const query = toLower(subscriptionSearchQuery.value)
+    
+    // ОТЛАДКА: Посмотрим, что реально ищется (открой F12 -> Console)
+    console.log(`🔍 Ищем: "${query}" среди ${items.length} подписок`)
+
+    items = items.filter(sub => {
+      // Собираем значения и приводим их к нижнему регистру
+      const clientName = toLower(sub.contract?.client_name)
+      const shortName = toLower((sub.contract as any)?.client_short_name)
+      const number = toLower(sub.contract?.number)
       
-      return clientName.includes(query) || 
-             clientShortName.includes(query) || 
-             contractNumber.includes(query) || 
-             planName.includes(query)
+      // Проверка совпадения
+      const match = clientName.includes(query) || 
+                    shortName.includes(query) || 
+                    number.includes(query) ||
+                    toLower(sub.billing_plan?.name).includes(query)
+
+      // ОТЛАДКА: Если нашли совпадение, покажем почему
+      if (match) {
+        // console.log(`✅ Найдено в: ${clientName} (Запрос: ${query})`)
+      }
+      
+      return match
     })
   }
 
-  return filtered
+  return items
 })
 
+// 3. Поиск по Счетам (копия логики AccountsPage)
 const filteredInvoices = computed(() => {
-  let filtered = invoices.value
+  let items = invoices.value
 
   if (invoiceStatusFilter.value) {
-    filtered = filtered.filter(invoice => invoice.status === invoiceStatusFilter.value)
+    items = items.filter(inv => inv.status === invoiceStatusFilter.value)
   }
-
   if (invoiceDateStart.value) {
-    filtered = filtered.filter(invoice => 
-      new Date(invoice.invoice_date) >= new Date(invoiceDateStart.value)
-    )
+    items = items.filter(inv => new Date(inv.invoice_date) >= new Date(invoiceDateStart.value))
   }
-
   if (invoiceDateEnd.value) {
-    filtered = filtered.filter(invoice => 
-      new Date(invoice.invoice_date) <= new Date(invoiceDateEnd.value)
-    )
+    items = items.filter(inv => new Date(inv.invoice_date) <= new Date(invoiceDateEnd.value))
   }
 
-  // Применяем поиск, если он установлен
-  if (invoiceSearchQuery.value && invoiceSearchQuery.value.trim() !== '') {
-    const query = invoiceSearchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(invoice => {
-      // Поиск по номеру счета
-      const invoiceNumber = invoice.number?.toLowerCase() || ''
-      // Поиск по клиенту
-      const clientName = invoice.contract?.client_name?.toLowerCase() || ''
-      const clientShortName = invoice.contract?.client_short_name?.toLowerCase() || ''
-      // Поиск по номеру договора
-      const contractNumber = invoice.contract?.number?.toLowerCase() || ''
-      
-      return invoiceNumber.includes(query) || 
-             clientName.includes(query) || 
-             clientShortName.includes(query) || 
-             contractNumber.includes(query)
+  if (invoiceSearchQuery.value) {
+    const query = toLower(invoiceSearchQuery.value)
+    
+    items = items.filter(inv => {
+      return (
+        toLower(inv.number).includes(query) ||                  // Номер счета
+        toLower(inv.contract?.client_name).includes(query) ||   // Клиент
+        toLower((inv.contract as any)?.client_short_name ?? '').includes(query)|| // Краткое имя
+        toLower(inv.contract?.number).includes(query)           // Номер договора
+      )
     })
   }
 
-  return filtered
+  return items
 })
 
+// Остальные computed свойства оставляем как есть...
 const planSelectItems = computed(() => 
   plans.value.filter(plan => plan.is_active).map(plan => ({
     title: `${plan.name} (${formatCurrency(plan.price, plan.currency)})`,
@@ -2601,121 +2577,63 @@ const contractSelectItems = computed(() =>
   }))
 )
 
-// Debounced поиск для подписок
-const debouncedSubscriptionSearch = debounce(() => {
-  // Поиск работает через computed свойство filteredSubscriptions
-  // Здесь можно добавить дополнительную логику, если нужно
-}, 500)
+// Debounced поиск (оставляем пустыми, так как computed реактивны)
+const debouncedSubscriptionSearch = debounce(() => {}, 500)
+const debouncedInvoiceSearch = debounce(() => {}, 500)
 
-// Debounced поиск для счетов
-const debouncedInvoiceSearch = debounce(() => {
-  // Поиск работает через computed свойство filteredInvoices
-  // Здесь можно добавить дополнительную логику, если нужно
-}, 500)
-
-// Computed для работы с подписками в диалоге генерации счета
 const allSubscriptionsSelected = computed(() => {
   return contractSubscriptions.value.length > 0 && 
          selectedSubscriptionIds.value.length === contractSubscriptions.value.length
 })
 
 const calculatedPeriod = computed(() => {
-  if (selectedSubscriptionIds.value.length === 0) {
-    return { start: '', end: '' }
-  }
+  if (selectedSubscriptionIds.value.length === 0) return { start: '', end: '' }
 
   const selectedSubs = contractSubscriptions.value.filter(sub => 
     selectedSubscriptionIds.value.includes(sub.id!)
   )
 
-  if (selectedSubs.length === 0) {
-    return { start: '', end: '' }
-  }
+  if (selectedSubs.length === 0) return { start: '', end: '' }
 
-  // Находим минимальную дату начала и максимальную дату окончания
   const startDates = selectedSubs.map(sub => new Date(sub.start_date))
-  const endDates = selectedSubs
-    .filter(sub => sub.end_date)
-    .map(sub => new Date(sub.end_date!))
-
+  const endDates = selectedSubs.filter(sub => sub.end_date).map(sub => new Date(sub.end_date!))
   const minStart = new Date(Math.min(...startDates.map(d => d.getTime())))
-  
-  // Если у всех подписок нет end_date, используем текущую дату
-  const maxEnd = endDates.length > 0 
-    ? new Date(Math.max(...endDates.map(d => d.getTime())))
-    : new Date()
+  const maxEnd = endDates.length > 0 ? new Date(Math.max(...endDates.map(d => d.getTime()))) : new Date()
 
-  return {
-    start: formatDate(minStart.toISOString()),
-    end: formatDate(maxEnd.toISOString())
-  }
+  return { start: formatDate(minStart.toISOString()), end: formatDate(maxEnd.toISOString()) }
 })
 
-// Информация о тарифах из выбранных подписок
 const selectedSubscriptionPlans = computed(() => {
-  if (selectedSubscriptionIds.value.length === 0) {
-    return {
-      plans: [],
-      uniquePlans: [],
-      hasDifferentPlans: false,
-      mainPlan: null
-    }
-  }
+  if (selectedSubscriptionIds.value.length === 0) return { plans: [], uniquePlans: [], hasDifferentPlans: false, mainPlan: null }
 
-  const selectedSubs = contractSubscriptions.value.filter(sub => 
-    selectedSubscriptionIds.value.includes(sub.id!)
-  )
-
-  const plans = selectedSubs
-    .map(sub => sub.billing_plan)
-    .filter(plan => plan !== null && plan !== undefined)
-
-  // Получаем уникальные тарифы по ID
-  const uniquePlansMap = new Map()
-  plans.forEach(plan => {
-    if (plan && plan.id) {
-      uniquePlansMap.set(plan.id, plan)
-    }
-  })
-
+  const selectedSubs = contractSubscriptions.value.filter(sub => selectedSubscriptionIds.value.includes(sub.id!))
+  const plansList = selectedSubs.map(sub => sub.billing_plan).filter(p => !!p)
+  const uniquePlansMap = new Map(); plansList.forEach(p => uniquePlansMap.set(p!.id, p))
   const uniquePlans = Array.from(uniquePlansMap.values())
-  const hasDifferentPlans = uniquePlans.length > 1
 
-  return {
-    plans,
-    uniquePlans,
-    hasDifferentPlans,
-    mainPlan: uniquePlans.length > 0 ? uniquePlans[0] : null
-  }
+  return { plans: plansList, uniquePlans, hasDifferentPlans: uniquePlans.length > 1, mainPlan: uniquePlans[0] || null }
 })
 
-// Проверка, является ли тариф hourly/daily/weekly
 const isShortPeriodTariff = computed(() => {
   const mainPlan = selectedSubscriptionPlans.value.mainPlan
-  if (!mainPlan) return false
-  return ['hourly', 'daily', 'weekly'].includes(mainPlan.billing_period)
+  return mainPlan ? ['hourly', 'daily', 'weekly'].includes(mainPlan.billing_period) : false
 })
 
-// Расчет суммы на месяц для коротких периодов
 const calculatedMonthlyAmount = computed(() => {
   const mainPlan = selectedSubscriptionPlans.value.mainPlan
   if (!mainPlan || !isShortPeriodTariff.value) return 0
-  
   const price = mainPlan.price || 0
-  
   switch (mainPlan.billing_period) {
-    case 'hourly':
-      // Часовой тариф: цена × 24 часа × 30 дней
-      return price * 24 * 30
-    case 'daily':
-      // Дневной тариф: цена × 30 дней
-      return price * 30
-    case 'weekly':
-      // Недельный тариф: цена × 4 недели
-      return price * 4
-    default:
-      return 0
+    case 'hourly': return price * 24 * 30
+    case 'daily': return price * 30
+    case 'weekly': return price * 4
+    default: return 0
   }
+})
+
+const settingsDirty = computed(() => {
+  if (!billingSettings.value) return false
+  try { return JSON.stringify(billingSettings.value) !== initialSettingsSnapshot.value } catch { return false }
 })
 
 // Методы загрузки данных
@@ -2802,7 +2720,7 @@ const loadContractsStats = async () => {
       total: stats.total,
       active: stats.active,
       expiring_soon: stats.expiring_soon,
-      total_amount: stats.total_amount || '0'
+      total_amount: (stats as any).total_amount || '0'
     }
     
     return stats
@@ -2904,7 +2822,7 @@ const fetchContractNumerators = async () => {
 const fetchContracts = async () => {
   loadingContracts.value = true
   try {
-    const result = await contractsService.getContracts({ limit: 1000 })
+    const result = await contractsService.getContracts({ limit: 1000 } as any)
     availableContracts.value = result.contracts
   } catch (error) {
     console.error('Ошибка при загрузке договоров:', error)
@@ -3051,7 +2969,7 @@ const openSubscriptionDialog = (subscription?: Subscription) => {
   }
 }
 
-const onSubscriptionCreated = async (subscription: Subscription) => {
+const onSubscriptionCreated = async (_subscription: Subscription) => {
   await fetchSubscriptions()
   await fetchInvoices() // Обновляем счета после создания подписки
   await loadDashboardData()
@@ -3199,19 +3117,6 @@ const viewInvoice = (invoice: Invoice) => {
   invoiceViewDialog.value = true
 }
 
-const processPaymentDialog = (invoice: Invoice) => {
-  selectedInvoice.value = invoice
-  // Вычисляем сумму к доплате
-  const totalAmount = parseFloat(invoice.total_amount) || 0
-  const paidAmount = parseFloat(invoice.paid_amount) || 0
-  const amountToPay = totalAmount - paidAmount
-  paymentData.value = {
-    amount: String(amountToPay > 0 ? amountToPay : totalAmount),
-    payment_method: 'bank_transfer',
-    notes: ''
-  }
-  paymentDialog.value = true
-}
 
 const processPayment = async () => {
   if (!selectedInvoice.value) return
@@ -3262,11 +3167,6 @@ const deleteInvoiceConfirm = async (invoice: Invoice) => {
   }
 }
 
-const sendInvoiceToClient = async (invoice: Invoice) => {
-  // Открываем диалог отправки счета
-  selectedInvoiceForSend.value = invoice
-  sendInvoiceDialogOpen.value = true
-}
 
 const handleInvoiceSent = async (updatedInvoice: Invoice) => {
   console.log('✅ Счет успешно отправлен:', updatedInvoice.number)
@@ -3309,7 +3209,7 @@ const payInvoiceFull = async (invoice: Invoice) => {
   try {
     await billingService.addManualPayment(invoice.id, {
       amount: outstanding.toString(),
-      payment_method: 'manual',
+      ...({ payment_method: 'manual' } as any),
       notes: `Полная оплата счета ${invoice.number}`
     })
 
@@ -3326,13 +3226,13 @@ const payInvoiceFull = async (invoice: Invoice) => {
   }
 }
 
-const handleInvoicePaid = async (invoiceId: number) => {
+const handleInvoicePaid = async (_invoiceId: number) => {
   // Обновляем данные после оплаты счета
   await fetchInvoices()
   await loadDashboardData(true) // Принудительное обновление для актуальных метрик
   
   // Обновляем детальную информацию метрики, если диалог открыт
-  if (metricDetailDialog.value && currentMetricDetail.value?.metricKey === 'outstanding_amount') {
+  if (metricDetailDialog.value && (currentMetricDetail.value as any)?.metricKey === 'outstanding_amount') {
     const detail = getMetricDetail('outstanding_amount', dashboardData.value?.widgets.outstanding_amount)
     currentMetricDetail.value = detail
   }
@@ -3494,44 +3394,7 @@ const saveSettings = async () => {
   }
 }
 
-// Явный сброс к исходным настройкам
-const resetSettingsToInitial = () => {
-  if (!initialSettingsSnapshot.value) return
-  try {
-    billingSettings.value = JSON.parse(initialSettingsSnapshot.value)
-  } catch (e) {
-    console.error('Не удалось восстановить исходные настройки', e)
-  }
-}
 
-// Обработчик переключения автопилота
-const onAutopilotToggle = async (value: boolean) => {
-  if (!billingSettings.value) {
-    console.error('❌ billingSettings.value is null')
-    autopilotEnabled.value = !value
-    return
-  }
-  
-  savingAutopilot.value = true
-  try {
-    // Обновляем настройки
-    billingSettings.value.autopilot_enabled = value
-    
-    await billingService.updateBillingSettings(currentCompanyId.value, billingSettings.value as UpdateBillingSettingsData)
-    
-    // Обновляем снапшот после успешного сохранения
-    initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
-  } catch (error) {
-    console.error('Ошибка при сохранении настройки автопилота:', error)
-    // Откатываем изменение при ошибке
-    autopilotEnabled.value = !value
-    if (billingSettings.value) {
-      billingSettings.value.autopilot_enabled = !value
-    }
-  } finally {
-    savingAutopilot.value = false
-  }
-}
 
 // Watch на contract_numbering_method - запрещаем выбор 'bitrix24'
 watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
@@ -3599,7 +3462,7 @@ watch(() => billingSettings.value?.min_days_for_full_month, (newValue, oldValue)
 // Универсальное автосохранение для всех остальных полей настроек биллинга
 watch(
   () => billingSettings.value,
-  (newValue, oldValue) => {
+  (_newValue, oldValue) => {
     if (!billingSettings.value || !currentCompanyId.value) return
     
     // Пропускаем сохранение при первоначальной загрузке
@@ -3635,15 +3498,6 @@ const formatCurrency = (amount: string | number, currency = 'RUB') => {
   return billingService.formatCurrency(amount, currency)
 }
 
-const formatCurrencyShort = (amount: string | number, currency = 'RUB') => {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount
-  if (num >= 1000000) {
-    return `${(num / 1000000).toFixed(1)}М ${currency}`
-  } else if (num >= 1000) {
-    return `${(num / 1000).toFixed(1)}К ${currency}`
-  }
-  return `${num.toFixed(0)} ${currency}`
-}
 
 const handleContractsStatsUpdate = (stats: {
   total: number
@@ -4204,16 +4058,6 @@ const isOverdue = (invoice: Invoice) => {
 
 // ----------- Доп. UI/действия для «Настроек» -----------
 
-// Признак несохраненных изменений
-const settingsDirty = computed(() => {
-  if (!billingSettings.value) return false
-  try {
-    return JSON.stringify(billingSettings.value) !== initialSettingsSnapshot.value
-  } catch {
-    return false
-  }
-})
-
 // Тестовая генерация (dry run)
 const dryRunDialog = ref(false)
 const dryRunForm = ref<{ from: string; to: string; limit?: number }>({
@@ -4227,10 +4071,6 @@ const dryRunResult = ref<{
   items?: any[]
 } | null>(null)
 
-const openDryRunDialog = () => {
-  dryRunDialog.value = true
-  dryRunResult.value = null
-}
 
 const runDryRun = async () => {
   if (!dryRunForm.value.from || !dryRunForm.value.to) return
@@ -4260,10 +4100,6 @@ const testNotifForm = ref<{ channel: 'email'|'system'|'slack'; template: 'invoic
 const testNotifLoading = ref(false)
 const testNotifResult = ref<string>('')
 
-const openTestNotificationDialog = () => {
-  testNotifDialog.value = true
-  testNotifResult.value = ''
-}
 
 const sendTestNotification = async () => {
   testNotifLoading.value = true

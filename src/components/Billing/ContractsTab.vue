@@ -1138,10 +1138,10 @@ watch(searchQuery, (newValue) => {
   }, 500); // 500мс задержка
 });
 
-// 🔍 При изменении debouncedSearchQuery загружаем договоры с сервера
-watch(debouncedSearchQuery, () => {
-  loadContracts(true, true); // Перезагружаем с сервера с поисковым запросом
-});
+// 🔍 Поиск теперь локальный - не нужно перезагружать с сервера
+// watch(debouncedSearchQuery, () => {
+//   loadContracts(true, true); // УБРАНО: поиск теперь локальный в filteredContracts
+// });
 
 // Snackbar
 const showSnackbar = ref(false);
@@ -1227,44 +1227,55 @@ const activeOptions = [
   { value: false, title: 'Неактивные' },
 ];
 
+// --- Вспомогательная функция ---
+const toLower = (val: any): string => String(val ?? '').toLowerCase();
+
 // Вычисляемые свойства
 const hasSearch = computed(() => {
   return debouncedSearchQuery.value && debouncedSearchQuery.value.trim().length > 0;
 });
 
+// --- Вставь это вместо текущего filteredContracts ---
 const filteredContracts = computed(() => {
-  let result = contracts.value;
+  // 1. Берем загруженные договоры
+  let items = contracts.value || []
 
-  // 🔍 Поиск теперь работает на сервере, клиентская фильтрация не нужна
-  // if (debouncedSearchQuery.value) {
-  //   const query = debouncedSearchQuery.value.toLowerCase();
-  //   result = result.filter(contract =>
-  //     contract.number.toLowerCase().includes(query) ||
-  //     contract.title.toLowerCase().includes(query) ||
-  //     contract.client_name.toLowerCase().includes(query) ||
-  //     (contract.client_short_name && contract.client_short_name.toLowerCase().includes(query))
-  //   );
-  // }
-
+  // 2. Фильтр по статусу (если есть такая переменная)
   if (statusFilter.value) {
     if (statusFilter.value === 'expiring') {
       // Специальная обработка для истекающих договоров
-      result = result.filter(contract => isExpiringSoon(contract));
+      items = items.filter(contract => isExpiringSoon(contract));
     } else {
-      result = result.filter(contract => contract.status === statusFilter.value);
+      items = items.filter(contract => contract.status === statusFilter.value);
     }
   }
 
   if (activeFilter.value !== null) {
-    result = result.filter(contract => contract.is_active === activeFilter.value);
+    items = items.filter(contract => contract.is_active === activeFilter.value);
   }
 
   if (contractTypeFilter.value) {
-    result = result.filter(contract => (contract.contract_type || 'client') === contractTypeFilter.value);
+    items = items.filter(contract => (contract.contract_type || 'client') === contractTypeFilter.value);
   }
 
-  return result;
-});
+  // 3. ПОИСК (Клиентский, регистронезависимый)
+  if (searchQuery.value) {
+    const query = toLower(searchQuery.value)
+    
+    items = items.filter(contract => {
+      // Проверяем все важные поля
+      return (
+        toLower(contract.number).includes(query) ||               // Номер договора
+        toLower(contract.client_name).includes(query) ||          // Имя клиента
+        toLower((contract as any).client_short_name).includes(query) ||    // Краткое имя
+        toLower(contract.partner_company_id).includes(query) ||   // ID партнера
+        toLower(contract.contract_type === 'partner' ? 'Партнерский' : 'Клиентский').includes(query) // Тип
+      )
+    })
+  }
+
+  return items
+})
 
 // Функция для расчета стоимости договора
 const calculateContractAmount = (contract: Contract): number => {
@@ -2262,13 +2273,13 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
   try {
     const contractsService = (await import('@/services/contractsService')).default;
     
-    // 🔍 При поиске загружаем ВСЕ договоры (без пагинации), иначе используем обычную пагинацию
-    const limit = hasSearch.value ? 1000 : itemsPerPage.value; // При поиске загружаем до 1000 договоров
-    const page = hasSearch.value ? 1 : currentPage.value; // При поиске всегда первая страница
+    // 🔍 Загружаем все договоры для локального поиска (без серверной фильтрации по поиску)
+    const limit = 1000; // Загружаем много записей для локального поиска
+    const page = currentPage.value;
     
     // 🚀 Progressive Loading: сначала загружаем без статистики (быстро)
     const response = await contractsService.getContracts({
-      search: debouncedSearchQuery.value || undefined,
+      // search: searchQuery.value, // <--- УБРАНО: поиск теперь локальный
       status: statusFilter.value || undefined,
       is_active: activeFilter.value !== null ? activeFilter.value : undefined,
       page: page,
@@ -2427,7 +2438,8 @@ const debouncedLoadContracts = debounce(async () => {
   }
 }, 300);
 
-watch([searchQuery, statusFilter, activeFilter, contractTypeFilter], () => {
+// Поиск (searchQuery) теперь локальный - не нужно перезагружать с сервера
+watch([statusFilter, activeFilter, contractTypeFilter], () => {
   debouncedLoadContracts();
 });
 
