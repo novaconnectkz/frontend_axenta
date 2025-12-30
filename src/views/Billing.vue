@@ -2194,12 +2194,17 @@ const fetchInvoices = async () => {
   loadingInvoices.value = true
   try {
     // Загружаем все счета с большим лимитом, чтобы таблица могла показывать нужное количество на странице
-    const result = await billingService.getInvoices({
+    const params = {
       company_id: currentCompanyId.value,
       limit: 10000, // Большой лимит для загрузки всех счетов
       offset: 0
-    })
+    }
+    console.log('📤 Запрос счетов с параметрами:', params)
+    const result = await billingService.getInvoices(params)
+    console.log('📊 Загружено счетов:', result.invoices.length, 'из', result.total)
     invoices.value = result.invoices
+    console.log('📊 Установлено счетов в invoices.value:', invoices.value.length)
+    console.log('📊 filteredInvoices будет содержать:', filteredInvoices.value.length, 'счетов')
   } catch (error) {
     console.error('Ошибка при загрузке счетов:', error)
   } finally {

@@ -144,7 +144,7 @@
         loading-text="Загрузка договоров..."
         density="compact"
         :items-per-page="hasSearch ? -1 : itemsPerPage"
-        :items-per-page-options="hasSearch ? [] : [10, 25, 50, 100]"
+        :items-per-page-options="hasSearch ? [] : [10, 25, 50, 100, 200, 500, 1000, -1]"
         :server-items-length="hasSearch ? filteredContracts.length : totalContracts"
         :height="600"
         fixed-header
@@ -425,7 +425,7 @@
       <div v-if="!hasSearch && totalContracts > 0" class="compact-pagination">
         <v-select
           v-model="itemsPerPage"
-          :items="[10, 25, 50, 100]"
+          :items="[10, 25, 50, 100, 200, 500, 1000, -1]"
           variant="outlined"
           density="compact"
           class="items-select"
@@ -2274,7 +2274,7 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
     const contractsService = (await import('@/services/contractsService')).default;
     
     // 🔍 Загружаем все договоры для локального поиска (без серверной фильтрации по поиску)
-    const limit = 1000; // Загружаем много записей для локального поиска
+    const limit = 10000; // Загружаем много записей для локального поиска
     const page = currentPage.value;
     
     // 🚀 Progressive Loading: сначала загружаем без статистики (быстро)
