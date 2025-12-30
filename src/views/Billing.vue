@@ -21,12 +21,7 @@
             <span>Метрики биллинга</span>
             <v-spacer></v-spacer>
             <v-icon class="mr-2">{{ metricsVisible ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-            <v-btn
-              v-if="metricsVisible"
-              variant="text"
-              size="small"
-              @click.stop="expandAllMetrics"
-            >
+            <v-btn v-if="metricsVisible" variant="text" size="small" @click.stop="expandAllMetrics">
               {{ allMetricsExpanded ? 'Скрыть все' : 'Показать все' }}
             </v-btn>
           </v-card-title>
@@ -36,102 +31,73 @@
 
     <v-expand-transition>
       <v-row v-if="metricsVisible" class="mb-6 stats-row" no-gutters>
-      <!-- Основная статистика биллинга -->
-      <v-col cols="12" class="mb-2">
-        <v-card variant="outlined" class="pa-2">
-          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('basic')">
-            <v-icon class="mr-2">mdi-chart-line</v-icon>
-            <span>Основные метрики</span>
-            <v-spacer></v-spacer>
-            <v-icon>{{ expandedCategories.basic ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <v-card-text v-if="expandedCategories.basic">
+        <!-- Основная статистика биллинга -->
+        <v-col cols="12" class="mb-2">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer"
+              @click="toggleCategory('basic')">
+              <v-icon class="mr-2">mdi-chart-line</v-icon>
+              <span>Основные метрики</span>
+              <v-spacer></v-spacer>
+              <v-icon>{{ expandedCategories.basic ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-card-title>
+            <v-expand-transition>
+              <v-card-text v-if="expandedCategories.basic">
                 <!-- Skeleton loaders при загрузке -->
                 <v-row v-if="isLoadingDashboard" no-gutters>
                   <v-col v-for="i in 6" :key="i" cols="6" sm="4" md="3" lg="2" class="pa-1">
                     <v-skeleton-loader type="card" class="ma-1"></v-skeleton-loader>
                   </v-col>
                 </v-row>
-                
+
                 <!-- Данные после загрузки -->
                 <v-row v-else no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.total_revenue.title || 'Общий доход'"
-                      :value="dashboardData?.widgets.total_revenue.value || 0"
-                      icon="mdi-currency-rub"
-                      icon-color="primary"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.total_revenue.title || 'Общий доход'"
+                      :value="dashboardData?.widgets.total_revenue.value || 0" icon="mdi-currency-rub"
+                      icon-color="primary" format="currency"
                       description="Сумма всех оплаченных счетов за всё время. Показывает общую выручку компании."
-                      metric-key="total_revenue"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="total_revenue" @open-detail="openMetricDetail" />
                   </v-col>
-      
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.monthly_revenue.title || 'Доход за месяц'"
-                      :value="dashboardData?.widgets.monthly_revenue.value || 0"
-                      icon="mdi-calendar-month"
-                      icon-color="success"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.monthly_revenue.title || 'Доход за месяц'"
+                      :value="dashboardData?.widgets.monthly_revenue.value || 0" icon="mdi-calendar-month"
+                      icon-color="success" format="currency"
                       description="Доход за текущий месяц. Показывает динамику поступления средств."
-                      metric-key="monthly_revenue"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="monthly_revenue" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.active_subscriptions.title || 'Активные подписки'"
-                      :value="dashboardData?.widgets.active_subscriptions.value || 0"
-                      icon="mdi-credit-card-check"
-                      icon-color="success"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.active_subscriptions.title || 'Активные подписки'"
+                      :value="dashboardData?.widgets.active_subscriptions.value || 0" icon="mdi-credit-card-check"
+                      icon-color="success" format="number"
                       description="Количество подписок со статусом 'active'. Показывает текущую активную базу клиентов."
-                      metric-key="active_subscriptions"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="active_subscriptions" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.outstanding_amount.title || 'К оплате'"
-                      :value="dashboardData?.widgets.outstanding_amount.value || 0"
-                      icon="mdi-clock-alert"
-                      icon-color="warning"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.outstanding_amount.title || 'К оплате'"
+                      :value="dashboardData?.widgets.outstanding_amount.value || 0" icon="mdi-clock-alert"
+                      icon-color="warning" format="currency"
                       description="Сумма неоплаченных счетов (черновики, отправленные, частично оплаченные). Дебиторская задолженность, требующая внимания."
-                      metric-key="outstanding_amount"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="outstanding_amount" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.overdue_amount.title || 'Просрочено'"
-                      :value="dashboardData?.widgets.overdue_amount.value || 0"
-                      icon="mdi-alert-circle"
-                      icon-color="error"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.overdue_amount.title || 'Просрочено'"
+                      :value="dashboardData?.widgets.overdue_amount.value || 0" icon="mdi-alert-circle"
+                      icon-color="error" format="currency"
                       description="Сумма просроченных счетов. Критичные долги, требующие немедленных действий."
-                      metric-key="overdue_amount"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="overdue_amount" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.overdue_invoices.title || 'Просроченные счета'"
-                      :value="dashboardData?.widgets.overdue_invoices.value || 0"
-                      icon="mdi-file-document-alert"
-                      icon-color="error"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.overdue_invoices.title || 'Просроченные счета'"
+                      :value="dashboardData?.widgets.overdue_invoices.value || 0" icon="mdi-file-document-alert"
+                      icon-color="error" format="number"
                       description="Количество просроченных счетов. Требуют немедленного внимания и действий."
-                      metric-key="overdue_invoices"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="overdue_invoices" @open-detail="openMetricDetail" />
                   </v-col>
                 </v-row>
               </v-card-text>
@@ -139,288 +105,205 @@
           </v-card>
         </v-col>
 
-      <!-- Статистика договоров -->
-      <v-col cols="12" class="mb-2">
-        <v-card variant="outlined" class="pa-2">
-          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('contracts')">
-            <v-icon class="mr-2">mdi-file-document-multiple</v-icon>
-            <span>Статистика договоров</span>
-            <v-spacer></v-spacer>
-            <v-icon>{{ expandedCategories.contracts ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <v-card-text v-if="expandedCategories.contracts">
+        <!-- Статистика договоров -->
+        <v-col cols="12" class="mb-2">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer"
+              @click="toggleCategory('contracts')">
+              <v-icon class="mr-2">mdi-file-document-multiple</v-icon>
+              <span>Статистика договоров</span>
+              <v-spacer></v-spacer>
+              <v-icon>{{ expandedCategories.contracts ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-card-title>
+            <v-expand-transition>
+              <v-card-text v-if="expandedCategories.contracts">
                 <v-row no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      title="Всего договоров"
-                      :value="contractsStats?.total || 0"
-                      icon="mdi-file-document-multiple"
-                      icon-color="primary"
-                      format="number"
+                    <BillingStatCard title="Всего договоров" :value="contractsStats?.total || 0"
+                      icon="mdi-file-document-multiple" icon-color="primary" format="number"
                       description="Общее количество договоров в системе. Показывает общий объем базы договоров."
-                      metric-key="contracts_total"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="contracts_total" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      title="Активные договоры"
-                      :value="contractsStats?.active || 0"
-                      icon="mdi-check-circle"
-                      icon-color="success"
-                      format="number"
+                    <BillingStatCard title="Активные договоры" :value="contractsStats?.active || 0"
+                      icon="mdi-check-circle" icon-color="success" format="number"
                       description="Количество договоров со статусом 'active'. Текущие действующие договоры."
-                      metric-key="contracts_active"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="contracts_active" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      title="Истекают"
-                      :value="contractsStats?.expiring_soon || 0"
-                      icon="mdi-clock-alert"
-                      icon-color="warning"
-                      format="number"
+                    <BillingStatCard title="Истекают" :value="contractsStats?.expiring_soon || 0" icon="mdi-clock-alert"
+                      icon-color="warning" format="number"
                       description="Количество договоров, истекающих в ближайшие 30 дней. Требуют продления или переговоров."
-                      metric-key="contracts_expiring"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="contracts_expiring" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      title="Стоимость"
-                      :value="(contractsStats as any)?.total_amount || 0"
-                      icon="mdi-currency-rub"
-                      icon-color="info"
-                      format="currency"
+                    <BillingStatCard title="Стоимость" :value="(contractsStats as any)?.total_amount || 0"
+                      icon="mdi-currency-rub" icon-color="info" format="currency"
                       description="Общая стоимость всех договоров. Потенциальный доход от договоров (рассчитывается автоматически на основе тарифов и объектов)."
-                      metric-key="contracts_cost"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="contracts_cost" @open-detail="openMetricDetail" />
                   </v-col>
                 </v-row>
               </v-card-text>
             </v-expand-transition>
           </v-card>
         </v-col>
-      
-      <!-- Критичные метрики -->
-      <v-col cols="12" class="mb-2">
-        <v-card variant="outlined" class="pa-2">
-          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('critical')">
-            <v-icon class="mr-2">mdi-alert-circle</v-icon>
-            <span>Критичные метрики</span>
-            <v-spacer></v-spacer>
-            <v-icon>{{ expandedCategories.critical ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <v-card-text v-if="expandedCategories.critical">
+
+        <!-- Критичные метрики -->
+        <v-col cols="12" class="mb-2">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer"
+              @click="toggleCategory('critical')">
+              <v-icon class="mr-2">mdi-alert-circle</v-icon>
+              <span>Критичные метрики</span>
+              <v-spacer></v-spacer>
+              <v-icon>{{ expandedCategories.critical ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-card-title>
+            <v-expand-transition>
+              <v-card-text v-if="expandedCategories.critical">
                 <v-row no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.average_invoice_amount.title || 'Средний чек'"
-                      :value="dashboardData?.widgets.average_invoice_amount.value || 0"
-                      icon="mdi-cash-multiple"
-                      icon-color="primary"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.average_invoice_amount.title || 'Средний чек'"
+                      :value="dashboardData?.widgets.average_invoice_amount.value || 0" icon="mdi-cash-multiple"
+                      icon-color="primary" format="currency"
                       description="Средний размер оплаченного счета. Рассчитывается как общий доход, деленный на количество оплаченных счетов."
-                      metric-key="average_invoice_amount"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="average_invoice_amount" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.payment_conversion_rate.title || 'Конверсия оплат'"
-                      :value="dashboardData?.widgets.payment_conversion_rate.value || 0"
-                      icon="mdi-percent"
-                      icon-color="success"
-                      format="percentage"
+                    <BillingStatCard :title="dashboardData?.widgets.payment_conversion_rate.title || 'Конверсия оплат'"
+                      :value="dashboardData?.widgets.payment_conversion_rate.value || 0" icon="mdi-percent"
+                      icon-color="success" format="percentage"
                       description="Процент оплаченных счетов от отправленных. Показывает эффективность взыскания платежей."
-                      metric-key="payment_conversion_rate"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="payment_conversion_rate" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.average_payment_days.title || 'Средний срок оплаты'"
-                      :value="dashboardData?.widgets.average_payment_days.value || 0"
-                      icon="mdi-calendar-clock"
-                      icon-color="info"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.average_payment_days.title || 'Средний срок оплаты'"
+                      :value="dashboardData?.widgets.average_payment_days.value || 0" icon="mdi-calendar-clock"
+                      icon-color="info" format="number"
                       description="Среднее количество дней между отправкой и оплатой счета. Показывает платежную дисциплину клиентов."
-                      metric-key="average_payment_days"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="average_payment_days" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.expected_revenue.title || 'Ожидаемый доход'"
-                      :value="dashboardData?.widgets.expected_revenue.value || 0"
-                      icon="mdi-chart-line"
-                      icon-color="success"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.expected_revenue.title || 'Ожидаемый доход'"
+                      :value="dashboardData?.widgets.expected_revenue.value || 0" icon="mdi-chart-line"
+                      icon-color="success" format="currency"
                       description="Сумма всех активных подписок. Прогноз дохода на следующий период."
-                      metric-key="expected_revenue"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="expected_revenue" @open-detail="openMetricDetail" />
                   </v-col>
                 </v-row>
               </v-card-text>
             </v-expand-transition>
           </v-card>
         </v-col>
-      
-      <!-- Важные метрики -->
-      <v-col cols="12" class="mb-2">
-        <v-card variant="outlined" class="pa-2">
-          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('important')">
-            <v-icon class="mr-2">mdi-star</v-icon>
-            <span>Важные метрики</span>
-            <v-spacer></v-spacer>
-            <v-icon>{{ expandedCategories.important ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <v-card-text v-if="expandedCategories.important">
+
+        <!-- Важные метрики -->
+        <v-col cols="12" class="mb-2">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer"
+              @click="toggleCategory('important')">
+              <v-icon class="mr-2">mdi-star</v-icon>
+              <span>Важные метрики</span>
+              <v-spacer></v-spacer>
+              <v-icon>{{ expandedCategories.important ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-card-title>
+            <v-expand-transition>
+              <v-card-text v-if="expandedCategories.important">
                 <v-row no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.invoices_to_send.title || 'Счета к отправке'"
-                      :value="dashboardData?.widgets.invoices_to_send.value || 0"
-                      icon="mdi-email-send"
-                      icon-color="warning"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.invoices_to_send.title || 'Счета к отправке'"
+                      :value="dashboardData?.widgets.invoices_to_send.value || 0" icon="mdi-email-send"
+                      icon-color="warning" format="number"
                       description="Количество счетов со статусом 'draft'. Неотправленные счета, требующие действий."
-                      metric-key="invoices_to_send"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="invoices_to_send" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.partially_paid_amount.title || 'Частично оплачено'"
-                      :value="dashboardData?.widgets.partially_paid_amount.value || 0"
-                      icon="mdi-cash-partial"
-                      icon-color="warning"
-                      format="currency"
+                    <BillingStatCard :title="dashboardData?.widgets.partially_paid_amount.title || 'Частично оплачено'"
+                      :value="dashboardData?.widgets.partially_paid_amount.value || 0" icon="mdi-cash-partial"
+                      icon-color="warning" format="currency"
                       description="Сумма частично оплаченных счетов. Счета, требующие доплаты."
-                      metric-key="partially_paid_amount"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="partially_paid_amount" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.partially_paid_count.title || 'Частично оплаченные'"
-                      :value="dashboardData?.widgets.partially_paid_count.value || 0"
-                      icon="mdi-file-document-edit"
-                      icon-color="warning"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.partially_paid_count.title || 'Частично оплаченные'"
+                      :value="dashboardData?.widgets.partially_paid_count.value || 0" icon="mdi-file-document-edit"
+                      icon-color="warning" format="number"
                       description="Количество частично оплаченных счетов. Требуют контроля и доплаты."
-                      metric-key="partially_paid_count"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="partially_paid_count" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.new_subscriptions.title || 'Новые подписки'"
-                      :value="dashboardData?.widgets.new_subscriptions.value || 0"
-                      icon="mdi-account-plus"
-                      icon-color="success"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.new_subscriptions.title || 'Новые подписки'"
+                      :value="dashboardData?.widgets.new_subscriptions.value || 0" icon="mdi-account-plus"
+                      icon-color="success" format="number"
                       description="Количество новых подписок за текущий месяц. Показывает динамику роста базы клиентов."
-                      metric-key="new_subscriptions"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="new_subscriptions" @open-detail="openMetricDetail" />
                   </v-col>
                 </v-row>
               </v-card-text>
             </v-expand-transition>
           </v-card>
         </v-col>
-      
-      <!-- Полезные метрики -->
-      <v-col cols="12" class="mb-2">
-        <v-card variant="outlined" class="pa-2">
-          <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer" @click="toggleCategory('additional')">
-            <v-icon class="mr-2">mdi-chart-box</v-icon>
-            <span>Полезные метрики</span>
-            <v-spacer></v-spacer>
-            <v-icon>{{ expandedCategories.additional ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
-          </v-card-title>
-          <v-expand-transition>
-            <v-card-text v-if="expandedCategories.additional">
+
+        <!-- Полезные метрики -->
+        <v-col cols="12" class="mb-2">
+          <v-card variant="outlined" class="pa-2">
+            <v-card-title class="text-subtitle-1 d-flex align-center" style="cursor: pointer"
+              @click="toggleCategory('additional')">
+              <v-icon class="mr-2">mdi-chart-box</v-icon>
+              <span>Полезные метрики</span>
+              <v-spacer></v-spacer>
+              <v-icon>{{ expandedCategories.additional ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+            </v-card-title>
+            <v-expand-transition>
+              <v-card-text v-if="expandedCategories.additional">
                 <v-row no-gutters>
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
                     <BillingStatCard
                       :title="dashboardData?.widgets.average_revenue_per_contract.title || 'Средний доход с договора'"
-                      :value="dashboardData?.widgets.average_revenue_per_contract.value || 0"
-                      icon="mdi-chart-box"
-                      icon-color="primary"
-                      format="currency"
+                      :value="dashboardData?.widgets.average_revenue_per_contract.value || 0" icon="mdi-chart-box"
+                      icon-color="primary" format="currency"
                       description="Средний доход на один активный договор. Показывает эффективность договоров."
-                      metric-key="average_revenue_per_contract"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="average_revenue_per_contract" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.overdue_percentage.title || 'Процент просрочки'"
-                      :value="dashboardData?.widgets.overdue_percentage.value || 0"
-                      icon="mdi-alert"
-                      icon-color="error"
+                    <BillingStatCard :title="dashboardData?.widgets.overdue_percentage.title || 'Процент просрочки'"
+                      :value="dashboardData?.widgets.overdue_percentage.value || 0" icon="mdi-alert" icon-color="error"
                       format="percentage"
                       description="Доля просроченной суммы от общей суммы к оплате. Показывает процент проблемных платежей."
-                      metric-key="overdue_percentage"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="overdue_percentage" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
                     <BillingStatCard
                       :title="dashboardData?.widgets.invoices_without_contract.title || 'Счета без договора'"
-                      :value="dashboardData?.widgets.invoices_without_contract.value || 0"
-                      icon="mdi-file-question"
-                      icon-color="warning"
-                      format="number"
+                      :value="dashboardData?.widgets.invoices_without_contract.value || 0" icon="mdi-file-question"
+                      icon-color="warning" format="number"
                       description="Количество счетов без привязки к договору. Выявление неструктурированных платежей."
-                      metric-key="invoices_without_contract"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="invoices_without_contract" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.payment_activity_7d.title || 'Платежи за 7 дней'"
-                      :value="dashboardData?.widgets.payment_activity_7d.value || 0"
-                      icon="mdi-calendar-week"
-                      icon-color="info"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.payment_activity_7d.title || 'Платежи за 7 дней'"
+                      :value="dashboardData?.widgets.payment_activity_7d.value || 0" icon="mdi-calendar-week"
+                      icon-color="info" format="number"
                       description="Количество платежей за последние 7 дней. Показывает текущую активность поступления средств."
-                      metric-key="payment_activity_7d"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="payment_activity_7d" @open-detail="openMetricDetail" />
                   </v-col>
-                  
+
                   <v-col cols="6" sm="4" md="3" lg="2" class="pa-1">
-                    <BillingStatCard
-                      :title="dashboardData?.widgets.payment_activity_30d.title || 'Платежи за 30 дней'"
-                      :value="dashboardData?.widgets.payment_activity_30d.value || 0"
-                      icon="mdi-calendar-month"
-                      icon-color="info"
-                      format="number"
+                    <BillingStatCard :title="dashboardData?.widgets.payment_activity_30d.title || 'Платежи за 30 дней'"
+                      :value="dashboardData?.widgets.payment_activity_30d.value || 0" icon="mdi-calendar-month"
+                      icon-color="info" format="number"
                       description="Количество платежей за последние 30 дней. Показывает месячную активность поступления средств."
-                      metric-key="payment_activity_30d"
-                      @open-detail="openMetricDetail"
-                    />
+                      metric-key="payment_activity_30d" @open-detail="openMetricDetail" />
                   </v-col>
                 </v-row>
               </v-card-text>
@@ -454,7 +337,8 @@
     <v-window v-model="activeTab">
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
-        <ContractsTab ref="contractsTabRef" :subscriptions="subscriptions" @stats-updated="handleContractsStatsUpdate" />
+        <ContractsTab ref="contractsTabRef" :subscriptions="subscriptions"
+          @stats-updated="handleContractsStatsUpdate" />
       </v-window-item>
 
       <!-- Подписки -->
@@ -465,42 +349,25 @@
             <v-spacer></v-spacer>
             <v-tooltip location="top">
               <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-plus"
-                  color="primary"
-                  variant="flat"
-                  @click="openSubscriptionWizard()"
-                />
+                <v-btn v-bind="props" icon="mdi-plus" color="primary" variant="flat"
+                  @click="openSubscriptionWizard()" />
               </template>
               <span>Создать подписку</span>
             </v-tooltip>
           </v-card-title>
-          
+
           <v-card-text>
             <!-- Поиск -->
             <div class="mb-4">
-              <v-text-field
-                v-model="subscriptionSearchQuery"
-                placeholder="Поиск по клиенту, договору, тарифному плану..."
-                prepend-inner-icon="mdi-magnify"
-                variant="outlined"
-                density="comfortable"
-                clearable
-                @input="debouncedSubscriptionSearch"
-                class="search-field"
-              />
+              <v-text-field v-model="subscriptionSearchQuery"
+                placeholder="Поиск по клиенту, договору, тарифному плану..." prepend-inner-icon="mdi-magnify"
+                variant="outlined" density="comfortable" clearable @input="debouncedSubscriptionSearch"
+                class="search-field" />
             </div>
 
             <!-- Фильтр по договору (если активен) -->
-            <v-alert
-              v-if="filteredByContractId"
-              type="info"
-              variant="tonal"
-              closable
-              @click:close="clearContractFilter"
-              class="mb-4"
-            >
+            <v-alert v-if="filteredByContractId" type="info" variant="tonal" closable @click:close="clearContractFilter"
+              class="mb-4">
               <div class="d-flex align-center">
                 <v-icon icon="mdi-filter" class="mr-2" />
                 <span>
@@ -510,14 +377,8 @@
             </v-alert>
 
             <!-- Таблица подписок -->
-            <v-data-table
-              :headers="subscriptionHeaders"
-              :items="filteredSubscriptions"
-              :loading="loadingSubscriptions"
-              class="elevation-1"
-              item-value="id"
-              :items-per-page="10"
-            >
+            <v-data-table :headers="subscriptionHeaders" :items="filteredSubscriptions" :loading="loadingSubscriptions"
+              class="elevation-1" item-value="id" :items-per-page="10">
               <!-- Порядковый номер -->
               <template v-slot:item.sequential_number="{ index }">
                 <div class="sequential-number">
@@ -537,7 +398,8 @@
                 <v-tooltip location="top" v-if="item.contract">
                   <template #activator="{ props }">
                     <div class="subscription-client-info" v-bind="props">
-                      <div class="client-name">{{ (item.contract as any)?.client_short_name || item.contract.client_name }}</div>
+                      <div class="client-name">{{ (item.contract as any)?.client_short_name || item.contract.client_name
+                        }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}</div>
@@ -559,7 +421,8 @@
                       </v-chip>
                     </div>
                   </template>
-                  <div>Стоимость: {{ formatPrice(item.billing_plan?.price || 0, item.billing_plan?.currency || 'RUB') }}</div>
+                  <div>Стоимость: {{ formatPrice(item.billing_plan?.price || 0, item.billing_plan?.currency || 'RUB') }}
+                  </div>
                 </v-tooltip>
               </template>
 
@@ -570,8 +433,8 @@
                     <div v-bind="props" style="cursor: pointer;">
                       <div v-if="item.objects_count && item.objects_count > 0">
                         <v-chip size="small" color="primary" variant="tonal">
-                          {{ item.objects_count }} {{ item.objects_count === 1 ? 'объект' : item.objects_count < 5 ? 'объекта' : 'объектов' }}
-                        </v-chip>
+                          {{ item.objects_count }} {{ item.objects_count === 1 ? 'объект' : item.objects_count < 5
+                            ? 'объекта' : 'объектов' }} </v-chip>
                       </div>
                       <span v-else class="text-grey">—</span>
                     </div>
@@ -580,20 +443,18 @@
                     <div class="objects-tooltip">
                       <div class="objects-tooltip-title">Привязанные объекты:</div>
                       <div class="objects-tooltip-list">
-                        <div 
-                          v-for="obj in (item as any).objects" 
-                          :key="obj.id"
-                          class="objects-tooltip-item"
-                        >
+                        <div v-for="obj in (item as any).objects" :key="obj.id" class="objects-tooltip-item">
                           <span v-if="obj.name">
                             <strong>{{ obj.name }}</strong>
-                            <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id }})</span>
+                            <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id
+                              }})</span>
                           </span>
                           <span v-else>
                             Объект #{{ obj.id }}
                           </span>
                         </div>
-                        <div v-if="!(item as any).objects || (item as any).objects.length === 0" class="objects-tooltip-empty">
+                        <div v-if="!(item as any).objects || (item as any).objects.length === 0"
+                          class="objects-tooltip-empty">
                           Нет привязанных объектов
                         </div>
                       </div>
@@ -620,10 +481,7 @@
 
               <!-- Статус подписки -->
               <template v-slot:item.status="{ item }">
-                <v-chip
-                  :color="getSubscriptionStatusColor(item.status)"
-                  size="small"
-                >
+                <v-chip :color="getSubscriptionStatusColor(item.status)" size="small">
                   {{ getSubscriptionStatusText(item.status) }}
                 </v-chip>
               </template>
@@ -631,26 +489,11 @@
               <!-- Действия -->
               <template v-slot:item.actions="{ item }">
                 <div class="actions-cell">
-                  <v-btn
-                    icon="mdi-pencil"
-                    size="small"
-                    variant="text"
-                    @click="openSubscriptionDialog(item)"
-                  ></v-btn>
-                  <v-btn
-                    icon="mdi-cancel"
-                    size="small"
-                    variant="text"
-                    color="warning"
-                    @click="cancelSubscription(item)"
-                  ></v-btn>
-                  <v-btn
-                    icon="mdi-delete"
-                    size="small"
-                    variant="text"
-                    color="error"
-                    @click="deleteSubscription(item)"
-                  ></v-btn>
+                  <v-btn icon="mdi-pencil" size="small" variant="text" @click="openSubscriptionDialog(item)"></v-btn>
+                  <v-btn icon="mdi-cancel" size="small" variant="text" color="warning"
+                    @click="cancelSubscription(item)"></v-btn>
+                  <v-btn icon="mdi-delete" size="small" variant="text" color="error"
+                    @click="deleteSubscription(item)"></v-btn>
                 </div>
               </template>
             </v-data-table>
@@ -666,87 +509,48 @@
             <v-spacer></v-spacer>
             <v-tooltip location="top">
               <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-cash"
-                  color="primary"
-                  variant="flat"
-                  class="mr-2"
-                  @click="openManualPaymentDialog(null)"
-                />
+                <v-btn v-bind="props" icon="mdi-cash" color="primary" variant="flat" class="mr-2"
+                  @click="openManualPaymentDialog(null)" />
               </template>
               <span>Внести платёж вручную</span>
             </v-tooltip>
             <v-tooltip location="top">
               <template #activator="{ props }">
-                <v-btn
-                  v-bind="props"
-                  icon="mdi-plus"
-                  color="primary"
-                  variant="flat"
-                  @click="openGenerateInvoiceDialog"
-                />
+                <v-btn v-bind="props" icon="mdi-plus" color="primary" variant="flat"
+                  @click="openGenerateInvoiceDialog" />
               </template>
               <span>Сгенерировать счет</span>
             </v-tooltip>
           </v-card-title>
-          
+
           <v-card-text>
             <!-- Поиск -->
             <div class="mb-4">
-              <v-text-field
-                v-model="invoiceSearchQuery"
-                placeholder="Поиск по номеру счета, клиенту, договору..."
-                prepend-inner-icon="mdi-magnify"
-                variant="outlined"
-                density="comfortable"
-                clearable
-                @input="debouncedInvoiceSearch"
-                class="search-field"
-              />
+              <v-text-field v-model="invoiceSearchQuery" placeholder="Поиск по номеру счета, клиенту, договору..."
+                prepend-inner-icon="mdi-magnify" variant="outlined" density="comfortable" clearable
+                @input="debouncedInvoiceSearch" class="search-field" />
             </div>
 
             <!-- Фильтры счетов -->
             <v-row class="mb-4">
               <v-col cols="12" md="4">
-                <v-select
-                  v-model="invoiceStatusFilter"
-                  :items="invoiceStatusOptions"
-                  label="Статус"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                ></v-select>
+                <v-select v-model="invoiceStatusFilter" :items="invoiceStatusOptions" label="Статус" variant="outlined"
+                  density="compact" clearable></v-select>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="invoiceDateStart"
-                  label="Дата с"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                ></v-text-field>
+                <v-text-field v-model="invoiceDateStart" label="Дата с" type="date" variant="outlined"
+                  density="compact"></v-text-field>
               </v-col>
               <v-col cols="12" md="4">
-                <v-text-field
-                  v-model="invoiceDateEnd"
-                  label="Дата по"
-                  type="date"
-                  variant="outlined"
-                  density="compact"
-                ></v-text-field>
+                <v-text-field v-model="invoiceDateEnd" label="Дата по" type="date" variant="outlined"
+                  density="compact"></v-text-field>
               </v-col>
             </v-row>
 
             <!-- Таблица счетов -->
-            <v-data-table
-              :headers="invoiceHeaders"
-              :items="filteredInvoices"
-              :loading="loadingInvoices"
-              class="elevation-1"
-              item-value="id"
-              :items-per-page="10"
-            >
+            <v-data-table :headers="invoiceHeaders" :items="filteredInvoices" :loading="loadingInvoices"
+              class="elevation-1" item-value="id" v-model:items-per-page="itemsPerPageInvoices"
+              :items-per-page-options="[10, 20, 50, 100, 200, 500, -1]">
               <!-- Порядковый номер -->
               <template v-slot:item.sequential_number="{ index }">
                 <div class="sequential-number">
@@ -756,11 +560,7 @@
 
               <!-- Номер счета -->
               <template v-slot:item.number="{ item }">
-                <v-btn
-                  variant="text"
-                  color="primary"
-                  @click="viewInvoice(item)"
-                >
+                <v-btn variant="text" color="primary" @click="viewInvoice(item)">
                   {{ item.number }}
                 </v-btn>
               </template>
@@ -769,12 +569,10 @@
               <template v-slot:item.client="{ item }">
                 <v-tooltip location="top" v-if="item.contract">
                   <template #activator="{ props }">
-                    <div 
-                      class="subscription-client-info clickable" 
-                      v-bind="props"
-                      @click="navigateToSubscription(item)"
-                    >
-                      <div class="client-name-link">{{ (item.contract as any)?.client_short_name || item.contract.client_name || 'Клиент не указан' }}</div>
+                    <div class="subscription-client-info clickable" v-bind="props"
+                      @click="navigateToSubscription(item)">
+                      <div class="client-name-link">{{ (item.contract as any)?.client_short_name ||
+                        item.contract.client_name || 'Клиент не указан' }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}<br>Кликните для просмотра подписки</div>
@@ -809,10 +607,7 @@
 
               <!-- Статус -->
               <template v-slot:item.status="{ item }">
-                <v-chip
-                  :color="getInvoiceStatusColor(item.status)"
-                  size="small"
-                >
+                <v-chip :color="getInvoiceStatusColor(item.status)" size="small">
                   {{ getInvoiceStatusLabel(item.status) }}
                 </v-chip>
               </template>
@@ -822,16 +617,10 @@
                 <div class="actions-cell">
                   <v-tooltip text="Оплатить полностью">
                     <template #activator="{ props }">
-                      <v-btn 
+                      <v-btn
                         v-if="getOutstandingAmount(item) > 0 && item.status !== 'paid' && item.status !== 'cancelled'"
-                        v-bind="props"
-                        icon="mdi-cash" 
-                        size="small" 
-                        variant="text" 
-                        color="success"
-                        @click="payInvoiceFull(item)" 
-                        :loading="payingInvoiceId === item.id"
-                      />
+                        v-bind="props" icon="mdi-cash" size="small" variant="text" color="success"
+                        @click="payInvoiceFull(item)" :loading="payingInvoiceId === item.id" />
                     </template>
                   </v-tooltip>
                 </div>
@@ -846,125 +635,60 @@
         <!-- Настройки биллинга -->
         <v-card>
           <v-card-title>Настройки биллинга</v-card-title>
-          
+
           <v-card-text>
             <!-- Загрузка -->
             <div v-if="loadingSettings" class="text-center py-12">
               <v-progress-circular indeterminate color="primary"></v-progress-circular>
               <p class="mt-4 text-grey">Загрузка настроек...</p>
             </div>
-            
+
             <!-- Форма настроек -->
             <v-form v-model="settingsFormValid" v-else-if="billingSettings">
               <v-row>
                 <!-- Генерация счетов -->
                 <v-col cols="12" md="4">
                   <h4 class="mb-3">Генерация счетов</h4>
-                  
-                  <v-text-field
-                    v-model.number="billingSettings.invoice_generation_day"
-                    label="День месяца для генерации"
-                    type="number"
-                    min="1"
-                    max="28"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    :title="'От 1 до 28'"
-                    class="mb-3"
-                  ></v-text-field>
-                  
-                  <v-text-field
-                    v-model.number="billingSettings.invoice_payment_term_days"
-                    label="Срок оплаты (дней)"
-                    type="number"
-                    min="1"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    class="mb-3"
-                  ></v-text-field>
 
-                  <v-switch
-                    v-model="billingSettings.auto_generate_invoices"
-                    label="Автоматическая генерация"
-                    color="primary"
-                    density="compact"
-                    hide-details
-                  ></v-switch>
+                  <v-text-field v-model.number="billingSettings.invoice_generation_day"
+                    label="День месяца для генерации" type="number" min="1" max="28" density="compact"
+                    variant="outlined" hide-details :title="'От 1 до 28'" class="mb-3"></v-text-field>
+
+                  <v-text-field v-model.number="billingSettings.invoice_payment_term_days" label="Срок оплаты (дней)"
+                    type="number" min="1" density="compact" variant="outlined" hide-details class="mb-3"></v-text-field>
+
+                  <v-switch v-model="billingSettings.auto_generate_invoices" label="Автоматическая генерация"
+                    color="primary" density="compact" hide-details></v-switch>
                 </v-col>
-                
+
                 <!-- Уведомления -->
                 <v-col cols="12" md="4">
                   <h4 class="mb-3">Уведомления</h4>
-                  <v-text-field
-                    v-model.number="billingSettings.notify_before_invoice"
-                    label="До выставления счета (дн.)"
-                    type="number"
-                    min="0"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    class="mb-3"
-                  ></v-text-field>
-                  
-                  <v-text-field
-                    v-model.number="billingSettings.notify_before_due"
-                    label="До срока оплаты (дн.)"
-                    type="number"
-                    min="0"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    class="mb-3"
-                  ></v-text-field>
-                  
-                  <v-text-field
-                    v-model.number="billingSettings.notify_overdue"
-                    label="После просрочки (дн.)"
-                    type="number"
-                    min="0"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                  ></v-text-field>
+                  <v-text-field v-model.number="billingSettings.notify_before_invoice"
+                    label="До выставления счета (дн.)" type="number" min="0" density="compact" variant="outlined"
+                    hide-details class="mb-3"></v-text-field>
+
+                  <v-text-field v-model.number="billingSettings.notify_before_due" label="До срока оплаты (дн.)"
+                    type="number" min="0" density="compact" variant="outlined" hide-details class="mb-3"></v-text-field>
+
+                  <v-text-field v-model.number="billingSettings.notify_overdue" label="После просрочки (дн.)"
+                    type="number" min="0" density="compact" variant="outlined" hide-details></v-text-field>
                 </v-col>
-                
+
                 <!-- Льготные тарифы -->
                 <v-col cols="12" md="4">
                   <h4 class="mb-3">Льготные тарифы</h4>
-                  
-                  <v-text-field
-                    v-model="billingSettings.inactive_discount_ratio"
-                    label="Коэффициент льготы"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="1"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
-                    :title="'0.5 = 50% скидка'"
-                    :disabled="!billingSettings.enable_inactive_discounts"
-                    class="mb-3"
-                  ></v-text-field>
 
-                  <v-switch
-                    v-model="billingSettings.enable_inactive_discounts"
-                    label="Льготы для неактивных"
-                    color="primary"
-                    density="compact"
-                    hide-details
-                    class="mb-3"
-                  ></v-switch>
-                  
-                  <v-switch
-                    v-model="billingSettings.allow_partial_payments"
-                    label="Частичные платежи"
-                    color="primary"
-                    density="compact"
-                    hide-details
-                  ></v-switch>
+                  <v-text-field v-model="billingSettings.inactive_discount_ratio" label="Коэффициент льготы"
+                    type="number" step="0.01" min="0" max="1" density="compact" variant="outlined" hide-details
+                    :title="'0.5 = 50% скидка'" :disabled="!billingSettings.enable_inactive_discounts"
+                    class="mb-3"></v-text-field>
+
+                  <v-switch v-model="billingSettings.enable_inactive_discounts" label="Льготы для неактивных"
+                    color="primary" density="compact" hide-details class="mb-3"></v-switch>
+
+                  <v-switch v-model="billingSettings.allow_partial_payments" label="Частичные платежи" color="primary"
+                    density="compact" hide-details></v-switch>
                 </v-col>
 
               </v-row>
@@ -973,26 +697,15 @@
               <v-row class="mt-4">
                 <v-col cols="12" md="4">
                   <h4 class="mb-3">Тарификация объектов</h4>
-                  
-                  <v-text-field
-                    v-model.number="billingSettings.min_days_for_full_month"
-                    label="Мин. дней для полного месяца"
-                    type="number"
-                    min="1"
-                    max="31"
-                    density="compact"
-                    variant="outlined"
-                    hint="Если объект в подписке ≥ этого количества дней, списывается полный месяц"
-                    persistent-hint
-                  >
+
+                  <v-text-field v-model.number="billingSettings.min_days_for_full_month"
+                    label="Мин. дней для полного месяца" type="number" min="1" max="31" density="compact"
+                    variant="outlined" hint="Если объект в подписке ≥ этого количества дней, списывается полный месяц"
+                    persistent-hint>
                     <template #append-inner>
                       <v-tooltip location="top" max-width="350">
                         <template #activator="{ props }">
-                          <v-icon
-                            v-bind="props"
-                            color="primary"
-                            size="20"
-                          >
+                          <v-icon v-bind="props" color="primary" size="20">
                             mdi-information
                           </v-icon>
                         </template>
@@ -1007,26 +720,26 @@
                 </v-col>
               </v-row>
 
-            <!-- Индикатор автосохранения -->
-            <v-divider class="my-4"></v-divider>
-            <div class="d-flex align-center justify-end ga-2">
-              <v-fade-transition>
-                <div v-if="savingSettings" class="d-flex align-center ga-2">
-                  <v-progress-circular indeterminate size="16" width="2" color="primary"></v-progress-circular>
-                  <span class="text-caption text-grey">Сохранение...</span>
-                </div>
-                <div v-else-if="settingsDirty" class="d-flex align-center ga-2">
-                  <v-icon size="16" color="grey">mdi-clock-outline</v-icon>
-                  <span class="text-caption text-grey">Автосохранение через мгновение...</span>
-                </div>
-                <div v-else class="d-flex align-center ga-2">
-                  <v-icon size="16" color="success">mdi-check-circle</v-icon>
-                  <span class="text-caption text-success">Все изменения сохранены</span>
-                </div>
-              </v-fade-transition>
-            </div>
-          </v-form>
-            
+              <!-- Индикатор автосохранения -->
+              <v-divider class="my-4"></v-divider>
+              <div class="d-flex align-center justify-end ga-2">
+                <v-fade-transition>
+                  <div v-if="savingSettings" class="d-flex align-center ga-2">
+                    <v-progress-circular indeterminate size="16" width="2" color="primary"></v-progress-circular>
+                    <span class="text-caption text-grey">Сохранение...</span>
+                  </div>
+                  <div v-else-if="settingsDirty" class="d-flex align-center ga-2">
+                    <v-icon size="16" color="grey">mdi-clock-outline</v-icon>
+                    <span class="text-caption text-grey">Автосохранение через мгновение...</span>
+                  </div>
+                  <div v-else class="d-flex align-center ga-2">
+                    <v-icon size="16" color="success">mdi-check-circle</v-icon>
+                    <span class="text-caption text-success">Все изменения сохранены</span>
+                  </div>
+                </v-fade-transition>
+              </div>
+            </v-form>
+
             <!-- Сообщение об ошибке -->
             <div v-else class="text-center py-12">
               <v-icon size="64" color="grey-lighten-1">mdi-cog-alert</v-icon>
@@ -1034,7 +747,7 @@
             </div>
           </v-card-text>
         </v-card>
-        
+
         <!-- Дополнительные настройки - плитки -->
         <v-card class="mt-6">
           <v-card-title>
@@ -1044,11 +757,7 @@
             <v-row>
               <!-- Нумераторы договоров -->
               <v-col cols="12" md="4">
-                <v-card
-                  variant="outlined"
-                  class="settings-tile"
-                  @click="contractNumeratorsDialog = true"
-                >
+                <v-card variant="outlined" class="settings-tile" @click="contractNumeratorsDialog = true">
                   <v-card-text class="text-center pa-6">
                     <v-icon size="48" color="primary" class="mb-3">mdi-format-list-numbered</v-icon>
                     <div class="text-h6 mb-2">Нумераторы договоров</div>
@@ -1061,11 +770,7 @@
 
               <!-- Нумераторы счетов -->
               <v-col cols="12" md="4">
-                <v-card
-                  variant="outlined"
-                  class="settings-tile"
-                  @click="invoiceNumeratorsDialog = true"
-                >
+                <v-card variant="outlined" class="settings-tile" @click="invoiceNumeratorsDialog = true">
                   <v-card-text class="text-center pa-6">
                     <v-icon size="48" color="primary" class="mb-3">mdi-file-document-edit</v-icon>
                     <div class="text-h6 mb-2">Нумераторы счетов</div>
@@ -1078,11 +783,7 @@
 
               <!-- Тарифные планы -->
               <v-col cols="12" md="4">
-                <v-card
-                  variant="outlined"
-                  class="settings-tile"
-                  @click="tariffPlansDialog = true"
-                >
+                <v-card variant="outlined" class="settings-tile" @click="tariffPlansDialog = true">
                   <v-card-text class="text-center pa-6">
                     <v-icon size="48" color="primary" class="mb-3">mdi-package-variant</v-icon>
                     <div class="text-h6 mb-2">Тарифные планы</div>
@@ -1117,40 +818,21 @@
               Нумерация договоров
             </v-card-title>
             <v-card-text>
-              <v-select
-                v-if="billingSettings"
-                v-model="billingSettings.contract_numbering_method"
-                :items="contractNumberingMethods"
-                :item-disabled="(item: any) => item.disabled === true"
-                label="Способ нумерации"
-                prepend-icon="mdi-format-list-numbered"
+              <v-select v-if="billingSettings" v-model="billingSettings.contract_numbering_method"
+                :items="contractNumberingMethods" :item-disabled="(item: any) => item.disabled === true"
+                label="Способ нумерации" prepend-icon="mdi-format-list-numbered"
                 hint="Выберите способ генерации номеров договоров. Конкретный нумератор выбирается при создании договора."
-                persistent-hint
-                variant="outlined"
-                density="compact"
-              ></v-select>
-              
-              <v-text-field
-                v-if="billingSettings && billingSettings.contract_numbering_method === 'bitrix24'"
-                v-model="billingSettings.bitrix24_deal_number_field"
-                label="Поле номера в Bitrix24"
-                prepend-icon="mdi-pound"
-                hint="Код пользовательского поля в Bitrix24 (например, UF_CRM_CONTRACT_NUMBER)"
-                persistent-hint
-                placeholder="UF_CRM_CONTRACT_NUMBER"
-                variant="outlined"
-                density="compact"
-                class="mt-4"
-              ></v-text-field>
+                persistent-hint variant="outlined" density="compact"></v-select>
+
+              <v-text-field v-if="billingSettings && billingSettings.contract_numbering_method === 'bitrix24'"
+                v-model="billingSettings.bitrix24_deal_number_field" label="Поле номера в Bitrix24"
+                prepend-icon="mdi-pound" hint="Код пользовательского поля в Bitrix24 (например, UF_CRM_CONTRACT_NUMBER)"
+                persistent-hint placeholder="UF_CRM_CONTRACT_NUMBER" variant="outlined" density="compact"
+                class="mt-4"></v-text-field>
 
               <div class="d-flex ga-2 mt-4">
-                <v-btn
-                  color="primary"
-                  variant="outlined"
-                  prepend-icon="mdi-eye"
-                  size="small"
-                  @click="openNumeratorPreview"
-                >
+                <v-btn color="primary" variant="outlined" prepend-icon="mdi-eye" size="small"
+                  @click="openNumeratorPreview">
                   Предпросмотр номера договора
                 </v-btn>
               </div>
@@ -1195,55 +877,27 @@
           <!-- Фильтры -->
           <v-row class="mb-4">
             <v-col cols="12" md="6" lg="4">
-              <v-text-field
-                v-model="planSearchQuery"
-                label="Поиск по названию"
-                clearable
-                variant="outlined"
-                density="compact"
-              ></v-text-field>
+              <v-text-field v-model="planSearchQuery" label="Поиск по названию" clearable variant="outlined"
+                density="compact"></v-text-field>
             </v-col>
             <v-col cols="12" md="6" lg="4">
-              <v-select
-                v-model="planStatusFilter"
-                :items="statusOptions"
-                label="Статус"
-                variant="outlined"
-                density="compact"
-                clearable
-              ></v-select>
+              <v-select v-model="planStatusFilter" :items="statusOptions" label="Статус" variant="outlined"
+                density="compact" clearable></v-select>
             </v-col>
             <v-col cols="12" md="6" lg="4">
-              <v-btn
-                icon="mdi-plus"
-                variant="flat"
-                color="primary"
-                size="small"
-                @click="openPlanDialog()"
-                title="Добавить план"
-              />
+              <v-btn icon="mdi-plus" variant="flat" color="primary" size="small" @click="openPlanDialog()"
+                title="Добавить план" />
             </v-col>
           </v-row>
 
           <!-- Таблица планов -->
-          <v-data-table
-            :headers="planHeaders"
-            :items="filteredPlans"
-            :loading="loadingPlans"
-            class="elevation-1"
-            item-value="id"
-            :items-per-page="10"
-          >
+          <v-data-table :headers="planHeaders" :items="filteredPlans" :loading="loadingPlans" class="elevation-1"
+            item-value="id" :items-per-page="10">
             <!-- Название с популярным значком -->
             <template v-slot:item.name="{ item }">
               <div class="d-flex align-center">
                 <span class="font-weight-medium">{{ item.name }}</span>
-                <v-chip
-                  v-if="item.is_popular"
-                  color="orange"
-                  size="x-small"
-                  class="ml-2"
-                >
+                <v-chip v-if="item.is_popular" color="orange" size="x-small" class="ml-2">
                   Популярный
                 </v-chip>
               </div>
@@ -1261,29 +915,15 @@
 
             <!-- Статус -->
             <template v-slot:item.is_active="{ item }">
-              <v-chip
-                :color="item.is_active ? 'green' : 'red'"
-                size="small"
-              >
+              <v-chip :color="item.is_active ? 'green' : 'red'" size="small">
                 {{ item.is_active ? 'Активен' : 'Неактивен' }}
               </v-chip>
             </template>
 
             <!-- Действия -->
             <template v-slot:item.actions="{ item }">
-              <v-btn
-                icon="mdi-pencil"
-                size="small"
-                variant="text"
-                @click="openPlanDialog(item)"
-              ></v-btn>
-              <v-btn
-                icon="mdi-delete"
-                size="small"
-                variant="text"
-                color="error"
-                @click="deletePlan(item)"
-              ></v-btn>
+              <v-btn icon="mdi-pencil" size="small" variant="text" @click="openPlanDialog(item)"></v-btn>
+              <v-btn icon="mdi-delete" size="small" variant="text" color="error" @click="deletePlan(item)"></v-btn>
             </template>
           </v-data-table>
         </v-card-text>
@@ -1303,63 +943,33 @@
           <v-form ref="planForm" v-model="planFormValid">
             <v-row dense>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editingPlan.name"
-                  label="Название"
-                  :rules="[v => !!v || 'Название обязательно']"
-                  required
-                  density="compact"
-                ></v-text-field>
+                <v-text-field v-model="editingPlan.name" label="Название" :rules="[v => !!v || 'Название обязательно']"
+                  required density="compact"></v-text-field>
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editingPlan.price"
-                  label="Цена"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                <v-text-field v-model="editingPlan.price" label="Цена" type="number" min="0" step="0.01"
                   :rules="[v => (v !== null && v !== undefined && !isNaN(v) && v >= 0) || 'Цена должна быть положительным числом']"
-                  required
-                  density="compact"
-                  :suffix="companyCurrency"
-                ></v-text-field>
+                  required density="compact" :suffix="companyCurrency"></v-text-field>
               </v-col>
               <v-col cols="12">
-                <v-alert
-                  type="info"
-                  variant="tonal"
-                  density="compact"
-                  class="mb-2"
-                >
+                <v-alert type="info" variant="tonal" density="compact" class="mb-2">
                   <div class="d-flex align-center">
                     <v-icon class="mr-2" size="small">mdi-information</v-icon>
-                    <span class="text-caption">Валюта {{ companyCurrency }} используется из настроек компании (Настройки → Компания → Валюта)</span>
+                    <span class="text-caption">Валюта {{ companyCurrency }} используется из настроек компании (Настройки
+                      →
+                      Компания → Валюта)</span>
                   </div>
                 </v-alert>
               </v-col>
               <v-col cols="12">
-                <v-select
-                  v-model="editingPlan.billing_period"
-                  :items="billingPeriods"
-                  label="Период биллинга"
-                  density="compact"
-                ></v-select>
+                <v-select v-model="editingPlan.billing_period" :items="billingPeriods" label="Период биллинга"
+                  density="compact"></v-select>
               </v-col>
               <v-col cols="12">
-                <v-textarea
-                  v-model="editingPlan.description"
-                  label="Описание"
-                  rows="2"
-                  density="compact"
-                ></v-textarea>
+                <v-textarea v-model="editingPlan.description" label="Описание" rows="2" density="compact"></v-textarea>
               </v-col>
               <v-col cols="12">
-                <v-switch
-                  v-model="editingPlan.is_active"
-                  label="Активен"
-                  color="primary"
-                  hide-details
-                ></v-switch>
+                <v-switch v-model="editingPlan.is_active" label="Активен" color="primary" hide-details></v-switch>
               </v-col>
             </v-row>
           </v-form>
@@ -1368,12 +978,7 @@
         <v-card-actions class="px-4 pb-4">
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closePlanDialog">Отмена</v-btn>
-          <v-btn 
-            color="primary" 
-            :loading="savingPlan"
-            :disabled="!planFormValid"
-            @click="savePlan"
-          >
+          <v-btn color="primary" :loading="savingPlan" :disabled="!planFormValid" @click="savePlan">
             {{ editingPlan?.id ? 'Обновить' : 'Создать' }}
           </v-btn>
         </v-card-actions>
@@ -1381,13 +986,9 @@
     </v-dialog>
 
     <!-- Мастер создания подписки -->
-    <SubscriptionWizard
-      v-model="subscriptionWizardOpen"
-      :company-id="currentCompanyId"
-      :initial-contract-id="filteredByContractId ?? undefined"
-      @created="onSubscriptionCreated"
-      @create-invoice="onCreateInvoiceFromSubscription"
-    />
+    <SubscriptionWizard v-model="subscriptionWizardOpen" :company-id="currentCompanyId"
+      :initial-contract-id="filteredByContractId ?? undefined" @created="onSubscriptionCreated"
+      @create-invoice="onCreateInvoiceFromSubscription" />
 
     <!-- Диалог подписки (для редактирования) -->
     <v-dialog v-model="subscriptionDialog" max-width="600px" persistent>
@@ -1402,43 +1003,21 @@
           <v-form ref="subscriptionForm" v-model="subscriptionFormValid">
             <v-row>
               <v-col cols="12">
-                <v-text-field
-                  v-model.number="editingSubscription.company_id"
-                  label="ID компании"
-                  type="number"
-                  :rules="[v => !!v || 'ID компании обязательно']"
-                  required
-                ></v-text-field>
+                <v-text-field v-model.number="editingSubscription.company_id" label="ID компании" type="number"
+                  :rules="[v => !!v || 'ID компании обязательно']" required></v-text-field>
               </v-col>
               <v-col cols="12">
-                <v-select
-                  v-model="editingSubscription.billing_plan_id"
-                  :items="planSelectItems"
-                  label="Тарифный план"
-                  :rules="[v => !!v || 'Выберите тарифный план']"
-                  required
-                ></v-select>
+                <v-select v-model="editingSubscription.billing_plan_id" :items="planSelectItems" label="Тарифный план"
+                  :rules="[v => !!v || 'Выберите тарифный план']" required></v-select>
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="editingSubscription.start_date"
-                  label="Дата начала"
-                  type="date"
-                ></v-text-field>
+                <v-text-field v-model="editingSubscription.start_date" label="Дата начала" type="date"></v-text-field>
               </v-col>
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="editingSubscription.status"
-                  :items="subscriptionStatuses"
-                  label="Статус"
-                ></v-select>
+                <v-select v-model="editingSubscription.status" :items="subscriptionStatuses" label="Статус"></v-select>
               </v-col>
               <v-col cols="12">
-                <v-switch
-                  v-model="editingSubscription.is_auto_renew"
-                  label="Автопродление"
-                  color="primary"
-                ></v-switch>
+                <v-switch v-model="editingSubscription.is_auto_renew" label="Автопродление" color="primary"></v-switch>
               </v-col>
             </v-row>
           </v-form>
@@ -1447,12 +1026,8 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closeSubscriptionDialog">Отмена</v-btn>
-          <v-btn 
-            color="primary" 
-            :loading="savingSubscription"
-            :disabled="!subscriptionFormValid"
-            @click="saveSubscription"
-          >
+          <v-btn color="primary" :loading="savingSubscription" :disabled="!subscriptionFormValid"
+            @click="saveSubscription">
             {{ editingSubscription?.id ? 'Обновить' : 'Создать' }}
           </v-btn>
         </v-card-actions>
@@ -1469,45 +1044,29 @@
         <v-card-text v-if="selectedInvoice">
           <div class="mb-4">
             <strong>Счет:</strong> {{ selectedInvoice.number }}<br>
-            <strong>Сумма к доплате:</strong> {{ formatCurrency(parseFloat(selectedInvoice.total_amount) - parseFloat(selectedInvoice.paid_amount)) }}
+            <strong>Сумма к доплате:</strong> {{ formatCurrency(parseFloat(selectedInvoice.total_amount) -
+              parseFloat(selectedInvoice.paid_amount)) }}
           </div>
 
           <v-form>
-            <v-text-field
-              v-model="paymentData.amount"
-              label="Сумма платежа"
-              type="number"
-              step="0.01"
-              required
-            ></v-text-field>
+            <v-text-field v-model="paymentData.amount" label="Сумма платежа" type="number" step="0.01"
+              required></v-text-field>
 
-            <v-select
-              v-model="paymentData.payment_method"
-              :items="[
-                { title: 'Банковский перевод', value: 'bank_transfer' },
-                { title: 'Наличные', value: 'cash' },
-                { title: 'Банковская карта', value: 'card' },
-                { title: 'Электронные деньги', value: 'electronic' }
-              ]"
-              label="Способ оплаты"
-              required
-            ></v-select>
+            <v-select v-model="paymentData.payment_method" :items="[
+              { title: 'Банковский перевод', value: 'bank_transfer' },
+              { title: 'Наличные', value: 'cash' },
+              { title: 'Банковская карта', value: 'card' },
+              { title: 'Электронные деньги', value: 'electronic' }
+            ]" label="Способ оплаты" required></v-select>
 
-            <v-textarea
-              v-model="paymentData.notes"
-              label="Примечания"
-              rows="3"
-            ></v-textarea>
+            <v-textarea v-model="paymentData.notes" label="Примечания" rows="3"></v-textarea>
           </v-form>
         </v-card-text>
 
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="paymentDialog = false">Отмена</v-btn>
-          <v-btn 
-            color="primary" 
-            @click="processPayment"
-          >
+          <v-btn color="primary" @click="processPayment">
             Обработать платеж
           </v-btn>
         </v-card-actions>
@@ -1525,18 +1084,10 @@
           <v-form>
             <v-row>
               <v-col cols="12">
-                <v-autocomplete
-                  v-model.number="selectedContractId"
-                  :items="contractSelectItems"
-                  label="Договор"
-                  :loading="loadingContracts"
-                  hint="Начните вводить номер договора или название клиента для поиска"
-                  persistent-hint
-                  required
-                  clearable
-                  :no-data-text="'Нет доступных договоров'"
-                  placeholder="Поиск договора..."
-                >
+                <v-autocomplete v-model.number="selectedContractId" :items="contractSelectItems" label="Договор"
+                  :loading="loadingContracts" hint="Начните вводить номер договора или название клиента для поиска"
+                  persistent-hint required clearable :no-data-text="'Нет доступных договоров'"
+                  placeholder="Поиск договора...">
                   <template #prepend-inner>
                     <v-icon>mdi-file-document</v-icon>
                   </template>
@@ -1547,41 +1098,27 @@
               <v-col v-if="selectedContractId" cols="12">
                 <div class="mb-2 d-flex justify-space-between align-center">
                   <label class="text-subtitle-1 font-weight-medium">Подписки</label>
-                  <v-btn
-                    v-if="contractSubscriptions.length > 0"
-                    size="small"
-                    variant="text"
-                    color="primary"
-                    @click="toggleAllSubscriptions"
-                  >
+                  <v-btn v-if="contractSubscriptions.length > 0" size="small" variant="text" color="primary"
+                    @click="toggleAllSubscriptions">
                     {{ allSubscriptionsSelected ? 'Снять все' : 'Выбрать все' }}
                   </v-btn>
                 </div>
-                
-                <v-progress-linear
-                  v-if="loadingContractSubscriptions"
-                  indeterminate
-                  color="primary"
-                  class="mb-3"
-                ></v-progress-linear>
 
-                <div v-if="!loadingContractSubscriptions && contractSubscriptions.length === 0" class="text-grey text-center pa-4">
+                <v-progress-linear v-if="loadingContractSubscriptions" indeterminate color="primary"
+                  class="mb-3"></v-progress-linear>
+
+                <div v-if="!loadingContractSubscriptions && contractSubscriptions.length === 0"
+                  class="text-grey text-center pa-4">
                   У выбранного договора нет активных подписок
                 </div>
 
-                <v-list v-if="!loadingContractSubscriptions && contractSubscriptions.length > 0" class="subscription-list" density="compact">
-                  <v-list-item
-                    v-for="subscription in contractSubscriptions"
-                    :key="subscription.id"
-                    class="subscription-item px-0"
-                  >
+                <v-list v-if="!loadingContractSubscriptions && contractSubscriptions.length > 0"
+                  class="subscription-list" density="compact">
+                  <v-list-item v-for="subscription in contractSubscriptions" :key="subscription.id"
+                    class="subscription-item px-0">
                     <template #prepend>
-                      <v-checkbox
-                        v-model="selectedSubscriptionIds"
-                        :value="subscription.id"
-                        hide-details
-                        density="compact"
-                      ></v-checkbox>
+                      <v-checkbox v-model="selectedSubscriptionIds" :value="subscription.id" hide-details
+                        density="compact"></v-checkbox>
                     </template>
 
                     <v-list-item-title>
@@ -1593,44 +1130,39 @@
                           </v-chip>
                         </div>
                         <span class="text-caption text-grey">
-                          {{ formatPrice(subscription.billing_plan?.price || 0, subscription.billing_plan?.currency || 'RUB') }}
+                          {{ formatPrice(subscription.billing_plan?.price || 0, subscription.billing_plan?.currency ||
+                          'RUB') }}
                         </span>
                       </div>
                     </v-list-item-title>
 
                     <v-list-item-subtitle class="text-caption">
-                      {{ formatDate(subscription.start_date) }} - {{ subscription.end_date ? formatDate(subscription.end_date) : 'Бессрочно' }}
+                      {{ formatDate(subscription.start_date) }} - {{ subscription.end_date ?
+                        formatDate(subscription.end_date) : 'Бессрочно' }}
                     </v-list-item-subtitle>
                   </v-list-item>
                 </v-list>
 
                 <!-- Информация о тарифном плане -->
-                <v-card
-                  v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.mainPlan"
-                  variant="outlined"
-                  class="mt-3"
-                  color="primary"
-                >
+                <v-card v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.mainPlan"
+                  variant="outlined" class="mt-3" color="primary">
                   <v-card-text class="py-3">
                     <div class="d-flex align-center mb-2">
                       <v-icon icon="mdi-tag" color="primary" size="small" class="mr-2"></v-icon>
                       <span class="text-subtitle-2 font-weight-medium">Тарифный план</span>
                     </div>
-                    
+
                     <div class="d-flex justify-space-between align-center">
                       <div>
                         <div class="text-body-1 font-weight-medium">
                           {{ selectedSubscriptionPlans.mainPlan.name }}
                         </div>
                         <div class="text-caption text-grey">
-                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price || 0, selectedSubscriptionPlans.mainPlan.currency || 'RUB') }}
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price || 0,
+                            selectedSubscriptionPlans.mainPlan.currency || 'RUB') }}
                         </div>
                       </div>
-                      <v-chip 
-                        size="small" 
-                        color="primary" 
-                        variant="flat"
-                      >
+                      <v-chip size="small" color="primary" variant="flat">
                         <v-icon icon="mdi-lock" size="x-small" class="mr-1"></v-icon>
                         Автоматически
                       </v-chip>
@@ -1639,19 +1171,16 @@
                 </v-card>
 
                 <!-- Предупреждение о разных тарифах -->
-                <v-alert
-                  v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.hasDifferentPlans"
-                  type="warning"
-                  variant="tonal"
-                  class="mt-3"
-                  density="compact"
-                >
+                <v-alert v-if="selectedSubscriptionIds.length > 0 && selectedSubscriptionPlans.hasDifferentPlans"
+                  type="warning" variant="tonal" class="mt-3" density="compact">
                   <div class="d-flex align-center">
                     <v-icon icon="mdi-alert" class="mr-2"></v-icon>
                     <div>
                       <strong>Внимание!</strong> Выбраны подписки с разными тарифными планами.
                       <div class="text-caption mt-1">
-                        Счет будет сформирован на основе первого тарифа: <strong>{{ selectedSubscriptionPlans.mainPlan?.name }}</strong>
+                        Счет будет сформирован на основе первого тарифа: <strong>{{
+                          selectedSubscriptionPlans.mainPlan?.name
+                          }}</strong>
                       </div>
                       <div class="text-caption mt-1">
                         Найдено тарифов: {{ selectedSubscriptionPlans.uniquePlans.length }}
@@ -1664,39 +1193,28 @@
                 </v-alert>
 
                 <!-- Информация о выбранном периоде -->
-                <v-alert
-                  v-if="selectedSubscriptionIds.length > 0"
-                  type="info"
-                  variant="tonal"
-                  class="mt-3"
-                  density="compact"
-                >
+                <v-alert v-if="selectedSubscriptionIds.length > 0" type="info" variant="tonal" class="mt-3"
+                  density="compact">
                   <div class="text-caption">
                     <strong>Период биллинга:</strong> {{ calculatedPeriod.start }} - {{ calculatedPeriod.end }}
                   </div>
                 </v-alert>
 
                 <!-- Ручной ввод суммы для hourly/daily/weekly тарифов -->
-                <v-card
-                  v-if="selectedSubscriptionIds.length > 0 && isShortPeriodTariff"
-                  variant="outlined"
-                  class="mt-3"
-                  color="warning"
-                >
+                <v-card v-if="selectedSubscriptionIds.length > 0 && isShortPeriodTariff" variant="outlined" class="mt-3"
+                  color="warning">
                   <v-card-text class="py-3">
                     <div class="d-flex align-center mb-3">
                       <v-icon icon="mdi-alert-circle" color="warning" size="small" class="mr-2"></v-icon>
                       <span class="text-subtitle-2 font-weight-medium">Настройка суммы счета</span>
                     </div>
-                    
-                    <v-alert
-                      type="info"
-                      variant="tonal"
-                      density="compact"
-                      class="mb-3"
-                    >
+
+                    <v-alert type="info" variant="tonal" density="compact" class="mb-3">
                       <div class="text-caption">
-                        У выбранной подписки период биллинга: <strong>{{ selectedSubscriptionPlans.mainPlan?.billing_period === 'hourly' ? 'Часовой' : selectedSubscriptionPlans.mainPlan?.billing_period === 'daily' ? 'Дневной' : 'Недельный' }}</strong>.
+                        У выбранной подписки период биллинга: <strong>{{
+                          selectedSubscriptionPlans.mainPlan?.billing_period
+                            === 'hourly' ? 'Часовой' : selectedSubscriptionPlans.mainPlan?.billing_period === 'daily' ?
+                          'Дневной' : 'Недельный' }}</strong>.
                         <br>
                         Вы можете ввести сумму вручную или автоматически рассчитать на месяц.
                       </div>
@@ -1715,47 +1233,36 @@
                       </v-radio>
                     </v-radio-group>
 
-                    <v-text-field
-                      v-if="!useAutoCalculation"
-                      v-model.number="customInvoiceAmount"
-                      label="Сумма счета"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      suffix="₽"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      required
-                    >
+                    <v-text-field v-if="!useAutoCalculation" v-model.number="customInvoiceAmount" label="Сумма счета"
+                      type="number" step="0.01" min="0" suffix="₽" density="compact" variant="outlined" hide-details
+                      required>
                       <template #prepend-inner>
                         <v-icon icon="mdi-currency-rub" size="small"></v-icon>
                       </template>
                     </v-text-field>
 
-                    <v-alert
-                      v-if="useAutoCalculation"
-                      type="success"
-                      variant="tonal"
-                      density="compact"
-                    >
+                    <v-alert v-if="useAutoCalculation" type="success" variant="tonal" density="compact">
                       <div class="d-flex align-center justify-space-between">
                         <div class="text-caption">
                           <strong>Расчетная сумма на месяц:</strong>
                         </div>
                         <div class="text-h6 font-weight-bold">
-                          {{ formatPrice(calculatedMonthlyAmount, selectedSubscriptionPlans.mainPlan?.currency || 'RUB') }}
+                          {{ formatPrice(calculatedMonthlyAmount, selectedSubscriptionPlans.mainPlan?.currency || 'RUB')
+                          }}
                         </div>
                       </div>
                       <div class="text-caption mt-1 text-grey">
                         <template v-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'hourly'">
-                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 24 часа × 30 дней
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price,
+                          selectedSubscriptionPlans.mainPlan.currency) }} × 24 часа × 30 дней
                         </template>
                         <template v-else-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'daily'">
-                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 30 дней
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price,
+                          selectedSubscriptionPlans.mainPlan.currency) }} × 30 дней
                         </template>
                         <template v-else-if="selectedSubscriptionPlans.mainPlan?.billing_period === 'weekly'">
-                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price, selectedSubscriptionPlans.mainPlan.currency) }} × 4 недели
+                          {{ formatPrice(selectedSubscriptionPlans.mainPlan.price,
+                          selectedSubscriptionPlans.mainPlan.currency) }} × 4 недели
                         </template>
                       </div>
                     </v-alert>
@@ -1773,11 +1280,8 @@
           </div>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="closeGenerateInvoiceDialog">Отмена</v-btn>
-          <v-btn 
-            color="primary" 
-            @click="generateInvoice"
-            :disabled="!selectedContractId || selectedSubscriptionIds.length === 0"
-          >
+          <v-btn color="primary" @click="generateInvoice"
+            :disabled="!selectedContractId || selectedSubscriptionIds.length === 0">
             Сгенерировать
           </v-btn>
         </v-card-actions>
@@ -1794,37 +1298,17 @@
           <v-form>
             <v-row>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="dryRunForm.from"
-                  label="Период с"
-                  type="date"
-                  required
-                />
+                <v-text-field v-model="dryRunForm.from" label="Период с" type="date" required />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model="dryRunForm.to"
-                  label="Период по"
-                  type="date"
-                  required
-                />
+                <v-text-field v-model="dryRunForm.to" label="Период по" type="date" required />
               </v-col>
               <v-col cols="12" md="6">
-                <v-text-field
-                  v-model.number="dryRunForm.limit"
-                  label="Ограничение результатов"
-                  type="number"
-                  min="1"
-                />
+                <v-text-field v-model.number="dryRunForm.limit" label="Ограничение результатов" type="number" min="1" />
               </v-col>
             </v-row>
           </v-form>
-          <v-alert
-            v-if="dryRunResult?.summary"
-            type="info"
-            class="mt-4"
-            border="start"
-          >
+          <v-alert v-if="dryRunResult?.summary" type="info" class="mt-4" border="start">
             Кандидатов: {{ dryRunResult?.summary?.candidates }},
             Будет создано: {{ dryRunResult?.summary?.willCreate }},
             Сумма: {{
@@ -1834,18 +1318,11 @@
               )
             }}
           </v-alert>
-          <v-data-table
-            v-if="dryRunResult?.items?.length"
-            class="mt-3"
-            :items="dryRunResult?.items"
-            :headers="[
-              { title: 'Компания/аккаунт', key: 'accountId' },
-              { title: 'Подписка', key: 'subscriptionId' },
-              { title: 'Сумма', key: 'amount' }
-            ]"
-            :items-per-page="5"
-            hide-default-footer
-          >
+          <v-data-table v-if="dryRunResult?.items?.length" class="mt-3" :items="dryRunResult?.items" :headers="[
+            { title: 'Компания/аккаунт', key: 'accountId' },
+            { title: 'Подписка', key: 'subscriptionId' },
+            { title: 'Сумма', key: 'amount' }
+          ]" :items-per-page="5" hide-default-footer>
             <template #item.amount="{ item }">
               {{ formatCurrency(item.amount?.value || 0, item.amount?.currency || 'RUB') }}
             </template>
@@ -1870,36 +1347,23 @@
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
-              <v-select
-                v-model="testNotifForm.channel"
-                :items="[
-                  { title: 'Система', value: 'system' },
-                  { title: 'Email', value: 'email' },
-                  { title: 'Telegram', value: 'telegram' },
-                  { title: 'MAX', value: 'max' },
-                  { title: 'SMS', value: 'sms' }
-                ]"
-                label="Канал"
-              />
+              <v-select v-model="testNotifForm.channel" :items="[
+                { title: 'Система', value: 'system' },
+                { title: 'Email', value: 'email' },
+                { title: 'Telegram', value: 'telegram' },
+                { title: 'MAX', value: 'max' },
+                { title: 'SMS', value: 'sms' }
+              ]" label="Канал" />
             </v-col>
             <v-col cols="12" md="6">
-              <v-select
-                v-model="testNotifForm.template"
-                :items="[
-                  { title: 'Создан счёт', value: 'invoice_created' },
-                  { title: 'Срок оплаты', value: 'invoice_due' },
-                  { title: 'Истекает подписка', value: 'subscription_expiring' }
-                ]"
-                label="Шаблон"
-              />
+              <v-select v-model="testNotifForm.template" :items="[
+                { title: 'Создан счёт', value: 'invoice_created' },
+                { title: 'Срок оплаты', value: 'invoice_due' },
+                { title: 'Истекает подписка', value: 'subscription_expiring' }
+              ]" label="Шаблон" />
             </v-col>
             <v-col cols="12" v-if="testNotifForm.channel === 'email'">
-              <v-text-field
-                v-model="testNotifForm.to"
-                label="Email получателя"
-                type="email"
-                required
-              />
+              <v-text-field v-model="testNotifForm.to" label="Email получателя" type="email" required />
             </v-col>
           </v-row>
           <v-alert v-if="testNotifResult" type="info" class="mt-2" border="start">
@@ -1924,12 +1388,7 @@
         </v-card-title>
         <v-card-text>
           <div class="d-flex align-center ga-2">
-            <v-progress-circular
-              v-if="numeratorPreviewLoading"
-              indeterminate
-              color="primary"
-              size="20"
-            />
+            <v-progress-circular v-if="numeratorPreviewLoading" indeterminate color="primary" size="20" />
             <span v-else>{{ numeratorPreviewValue || 'Нет данных' }}</span>
           </div>
         </v-card-text>
@@ -1945,10 +1404,7 @@
         <v-card-title>
           <span class="text-h5">Счет {{ selectedInvoice.number }}</span>
           <v-spacer></v-spacer>
-          <v-chip
-            :color="getInvoiceStatusColor(selectedInvoice.status)"
-            size="large"
-          >
+          <v-chip :color="getInvoiceStatusColor(selectedInvoice.status)" size="large">
             {{ getInvoiceStatusLabel(selectedInvoice.status) }}
           </v-chip>
         </v-card-title>
@@ -1959,32 +1415,31 @@
               <h4 class="mb-2">Информация о счете</h4>
               <p><strong>Дата выставления:</strong> {{ formatDate(selectedInvoice.invoice_date) }}</p>
               <p><strong>Срок оплаты:</strong> {{ formatDate(selectedInvoice.due_date) }}</p>
-              <p><strong>Период биллинга:</strong> {{ formatDate(selectedInvoice.billing_period_start) }} - {{ formatDate(selectedInvoice.billing_period_end) }}</p>
+              <p><strong>Период биллинга:</strong> {{ formatDate(selectedInvoice.billing_period_start) }} - {{
+                formatDate(selectedInvoice.billing_period_end) }}</p>
             </v-col>
             <v-col cols="12" md="6">
               <h4 class="mb-2">Финансовая информация</h4>
               <p><strong>Сумма без НДС:</strong> {{ formatCurrency(selectedInvoice.subtotal_amount) }}</p>
-              <p><strong>НДС ({{ selectedInvoice.tax_rate }}%):</strong> {{ formatCurrency(selectedInvoice.tax_amount) }}</p>
+              <p><strong>НДС ({{ selectedInvoice.tax_rate }}%):</strong> {{ formatCurrency(selectedInvoice.tax_amount)
+                }}
+              </p>
               <p><strong>Итого:</strong> {{ formatCurrency(selectedInvoice.total_amount) }}</p>
               <p><strong>Оплачено:</strong> {{ formatCurrency(selectedInvoice.paid_amount) }}</p>
-              <p><strong>К доплате:</strong> {{ formatCurrency(parseFloat(selectedInvoice.total_amount) - parseFloat(selectedInvoice.paid_amount)) }}</p>
+              <p><strong>К доплате:</strong> {{ formatCurrency(parseFloat(selectedInvoice.total_amount) -
+                parseFloat(selectedInvoice.paid_amount)) }}</p>
             </v-col>
           </v-row>
 
           <v-divider class="my-4"></v-divider>
 
           <h4 class="mb-4">Позиции счета</h4>
-          <v-data-table
-            :headers="[
-              { title: 'Наименование', key: 'name' },
-              { title: 'Количество', key: 'quantity' },
-              { title: 'Цена', key: 'unit_price' },
-              { title: 'Сумма', key: 'amount' }
-            ]"
-            :items="selectedInvoice.items"
-            hide-default-footer
-            class="elevation-1"
-          >
+          <v-data-table :headers="[
+            { title: 'Наименование', key: 'name' },
+            { title: 'Количество', key: 'quantity' },
+            { title: 'Цена', key: 'unit_price' },
+            { title: 'Сумма', key: 'amount' }
+          ]" :items="selectedInvoice.items" hide-default-footer class="elevation-1">
             <template v-slot:item.quantity="{ item }">
               {{ parseFloat(item.quantity).toLocaleString('ru-RU') }}
             </template>
@@ -2007,8 +1462,8 @@
           <h4 class="mb-2">История оплат</h4>
           <div v-if="selectedInvoice.paid_amount && parseFloat(selectedInvoice.paid_amount) > 0" class="mb-4">
             <p v-if="selectedInvoice.paid_at">
-              <strong>{{ formatDate(selectedInvoice.paid_at) }}</strong> 
-              {{ formatCurrency(selectedInvoice.paid_amount) }} 
+              <strong>{{ formatDate(selectedInvoice.paid_at) }}</strong>
+              {{ formatCurrency(selectedInvoice.paid_amount) }}
               <span class="text-caption text-medium-emphasis">(ручной платёж)</span>
             </p>
             <p v-else class="text-medium-emphasis">История платежей будет доступна после загрузки данных</p>
@@ -2017,31 +1472,18 @@
         </v-card-text>
 
         <v-card-actions>
-          <v-btn 
-            v-if="selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled'"
-            prepend-icon="mdi-cash"
-            color="primary"
-            @click="openManualPaymentDialog(selectedInvoice); invoiceViewDialog = false"
-          >
+          <v-btn v-if="selectedInvoice.status !== 'paid' && selectedInvoice.status !== 'cancelled'"
+            prepend-icon="mdi-cash" color="primary"
+            @click="openManualPaymentDialog(selectedInvoice); invoiceViewDialog = false">
             Внести платёж вручную
           </v-btn>
           <v-spacer></v-spacer>
-          <v-btn 
-            v-if="selectedInvoice.status !== 'cancelled'"
-            prepend-icon="mdi-cancel"
-            color="warning"
-            variant="outlined"
-            @click="cancelInvoiceConfirm(selectedInvoice); invoiceViewDialog = false"
-          >
+          <v-btn v-if="selectedInvoice.status !== 'cancelled'" prepend-icon="mdi-cancel" color="warning"
+            variant="outlined" @click="cancelInvoiceConfirm(selectedInvoice); invoiceViewDialog = false">
             Отменить счёт
           </v-btn>
-          <v-btn 
-            v-if="selectedInvoice.status !== 'paid'"
-            prepend-icon="mdi-delete"
-            color="error"
-            variant="outlined"
-            @click="deleteInvoiceConfirm(selectedInvoice); invoiceViewDialog = false"
-          >
+          <v-btn v-if="selectedInvoice.status !== 'paid'" prepend-icon="mdi-delete" color="error" variant="outlined"
+            @click="deleteInvoiceConfirm(selectedInvoice); invoiceViewDialog = false">
             Удалить счёт
           </v-btn>
           <v-btn variant="text" @click="invoiceViewDialog = false">Закрыть</v-btn>
@@ -2050,94 +1492,73 @@
     </v-dialog>
 
     <!-- Диалог отправки счета клиенту -->
-    <SendInvoiceDialog
-      v-model="sendInvoiceDialogOpen"
-      :invoice="selectedInvoiceForSend"
-      @sent="handleInvoiceSent"
-    />
+    <SendInvoiceDialog v-model="sendInvoiceDialogOpen" :invoice="selectedInvoiceForSend" @sent="handleInvoiceSent" />
 
     <!-- Диалог ручного платежа -->
-    <ManualPaymentDialog
-      v-model="manualPaymentDialogOpen"
-      :invoice="selectedInvoiceForPayment"
-      :invoices="selectedInvoiceForPayment ? undefined : filteredInvoices"
-      @payment-added="handleManualPaymentAdded"
-    />
+    <ManualPaymentDialog v-model="manualPaymentDialogOpen" :invoice="selectedInvoiceForPayment"
+      :invoices="selectedInvoiceForPayment ? undefined : filteredInvoices" @payment-added="handleManualPaymentAdded" />
 
     <!-- Диалог детальной информации о метрике -->
-    <BillingMetricDetailDialog
-      v-model="metricDetailDialog"
-      :title="currentMetricDetail?.title || ''"
-      :value="currentMetricDetail?.value || 0"
-      :icon="currentMetricDetail?.icon || 'mdi-information'"
-      :icon-color="currentMetricDetail?.iconColor || 'primary'"
-      :format="currentMetricDetail?.format || 'number'"
-      :currency="currentMetricDetail?.currency || 'RUB'"
-      :description="currentMetricDetail?.description || ''"
-      :subtitle="currentMetricDetail?.subtitle || ''"
-      :additional-info="currentMetricDetail?.additionalInfo"
-      :detail-table-headers="currentMetricDetail?.tableHeaders"
-      :detail-table-data="currentMetricDetail?.tableData"
-      :additional-stats="currentMetricDetail?.additionalStats"
-      :action-button="currentMetricDetail?.actionButton"
-      @invoice-paid="handleInvoicePaid"
-    />
+    <BillingMetricDetailDialog v-model="metricDetailDialog" :title="currentMetricDetail?.title || ''"
+      :value="currentMetricDetail?.value || 0" :icon="currentMetricDetail?.icon || 'mdi-information'"
+      :icon-color="currentMetricDetail?.iconColor || 'primary'" :format="currentMetricDetail?.format || 'number'"
+      :currency="currentMetricDetail?.currency || 'RUB'" :description="currentMetricDetail?.description || ''"
+      :subtitle="currentMetricDetail?.subtitle || ''" :additional-info="currentMetricDetail?.additionalInfo"
+      :detail-table-headers="currentMetricDetail?.tableHeaders" :detail-table-data="currentMetricDetail?.tableData"
+      :additional-stats="currentMetricDetail?.additionalStats" :action-button="currentMetricDetail?.actionButton"
+      @invoice-paid="handleInvoicePaid" />
 
     <!-- Диалог автопилота: предложение отправить счет -->
-    <AutopilotSendInvoiceOfferDialog
-      v-model="showSendInvoiceOffer"
-      :invoice-id="autopilotInvoice?.id"
-      :invoice-number="autopilotInvoice?.number"
-      @send-invoice="handleSendInvoiceFromAutopilot"
-      @later="handleSendInvoiceLater"
-    />
+    <AutopilotSendInvoiceOfferDialog v-model="showSendInvoiceOffer" :invoice-id="autopilotInvoice?.id"
+      :invoice-number="autopilotInvoice?.number" @send-invoice="handleSendInvoiceFromAutopilot"
+      @later="handleSendInvoiceLater" />
   </v-container>
 </template>
 
 <script lang="ts" setup>
-import ContractsTab from '@/components/Billing/ContractsTab.vue'
-import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
-import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
-import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
-import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
-import ManualPaymentDialog from '@/components/Billing/ManualPaymentDialog.vue'
-import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
+import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
 import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
+import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
+import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
+import ContractsTab from '@/components/Billing/ContractsTab.vue'
+import InvoiceNumeratorsTab from '@/components/Billing/InvoiceNumeratorsTab.vue'
+import ManualPaymentDialog from '@/components/Billing/ManualPaymentDialog.vue'
+import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
+import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
+import { useAutopilot } from '@/composables/useAutopilot'
 import { billingService } from '@/services/billingService'
-import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import contractsService from '@/services/contractsService'
+import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
 import { settingsService } from '@/services/settingsService'
-import { cacheService } from '@/utils/cacheService'
 import type {
-    BillingDashboardData,
-    BillingPlan,
-    BillingSettings,
-    CreateBillingPlanData,
-    CreateSubscriptionData,
-    GenerateInvoiceData,
-    Invoice,
-    InvoiceStatus,
-    ProcessPaymentData,
-    Subscription,
-    UpdateBillingPlanData,
-    UpdateBillingSettingsData,
-    UpdateSubscriptionData
+  BillingDashboardData,
+  BillingPlan,
+  BillingSettings,
+  CreateBillingPlanData,
+  CreateSubscriptionData,
+  GenerateInvoiceData,
+  Invoice,
+  InvoiceStatus,
+  ProcessPaymentData,
+  Subscription,
+  UpdateBillingPlanData,
+  UpdateBillingSettingsData,
+  UpdateSubscriptionData
 } from '@/types/billing'
 import type { ContractNumerator } from '@/types/contracts'
+import { cacheService } from '@/utils/cacheService'
+import { debounce } from 'lodash-es'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAutopilot } from '@/composables/useAutopilot'
-import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
-import { debounce } from 'lodash-es'
 
 const route = useRoute()
 const router = useRouter()
 
 // Автопилот
 const autopilot = useAutopilot()
-const { 
-  showSendInvoiceOffer, 
-  currentInvoice: autopilotInvoice 
+const {
+  showSendInvoiceOffer,
+  currentInvoice: autopilotInvoice
 } = autopilot
 
 // Реактивные данные
@@ -2172,7 +1593,7 @@ onUnmounted(() => {
   if (handleStorageChange) {
     window.removeEventListener('storage', handleStorageChange)
   }
-  
+
   // Очищаем таймер автосохранения при размонтировании
   if (saveSettingsTimeout) {
     clearTimeout(saveSettingsTimeout)
@@ -2180,7 +1601,7 @@ onUnmounted(() => {
   if (checkInterval) {
     clearInterval(checkInterval)
   }
-  
+
   // Сбрасываем состояние автопилота
   autopilot.resetAutopilot();
 })
@@ -2202,14 +1623,14 @@ const loadCompanySettings = async () => {
 onMounted(async () => {
   // Обновляем company_id при монтировании
   currentCompanyId.value = getCurrentCompanyId()
-  
+
   // Сбрасываем автопилот при открытии страницы (если не идет активный процесс)
   // Это предотвращает показ старых диалогов при возврате на страницу
   const shouldOpenWizard = sessionStorage.getItem('autopilot_open_wizard');
   if (shouldOpenWizard !== 'true') {
     autopilot.resetAutopilot();
   }
-  
+
   // Загружаем данные при монтировании
   // loadDashboardData уже загружает plans и subscriptions, поэтому вызываем их отдельно только если нужно
   await Promise.all([
@@ -2218,25 +1639,25 @@ onMounted(async () => {
     fetchBillingSettings(), // Загружает contractNumerators внутри
     loadCompanySettings() // Загружает валюту компании
   ])
-  
+
   // Проверяем автопилот из sessionStorage
   const contractIdStr = sessionStorage.getItem('autopilot_contract_id');
-  
+
   if (shouldOpenWizard === 'true' && contractIdStr) {
     // Очищаем флаги
     sessionStorage.removeItem('autopilot_open_wizard');
     sessionStorage.removeItem('autopilot_contract_id');
-    
+
     // Устанавливаем фильтр по договору и открываем мастер
     filteredByContractId.value = parseInt(contractIdStr, 10);
     activeTab.value = 'subscriptions';
-    
+
     // Небольшая задержка для корректной отрисовки
     setTimeout(() => {
       openSubscriptionWizard();
     }, 300);
   }
-  
+
   // Слушаем изменения в localStorage (на случай переключения компании)
   handleStorageChange = (e: StorageEvent) => {
     if (e.key === 'axenta_company') {
@@ -2249,7 +1670,7 @@ onMounted(async () => {
     }
   }
   window.addEventListener('storage', handleStorageChange)
-  
+
   // Также проверяем периодически (на случай, если localStorage изменился в том же окне)
   checkInterval = setInterval(() => {
     const newCompanyId = getCurrentCompanyId()
@@ -2339,6 +1760,9 @@ const loadingPlans = ref(false)
 const loadingSubscriptions = ref(false)
 const loadingInvoices = ref(false)
 const loadingSettings = ref(false)
+
+// Пагинация для счетов
+const itemsPerPageInvoices = ref(20)
 const payingInvoiceId = ref<number | null>(null)
 const savingPlan = ref(false)
 const savingSubscription = ref(false)
@@ -2482,7 +1906,7 @@ const filteredPlans = computed(() => {
 
   if (planSearchQuery.value) {
     const query = toLower(planSearchQuery.value)
-    items = items.filter(plan => 
+    items = items.filter(plan =>
       toLower(plan.name).includes(query)
     )
   }
@@ -2504,7 +1928,7 @@ const filteredSubscriptions = computed(() => {
   if (subscriptionSearchQuery.value) {
     // Приводим запрос к нижнему регистру
     const query = toLower(subscriptionSearchQuery.value)
-    
+
     // ОТЛАДКА: Посмотрим, что реально ищется (открой F12 -> Console)
     console.log(`🔍 Ищем: "${query}" среди ${items.length} подписок`)
 
@@ -2513,18 +1937,18 @@ const filteredSubscriptions = computed(() => {
       const clientName = toLower(sub.contract?.client_name)
       const shortName = toLower((sub.contract as any)?.client_short_name)
       const number = toLower(sub.contract?.number)
-      
+
       // Проверка совпадения
-      const match = clientName.includes(query) || 
-                    shortName.includes(query) || 
-                    number.includes(query) ||
-                    toLower(sub.billing_plan?.name).includes(query)
+      const match = clientName.includes(query) ||
+        shortName.includes(query) ||
+        number.includes(query) ||
+        toLower(sub.billing_plan?.name).includes(query)
 
       // ОТЛАДКА: Если нашли совпадение, покажем почему
       if (match) {
         // console.log(`✅ Найдено в: ${clientName} (Запрос: ${query})`)
       }
-      
+
       return match
     })
   }
@@ -2548,12 +1972,12 @@ const filteredInvoices = computed(() => {
 
   if (invoiceSearchQuery.value) {
     const query = toLower(invoiceSearchQuery.value)
-    
+
     items = items.filter(inv => {
       return (
         toLower(inv.number).includes(query) ||                  // Номер счета
         toLower(inv.contract?.client_name).includes(query) ||   // Клиент
-        toLower((inv.contract as any)?.client_short_name ?? '').includes(query)|| // Краткое имя
+        toLower((inv.contract as any)?.client_short_name ?? '').includes(query) || // Краткое имя
         toLower(inv.contract?.number).includes(query)           // Номер договора
       )
     })
@@ -2563,14 +1987,14 @@ const filteredInvoices = computed(() => {
 })
 
 // Остальные computed свойства оставляем как есть...
-const planSelectItems = computed(() => 
+const planSelectItems = computed(() =>
   plans.value.filter(plan => plan.is_active).map(plan => ({
     title: `${plan.name} (${formatCurrency(plan.price, plan.currency)})`,
     value: plan.id
   }))
 )
 
-const contractSelectItems = computed(() => 
+const contractSelectItems = computed(() =>
   availableContracts.value.map(contract => ({
     title: `${contract.number} - ${contract.title || contract.client_name}`,
     value: contract.id
@@ -2578,18 +2002,18 @@ const contractSelectItems = computed(() =>
 )
 
 // Debounced поиск (оставляем пустыми, так как computed реактивны)
-const debouncedSubscriptionSearch = debounce(() => {}, 500)
-const debouncedInvoiceSearch = debounce(() => {}, 500)
+const debouncedSubscriptionSearch = debounce(() => { }, 500)
+const debouncedInvoiceSearch = debounce(() => { }, 500)
 
 const allSubscriptionsSelected = computed(() => {
-  return contractSubscriptions.value.length > 0 && 
-         selectedSubscriptionIds.value.length === contractSubscriptions.value.length
+  return contractSubscriptions.value.length > 0 &&
+    selectedSubscriptionIds.value.length === contractSubscriptions.value.length
 })
 
 const calculatedPeriod = computed(() => {
   if (selectedSubscriptionIds.value.length === 0) return { start: '', end: '' }
 
-  const selectedSubs = contractSubscriptions.value.filter(sub => 
+  const selectedSubs = contractSubscriptions.value.filter(sub =>
     selectedSubscriptionIds.value.includes(sub.id!)
   )
 
@@ -2641,12 +2065,12 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
   isLoadingDashboard.value = true
   try {
     const cacheKey = `billing_dashboard_${currentCompanyId.value}`
-    
+
     // Если принудительное обновление, очищаем кэш
     if (forceRefresh) {
       cacheService.remove(cacheKey)
     }
-    
+
     // Пытаемся получить данные из кэша (если не принудительное обновление)
     if (!forceRefresh) {
       const cachedData = cacheService.get<{
@@ -2655,7 +2079,7 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
         contractsStats: any
         dashboardData: any
       }>(cacheKey)
-      
+
       if (cachedData) {
         console.log('📦 Загружаем billing данные из кэша')
         plans.value = cachedData.plans
@@ -2665,26 +2089,26 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
         return
       }
     }
-    
+
     console.log('🌐 Загружаем billing данные с сервера')
-    
+
     // Стратегия прогрессивной загрузки для плохого интернета:
     // 1. Загружаем критичные данные первыми (планы и подписки)
     const [plansData, subscriptionsData] = await Promise.all([
       billingService.getBillingPlans(currentCompanyId.value),
       billingService.getSubscriptions(currentCompanyId.value)
     ])
-    
+
     // Сохраняем критичные данные сразу
     plans.value = plansData
     subscriptions.value = subscriptionsData
-    
+
     // 2. Загружаем менее критичные данные параллельно
     const [invoicesData] = await Promise.all([
       billingService.getInvoices({ company_id: currentCompanyId.value }).then(r => r.invoices),
       loadContractsStats() // Статистика договоров загружается параллельно
     ])
-    
+
     // Передаем уже загруженные данные в getBillingDashboardData, чтобы избежать дублирования
     // Также передаем количество активных договоров для расчета среднего дохода
     dashboardData.value = await billingService.getBillingDashboardData(
@@ -2694,7 +2118,7 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
       invoicesData,
       contractsStats.value?.active || 0
     )
-    
+
     // Сохраняем данные в кэш на 3 минуты
     cacheService.set(cacheKey, {
       plans: plansData,
@@ -2702,7 +2126,7 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
       contractsStats: contractsStats.value,
       dashboardData: dashboardData.value
     }, 3 * 60 * 1000) // 3 минуты
-    
+
   } catch (error) {
     console.error('Ошибка при загрузке данных дашборда:', error)
   } finally {
@@ -2714,7 +2138,7 @@ const loadDashboardData = async (forceRefresh: boolean = false) => {
 const loadContractsStats = async () => {
   try {
     const stats = await contractsService.getContractsStatsSummary()
-    
+
     // Используем данные из stats напрямую - они уже содержат все необходимое
     contractsStats.value = {
       total: stats.total,
@@ -2722,7 +2146,7 @@ const loadContractsStats = async () => {
       expiring_soon: stats.expiring_soon,
       total_amount: (stats as any).total_amount || '0'
     }
-    
+
     return stats
   } catch (error) {
     console.error('Ошибка при загрузке статистики договоров:', error)
@@ -2769,7 +2193,12 @@ const fetchSubscriptions = async () => {
 const fetchInvoices = async () => {
   loadingInvoices.value = true
   try {
-    const result = await billingService.getInvoices({ company_id: currentCompanyId.value })
+    // Загружаем все счета с большим лимитом, чтобы таблица могла показывать нужное количество на странице
+    const result = await billingService.getInvoices({
+      company_id: currentCompanyId.value,
+      limit: 10000, // Большой лимит для загрузки всех счетов
+      offset: 0
+    })
     invoices.value = result.invoices
   } catch (error) {
     console.error('Ошибка при загрузке счетов:', error)
@@ -2782,22 +2211,22 @@ const fetchBillingSettings = async () => {
   loadingSettings.value = true
   try {
     billingSettings.value = await billingService.getBillingSettings(currentCompanyId.value)
-    
+
     // Инициализируем состояние автопилота
     autopilotEnabled.value = billingSettings.value?.autopilot_enabled || false
-    
+
     // Устанавливаем значение по умолчанию для min_days_for_full_month, если оно не задано
     if (billingSettings.value && (!billingSettings.value.min_days_for_full_month || billingSettings.value.min_days_for_full_month === 0)) {
       billingSettings.value.min_days_for_full_month = 5
     }
-    
+
     // Если способ нумерации = 'bitrix24' (отключен), сбрасываем на 'manual'
     if (billingSettings.value?.contract_numbering_method === 'bitrix24') {
       billingSettings.value.contract_numbering_method = 'manual'
       // Автоматически сохраняем исправление
       await saveSettings()
     }
-    
+
     await fetchContractNumerators()
     // Фиксируем исходный снапшот для dirty-check
     initialSettingsSnapshot.value = JSON.stringify(billingSettings.value)
@@ -2864,10 +2293,10 @@ const savePlan = async () => {
     } else {
       await billingService.createBillingPlan(editingPlan.value as CreateBillingPlanData, currentCompanyId.value)
     }
-    
+
     // Инвалидируем кэш перед загрузкой свежих данных
     invalidateBillingCache()
-    
+
     await fetchPlans()
     await loadDashboardData()
     closePlanDialog()
@@ -2886,28 +2315,28 @@ const deletePlan = async (plan: BillingPlan) => {
   try {
     console.log('deletePlan: удаление плана', { planId: plan.id, companyId: currentCompanyId.value })
     await billingService.deleteBillingPlan(plan.id, currentCompanyId.value)
-    
+
     // Инвалидируем кэш перед загрузкой свежих данных
     invalidateBillingCache()
-    
+
     await fetchPlans()
     await loadDashboardData()
   } catch (error: any) {
     console.error('Ошибка при удалении плана:', error)
-    
+
     // Если план уже был удален (404), просто обновляем список
     if (error.response?.status === 404) {
       console.log('⚠️ План уже был удален, обновляем список...')
-      
+
       // Инвалидируем кэш перед загрузкой свежих данных
       invalidateBillingCache()
-      
+
       await fetchPlans()
       await loadDashboardData()
       alert('Тарифный план уже был удален ранее. Список обновлен.')
       return
     }
-    
+
     const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Ошибка при удалении плана'
     console.error('Детали ошибки:', {
       status: error.response?.status,
@@ -2973,43 +2402,43 @@ const onSubscriptionCreated = async (_subscription: Subscription) => {
   await fetchSubscriptions()
   await fetchInvoices() // Обновляем счета после создания подписки
   await loadDashboardData()
-  
+
   // Обновляем список договоров, так как подписка обновляет информацию в договоре
   if (contractsTabRef.value?.loadContracts) {
     await contractsTabRef.value.loadContracts()
   }
-  
+
   // Очищаем фильтр по договору после создания подписки
   filteredByContractId.value = null;
-  
+
   // НЕ закрываем мастер здесь!
   // Если автопилот включен - мастер останется открытым и покажет диалог создания счета
   // Если автопилот выключен - мастер закроется в SubscriptionWizard.vue
   // subscriptionWizardOpen.value = false - убрано!
-  
+
   // ВАЖНО: Автопилот вызывается в SubscriptionWizard.vue после успешного создания подписки
 }
 
 // Обработчик создания счета из автопилота SubscriptionWizard
 const onCreateInvoiceFromSubscription = async (data: { subscriptionId?: number; contractId?: number }) => {
-  
+
   // Находим подписку или договор
   const contractId = data.contractId;
-  
+
   if (contractId) {
     // Открываем диалог создания счета
     selectedContractId.value = contractId;
-    
+
     // Устанавливаем период (текущий месяц)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    
+
     invoiceFormData.value = {
       period_start: startOfMonth.toISOString().split('T')[0],
       period_end: endOfMonth.toISOString().split('T')[0]
     };
-    
+
     generateInvoiceDialog.value = true;
   }
 }
@@ -3033,12 +2462,12 @@ const saveSubscription = async () => {
     await fetchSubscriptions()
     await fetchInvoices() // Обновляем счета после изменения подписки
     await loadDashboardData()
-    
+
     // Обновляем список договоров, так как подписка обновляет информацию в договоре
     if (contractsTabRef.value?.loadContracts) {
       await contractsTabRef.value.loadContracts()
     }
-    
+
     closeSubscriptionDialog()
   } catch (error) {
     console.error('Ошибка при сохранении подписки:', error)
@@ -3055,7 +2484,7 @@ const cancelSubscription = async (subscription: Subscription) => {
     await fetchSubscriptions()
     await fetchInvoices() // Обновляем счета после отмены подписки
     await loadDashboardData()
-    
+
     // Обновляем список договоров, так как отмена подписки влияет на объекты
     if (contractsTabRef.value?.loadContracts) {
       await contractsTabRef.value.loadContracts()
@@ -3072,16 +2501,16 @@ const deleteSubscription = async (subscription: Subscription) => {
     console.log('🗑️ Billing.vue: Удаление подписки:', subscription.id)
     await billingService.deleteSubscription(subscription.id!)
     console.log('✅ Billing.vue: Подписка удалена, обновляем данные...')
-    
+
     await fetchSubscriptions()
     console.log('✅ Billing.vue: Подписки обновлены')
-    
+
     await fetchInvoices() // Обновляем счета после удаления подписки
     console.log('✅ Billing.vue: Счета обновлены')
-    
+
     await loadDashboardData()
     console.log('✅ Billing.vue: Dashboard обновлен')
-    
+
     // Обновляем список договоров, так как удаление подписки отвязывает объекты
     if (contractsTabRef.value?.loadContracts) {
       console.log('🔄 Billing.vue: Обновляем ContractsTab...')
@@ -3094,7 +2523,7 @@ const deleteSubscription = async (subscription: Subscription) => {
     console.error('❌ Ошибка при удалении подписки:', error)
     const errorCode = error.response?.data?.code
     const errorMessage = error.response?.data?.error || error.message || 'Ошибка при удалении подписки'
-    
+
     // Если подписка уже удалена, просто обновляем данные
     if (errorCode === 'ALREADY_DELETED') {
       console.log('⚠️ Подписка уже была удалена, обновляем список...')
@@ -3172,7 +2601,7 @@ const handleInvoiceSent = async (updatedInvoice: Invoice) => {
   console.log('✅ Счет успешно отправлен:', updatedInvoice.number)
   await fetchInvoices()
   await loadDashboardData()
-  
+
   // Показываем уведомление
   const sentChannels = updatedInvoice.last_sent_channels?.split(',').join(', ') || 'выбранные каналы'
   alert(`Счет ${updatedInvoice.number} успешно отправлен через: ${sentChannels}`)
@@ -3194,7 +2623,7 @@ const getOutstandingAmount = (invoice: Invoice): number => {
 // Полная оплата счета
 const payInvoiceFull = async (invoice: Invoice) => {
   const outstanding = getOutstandingAmount(invoice)
-  
+
   if (outstanding <= 0) {
     alert('Счет уже полностью оплачен')
     return
@@ -3216,7 +2645,7 @@ const payInvoiceFull = async (invoice: Invoice) => {
     // Обновляем данные
     await fetchInvoices()
     await loadDashboardData(true)
-    
+
     alert(`Счет ${invoice.number} успешно оплачен на сумму ${formatCurrency(outstanding)}`)
   } catch (error: any) {
     console.error('Ошибка при оплате счета:', error)
@@ -3230,7 +2659,7 @@ const handleInvoicePaid = async (_invoiceId: number) => {
   // Обновляем данные после оплаты счета
   await fetchInvoices()
   await loadDashboardData(true) // Принудительное обновление для актуальных метрик
-  
+
   // Обновляем детальную информацию метрики, если диалог открыт
   if (metricDetailDialog.value && (currentMetricDetail.value as any)?.metricKey === 'outstanding_amount') {
     const detail = getMetricDetail('outstanding_amount', dashboardData.value?.widgets.outstanding_amount)
@@ -3240,13 +2669,13 @@ const handleInvoicePaid = async (_invoiceId: number) => {
 
 const handleManualPaymentAdded = async (updatedInvoice: Invoice) => {
   console.log('✅ Ручной платёж успешно добавлен к счету:', updatedInvoice.number)
-  
+
   // Обновляем список счетов
   await fetchInvoices()
-  
+
   // Принудительно перезагружаем данные дашборда (с очисткой кэша)
   await loadDashboardData(true)
-  
+
   manualPaymentDialogOpen.value = false
   selectedInvoiceForPayment.value = null
 }
@@ -3255,7 +2684,7 @@ const handleManualPaymentAdded = async (updatedInvoice: Invoice) => {
 const handleSendInvoiceFromAutopilot = (invoiceId: number) => {
   // Закрываем диалог автопилота
   autopilot.closeSendInvoiceOffer();
-  
+
   // Находим счет
   const invoice = invoices.value.find(inv => inv.id === invoiceId);
   if (invoice) {
@@ -3275,7 +2704,7 @@ const generateInvoice = async () => {
   }
 
   // Вычисляем period_start и period_end из выбранных подписок
-  const selectedSubs = contractSubscriptions.value.filter(sub => 
+  const selectedSubs = contractSubscriptions.value.filter(sub =>
     selectedSubscriptionIds.value.includes(sub.id!)
   )
 
@@ -3285,7 +2714,7 @@ const generateInvoice = async () => {
     .map(sub => new Date(sub.end_date!))
 
   const minStart = new Date(Math.min(...startDates.map(d => d.getTime())))
-  const maxEnd = endDates.length > 0 
+  const maxEnd = endDates.length > 0
     ? new Date(Math.max(...endDates.map(d => d.getTime())))
     : new Date()
 
@@ -3293,7 +2722,7 @@ const generateInvoice = async () => {
     period_start: minStart.toISOString().split('T')[0],
     period_end: maxEnd.toISOString().split('T')[0]
   }
-  
+
   // Добавляем ручную сумму для hourly/daily/weekly тарифов
   if (isShortPeriodTariff.value) {
     if (useAutoCalculation.value) {
@@ -3317,7 +2746,7 @@ const generateInvoice = async () => {
     await fetchInvoices()
     await loadDashboardData()
     closeGenerateInvoiceDialog()
-    
+
     // Проверяем автопилот
     if (billingSettings.value?.autopilot_enabled) {
       autopilot.offerSendAfterInvoice(createdInvoice);
@@ -3409,26 +2838,26 @@ watch(() => billingSettings.value?.contract_numbering_method, (newValue) => {
 // Автосохранение настроек при изменении (оставляем, но с задержкой)
 watch(() => billingSettings.value?.contract_numbering_method, (newValue, oldValue) => {
   if (!billingSettings.value || !currentCompanyId.value) return
-  
+
   // Пропускаем сохранение при первоначальной загрузке (когда oldValue undefined)
   if (oldValue === undefined) {
     console.log('⏭️ Пропускаем сохранение при первоначальной загрузке');
     return
   }
-  
+
   console.log(`📝 Изменен contract_numbering_method: ${oldValue} → ${newValue}`);
-  
+
   // Проверяем, что contract_numbering_method не равен 'bitrix24' перед сохранением
   if (newValue === 'bitrix24') {
     billingSettings.value.contract_numbering_method = 'manual'
     return
   }
-  
+
   // Отменяем предыдущий таймер, если есть
   if (saveSettingsTimeout) {
     clearTimeout(saveSettingsTimeout)
   }
-  
+
   // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
   saveSettingsTimeout = setTimeout(() => {
     console.log('⏰ Таймер сработал, вызываем saveSettings()');
@@ -3439,19 +2868,19 @@ watch(() => billingSettings.value?.contract_numbering_method, (newValue, oldValu
 // Автосохранение для минимального количества дней для полного месяца
 watch(() => billingSettings.value?.min_days_for_full_month, (newValue, oldValue) => {
   if (!billingSettings.value || !currentCompanyId.value) return
-  
+
   // Пропускаем сохранение при первоначальной загрузке
   if (oldValue === undefined) {
     return
   }
-  
+
   console.log(`📝 Изменен min_days_for_full_month: ${oldValue} → ${newValue}`);
-  
+
   // Отменяем предыдущий таймер, если есть
   if (saveSettingsTimeout) {
     clearTimeout(saveSettingsTimeout)
   }
-  
+
   // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
   saveSettingsTimeout = setTimeout(() => {
     console.log('⏰ Таймер сработал, вызываем saveSettings()');
@@ -3464,24 +2893,24 @@ watch(
   () => billingSettings.value,
   (_newValue, oldValue) => {
     if (!billingSettings.value || !currentCompanyId.value) return
-    
+
     // Пропускаем сохранение при первоначальной загрузке
     if (!oldValue || !initialSettingsSnapshot.value) {
       return
     }
-    
+
     // Проверяем, что изменения есть (dirty check)
     if (!settingsDirty.value) {
       return
     }
-    
+
     console.log('📝 Изменены настройки биллинга');
-    
+
     // Отменяем предыдущий таймер, если есть
     if (saveSettingsTimeout) {
       clearTimeout(saveSettingsTimeout)
     }
-    
+
     // Устанавливаем новый таймер для автосохранения через 500ms после последнего изменения
     saveSettingsTimeout = setTimeout(() => {
       console.log('⏰ Таймер сработал, вызываем saveSettings()');
@@ -3787,7 +3216,7 @@ const getMetricDetail = (metricKey: string, widget: any) => {
       const days = metricKey === 'payment_activity_7d' ? 7 : 30
       const cutoffDate = new Date()
       cutoffDate.setDate(cutoffDate.getDate() - days)
-      
+
       return {
         ...baseDetail,
         tableHeaders: [
@@ -3893,7 +3322,7 @@ const getMetricDescription = (metricKey: string): string => {
 
 const getMetricSubtitle = (metricKey: string, value: string | number): string => {
   const val = typeof value === 'string' ? parseFloat(value) : value
-  
+
   switch (metricKey) {
     case 'total_revenue':
       return 'Общая выручка компании'
@@ -4092,7 +3521,7 @@ const runDryRun = async () => {
 
 // Тест уведомлений
 const testNotifDialog = ref(false)
-const testNotifForm = ref<{ channel: 'email'|'system'|'slack'; template: 'invoice_due'|'invoice_created'|'subscription_expiring'; to?: string }>({
+const testNotifForm = ref<{ channel: 'email' | 'system' | 'slack'; template: 'invoice_due' | 'invoice_created' | 'subscription_expiring'; to?: string }>({
   channel: 'system',
   template: 'invoice_created',
   to: ''
@@ -4167,10 +3596,10 @@ watch(activeTab, (newTab) => {
   if (route.query.tab !== newTab) {
     router.replace({ query: { ...route.query, tab: newTab } })
   }
-  
+
   // Обновляем статистику договоров при переключении вкладок (чтобы плитки всегда были актуальны)
   loadContractsStats()
-  
+
   if (newTab === 'invoices' && invoices.value.length === 0) {
     fetchInvoices()
   } else if (newTab === 'settings') {
@@ -4182,7 +3611,7 @@ watch(activeTab, (newTab) => {
       fetchPlans()
     }
   }
-  
+
 })
 
 // Синхронизируем activeTab с изменениями route.query.tab
@@ -4239,6 +3668,7 @@ watch(selectedContractId, (contractId) => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   border-color: rgb(var(--v-theme-primary)) !important;
 }
+
 .v-card {
   border-radius: 12px;
 }
