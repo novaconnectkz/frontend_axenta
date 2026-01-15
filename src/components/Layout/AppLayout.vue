@@ -300,6 +300,24 @@
               </div>
             </div>
 
+            <!-- Wialon интеграция (если подключена) -->
+            <div v-if="wialonIntegration.connected" class="wialon-info-section mb-3">
+              <div class="text-caption text-medium-emphasis mb-2">
+                <v-icon icon="mdi-satellite-variant" size="14" class="me-1" />
+                Wialon Hosting: <strong class="text-success">{{ wialonIntegration.userName || 'Подключено' }}</strong>
+              </div>
+              <div class="user-info-grid">
+                <div class="info-item" v-if="wialonIntegration.vehiclesCount > 0">
+                  <v-icon icon="mdi-car" size="14" class="me-1" />
+                  <span class="text-caption">{{ wialonIntegration.vehiclesCount }} объектов</span>
+                </div>
+                <div class="info-item" v-if="wialonIntegration.lastSync">
+                  <v-icon icon="mdi-sync" size="14" class="me-1" />
+                  <span class="text-caption">{{ formatTimeAgo(new Date(wialonIntegration.lastSync)) }}</span>
+                </div>
+              </div>
+            </div>
+
             <v-divider class="mb-3" />
 
             <v-list density="compact" class="pa-0">
@@ -398,6 +416,14 @@ const snackbar = ref({
   text: '',
   color: 'info',
   timeout: 5000
+});
+
+// Wialon интеграция
+const wialonIntegration = ref({
+  connected: false,
+  userName: '',
+  vehiclesCount: 0,
+  lastSync: null as string | null,
 });
 
 // Диалог справки
@@ -827,9 +853,41 @@ onMounted(() => {
   // Проверяем статус Axenta интеграции
   checkIntegrationStatus();
 
+  // Загружаем статус Wialon интеграции
+  loadWialonIntegration();
+
   // Отключаем автоматическое переключение системной темы
   // Теперь тема управляется только вручную через кнопку переключения
 });
+
+// Функция загрузки Wialon интеграции
+const loadWialonIntegration = async () => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const response = await fetch(`${API_BASE_URL}/api/wialon/config`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('axenta_token') || ''}`,
+      },
+    });
+    
+    if (response.ok) {
+      const config = await response.json();
+      if (config && config.enabled && config.token) {
+        wialonIntegration.value = {
+          connected: true,
+          userName: config.user_name || 'Подключено',
+          vehiclesCount: config.vehicles_count || 0,
+          lastSync: config.last_sync_at || null,
+        };
+      }
+    }
+  } catch (error) {
+    // Если интеграция не найдена - игнорируем
+    console.debug('Wialon integration not configured');
+  }
+};
 
 onUnmounted(() => {
   // Очищаем интервал при размонтировании компонента

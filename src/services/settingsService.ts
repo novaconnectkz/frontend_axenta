@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { config } from "@/config/env";
 import type {
+  AxentaIntegrationSettings,
   ConnectionStatus,
   IntegrationLog,
   IntegrationStats,
@@ -12,6 +13,7 @@ import type {
   NotificationChannelsResponse,
   NotificationTemplate,
   ObjectTemplate,
+  ReportTemplate,
   SystemSettings,
   SystemSettingsForm,
   TemplatesResponse,
@@ -23,6 +25,7 @@ import {
   NOTIFICATION_CHANNELS,
   NOTIFICATION_EVENTS,
   TEMPLATE_TYPES,
+  TEMPLATE_SYSTEMS,
 } from "@/types/settings";
 
 // API базовый URL
@@ -39,11 +42,11 @@ const createHeaders = (): HeadersInit => {
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
   };
-  
+
   if (token) {
     headers['Authorization'] = `Token ${token}`;
   }
-  
+
   return headers;
 };
 
@@ -157,6 +160,28 @@ const demoIntegrations: IntegrationWithSettings[] = [
       template_footer: "<p>С уважением,<br>Команда CRM</p></div>",
     },
   },
+  {
+    id: "6",
+    type: INTEGRATION_TYPES.WIALON,
+    name: "Wialon Hosting",
+    description: "Интеграция с системой GPS-мониторинга Wialon для получения данных о транспорте, датчиках и техобслуживании",
+    status: INTEGRATION_STATUSES.INACTIVE,
+    enabled: false,
+    created_at: new Date("2024-01-15T10:00:00"),
+    updated_at: new Date("2024-01-15T10:00:00"),
+    settings: {
+      api_url: "https://hst-api.wialon.com",
+      token: "",
+      data_center: "com" as const,
+      auto_sync_enabled: false,
+      sync_interval: 5,
+      sync_vehicles: true,
+      sync_sensors: true,
+      sync_maintenance: true,
+      sync_drivers: true,
+      sync_geozones: true,
+    },
+  },
 ];
 
 // Демо данные для каналов уведомлений
@@ -224,6 +249,7 @@ const demoObjectTemplates: ObjectTemplate[] = [
   {
     id: "1",
     type: TEMPLATE_TYPES.OBJECT,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Стандартный объект мониторинга",
     description:
       "Базовый шаблон для создания объектов мониторинга с обязательными полями",
@@ -295,6 +321,7 @@ const demoObjectTemplates: ObjectTemplate[] = [
   {
     id: "2",
     type: TEMPLATE_TYPES.OBJECT,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Промышленный объект",
     description: "Шаблон для промышленных и производственных объектов",
     category: "Специализированные",
@@ -361,6 +388,7 @@ const demoUserTemplates: UserTemplate[] = [
   {
     id: "3",
     type: TEMPLATE_TYPES.USER,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Менеджер по продажам",
     description:
       "Шаблон для создания пользователей с ролью менеджера по продажам",
@@ -393,6 +421,7 @@ const demoUserTemplates: UserTemplate[] = [
   {
     id: "4",
     type: TEMPLATE_TYPES.USER,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Технический специалист",
     description: "Шаблон для монтажников и технических специалистов",
     category: "Техническая поддержка",
@@ -426,6 +455,7 @@ const demoNotificationTemplates: NotificationTemplate[] = [
   {
     id: "5",
     type: TEMPLATE_TYPES.NOTIFICATION,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Уведомление о новом монтаже",
     description: "Шаблон уведомления при создании нового монтажа",
     category: "Монтажи",
@@ -462,6 +492,7 @@ const demoNotificationTemplates: NotificationTemplate[] = [
   {
     id: "6",
     type: TEMPLATE_TYPES.NOTIFICATION,
+    system: TEMPLATE_SYSTEMS.AXENTA,
     name: "Предупреждение о низких остатках",
     description: "Уведомление о критически низких остатках на складе",
     category: "Склад",
@@ -675,7 +706,8 @@ const demoIntegrationLogs: IntegrationLog[] = [
 ];
 
 class SettingsService {
-  private baseUrl = config.apiBaseUrl;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _baseUrl = config.apiBaseUrl;
   private apiClient = axios.create({
     baseURL: config.apiBaseUrl,
     timeout: 30000,
@@ -688,7 +720,7 @@ class SettingsService {
       if (token) {
         config.headers.Authorization = `Token ${token}`;
       }
-      
+
       const companyRaw = localStorage.getItem('axenta_company');
       if (companyRaw) {
         try {
@@ -701,7 +733,7 @@ class SettingsService {
           console.error('Error parsing company data:', error);
         }
       }
-      
+
       return config;
     });
   }
@@ -850,7 +882,7 @@ class SettingsService {
     try {
       const headers = createHeaders();
       let url = '';
-      
+
       // Определяем URL в зависимости от типа шаблона
       if (type === 'report') {
         url = `${API_BASE_URL}/api/reports/templates`;
@@ -874,13 +906,13 @@ class SettingsService {
       }
 
       const response = await fetch(url, { headers });
-      
+
       if (!response.ok) {
         throw new Error(`Ошибка загрузки шаблонов: ${response.statusText}`);
       }
 
       let templates: (ObjectTemplate | UserTemplate | NotificationTemplate | ReportTemplate)[] = [];
-      
+
       if (type === 'report') {
         const data = await response.json();
         // Преобразуем данные бэкенда в формат фронтенда
@@ -888,14 +920,14 @@ class SettingsService {
       } else if (type === 'user') {
         const data = await response.json();
         if (data.status === 'success' && data.data) {
-          templates = Array.isArray(data.data.items) 
+          templates = Array.isArray(data.data.items)
             ? data.data.items.map((t: any) => this.mapUserTemplateFromBackend(t))
             : [];
         }
       } else if (type === 'object') {
         const data = await response.json();
         if (data.status === 'success' && data.data) {
-          templates = Array.isArray(data.data.items) 
+          templates = Array.isArray(data.data.items)
             ? data.data.items.map((t: any) => this.mapObjectTemplateFromBackend(t))
             : [];
         }
@@ -1051,7 +1083,7 @@ class SettingsService {
         if (templateData.settings) {
           config.settings = templateData.settings;
         }
-        
+
         body = {
           name: templateData.name,
           description: templateData.description || '',
@@ -1103,7 +1135,7 @@ class SettingsService {
       }
 
       const data = await response.json();
-      
+
       // Преобразуем ответ в формат фронтенда
       let mappedTemplate: any;
       if (templateData.type === 'report') {
@@ -1117,9 +1149,9 @@ class SettingsService {
       return { status: 'success', data: mappedTemplate };
     } catch (error) {
       console.error('Ошибка создания шаблона:', error);
-      return { 
-        status: 'error', 
-        error: error instanceof Error ? error.message : 'Ошибка создания шаблона' 
+      return {
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Ошибка создания шаблона'
       };
     }
   }
@@ -1189,14 +1221,14 @@ class SettingsService {
       const response = await this.apiClient.put(`/auth/system/settings`, data, {
         params: { company_id: companyId }
       });
-      
+
       console.log('✅ Системные настройки обновлены:', response.data.data);
-      
+
       // Если обновлены настройки НДС, они автоматически синхронизированы с billing_settings на бэкенде
       if (data.vat_rate_preset !== undefined || data.vat_rate_custom !== undefined) {
         console.log('✅ Настройки НДС синхронизированы с биллингом');
       }
-      
+
       return response.data.data;
     } catch (error) {
       console.error('Error updating system settings:', error);
@@ -1301,9 +1333,8 @@ class SettingsService {
     } catch (error) {
       return {
         success: false,
-        message: `Ошибка импорта: ${
-          error instanceof Error ? error.message : "Неизвестная ошибка"
-        }`,
+        message: `Ошибка импорта: ${error instanceof Error ? error.message : "Неизвестная ошибка"
+          }`,
         imported_count: 0,
       };
     }
@@ -1312,7 +1343,7 @@ class SettingsService {
   // ===== Общий API для интеграций =====
 
   // Получение списка всех интеграций (настроенных и доступных)
-  async getIntegrationsList(): Promise<{type: string; configured: boolean; is_active: boolean}[]> {
+  async getIntegrationsList(): Promise<{ type: string; configured: boolean; is_active: boolean }[]> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/integrations`, {
         method: 'GET',
@@ -1344,7 +1375,7 @@ class SettingsService {
         return null; // Не делаем запрос, если не настроена
       }
     }
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/axenta/config`, {
         method: 'GET',
@@ -1370,7 +1401,7 @@ class SettingsService {
       }
 
       const data = await response.json();
-      
+
       // Преобразуем ответ в формат IntegrationWithSettings
       return {
         id: data.integration.id.toString(),
@@ -1494,7 +1525,7 @@ class SettingsService {
       // Проверяем тип ответа перед парсингом JSON
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1541,7 +1572,7 @@ class SettingsService {
       // Проверяем тип ответа перед парсингом JSON
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1573,6 +1604,210 @@ class SettingsService {
     }
   }
 
+  // === WIALON ИНТЕГРАЦИЯ ===
+
+  // Получение конфигурации Wialon
+  async getWialonConfig(): Promise<any | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wialon/config`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Ошибка получения конфигурации: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Ошибка получения конфигурации Wialon:', error);
+      return null;
+    }
+  }
+
+  // Получение аккаунтов Wialon
+  async getWialonAccounts(): Promise<{
+    items: Array<{
+      id: number;
+      name: string;
+      type: string;
+      is_active: boolean;
+      objects_total: number;
+      objects_active: number;
+    }>;
+    total: number;
+    stats: {
+      total: number;
+      active: number;
+      blocked: number;
+      objects_total: number;
+    };
+  } | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wialon/accounts`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Ошибка получения аккаунтов: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data;
+    } catch (error) {
+      console.error('Ошибка получения аккаунтов Wialon:', error);
+      return null;
+    }
+  }
+
+  // Получение объектов (units) Wialon
+  async getWialonUnits(): Promise<{
+    items: Array<{
+      id: number;
+      nm: string;        // Название (поле nm в Wialon API)
+      uid: string;       // Уникальный ID (IMEI)
+      hw?: number;       // ID типа устройства
+      hw_name?: string;  // Название типа устройства
+      ph?: string;       // Телефон 1
+      ph2?: string;      // Телефон 2
+      last_message?: number; // Время последнего сообщения (UTC timestamp)
+      ct?: number;       // Время создания объекта (UTC timestamp)
+    }>;
+    total: number;
+  } | null> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wialon/units`, {
+        method: 'GET',
+        headers: createHeaders(),
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.data || result;
+    } catch (error) {
+      console.error('Ошибка получения объектов Wialon:', error);
+      return null;
+    }
+  }
+
+  // Настройка интеграции Wialon
+  async setupWialonIntegration(settings: any): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wialon/setup`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          token: settings.token,
+          data_center: settings.data_center || 'com',
+          sync_interval: settings.sync_interval || 5,
+          auto_sync_enabled: settings.auto_sync_enabled || false,
+          sync_vehicles: settings.sync_vehicles || true,
+          sync_sensors: settings.sync_sensors || true,
+          sync_maintenance: settings.sync_maintenance || true,
+          sync_drivers: settings.sync_drivers || true,
+          sync_geozones: settings.sync_geozones || true,
+          enabled: settings.enabled || false,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      let data: any;
+
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Неожиданный формат ответа:', text);
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Ошибка настройки интеграции: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Интеграция с Wialon успешно настроена',
+      };
+    } catch (error) {
+      console.error('Ошибка настройки Wialon интеграции:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  // Обновление настроек Wialon интеграции
+  async updateWialonIntegration(settings: any): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/wialon/setup`, {
+        method: 'PUT',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          token: settings.token,
+          data_center: settings.data_center || 'com',
+          sync_interval: settings.sync_interval || 5,
+          auto_sync_enabled: settings.auto_sync_enabled || false,
+          sync_vehicles: settings.sync_vehicles || true,
+          sync_sensors: settings.sync_sensors || true,
+          sync_maintenance: settings.sync_maintenance || true,
+          sync_drivers: settings.sync_drivers || true,
+          sync_geozones: settings.sync_geozones || true,
+          enabled: settings.enabled || false,
+        }),
+      });
+
+      const contentType = response.headers.get('content-type');
+      let data: any;
+
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Неожиданный формат ответа:', text);
+        throw new Error(`Ошибка сервера: ${response.status} ${response.statusText}`);
+      }
+
+      // Если интеграция не найдена (404), пробуем создать новую
+      if (response.status === 404) {
+        console.log('Интеграция не найдена, создаем новую...');
+        return await this.setupWialonIntegration(settings);
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || `Ошибка обновления интеграции: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: data.message || 'Настройки интеграции Wialon обновлены',
+      };
+    } catch (error) {
+      console.error('Ошибка обновления Wialon интеграции:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
   // === TELEGRAM ИНТЕГРАЦИЯ ===
 
   // Настройка Telegram интеграции
@@ -1594,7 +1829,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1638,7 +1873,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1683,7 +1918,7 @@ class SettingsService {
         return null; // Не делаем запрос, если не настроена
       }
     }
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/integrations/telegram/config`, {
         method: 'GET',
@@ -1764,7 +1999,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1804,7 +2039,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1845,7 +2080,7 @@ class SettingsService {
         return null; // Не делаем запрос, если не настроена
       }
     }
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/integrations/max/config`, {
         method: 'GET',
@@ -1925,7 +2160,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -1968,7 +2203,7 @@ class SettingsService {
 
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         data = await response.json();
       } else {
@@ -2118,9 +2353,9 @@ class SettingsService {
   }
 
   // Проверка статуса Axenta интеграции
-  async checkAxentaIntegrationStatus(): Promise<{ 
-    isConfigured: boolean; 
-    isActive: boolean; 
+  async checkAxentaIntegrationStatus(): Promise<{
+    isConfigured: boolean;
+    isActive: boolean;
     needsPassword: boolean;
     lastSync?: Date;
     errorMessage?: string;
@@ -2143,7 +2378,7 @@ class SettingsService {
       }
 
       const data = await response.json();
-      
+
       return {
         isConfigured: data.configured || false,
         isActive: data.active || false,
@@ -2224,7 +2459,17 @@ class SettingsService {
   }
 
   // Получение статуса Axenta интеграции
-  async getAxentaIntegrationStatus(): Promise<IntegrationStatusResponse | null> {
+  async getAxentaIntegrationStatus(): Promise<{
+    is_active: boolean;
+    last_sync_at: Date | null;
+    last_error_at: Date | null;
+    error_message?: string;
+    sync_count?: number;
+    error_count?: number;
+    success_count?: number;
+    success_rate?: number;
+    next_sync_at?: Date | null;
+  } | null> {
     try {
       const response = await fetch(`${API_BASE_URL}/api/axenta/status`, {
         method: 'GET',
@@ -2239,7 +2484,7 @@ class SettingsService {
       }
 
       const data = await response.json();
-      
+
       return {
         is_active: data.status.is_active,
         last_sync_at: data.status.last_sync_at ? new Date(data.status.last_sync_at) : null,

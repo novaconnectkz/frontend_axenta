@@ -22,6 +22,9 @@ export const INTEGRATION_TYPES = {
   TELEGRAM: "telegram",
   EMAIL: "email",
   SMS: "sms",
+  WIALON: "wialon",
+  NOVACONNECT: "novaconnect",
+  MAX: "max",
 } as const;
 
 export type IntegrationType =
@@ -35,7 +38,7 @@ export interface IntegrationBase {
   description: string;
   status: IntegrationStatus;
   enabled: boolean;
-  lastSync?: Date;
+  lastSync?: Date | null;
   lastError?: string;
   created_at: Date;
   updated_at: Date;
@@ -80,12 +83,52 @@ export interface OneCIntegrationSettings {
   include_counterparties: boolean;
 }
 
+// Настройки интеграции с Wialon Hosting
+export interface WialonIntegrationSettings {
+  api_url: string; // URL API хоста (например, https://hst-api.wialon.com)
+  token: string; // Токен авторизации (72 символа)
+  data_center: "com" | "us" | "eu" | "org"; // Дата-центр Wialon
+  auto_sync_enabled: boolean;
+  sync_interval: number; // Интервал синхронизации в минутах
+  sync_vehicles: boolean; // Синхронизировать объекты/транспорт
+  sync_sensors: boolean; // Синхронизировать датчики
+  sync_maintenance: boolean; // Синхронизировать интервалы ТО
+  sync_drivers: boolean; // Синхронизировать водителей
+  sync_geozones: boolean; // Синхронизировать геозоны
+}
+
 // Интеграция с настройками
 export interface IntegrationWithSettings extends IntegrationBase {
   settings:
-    | AxentaIntegrationSettings
-    | Bitrix24IntegrationSettings
-    | OneCIntegrationSettings;
+  | AxentaIntegrationSettings
+  | Bitrix24IntegrationSettings
+  | OneCIntegrationSettings
+  | WialonIntegrationSettings
+  | TelegramIntegrationSettings
+  | EmailIntegrationSettings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  | Record<string, any>; // Для расширяемости других интеграций
+}
+
+// Настройки Telegram интеграции (для карточки интеграций)
+export interface TelegramIntegrationSettings {
+  bot_token: string;
+  default_chat_id?: string;
+  parse_mode: "HTML" | "Markdown" | "MarkdownV2";
+  disable_notifications?: boolean;
+  silent_hours_start?: string;
+  silent_hours_end?: string;
+}
+
+// Настройки Email интеграции (для карточки интеграций)
+export interface EmailIntegrationSettings {
+  smtp_host: string;
+  smtp_port: number;
+  smtp_username: string;
+  smtp_password: string;
+  smtp_use_tls: boolean;
+  smtp_from_email: string;
+  smtp_from_name: string;
 }
 
 // === УВЕДОМЛЕНИЯ ===
@@ -489,6 +532,9 @@ export const INTEGRATION_TYPE_LABELS = {
   [INTEGRATION_TYPES.TELEGRAM]: "Telegram Bot",
   [INTEGRATION_TYPES.EMAIL]: "Email SMTP",
   [INTEGRATION_TYPES.SMS]: "SMS Gateway",
+  [INTEGRATION_TYPES.WIALON]: "Wialon Hosting",
+  [INTEGRATION_TYPES.NOVACONNECT]: "NovaConnect API",
+  [INTEGRATION_TYPES.MAX]: "MAX Messenger",
 } as const;
 
 // Метки каналов уведомлений

@@ -14,22 +14,40 @@
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
-        <AppleCard 
-          :title="stats.total.toString()" 
-          subtitle="Доступных записей"
-          icon="mdi-account-group" 
-          icon-color="primary" 
-          variant="outlined" 
-          class="stat-card" 
-        />
-        <AppleCard 
-          :title="stats.active.toString()" 
-          subtitle="Активных"
-          icon="mdi-account-check" 
-          icon-color="success" 
-          variant="outlined" 
-          class="stat-card" 
-        />
+        <v-tooltip location="bottom">
+          <template #activator="{ props }">
+            <AppleCard 
+              v-bind="props"
+              :title="totalStats.total.toString()" 
+              subtitle="Доступных записей"
+              icon="mdi-account-group" 
+              icon-color="primary" 
+              variant="outlined" 
+              class="stat-card" 
+            />
+          </template>
+          <div class="stats-tooltip">
+            <div><strong>Axenta:</strong> {{ stats.total }}</div>
+            <div><strong>Wialon:</strong> {{ wialonStats.total }}</div>
+          </div>
+        </v-tooltip>
+        <v-tooltip location="bottom">
+          <template #activator="{ props }">
+            <AppleCard 
+              v-bind="props"
+              :title="totalStats.active.toString()" 
+              subtitle="Активных"
+              icon="mdi-account-check" 
+              icon-color="success" 
+              variant="outlined" 
+              class="stat-card" 
+            />
+          </template>
+          <div class="stats-tooltip">
+            <div><strong>Axenta:</strong> {{ stats.active }}</div>
+            <div><strong>Wialon:</strong> {{ wialonStats.active }}</div>
+          </div>
+        </v-tooltip>
         <AppleCard 
           :title="stats.clients.toString()" 
           subtitle="Клиентов"
@@ -99,6 +117,16 @@
               variant="outlined"
               density="comfortable"
               @update:model-value="onStatusFilterChange"
+            />
+          </div>
+          <div class="filter-item">
+            <v-select
+              v-model="filters.source"
+              label="Система"
+              :items="sourceOptions"
+              variant="outlined"
+              density="comfortable"
+              @update:model-value="onSourceFilterChange"
             />
           </div>
           <div class="filter-item">
@@ -355,6 +383,20 @@
               />
             </template>
           </v-tooltip>
+        </template>
+
+        <!-- Колонка "Источник" -->
+        <template #item.source="{ item }">
+          <v-chip
+            :color="item.source === 'axenta' ? 'primary' : 'orange'"
+            size="small"
+            variant="tonal"
+          >
+            <v-icon start size="16">
+              {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
+            </v-icon>
+            {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
+          </v-chip>
         </template>
 
         <!-- Колонка "Блокировка" -->
@@ -741,6 +783,7 @@ import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { debounce } from 'lodash-es';
 import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
+import settingsService from '@/services/settingsService';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 
 // Router
@@ -778,10 +821,18 @@ const stats = ref({
   partners: 0,
 });
 
+// Объединённая статистика (Axenta + Wialon)
+const totalStats = computed(() => ({
+  total: stats.value.total + wialonStats.value.total,
+  active: stats.value.active + wialonStats.value.active,
+  blocked: stats.value.blocked + wialonStats.value.blocked,
+}));
+
 // Фильтры
-const filters = ref<AccountsFilters>({
+const filters = ref<AccountsFilters & { source?: string | null }>({
   type: null,
   is_active: null,
+  source: null, // Фильтр по системе: axenta, wialon, или null (все)
 });
 
 // Фильтр по родительскому аккаунту - по умолчанию "Все родители"
@@ -886,6 +937,13 @@ const statusOptions = [
   { title: 'Заблокированные', value: false },
 ];
 
+// Опции для фильтра по системе
+const sourceOptions = [
+  { title: 'Все системы', value: null },
+  { title: 'Axenta', value: 'axenta' },
+  { title: 'Wialon', value: 'wialon' },
+];
+
 // Опции для количества записей на странице
 const itemsPerPageOptions = [
   { value: 5, title: '5' },
@@ -902,10 +960,11 @@ const itemsPerPageOptions = [
 const headers = computed(() => [
   { title: '№', key: 'rowNumber', sortable: false, width: '60px' },
   { title: 'ID', key: 'id', sortable: true },
-  { title: 'Компания', key: 'name', sortable: true, width: '30%' },
+  { title: 'Компания', key: 'name', sortable: true, width: '25%' },
   { title: 'Тип', key: 'type', sortable: true },
   { title: 'Объекты', key: 'objectsTotal', sortable: true },
   { title: 'Статус', key: 'isActive', sortable: true },
+  { title: 'Источник', key: 'source', sortable: true },
   { title: 'Создан', key: 'creationDatetime', sortable: true },
   { title: 'Действия', key: 'actions', sortable: false },
 ]);
@@ -954,12 +1013,28 @@ const companySearchTermsArray = computed(() => {
 });
 
 
-// Computed свойство для добавления нумерации строк
+// Computed свойство для добавления нумерации строк и объединения источников
 const accountsWithNumbers = computed(() => {
   const startNumber = (currentPage.value - 1) * itemsPerPage.value + 1;
-  return accounts.value.map((account, index) => ({
+  
+  // Добавляем source='axenta' к аккаунтам Axenta
+  const axentaAccountsWithSource = accounts.value.map(account => ({
     ...account,
-    rowNumber: startNumber + index
+    source: 'axenta',
+  }));
+  
+  // Объединяем аккаунты из обоих источников
+  let allAccounts = [...axentaAccountsWithSource, ...wialonAccounts.value];
+  
+  // Фильтруем по системе если выбран фильтр
+  if (filters.value.source) {
+    allAccounts = allAccounts.filter(acc => acc.source === filters.value.source);
+  }
+  
+  // Добавляем нумерацию
+  return allAccounts.map((account, index) => ({
+    ...account,
+    rowNumber: startNumber + index,
   }));
 });
 
@@ -1198,6 +1273,70 @@ const loadAccounts = async (isBackground = false) => {
   }
 };
 
+// Статистика по системам для tooltip
+const wialonStats = ref({
+  total: 0,
+  active: 0,
+  blocked: 0,
+  objects: 0,
+});
+
+const axentaStats = ref({
+  total: 0,
+  active: 0,
+  blocked: 0,
+});
+
+// Wialon аккаунты (хранятся отдельно для объединения)
+const wialonAccounts = ref<Array<Account & { source: string }>>([]);
+
+// Загрузка аккаунтов из Wialon
+const loadWialonAccounts = async () => {
+  try {
+    const wialonData = await settingsService.getWialonAccounts();
+    
+    if (wialonData && wialonData.items) {
+      // Преобразуем Wialon аккаунты в формат Account
+      wialonAccounts.value = wialonData.items.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type as 'client' | 'partner',
+        isActive: item.is_active,
+        objectsTotal: item.objects_total,
+        objectsActive: item.objects_active,
+        source: 'wialon',
+        // Заполняем остальные поля значениями по умолчанию
+        parentAccountId: 0,
+        parentAccountName: '',
+        hierarchy: '',
+        adminId: 0,
+        adminFullname: '',
+        comment: '',
+        billingClientId: '',
+        balance: 0,
+        monthlyPayment: 0,
+        blockingBalance: 0,
+        daysBeforeBlocking: null,
+        blockingDatetime: null,
+        creationDatetime: new Date().toISOString(),
+      } as Account & { source: string }));
+      
+      // Обновляем статистику Wialon
+      wialonStats.value = {
+        total: wialonData.stats?.total || 0,
+        active: wialonData.stats?.active || 0,
+        blocked: wialonData.stats?.blocked || 0,
+        objects: wialonData.stats?.objects_total || 0,
+      };
+      
+      console.log(`📡 Загружено ${wialonAccounts.value.length} аккаунтов Wialon`);
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки аккаунтов Wialon:', error);
+    wialonAccounts.value = [];
+  }
+};
+
 // Функция для сравнения массивов аккаунтов
 const areAccountsEqual = (oldAccounts: Account[], newAccounts: Account[]): boolean => {
   if (oldAccounts.length !== newAccounts.length) return false;
@@ -1383,6 +1522,20 @@ const onStatusFilterChange = (value: boolean | null) => {
   // Сбрасываем страницу на первую при изменении фильтра
   currentPage.value = 1;
   saveFiltersToStorage(); // Сохраняем фильтры
+  loadAccounts();
+};
+
+const onSourceFilterChange = (value: string | null) => {
+  // Очищаем кэш при изменении фильтра системы
+  allAccountsCache.value = [];
+  if (cacheTimestamp.value) {
+    cacheTimestamp.value = null;
+  }
+  // Устанавливаем значение фильтра
+  filters.value.source = value;
+  // Сбрасываем страницу на первую при изменении фильтра
+  currentPage.value = 1;
+  saveFiltersToStorage();
   loadAccounts();
 };
 
@@ -1947,6 +2100,7 @@ onMounted(() => {
   
   // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
+  loadWialonAccounts(); // Загружаем аккаунты Wialon
   loadStats();
   loadParentAccounts(); // Загружаем список родительских аккаунтов
   

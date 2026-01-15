@@ -812,6 +812,158 @@
               hide-details
             />
           </div>
+
+          <!-- Настройки Wialon Hosting -->
+          <div v-if="editDialog.integration.type === 'wialon'">
+            <v-alert
+              type="info"
+              variant="tonal"
+              class="mb-4"
+              icon="mdi-information"
+            >
+              <div class="text-body-2">
+                <strong>Wialon Hosting</strong> — платформа GPS-мониторинга транспорта.
+                <br />
+                Нажмите кнопку «Получить токен» ниже для автоматической авторизации.
+              </div>
+            </v-alert>
+
+            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки Wialon API</h4>
+            
+            <v-select
+              v-model="editDialog.form.settings.data_center"
+              label="Дата-центр"
+              :items="[
+                { title: 'Основной (hst-api.wialon.com)', value: 'com' },
+                { title: 'США (hst-api.wialon.us)', value: 'us' },
+                { title: 'Европа (hst-api.wialon.eu)', value: 'eu' },
+                { title: 'Дополнительный (hst-api.wialon.org)', value: 'org' },
+                { title: 'Альтернативный (hst-api.regwialon.com)', value: 'alt' }
+              ]"
+              variant="outlined"
+              hint="Выберите дата-центр, в котором находится ваш аккаунт Wialon"
+              persistent-hint
+              class="mb-3"
+            />
+            
+            <v-text-field
+              v-model="editDialog.form.settings.token"
+              label="API Token"
+              :type="showToken ? 'text' : 'password'"
+              variant="outlined"
+              hint="72-символьный токен авторизации Wialon"
+              persistent-hint
+              :rules="[v => !v || v.length === 72 || 'Токен должен состоять из 72 символов']"
+              class="mb-2"
+            >
+              <template #append-inner>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="showToken = !showToken"
+                  class="mr-1"
+                >
+                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                </v-btn>
+                <v-btn
+                  icon
+                  variant="text"
+                  size="small"
+                  @click="copyToken"
+                  :disabled="!editDialog.form.settings.token"
+                >
+                  <v-icon>mdi-content-copy</v-icon>
+                </v-btn>
+              </template>
+            </v-text-field>
+            
+            <v-btn
+              color="primary"
+              variant="tonal"
+              size="small"
+              prepend-icon="mdi-key"
+              @click="openWialonOAuth"
+              class="mb-4"
+            >
+              Получить токен
+            </v-btn>
+            <div class="text-caption text-medium-emphasis mb-3">
+              Нажмите кнопку выше, авторизуйтесь в Wialon и скопируйте полученный токен
+            </div>
+
+            <v-divider class="my-4" />
+
+            <h5 class="text-subtitle-2 font-weight-bold mb-3">Настройки синхронизации</h5>
+            
+            <v-text-field
+              v-model.number="editDialog.form.settings.sync_interval"
+              label="Интервал синхронизации (минуты)"
+              type="number"
+              variant="outlined"
+              hint="Как часто синхронизировать данные с Wialon (мин. 1 мин)"
+              persistent-hint
+              :rules="[v => v >= 1 || 'Минимум 1 минута']"
+              class="mb-3"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.auto_sync_enabled"
+              label="Автоматическая синхронизация"
+              color="primary"
+              hint="Включить автоматическую синхронизацию данных"
+              persistent-hint
+              class="mb-3"
+            />
+
+            <v-divider class="my-4" />
+
+            <h5 class="text-subtitle-2 font-weight-bold mb-3">Данные для синхронизации</h5>
+            
+            <v-switch
+              v-model="editDialog.form.settings.sync_vehicles"
+              label="Объекты мониторинга (транспорт)"
+              color="primary"
+              hint="Синхронизировать данные о транспортных средствах"
+              persistent-hint
+              class="mb-2"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.sync_sensors"
+              label="Датчики"
+              color="primary"
+              hint="Синхронизировать данные с датчиков объектов"
+              persistent-hint
+              class="mb-2"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.sync_maintenance"
+              label="Интервалы ТО"
+              color="primary"
+              hint="Синхронизировать данные о техническом обслуживании"
+              persistent-hint
+              class="mb-2"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.sync_drivers"
+              label="Водители"
+              color="primary"
+              hint="Синхронизировать данные о водителях"
+              persistent-hint
+              class="mb-2"
+            />
+            
+            <v-switch
+              v-model="editDialog.form.settings.sync_geozones"
+              label="Геозоны"
+              color="primary"
+              hint="Синхронизировать данные о геозонах"
+              persistent-hint
+            />
+          </div>
         </v-card-text>
 
         <v-divider />
@@ -854,7 +1006,7 @@ import type {
     IntegrationWithSettings,
     AxentaIntegrationSettings
 } from '@/types/settings';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -883,6 +1035,11 @@ const snackbar = ref({
 // Переменные для управления токеном
 const showToken = ref(false);
 const currentToken = ref('');
+
+// Хелпер для типобезопасного доступа к настройкам интеграции
+const getSettings = (integration: IntegrationWithSettings): Record<string, any> => {
+  return integration.settings as Record<string, any>;
+};
 
 // Вычисляемые свойства
 const stats = computed(() => {
@@ -916,7 +1073,8 @@ const getIntegrationIcon = (type: string) => {
     telegram: 'mdi-telegram',
     max: 'mdi-message-flash',
     email: 'mdi-email',
-    sms: 'mdi-message-text'
+    sms: 'mdi-message-text',
+    wialon: 'mdi-map-marker-radius'
   };
   return icons[type as keyof typeof icons] || 'mdi-connection';
 };
@@ -930,7 +1088,8 @@ const getIntegrationColor = (type: string) => {
     telegram: 'cyan',
     max: 'blue',
     email: 'purple',
-    sms: 'teal'
+    sms: 'teal',
+    wialon: 'lime-darken-2'
   };
   return colors[type as keyof typeof colors] || 'primary';
 };
@@ -944,7 +1103,8 @@ const getIntegrationTypeLabel = (type: string) => {
     telegram: 'Telegram Bot',
     max: 'MAX Messenger',
     email: 'Email SMTP',
-    sms: 'SMS Gateway'
+    sms: 'SMS Gateway',
+    wialon: 'Wialon Hosting'
   } as any;
   return labels[type] || type;
 };
@@ -1161,6 +1321,90 @@ const loadIntegrations = async () => {
           auto_sync_enabled: false,
           retry_attempts: 3,
           timeout: 30,
+        },
+      });
+    }
+    
+    // Wialon Hosting интеграция - загружаем из БД если настроена
+    try {
+      const wialonConfig = await settingsService.getWialonConfig();
+      
+      if (wialonConfig) {
+        // Настройки найдены в БД
+        allIntegrations.push({
+          id: 'wialon',
+          type: 'wialon',
+          name: 'Wialon Hosting',
+          description: 'Интеграция с системой GPS-мониторинга Wialon для получения данных о транспорте, датчиках и техобслуживании',
+          status: (wialonConfig.token && wialonConfig.enabled) ? 'active' : 'inactive',
+          enabled: wialonConfig.enabled || false,
+          lastSync: wialonConfig.last_sync_at || null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            api_url: 'https://hst-api.wialon.com',
+            token: wialonConfig.token || '',
+            data_center: wialonConfig.data_center || 'com',
+            auto_sync_enabled: wialonConfig.auto_sync_enabled || false,
+            sync_interval: wialonConfig.sync_interval || 5,
+            sync_vehicles: wialonConfig.sync_vehicles !== undefined ? wialonConfig.sync_vehicles : true,
+            sync_sensors: wialonConfig.sync_sensors !== undefined ? wialonConfig.sync_sensors : true,
+            sync_maintenance: wialonConfig.sync_maintenance !== undefined ? wialonConfig.sync_maintenance : true,
+            sync_drivers: wialonConfig.sync_drivers !== undefined ? wialonConfig.sync_drivers : true,
+            sync_geozones: wialonConfig.sync_geozones !== undefined ? wialonConfig.sync_geozones : true,
+            enabled: wialonConfig.enabled || false,
+          },
+        });
+      } else {
+        // Настройки не найдены в БД — добавляем пустую форму
+        allIntegrations.push({
+          id: 'wialon',
+          type: 'wialon',
+          name: 'Wialon Hosting',
+          description: 'Интеграция с системой GPS-мониторинга Wialon для получения данных о транспорте, датчиках и техобслуживании',
+          status: 'inactive',
+          enabled: false,
+          lastSync: null,
+          created_at: new Date(),
+          updated_at: new Date(),
+          settings: {
+            api_url: 'https://hst-api.wialon.com',
+            token: '',
+            data_center: 'com',
+            auto_sync_enabled: false,
+            sync_interval: 5,
+            sync_vehicles: true,
+            sync_sensors: true,
+            sync_maintenance: true,
+            sync_drivers: true,
+            sync_geozones: true,
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Ошибка загрузки настроек Wialon из БД:', error);
+      // При ошибке показываем пустую форму
+      allIntegrations.push({
+        id: 'wialon',
+        type: 'wialon',
+        name: 'Wialon Hosting',
+        description: 'Интеграция с системой GPS-мониторинга Wialon для получения данных о транспорте, датчиках и техобслуживании',
+        status: 'inactive',
+        enabled: false,
+        lastSync: null,
+        created_at: new Date(),
+        updated_at: new Date(),
+        settings: {
+          api_url: 'https://hst-api.wialon.com',
+          token: '',
+          data_center: 'com',
+          auto_sync_enabled: false,
+          sync_interval: 5,
+          sync_vehicles: true,
+          sync_sensors: true,
+          sync_maintenance: true,
+          sync_drivers: true,
+          sync_geozones: true,
         },
       });
     }
@@ -1528,27 +1772,6 @@ const loadIntegrations = async () => {
       });
     }
     
-    allIntegrations.push({
-      id: 'sms-demo',
-      type: 'sms',
-      name: 'SMS Gateway',
-      description: 'Интеграция с SMS провайдером для отправки SMS уведомлений',
-      status: 'inactive',
-      enabled: false,
-      lastSync: null,
-      created_at: new Date('2024-01-01T10:00:00'),
-      updated_at: new Date('2024-01-15T14:30:00'),
-      settings: {
-        provider: 'smsc',
-        api_key: '*********************',
-        api_secret: '*********************',
-        from_number: '+79001234567',
-        test_mode: true,
-        max_retry_attempts: 3,
-        retry_delay_minutes: 5,
-      },
-    });
-    
     integrations.value = allIntegrations;
   } catch (error) {
     console.error('Ошибка загрузки интеграций:', error);
@@ -1594,6 +1817,27 @@ const toggleIntegration = async (integration: IntegrationWithSettings) => {
         if (result.success) {
           // Обновляем статус на основе актуальной конфигурации из БД
           const refreshed = await settingsService.getNovaConnectConfig();
+          integration.status = (refreshed?.token && integration.enabled) ? 'active' : 'inactive';
+        } else {
+          throw new Error(result.message || 'Ошибка обновления статуса');
+        }
+      } else {
+        // Нет настроек — статус неактивен
+        integration.status = 'inactive';
+      }
+    } else if (integration.type === 'wialon') {
+      // Для Wialon сохраняем в БД
+      const config = await settingsService.getWialonConfig();
+      if (config) {
+        // Обновляем только поле enabled
+        const result = await settingsService.updateWialonIntegration({
+          ...config,
+          enabled: integration.enabled,
+        });
+        
+        if (result.success) {
+          // Обновляем статус на основе актуальной конфигурации из БД
+          const refreshed = await settingsService.getWialonConfig();
           integration.status = (refreshed?.token && integration.enabled) ? 'active' : 'inactive';
         } else {
           throw new Error(result.message || 'Ошибка обновления статуса');
@@ -1670,14 +1914,63 @@ const testConnection = async (integration: IntegrationWithSettings) => {
       } else {
         showSnackbar(result.message, 'error');
       }
+    } else if (integration.type === 'wialon') {
+      // Тестируем подключение к Wialon API через бэкенд (обход CORS)
+      const settings = getSettings(integration);
+      let token = settings.token || '';
+      let dataCenter = settings.data_center || 'com';
+      
+      // Пытаемся загрузить токен из БД, если он не найден в настройках
+      if (!token) {
+        try {
+          const config = await settingsService.getWialonConfig();
+          if (config && config.token) {
+            token = config.token;
+            dataCenter = config.data_center || 'com';
+          }
+        } catch (error) {
+          console.error('Ошибка загрузки конфигурации Wialon из БД:', error);
+        }
+      }
+      
+      if (!token) {
+        throw new Error('Токен не указан. Настройте интеграцию и укажите токен.');
+      }
+      
+      if (token.length !== 72) {
+        throw new Error('Неверный формат токена. Токен должен состоять из 72 символов.');
+      }
+      
+      // Вызываем бэкенд API для теста подключения (обход CORS)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/wialon/test-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('axenta_token') || ''}`,
+        },
+        body: JSON.stringify({ token, data_center: dataCenter }),
+      });
+      
+      const data = await response.json();
+      result = { success: data.success, message: data.message };
+      
+      if (data.success) {
+        showSnackbar(
+          `Подключение к Wialon успешно. ${data.user_name ? `Пользователь: ${data.user_name}` : ''} ${data.response_time_ms ? `(${data.response_time_ms}ms)` : ''}`,
+          'success'
+        );
+      } else {
+        showSnackbar(data.message || 'Ошибка подключения к Wialon', 'error');
+      }
     } else if (integration.type === 'novaconnect') {
       // Тестируем подключение к API NovaConnect
       const axios = (await import('axios')).default;
       
+      const ncSettings = getSettings(integration);
       // Пытаемся получить токен из БД, если доступен
-      let token = integration.settings.token;
-      let apiUrl = integration.settings.api_url || 'https://api.novaconnect.kz/api';
-      let language = integration.settings.language || 'ru';
+      let token = ncSettings.token;
+      let apiUrl = ncSettings.api_url || 'https://api.novaconnect.kz/api';
+      let language = ncSettings.language || 'ru';
       
       if (!token) {
         // Пытаемся загрузить из БД
@@ -1781,34 +2074,36 @@ const editIntegration = async (integration: IntegrationWithSettings) => {
               };
             } else {
               // Fallback на настройки из интеграции
+              const tgSettings = getSettings(integration);
               editDialog.value.form = {
                 name: integration.name,
                 description: integration.description,
                 settings: {
-                  bot_token: integration.settings.bot_token || '',
-                  default_chat_id: integration.settings.default_chat_id || '',
-                  parse_mode: integration.settings.parse_mode || 'HTML',
-                  disable_notifications: integration.settings.disable_notifications || false,
-                  quiet_hours_start: integration.settings.quiet_hours_start || '22:00',
-                  quiet_hours_end: integration.settings.quiet_hours_end || '08:00',
-                  quiet_hours_enabled: integration.settings.quiet_hours_enabled || false,
+                  bot_token: tgSettings.bot_token || '',
+                  default_chat_id: tgSettings.default_chat_id || '',
+                  parse_mode: tgSettings.parse_mode || 'HTML',
+                  disable_notifications: tgSettings.disable_notifications || false,
+                  quiet_hours_start: tgSettings.quiet_hours_start || '22:00',
+                  quiet_hours_end: tgSettings.quiet_hours_end || '08:00',
+                  quiet_hours_enabled: tgSettings.quiet_hours_enabled || false,
                 }
               };
             }
           } catch (error) {
             console.error('Ошибка загрузки настроек Telegram из БД:', error);
             // Fallback на настройки из интеграции
+            const tgSettings = getSettings(integration);
             editDialog.value.form = {
               name: integration.name,
               description: integration.description,
               settings: {
-                bot_token: integration.settings.bot_token || '',
-                default_chat_id: integration.settings.default_chat_id || '',
-                parse_mode: integration.settings.parse_mode || 'HTML',
-                disable_notifications: integration.settings.disable_notifications || false,
-                quiet_hours_start: integration.settings.quiet_hours_start || '22:00',
-                quiet_hours_end: integration.settings.quiet_hours_end || '08:00',
-                quiet_hours_enabled: integration.settings.quiet_hours_enabled || false,
+                bot_token: tgSettings.bot_token || '',
+                default_chat_id: tgSettings.default_chat_id || '',
+                parse_mode: tgSettings.parse_mode || 'HTML',
+                disable_notifications: tgSettings.disable_notifications || false,
+                quiet_hours_start: tgSettings.quiet_hours_start || '22:00',
+                quiet_hours_end: tgSettings.quiet_hours_end || '08:00',
+                quiet_hours_enabled: tgSettings.quiet_hours_enabled || false,
               }
             };
           }
@@ -1836,18 +2131,19 @@ const editIntegration = async (integration: IntegrationWithSettings) => {
             } else {
               // Fallback на настройки из интеграции (без localStorage)
               currentToken.value = '';
+              const ncSettings = getSettings(integration);
               editDialog.value.form = {
                 name: integration.name,
                 description: integration.description,
                 settings: {
-                  api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
-                  token: integration.settings.token || '',
-                  language: integration.settings.language || 'ru',
-                  enabled: integration.settings.enabled || false,
-                  webhook_url: integration.settings.webhook_url || '',
-                  webhook_enabled: integration.settings.webhook_enabled || false,
-                  sync_interval: integration.settings.sync_interval || 15,
-                  auto_sync_enabled: integration.settings.auto_sync_enabled || false,
+                  api_url: ncSettings.api_url || 'https://api.novaconnect.kz/api',
+                  token: ncSettings.token || '',
+                  language: ncSettings.language || 'ru',
+                  enabled: ncSettings.enabled || false,
+                  webhook_url: ncSettings.webhook_url || '',
+                  webhook_enabled: ncSettings.webhook_enabled || false,
+                  sync_interval: ncSettings.sync_interval || 15,
+                  auto_sync_enabled: ncSettings.auto_sync_enabled || false,
                 }
               };
             }
@@ -1855,18 +2151,85 @@ const editIntegration = async (integration: IntegrationWithSettings) => {
             console.error('Ошибка загрузки настроек NovaConnect из БД:', error);
             // Fallback на настройки из интеграции (без localStorage)
             currentToken.value = '';
+            const ncSettings = getSettings(integration);
             editDialog.value.form = {
               name: integration.name,
               description: integration.description,
               settings: {
-                api_url: integration.settings.api_url || 'https://api.novaconnect.kz/api',
-                token: integration.settings.token || '',
-                language: integration.settings.language || 'ru',
-                enabled: integration.settings.enabled || false,
-                webhook_url: integration.settings.webhook_url || '',
-                webhook_enabled: integration.settings.webhook_enabled || false,
-                sync_interval: integration.settings.sync_interval || 15,
-                auto_sync_enabled: integration.settings.auto_sync_enabled || false,
+                api_url: ncSettings.api_url || 'https://api.novaconnect.kz/api',
+                token: ncSettings.token || '',
+                language: ncSettings.language || 'ru',
+                enabled: ncSettings.enabled || false,
+                webhook_url: ncSettings.webhook_url || '',
+                webhook_enabled: ncSettings.webhook_enabled || false,
+                sync_interval: ncSettings.sync_interval || 15,
+                auto_sync_enabled: ncSettings.auto_sync_enabled || false,
+              }
+            };
+          }
+        } else if (integration.type === 'wialon') {
+          // Загружаем актуальные настройки Wialon из БД
+          try {
+            const config = await settingsService.getWialonConfig();
+            if (config) {
+              // Используем настройки из БД
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  token: config.token || '',
+                  data_center: config.data_center || 'com',
+                  sync_interval: config.sync_interval || 5,
+                  auto_sync_enabled: config.auto_sync_enabled || false,
+                  sync_vehicles: config.sync_vehicles !== undefined ? config.sync_vehicles : true,
+                  sync_sensors: config.sync_sensors !== undefined ? config.sync_sensors : true,
+                  sync_maintenance: config.sync_maintenance !== undefined ? config.sync_maintenance : true,
+                  sync_drivers: config.sync_drivers !== undefined ? config.sync_drivers : true,
+                  sync_geozones: config.sync_geozones !== undefined ? config.sync_geozones : true,
+                  enabled: config.enabled || false,
+                }
+              };
+              currentToken.value = config.token || '';
+            } else {
+              // Fallback на настройки из интеграции
+              currentToken.value = '';
+              const wialonSettings = getSettings(integration);
+              editDialog.value.form = {
+                name: integration.name,
+                description: integration.description,
+                settings: {
+                  token: wialonSettings.token || '',
+                  data_center: wialonSettings.data_center || 'com',
+                  sync_interval: wialonSettings.sync_interval || 5,
+                  auto_sync_enabled: wialonSettings.auto_sync_enabled || false,
+                  sync_vehicles: wialonSettings.sync_vehicles !== undefined ? wialonSettings.sync_vehicles : true,
+                  sync_sensors: wialonSettings.sync_sensors !== undefined ? wialonSettings.sync_sensors : true,
+                  sync_maintenance: wialonSettings.sync_maintenance !== undefined ? wialonSettings.sync_maintenance : true,
+                  sync_drivers: wialonSettings.sync_drivers !== undefined ? wialonSettings.sync_drivers : true,
+                  sync_geozones: wialonSettings.sync_geozones !== undefined ? wialonSettings.sync_geozones : true,
+                  enabled: wialonSettings.enabled || false,
+                }
+              };
+            }
+          } catch (error) {
+            console.error('Ошибка загрузки настроек Wialon из БД:', error);
+            // Fallback на настройки из интеграции
+            currentToken.value = '';
+            const wialonSettings = getSettings(integration);
+            editDialog.value.form = {
+              name: integration.name,
+              description: integration.description,
+              settings: {
+                token: wialonSettings.token || '',
+                data_center: wialonSettings.data_center || 'com',
+                sync_interval: wialonSettings.sync_interval || 5,
+                auto_sync_enabled: wialonSettings.auto_sync_enabled || false,
+                sync_vehicles: wialonSettings.sync_vehicles !== undefined ? wialonSettings.sync_vehicles : true,
+                sync_sensors: wialonSettings.sync_sensors !== undefined ? wialonSettings.sync_sensors : true,
+                sync_maintenance: wialonSettings.sync_maintenance !== undefined ? wialonSettings.sync_maintenance : true,
+                sync_drivers: wialonSettings.sync_drivers !== undefined ? wialonSettings.sync_drivers : true,
+                sync_geozones: wialonSettings.sync_geozones !== undefined ? wialonSettings.sync_geozones : true,
+                enabled: wialonSettings.enabled || false,
               }
             };
           }
@@ -2044,6 +2407,41 @@ const saveIntegration = async () => {
         showSnackbar(result.message || 'Ошибка сохранения настроек NovaConnect', 'error');
       }
       return;
+    } else if (editDialog.value.integration.type === 'wialon') {
+      // Сохраняем настройки Wialon в БД через API
+      const settingsToSave = { ...editDialog.value.form.settings };
+      
+      // Определяем, создаем новую интеграцию или обновляем существующую
+      const existingConfig = await settingsService.getWialonConfig();
+      const isNew = !existingConfig;
+      
+      let result;
+      if (isNew) {
+        result = await settingsService.setupWialonIntegration(settingsToSave);
+      } else {
+        result = await settingsService.updateWialonIntegration(settingsToSave);
+      }
+      
+      if (result.success) {
+        // Обновляем статус интеграции в списке
+        const index = integrations.value.findIndex(i => i.id === 'wialon');
+        if (index !== -1) {
+          integrations.value[index] = {
+            ...integrations.value[index],
+            enabled: settingsToSave.enabled || false,
+            status: settingsToSave.token && settingsToSave.enabled ? 'active' : 'inactive',
+            settings: settingsToSave,
+          };
+        }
+        
+        editDialog.value.show = false;
+        showSnackbar(result.message || 'Настройки Wialon успешно сохранены в БД', 'success');
+        // Перезагружаем список интеграций для получения актуальных данных из БД
+        await loadIntegrations();
+      } else {
+        showSnackbar(result.message || 'Ошибка сохранения настроек Wialon', 'error');
+      }
+      return;
     } else {
       // Для других интеграций используем общий метод
       const updated = await settingsService.updateIntegration(
@@ -2099,6 +2497,67 @@ const copyToken = async () => {
     showSnackbar('Ошибка копирования токена', 'error');
   }
 };
+
+// Открыть OAuth форму для получения токена Wialon
+const openWialonOAuth = () => {
+  // Определяем хост на основе выбранного дата-центра
+  const dataCenterHosts: Record<string, string> = {
+    'com': 'https://hosting.wialon.com',
+    'us': 'https://hosting.wialon.us',
+    'eu': 'https://hosting.wialon.eu',
+    'org': 'https://hosting.wialon.org',
+    'alt': 'https://hosting.regwialon.com',
+  };
+  
+  const dataCenter = editDialog.value.form.settings.data_center || 'com';
+  const host = dataCenterHosts[dataCenter] || dataCenterHosts['com'];
+  
+  // Параметры OAuth
+  const params = new URLSearchParams({
+    client_id: 'Axenta CRM',        // Название приложения
+    access_type: '0xFFFFFFFF',       // Полные права (неограниченный доступ)
+    activation_time: '0',            // Активировать сразу
+    duration: '0',                   // Бессрочный токен
+    flags: '0',                      // Без дополнительных флагов
+    redirect_uri: `${window.location.origin}/wialon-callback`, // URL для редиректа
+  });
+  
+  const oauthUrl = `${host}/login.html?${params.toString()}`;
+  
+  // Открываем в новом окне
+  const popup = window.open(oauthUrl, 'WialonOAuth', 'width=600,height=500,scrollbars=yes');
+  
+  if (!popup) {
+    showSnackbar('Не удалось открыть окно авторизации. Разрешите всплывающие окна.', 'error');
+    return;
+  }
+  
+  showSnackbar('Авторизуйтесь в Wialon...', 'info');
+};
+
+// Слушатель для получения токена из callback окна
+const handleWialonTokenMessage = (event: MessageEvent) => {
+  // Проверяем источник сообщения
+  if (event.origin !== window.location.origin) return;
+  
+  if (event.data?.type === 'wialon_token' && event.data?.token) {
+    // Вставляем токен в поле формы
+    editDialog.value.form.settings.token = event.data.token;
+    // Показываем токен (не маскируем)
+    showToken.value = true;
+    showSnackbar('Токен получен и вставлен автоматически!', 'success');
+  }
+};
+
+// Регистрируем слушатель при монтировании
+onMounted(() => {
+  window.addEventListener('message', handleWialonTokenMessage);
+});
+
+// Удаляем слушатель при размонтировании
+onUnmounted(() => {
+  window.removeEventListener('message', handleWialonTokenMessage);
+});
 
 // Lifecycle
 onMounted(() => {

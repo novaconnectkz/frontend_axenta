@@ -279,6 +279,15 @@ const routes = [
 
   // === СЛУЖЕБНЫЕ СТРАНИЦЫ ===
 
+  // Wialon OAuth callback страница
+  createPublicRoute(
+    "/wialon-callback",
+    () => import("@/views/WialonCallbackPage.vue"),
+    {
+      title: "Авторизация Wialon",
+    }
+  ),
+
   createPublicRoute(
     "/access-denied",
     () => import("@/views/AccessDenied.vue"),
@@ -320,7 +329,7 @@ router.beforeEach((to, from, next) => {
     localStorage.removeItem("axenta_token_expiry");
     token = null;
   }
-  
+
   if (localToken && !isJWTTokenValid(localToken)) {
     console.log("🚨 Local token expired, removing...");
     localStorage.removeItem("local_access_token");

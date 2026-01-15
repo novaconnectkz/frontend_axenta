@@ -160,6 +160,17 @@
                 />
               </v-col>
               
+              <v-col cols="12" md="2">
+                <v-select
+                  v-model="filters.source"
+                  :items="sourceOptions"
+                  label="Система"
+                  clearable
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+              
               <v-col cols="12" md="1">
                 <v-switch
                   v-model="showDeletedObjects"
@@ -258,7 +269,7 @@
       <div v-if="viewMode === 'table'" class="table-container">
         <v-data-table
           :headers="tableHeaders"
-          :items="objects"
+          :items="combinedObjects"
           :loading="false"
           :items-per-page="pagination.per_page"
           :page="pagination.page"
@@ -335,6 +346,20 @@
           <!-- Уникальный ID -->
           <template #item.uniqueId="{ item }">
             <span class="font-mono">{{ item.uniqueId || item.external_id || 'Не указан' }}</span>
+          </template>
+
+          <!-- Источник -->
+          <template #item.source="{ item }">
+            <v-chip
+              :color="item.source === 'axenta' ? 'primary' : 'orange'"
+              size="small"
+              variant="tonal"
+            >
+              <v-icon start size="16">
+                {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
+              </v-icon>
+              {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
+            </v-chip>
           </template>
 
           <!-- Статус -->
@@ -1177,6 +1202,7 @@ import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
+import settingsService from '@/services/settingsService';
 
 // Получаем экземпляр сервиса
 const objectsService = getObjectsService();
@@ -1198,6 +1224,79 @@ const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
 const showDeletedObjects = ref(false);
 const showTrashDialog = ref(false);
+
+// Wialon объекты (хранятся отдельно для объединения)
+const wialonObjects = ref<Array<ObjectWithRelations & { source: string }>>([]);
+
+// Загрузка объектов из Wialon
+const loadWialonObjects = async () => {
+  try {
+    const wialonData = await settingsService.getWialonUnits();
+    
+    if (wialonData && wialonData.items) {
+      // Преобразуем Wialon units в формат ObjectWithRelations
+      wialonObjects.value = wialonData.items.map((item: {
+        id: number;
+        nm?: string;
+        name?: string;
+        uid?: string;
+        hw?: number;
+        hw_name?: string;  // Название типа оборудования
+        ph?: string;
+        ph2?: string;
+        last_message?: number;
+        ct?: number;       // Время создания объекта (UTC timestamp)
+      }) => {
+        // Собираем номера телефонов
+        const phones: string[] = [];
+        if (item.ph) phones.push(item.ph);
+        if (item.ph2) phones.push(item.ph2);
+
+        return {
+          id: item.id,
+          name: item.nm || item.name || '',
+          imei: item.uid || '',
+          uniqueId: item.uid || '',
+          is_active: true,
+          source: 'wialon',
+          // Заполняем остальные поля
+          accountName: '',
+          creatorName: '',
+          // Используем название типа оборудования, если есть
+          deviceTypeName: item.hw_name || (item.hw ? `Wialon HW #${item.hw}` : 'Не указан'),
+          phoneNumbers: phones,
+          // Используем дату создания из Wialon (ct)
+          createdAt: item.ct ? new Date(item.ct * 1000).toISOString() : null,
+          lastMessageDatetime: item.last_message ? new Date(item.last_message * 1000).toISOString() : null,
+        } as unknown as ObjectWithRelations & { source: string };
+      });
+      
+      console.log(`📡 Загружено ${wialonObjects.value.length} объектов Wialon`);
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки объектов Wialon:', error);
+    wialonObjects.value = [];
+  }
+};
+
+// Computed для объединённого списка объектов с учётом фильтра
+const combinedObjects = computed(() => {
+  // Добавляем source='axenta' к объектам Axenta
+  const axentaObjectsWithSource = objects.value.map(obj => ({
+    ...obj,
+    source: 'axenta',
+  }));
+  
+  // Объединяем объекты
+  let allObjects = [...axentaObjectsWithSource, ...wialonObjects.value];
+  
+  // Фильтруем по системе если выбран фильтр
+  if (filters.value.source) {
+    allObjects = allObjects.filter(obj => obj.source === filters.value.source);
+  }
+  
+  return allObjects;
+});
 
 // Поисковые состояния
 const showSearchHistory = ref(false);
@@ -1234,13 +1333,14 @@ const pagination = ref({
 });
 
 // Filters
-const filters = ref<ObjectFilters>({
+const filters = ref<ObjectFilters & { source?: string | null }>({
   search: '',
   status: undefined,
   type: undefined,
   contract_id: undefined,
   location_id: undefined,
   template_id: undefined,
+  source: null, // Фильтр по системе: axenta, wialon, или null (все)
 });
 
 // Options for selects
@@ -1396,6 +1496,13 @@ const typeOptions = [
   { title: 'Контейнер', value: 'container' },
 ];
 
+// Опции для фильтра по системе
+const sourceOptions = [
+  { title: 'Все системы', value: null },
+  { title: 'Axenta', value: 'axenta' },
+  { title: 'Wialon', value: 'wialon' },
+];
+
 // Быстрые фильтры
 const quickFilters = ref([
   { key: 'active', label: 'Активные', icon: 'mdi-check-circle', filter: { is_active: true } },
@@ -1418,6 +1525,7 @@ const tableHeaders = computed(() => [
   { title: 'Дата создания', value: 'createdAt', sortable: true },
   { title: 'Дата последнего сообщения', value: 'lastMessageDatetime', sortable: true },
   { title: 'Уникальный ID', value: 'uniqueId', sortable: true },
+  { title: 'Источник', value: 'source', sortable: true },
   ...(showDeletedObjects.value 
     ? [{ title: 'Дата удаления', value: 'deleted_at', sortable: true }]
     : [{ title: 'Плановое удаление', value: 'scheduled_delete_at', sortable: true }]
@@ -2500,6 +2608,7 @@ onMounted(async () => {
       loadContracts(),
       loadLocations(),
       loadTemplates(),
+      loadWialonObjects(), // Загружаем объекты Wialon
     ]).then(results => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {

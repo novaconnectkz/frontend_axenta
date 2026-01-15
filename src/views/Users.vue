@@ -86,6 +86,17 @@
             />
           </div>
 
+          <div class="filter-item">
+            <v-select 
+              v-model="filters.source" 
+              :items="sourceOptions" 
+              label="Система" 
+              clearable 
+              variant="outlined" 
+              density="comfortable" 
+            />
+          </div>
+
           <div class="filter-item filter-create">
             <v-btn
               icon="mdi-plus"
@@ -144,7 +155,7 @@
       <div class="table-container">
         <v-data-table 
           :headers="tableHeaders" 
-          :items="users" 
+          :items="combinedUsers" 
           :loading="loading" 
           :items-per-page="pagination.limit"
           :page="pagination.page" 
@@ -264,6 +275,20 @@
               {{ getUserTypeText(item.user_type) }}
             </div>
           </template> -->
+
+          <!-- Источник -->
+          <template #item.source="{ item }">
+            <v-chip
+              :color="item.source === 'axenta' ? 'primary' : 'orange'"
+              size="small"
+              variant="tonal"
+            >
+              <v-icon start size="16">
+                {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
+              </v-icon>
+              {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
+            </v-chip>
+          </template>
 
           <!-- Действия -->
           <template #item.actions="{ item }">
@@ -427,6 +452,7 @@ import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import usersService from '@/services/usersService';
 import accountsService from '@/services/accountsService';
+import settingsService from '@/services/settingsService';
 import type {
   UserFilters,
   UserWithRelations
@@ -450,11 +476,12 @@ const pagination = ref({
 });
 
 // Filters
-const filters = ref<UserFilters>({
+const filters = ref<UserFilters & { source?: string | null }>({
   search: '',
   role: undefined,
   user_type: undefined,
   active: undefined,
+  source: null, // Фильтр по системе: axenta, wialon, или null (все)
   ordering: '-creation_datetime', // По умолчанию сортируем по дате создания в порядке убывания
 });
 
@@ -587,6 +614,13 @@ const userTypeOptions = [
   { title: 'Администратор', value: 'admin' },
 ];
 
+// Опции для фильтра по системе
+const sourceOptions = [
+  { title: 'Все системы', value: null },
+  { title: 'Axenta', value: 'axenta' },
+  { title: 'Wialon', value: 'wialon' },
+];
+
 // Функции для правильной сортировки
 const sortByNumber = (a: any, b: any, key: string) => {
   const numA = parseInt(a[key]) || 0;
@@ -626,7 +660,7 @@ const tableHeaders = computed(() => [
     title: 'Пользователь', 
     value: 'username', 
     sortable: true, 
-    width: 200
+    width: 180
   },
   { 
     title: 'Email', 
@@ -649,6 +683,7 @@ const tableHeaders = computed(() => [
     sortable: true
   },
   { title: 'Роль', value: 'role', sortable: false },
+  { title: 'Источник', value: 'source', sortable: true },
   // { title: 'Тип', value: 'user_type', sortable: true }, // Отключено, но функционал сохранен
   { title: 'Действия', value: 'actions', sortable: false, width: 160 },
 ]);
@@ -741,10 +776,13 @@ const loadStats = async (forceRefresh: boolean = false) => {
     // Используем оптимизированный метод с кешированием
     const statsData = await usersService.getUsersStats(forceRefresh);
     if (statsData && typeof statsData === 'object') {
-      stats.value[0].value = statsData.total || 0;
-      stats.value[1].value = statsData.active_users || statsData.active || 0;
-      stats.value[2].value = statsData.inactive_users || statsData.inactive || 0;
-      stats.value[3].value = statsData.recent_users || statsData.recent_logins || 0;
+      // Сохраняем статистику Axenta
+      axentaStats.value.total = statsData.total || 0;
+      axentaStats.value.active = statsData.active_users || statsData.active || 0;
+      axentaStats.value.inactive = statsData.inactive_users || statsData.inactive || 0;
+      
+      // Обновляем общую статистику
+      updateTotalStats();
     }
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error);
@@ -754,6 +792,86 @@ const loadStats = async (forceRefresh: boolean = false) => {
     });
   }
 };
+
+// Статистика по системам
+const wialonStats = ref({
+  total: 0,
+  active: 0,
+  inactive: 0,
+});
+
+const axentaStats = ref({
+  total: 0,
+  active: 0,
+  inactive: 0,
+});
+
+// Wialon пользователи (хранятся отдельно для объединения)
+const wialonUsers = ref<Array<UserWithRelations & { source: string }>>([]);
+
+// Обновление общей статистики
+const updateTotalStats = () => {
+  stats.value[0].value = axentaStats.value.total + wialonStats.value.total;
+  stats.value[1].value = axentaStats.value.active + wialonStats.value.active;
+  stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive;
+};
+
+// Загрузка пользователей из Wialon
+const loadWialonUsers = async () => {
+  try {
+    const wialonData = await settingsService.getWialonAccounts();
+    
+    if (wialonData && wialonData.items) {
+      // Преобразуем Wialon аккаунты в формат для таблицы
+      wialonUsers.value = wialonData.items.map(item => ({
+        id: item.id,
+        username: item.name,
+        name: item.name,
+        email: '',
+        is_active: item.is_active,
+        source: 'wialon',
+        // Заполняем остальные поля значениями по умолчанию
+        role: null,
+        creator_name: '',
+        creation_datetime: new Date().toISOString(),
+      } as unknown as UserWithRelations & { source: string }));
+      
+      // Обновляем статистику Wialon
+      wialonStats.value = {
+        total: wialonData.stats?.total || 0,
+        active: wialonData.stats?.active || 0,
+        inactive: wialonData.stats?.blocked || 0,
+      };
+      
+      // Обновляем общую статистику
+      updateTotalStats();
+      
+      console.log(`📡 Загружено ${wialonUsers.value.length} пользователей Wialon`);
+    }
+  } catch (error) {
+    console.error('Ошибка загрузки пользователей Wialon:', error);
+    wialonUsers.value = [];
+  }
+};
+
+// Computed для объединённого списка пользователей с учётом фильтра
+const combinedUsers = computed(() => {
+  // Добавляем source='axenta' к пользователям Axenta
+  const axentaUsersWithSource = users.value.map(user => ({
+    ...user,
+    source: 'axenta',
+  }));
+  
+  // Объединяем пользователей
+  let allUsers = [...axentaUsersWithSource, ...wialonUsers.value];
+  
+  // Фильтруем по системе если выбран фильтр
+  if (filters.value.source) {
+    allUsers = allUsers.filter(user => user.source === filters.value.source);
+  }
+  
+  return allUsers;
+});
 
 const loadRoles = async (forceRefresh: boolean = false) => {
   try {
@@ -1236,6 +1354,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       loadUsers(),
+      loadWialonUsers(), // Загружаем пользователей Wialon
       loadStats(),
       loadRoles(),
       loadTemplates(),
