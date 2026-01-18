@@ -63,7 +63,7 @@
                 
                 <div class="detail-item">
                   <v-icon icon="mdi-domain" size="14" class="me-1" />
-                  <span>{{ auth.user.value?.company || 'Не указана' }}</span>
+                  <span>{{ auth.user.value?.accountName || 'Не указана' }}</span>
                 </div>
                 
                 <div class="detail-item">
@@ -405,6 +405,7 @@ import UserAvatar from '@/components/Common/UserAvatar.vue';
 import HelpDialog from '@/components/Common/HelpDialog.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
 import { accountsService } from '@/services/accountsService';
+import { config } from '@/config/env';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
 // Composables
@@ -416,11 +417,26 @@ const auth = useAuth();
 const { checkIntegrationStatus } = useAxentaIntegrationNotifications();
 // const { getConnectionState } = useWebSocket(); // Отключаем до исправления auth context
 
+// Интерфейсы
+interface Notification {
+  id: string | number;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+}
+
+interface Breadcrumb {
+  title: string;
+  to: string;
+  disabled?: boolean;
+}
+
 // Reactive data
 const drawer = ref(!mobile.value);
 const rail = ref(false);
 const isDarkTheme = ref(theme.current.value.dark);
-const notifications = ref([]);
+const notifications = ref<Notification[]>([]);
 const currentTime = ref(new Date());
 const timeInterval = ref<NodeJS.Timeout | null>(null);
 const lastRefresh = ref(new Date());
@@ -524,9 +540,9 @@ const currentPageIcon = computed(() => {
   return currentItem?.icon;
 });
 
-const breadcrumbs = computed(() => {
+const breadcrumbs = computed((): Breadcrumb[] => {
   const paths = route.path.split('/').filter(Boolean);
-  const crumbs = [{ title: 'Главная', to: '/dashboard' }];
+  const crumbs: Breadcrumb[] = [{ title: 'Главная', to: '/dashboard' }];
 
   let currentPath = '';
   for (const path of paths) {
@@ -548,31 +564,7 @@ const notificationsCount = computed(() => {
   return notifications.value.filter(n => !n.read).length;
 });
 
-// Аватар пользователя теперь генерируется локально в компоненте UserAvatar
-const userAvatar = computed(() => {
-  const user = auth.user.value;
-  if (user?.avatar) return user.avatar;
-  return null; // Используем локальный компонент вместо внешнего сервиса
-});
-
-const wsStatus = computed(() => {
-  // Временно отключаем WebSocket статус до исправления auth context
-  return { icon: 'mdi-wifi-off', color: 'grey', text: 'Отключено' };
-
-  /* Будет восстановлено после исправления:
-  const status = getConnectionState();
-  switch (status) {
-    case 'connected':
-      return { icon: 'mdi-wifi', color: 'success', text: 'Подключено' };
-    case 'connecting':
-      return { icon: 'mdi-wifi-sync', color: 'warning', text: 'Подключение...' };
-    case 'disconnected':
-      return { icon: 'mdi-wifi-off', color: 'error', text: 'Отключено' };
-    default:
-      return { icon: 'mdi-wifi-alert', color: 'grey', text: 'Неизвестно' };
-  }
-  */
-});
+// Неиспользуемые переменные удалены (userAvatar, wsStatus) - используется компонент UserAvatar
 
 const appVersion = computed(() => {
   return getVersionString();
@@ -647,7 +639,7 @@ const goToCMS = async () => {
     console.log('🔗 Вход в CMS для текущего пользователя:', userId);
     
     // Используем метод loginAs из accountsService
-    const result = await accountsService.loginAs(userId, 'cms');
+    const result = await accountsService.loginAs(Number(userId), 'cms');
     
     console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
     
@@ -686,16 +678,7 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
 };
 
-const formatDate = (date: Date) => {
-  const options: Intl.DateTimeFormatOptions = {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  };
-  return date.toLocaleDateString('ru-RU', options);
-};
-
+// formatDate удалена - не используется
 const formatDateCompact = (date: Date) => {
   const options: Intl.DateTimeFormatOptions = {
     day: '2-digit',
@@ -887,7 +870,7 @@ onMounted(() => {
 // Функция загрузки Wialon интеграции
 const loadWialonIntegration = async () => {
   try {
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = config.backendUrl;
     
     // Загружаем все подключения из новой таблицы wialon_connections
     console.log('🔄 Загрузка Wialon подключений...');
