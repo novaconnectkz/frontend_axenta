@@ -503,5 +503,56 @@ export class WialonApiService {
     }
 }
 
+// === Типы для статистики подключений ===
+
+/** Краткая информация о подключении */
+export interface WialonConnectionSummary {
+    id: number;
+    name: string;
+    connection_type: 'hosting' | 'local';
+    host: string;
+    is_active: boolean;
+    units_count: number;
+    last_sync_at: string | null;
+    has_error: boolean;
+    user_name: string;
+    short_label: string; // WH(ACRM) или WL(Профмонитор)
+}
+
+/** Статистика подключений */
+export interface WialonConnectionStats {
+    total: number;
+    active: number;
+    inactive: number;
+    with_errors: number;
+    total_units: number;
+    connections: WialonConnectionSummary[];
+}
+
+/** Получение статистики подключений Wialon */
+export async function getWialonConnectionStats(): Promise<WialonConnectionStats | null> {
+    try {
+        const API_BASE = 'http://localhost:8080';
+        const response = await fetch(`${API_BASE}/api/wialon/connections/stats`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('axenta_token') || ''}`,
+            },
+        });
+
+        if (!response.ok) {
+            console.error('Ошибка получения статистики Wialon:', response.status);
+            return null;
+        }
+
+        const result = await response.json();
+        return result.data as WialonConnectionStats;
+    } catch (error) {
+        console.error('Ошибка получения статистики Wialon:', error);
+        return null;
+    }
+}
+
 // Экспорт singleton экземпляра
 export const wialonApi = new WialonApiService();

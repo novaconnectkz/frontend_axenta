@@ -28,7 +28,8 @@
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.total }}</div>
-            <div><strong>Wialon:</strong> {{ wialonStats.total }}</div>
+            <div v-if="wialonStats.wl.total > 0"><strong>WL:</strong> {{ wialonStats.wl.total }}</div>
+            <div v-if="wialonStats.wh.total > 0"><strong>WH:</strong> {{ wialonStats.wh.total }}</div>
           </div>
         </v-tooltip>
         <v-tooltip location="bottom">
@@ -45,25 +46,46 @@
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.active }}</div>
-            <div><strong>Wialon:</strong> {{ wialonStats.active }}</div>
+            <div v-if="wialonStats.wl.active > 0"><strong>WL:</strong> {{ wialonStats.wl.active }}</div>
+            <div v-if="wialonStats.wh.active > 0"><strong>WH:</strong> {{ wialonStats.wh.active }}</div>
           </div>
         </v-tooltip>
-        <AppleCard 
-          :title="stats.clients.toString()" 
-          subtitle="Клиентов"
-          icon="mdi-account" 
-          icon-color="warning" 
-          variant="outlined" 
-          class="stat-card" 
-        />
-        <AppleCard 
-          :title="stats.partners.toString()" 
-          subtitle="Партнеров"
-          icon="mdi-handshake" 
-          icon-color="purple" 
-          variant="outlined" 
-          class="stat-card" 
-        />
+        <v-tooltip location="bottom">
+          <template #activator="{ props }">
+            <AppleCard 
+              v-bind="props"
+              :title="(stats.clients + wialonStats.clients).toString()" 
+              subtitle="Клиентов"
+              icon="mdi-account" 
+              icon-color="warning" 
+              variant="outlined" 
+              class="stat-card" 
+            />
+          </template>
+          <div class="stats-tooltip">
+            <div><strong>Axenta:</strong> {{ stats.clients }}</div>
+            <div v-if="wialonStats.wl.clients > 0"><strong>WL:</strong> {{ wialonStats.wl.clients }}</div>
+            <div v-if="wialonStats.wh.clients > 0"><strong>WH:</strong> {{ wialonStats.wh.clients }}</div>
+          </div>
+        </v-tooltip>
+        <v-tooltip location="bottom">
+          <template #activator="{ props }">
+            <AppleCard 
+              v-bind="props"
+              :title="(stats.partners + wialonStats.dealers).toString()" 
+              subtitle="Партнеров/Дилеров"
+              icon="mdi-handshake" 
+              icon-color="purple" 
+              variant="outlined" 
+              class="stat-card" 
+            />
+          </template>
+          <div class="stats-tooltip">
+            <div><strong>Axenta:</strong> {{ stats.partners }}</div>
+            <div v-if="wialonStats.wl.dealers > 0"><strong>WL (Дилеры):</strong> {{ wialonStats.wl.dealers }}</div>
+            <div v-if="wialonStats.wh.dealers > 0"><strong>WH (Дилеры):</strong> {{ wialonStats.wh.dealers }}</div>
+          </div>
+        </v-tooltip>
       </div>
     </div>
 
@@ -83,21 +105,6 @@
               @input="debouncedSearch"
               class="search-field"
             />
-          </div>
-          <!-- Чипы с найденными компаниями - выносим отдельно -->
-          <div v-if="isMultipleCompanySearch && companySearchTermsArray.length > 0" class="search-chips-container">
-            <v-chip
-              v-for="(term, index) in companySearchTermsArray"
-              :key="index"
-              size="small"
-              color="primary"
-              variant="outlined"
-              class="mr-1 mb-1"
-              closable
-              @click:close="removeCompanySearchTerm(index)"
-            >
-              {{ term }}
-            </v-chip>
           </div>
           <div class="filter-item">
             <v-select
@@ -173,14 +180,44 @@
       </div>
     </AppleCard>
 
+    <!-- Чипы с найденными компаниями (при множественном поиске) -->
+    <div v-if="isMultipleCompanySearch && companySearchTermsArray.length > 0" class="search-chips-row mb-3">
+      <span class="text-caption text-grey mr-2">Найдено по запросу:</span>
+      <!-- Чипы с реальными индексами -->
+      <template v-for="(term, realIndex) in companySearchTermsArray" :key="realIndex">
+        <v-chip
+          v-if="showAllSearchChips || realIndex < 3"
+          size="small"
+          color="primary"
+          variant="outlined"
+          class="mr-1"
+          closable
+          @click:close="removeCompanySearchTerm(realIndex)"
+        >
+          {{ term }}
+        </v-chip>
+      </template>
+      <!-- Кнопка показать/скрыть остальные -->
+      <v-chip
+        v-if="companySearchTermsArray.length > 3"
+        size="small"
+        color="grey"
+        variant="tonal"
+        class="mr-1"
+        @click="showAllSearchChips = !showAllSearchChips"
+      >
+        <v-icon size="14" class="mr-1">{{ showAllSearchChips ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+        {{ showAllSearchChips ? 'Скрыть' : `Ещё +${companySearchTermsArray.length - 3}` }}
+      </v-chip>
+    </div>
+
     <!-- Таблица учетных записей -->
     <v-card class="accounts-table-card">
 
-      <v-data-table
+      <v-data-table-virtual
         :headers="headers"
         :items="accountsWithNumbers"
         :loading="isLoading"
-        :items-per-page="-1"
         :sort-by="[{ key: sortBy, order: sortOrder }]"
         @update:sort-by="onSortChange"
         :must-sort="false"
@@ -189,7 +226,8 @@
         :class="{ 'updating': isBackgroundLoading }"
         loading-text="Загрузка учетных записей..."
         no-data-text="Учетные записи не найдены"
-        hide-default-footer
+        height="600"
+        item-height="54"
       >
         <!-- Колонка "№" -->
         <template #item.rowNumber="{ item }">
@@ -293,9 +331,17 @@
         <template #item.type="{ item }">
           <span 
             class="type-minimal" 
-            :class="{ 'type-partner': item.type === 'partner', 'type-client': item.type === 'client' }"
+            :class="{ 
+              'type-partner': item.source === 'axenta' ? item.type === 'partner' : item.dealer_rights, 
+              'type-client': item.source === 'axenta' ? item.type !== 'partner' : !item.dealer_rights 
+            }"
           >
-            {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}
+            <!-- Axenta: Партнер/Клиент (по type) -->
+            <!-- Wialon: Дилер/Клиент (по dealer_rights) -->
+            {{ item.source === 'axenta' 
+              ? (item.type === 'partner' ? 'Партнер' : 'Клиент')
+              : (item.dealer_rights ? 'Дилер' : 'Клиент') 
+            }}
           </span>
         </template>
 
@@ -317,9 +363,20 @@
          >
             <template #activator="{ props }">
               <div class="objects-compact" v-bind="props">
-                <span v-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
+                <!-- Загрузка статистики -->
+                <div v-if="item.objectsTotal === -1" class="objects-loading">
+                  <v-progress-circular
+                    indeterminate
+                    size="16"
+                    width="2"
+                    color="primary"
+                  />
+                </div>
+                <!-- Нет объектов -->
+                <span v-else-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
                   Нет объектов
                 </span>
+                <!-- Отображение статистики -->
                 <div v-else class="objects-display">
                   <span class="objects-active">{{ item.objectsActive || 0 }}</span>
                   <span class="objects-separator">/</span>
@@ -358,6 +415,10 @@
                   <span class="field-label">Всего объектов</span>
                   <span class="field-value">{{ item.objectsTotal || 0 }}</span>
                 </div>
+                <div v-if="(item.objectsDeactivated ?? 0) > 0" class="popup-field">
+                  <span class="field-label">Деактивированные</span>
+                  <span class="field-value deactivated">{{ item.objectsDeactivated }}</span>
+                </div>
                 <div v-if="item.objectsDeleted > 0" class="popup-field">
                   <span class="field-label">Удаленные</span>
                   <span class="field-value">{{ item.objectsDeleted }}</span>
@@ -388,14 +449,14 @@
         <!-- Колонка "Источник" -->
         <template #item.source="{ item }">
           <v-chip
-            :color="item.source === 'axenta' ? 'primary' : 'orange'"
+            :color="getSourceColor(item.source)"
             size="small"
             variant="tonal"
           >
             <v-icon start size="16">
-              {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
+              {{ getSourceIcon(item.source) }}
             </v-icon>
-            {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
+            {{ item.source === 'axenta' ? 'Axenta' : item.source }}
           </v-chip>
         </template>
 
@@ -454,15 +515,16 @@
                   @click="loginToMonitoring(item)"
                 />
                 
-                <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
+                <!-- Пункт "Войти в CMS" - отображается для партнеров Axenta и дилеров Wialon -->
                 <v-list-item
-                  v-if="item.type === 'partner'"
+                  v-if="item.type === 'partner' || item.dealer_rights"
                   prepend-icon="mdi-arrow-right-bold"
                   title="Войти в CMS"
                   @click="loginToCms(item)"
                 />
                 
                 <v-list-item
+                  v-if="item.source === 'axenta' || !item.source"
                   prepend-icon="mdi-swap-horizontal"
                   title="Переместить учетную запись"
                   @click="moveAccount(item)"
@@ -478,7 +540,21 @@
             </v-menu>
           </div>
         </template>
-      </v-data-table>
+      </v-data-table-virtual>
+
+      <!-- Lazy Loading: Индикатор догрузки Wialon -->
+      <v-alert
+        v-if="isWialonLoading && !isAxentaLoading"
+        type="info"
+        variant="tonal"
+        density="compact"
+        class="mt-2 mb-0 wialon-loading-alert"
+      >
+        <div class="d-flex align-center">
+          <v-progress-circular indeterminate size="18" width="2" class="mr-2" />
+          <span>Загрузка аккаунтов из Wialon...</span>
+        </div>
+      </v-alert>
 
       <!-- Компактная пагинация справа -->
       <div class="compact-pagination">
@@ -491,7 +567,7 @@
           @update:model-value="onItemsPerPageChange"
           hide-details
         />
-        <span class="range-info">{{ getDisplayRange() }} из {{ totalItems }}</span>
+        <span class="range-info">{{ getDisplayRange() }} из {{ effectiveTotalItems }}</span>
         <div class="nav-controls">
           <v-btn
             icon="mdi-page-first"
@@ -622,7 +698,10 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToDelete?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToDelete?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент' }}
+                Тип: {{ accountToDelete?.source === 'axenta' 
+                  ? (accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент')
+                  : (accountToDelete?.dealer_rights ? 'Дилер' : 'Клиент') 
+                }}
               </div>
             </div>
           </div>
@@ -645,6 +724,28 @@
               density="comfortable"
               :disabled="isDeleting"
               @keyup.enter="confirmDelete"
+            />
+          </div>
+          
+          <!-- Выбор причины для Wialon Hosting -->
+          <div 
+            v-if="accountToDelete && (accountToDelete.source || '').toUpperCase().startsWith('WH')"
+            class="mb-4"
+          >
+            <p class="text-body-2 mb-2">
+              <v-icon icon="mdi-information" color="info" size="16" class="mr-1" />
+              Для Wialon Hosting необходимо указать причину удаления:
+            </p>
+            <v-select
+              v-model="deleteReasonKey"
+              :items="wialonDeleteReasons"
+              item-title="label"
+              item-value="key"
+              label="Причина удаления"
+              variant="outlined"
+              density="comfortable"
+              :disabled="isDeleting"
+              clearable
             />
           </div>
         </v-card-text>
@@ -690,7 +791,10 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToMove?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToMove?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент' }}
+                Тип: {{ accountToMove?.source === 'axenta' 
+                  ? (accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент')
+                  : (accountToMove?.dealer_rights ? 'Дилер' : 'Клиент') 
+                }}
               </div>
             </div>
           </div>
@@ -793,7 +897,11 @@ const router = useRouter();
 const accounts = ref<Account[]>([]);
 const isLoading = ref(false);
 const isBackgroundLoading = ref(false); // Для фонового обновления
+const isAxentaLoading = ref(false);     // Загрузка данных Axenta (Lazy Loading)
+const isWialonLoading = ref(false);     // Загрузка данных Wialon (Lazy Loading)
+const wialonLoadError = ref<string | null>(null); // Ошибка загрузки Wialon
 const searchQuery = ref('');
+const showAllSearchChips = ref(false); // Показать все чипы поиска
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 const totalItems = ref(0); // Динамическое значение из API
@@ -851,6 +959,20 @@ const deleteDialog = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const deleteConfirmationId = ref('');
 const isDeleting = ref(false);
+const deleteReasonKey = ref<string | null>(null); // Причина удаления для WH
+
+// Причины удаления для Wialon Hosting
+const wialonDeleteReasons = [
+  { key: 'end-user_stopped_payments_or_went_out_of_business', label: 'Прекращение оплаты или закрытие бизнеса' },
+  { key: 'contract_expiration', label: 'Истечение срока договора' },
+  { key: 'better_terms_from_another_platform', label: 'Лучшие условия от другой платформы' },
+  { key: 'better_terms_from_another_provider', label: 'Лучшие условия от другого поставщика' },
+  { key: 'disagreement_on_pricing', label: 'Разногласия по ценам' },
+  { key: 'poor_service', label: 'Неудовлетворительный сервис' },
+  { key: 'poor_technical_support_quality', label: 'Недостаточное качество техподдержки' },
+  { key: 'seasonal_units_deletion', label: 'Удаление сезонных объектов' },
+  { key: 'other_reasons_partner', label: 'Другие причины' },
+];
 
 // Диалог перемещения учетной записи
 const moveDialog = ref(false);
@@ -941,7 +1063,9 @@ const statusOptions = [
 const sourceOptions = [
   { title: 'Все системы', value: null },
   { title: 'Axenta', value: 'axenta' },
-  { title: 'Wialon', value: 'wialon' },
+  { title: 'Wialon (все)', value: 'wialon' },
+  { title: 'WH (Hosting)', value: 'wh' },
+  { title: 'WL (Local)', value: 'wl' },
 ];
 
 // Опции для количества записей на странице
@@ -1023,38 +1147,228 @@ const accountsWithNumbers = computed(() => {
     source: 'axenta',
   }));
   
-  // Объединяем аккаунты из обоих источников
-  let allAccounts = [...axentaAccountsWithSource, ...wialonAccounts.value];
+  // Фильтруем Wialon аккаунты по родителю если выбран фильтр
+  let filteredWialon = [...wialonAccounts.value];
   
-  // Фильтруем по системе если выбран фильтр
-  if (filters.value.source) {
-    allAccounts = allAccounts.filter(acc => acc.source === filters.value.source);
+  // === Фильтр по поиску (searchQuery) для Wialon ===
+  if (searchQuery.value && searchQuery.value.trim() !== '') {
+    // Разбиваем поисковый запрос по запятым (без пробелов)
+    const searchTerms = searchQuery.value
+      .split(',')
+      .map(term => term.trim().toLowerCase())
+      .filter(term => term.length > 0);
+    
+    if (searchTerms.length > 0) {
+      filteredWialon = filteredWialon.filter(account => {
+        const accountName = account.name.toLowerCase();
+        const hierarchy = account.hierarchy?.toLowerCase() || '';
+        const id = account.id?.toString() || '';
+        
+        // Проверяем совпадение хотя бы с одним термином
+        return searchTerms.some(term => 
+          accountName.includes(term) ||
+          hierarchy.includes(term) ||
+          id.includes(term)
+        );
+      });
+    }
+  }
+  
+  // Фильтр по родителю для Wialon
+  if (selectedParent.value && selectedParent.value.trim() !== '') {
+    filteredWialon = filteredWialon.filter(account => {
+      if (account.hierarchy?.includes(selectedParent.value)) {
+        const parts = account.hierarchy.split(' > ');
+        // Родитель — это любой элемент кроме последнего
+        const parents = parts.slice(0, -1);
+        return parents.some(p => p === selectedParent.value || p.includes(selectedParent.value));
+      }
+      return false;
+    });
+  }
+  
+  // Фильтр по статусу (is_active) для Wialon
+  if (filters.value.is_active !== null) {
+    filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
+  }
+  
+  // Фильтр по типу (партнёр/клиент) для Wialon
+  if (filters.value.type) {
+    filteredWialon = filteredWialon.filter(account => {
+      if (filters.value.type === 'partner') {
+        return account.dealer_rights === true;
+      } else if (filters.value.type === 'client') {
+        return account.dealer_rights !== true;
+      }
+      return true;
+    });
+  }
+  
+  // Определяем какие аккаунты включать на основе фильтра по системе
+  let allAccounts: typeof axentaAccountsWithSource = [];
+  
+  // Фильтруем Axenta аккаунты по статусу (is_active) — API не поддерживает этот фильтр!
+  let filteredAxenta = axentaAccountsWithSource;
+  if (filters.value.is_active !== null) {
+    filteredAxenta = axentaAccountsWithSource.filter(account => account.isActive === filters.value.is_active);
+  }
+  
+  if (filters.value.source === 'axenta') {
+    // Только Axenta — данные уже пришли с пагинацией, не добавляем Wialon
+    allAccounts = filteredAxenta;
+  } else if (filters.value.source === 'wialon' || filters.value.source === 'wl' || filters.value.source === 'wh') {
+    // Только Wialon — не добавляем Axenta
+    allAccounts = filteredWialon.filter(acc => {
+      const source = acc.source?.toLowerCase() || '';
+      if (filters.value.source === 'wialon') {
+        return source !== 'axenta' && source !== '';
+      } else if (filters.value.source === 'wh') {
+        return source.startsWith('wh(') || source.startsWith('wh ');
+      } else if (filters.value.source === 'wl') {
+        return source.startsWith('wl(') || source.startsWith('wl ');
+      }
+      return true;
+    });
+  } else {
+    // Все системы — объединяем Axenta и Wialon
+    allAccounts = [...filteredAxenta, ...filteredWialon];
   }
   
   // Добавляем нумерацию
-  return allAccounts.map((account, index) => ({
+  console.log('🔍 accountsWithNumbers computed:', {
+    axentaCount: filteredAxenta.length,
+    wialonCount: filteredWialon.length,
+    totalCount: allAccounts.length,
+    sourceFilter: filters.value.source,
+    searchQuery: searchQuery.value
+  });
+  
+  // Для Axenta — данные приходят уже с серверной пагинацией
+  // Для Wialon и смешанных источников — применяем клиентскую пагинацию
+  let paginatedAccounts: typeof allAccounts;
+  
+  if (filters.value.source === 'axenta') {
+    // Axenta: серверная пагинация уже применена
+    paginatedAccounts = allAccounts;
+  } else {
+    // Wialon или все системы: применяем клиентскую пагинацию
+    const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+    const endIndex = startIndex + itemsPerPage.value;
+    paginatedAccounts = allAccounts.slice(startIndex, endIndex);
+  }
+  
+  // Добавляем нумерацию (учитываем пагинацию)
+  return paginatedAccounts.map((account, index) => ({
     ...account,
     rowNumber: startNumber + index,
   }));
 });
 
+// Эффективное количество записей с учётом фильтра по источнику
+const effectiveTotalItems = computed(() => {
+  if (filters.value.source === 'axenta') {
+    // Только Axenta — если is_active фильтр активен, считаем локально
+    if (filters.value.is_active !== null) {
+      const filteredAxenta = accounts.value.filter(account => account.isActive === filters.value.is_active);
+      return filteredAxenta.length;
+    }
+    return totalItems.value;
+  } else if (filters.value.source === 'wialon' || filters.value.source === 'wl' || filters.value.source === 'wh') {
+    // Только Wialon — считаем отфильтрованных
+    let filteredWialon = [...wialonAccounts.value];
+    
+    // Применяем те же фильтры что и в accountsWithNumbers
+    if (selectedParent.value && selectedParent.value.trim() !== '') {
+      filteredWialon = filteredWialon.filter(account => {
+        if (account.hierarchy?.includes(selectedParent.value)) {
+          const parts = account.hierarchy.split(' > ');
+          const parents = parts.slice(0, -1);
+          return parents.some(p => p === selectedParent.value || p.includes(selectedParent.value));
+        }
+        return false;
+      });
+    }
+    
+    if (filters.value.is_active !== null) {
+      filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
+    }
+    
+    if (filters.value.type) {
+      filteredWialon = filteredWialon.filter(account => {
+        if (filters.value.type === 'partner') {
+          return account.dealer_rights === true;
+        } else if (filters.value.type === 'client') {
+          return account.dealer_rights !== true;
+        }
+        return true;
+      });
+    }
+    
+    // Фильтр по WL/WH/Wialon
+    filteredWialon = filteredWialon.filter(acc => {
+      const source = acc.source?.toLowerCase() || '';
+      if (filters.value.source === 'wialon') {
+        return source !== 'axenta' && source !== '';
+      } else if (filters.value.source === 'wh') {
+        return source.startsWith('wh(') || source.startsWith('wh ');
+      } else if (filters.value.source === 'wl') {
+        return source.startsWith('wl(') || source.startsWith('wl ');
+      }
+      return true;
+    });
+    
+    return filteredWialon.length;
+  }
+  
+  // Все системы — объединяем Axenta и отфильтрованные Wialon
+  let filteredWialon = [...wialonAccounts.value];
+  
+  if (selectedParent.value && selectedParent.value.trim() !== '') {
+    filteredWialon = filteredWialon.filter(account => {
+      if (account.hierarchy?.includes(selectedParent.value)) {
+        const parts = account.hierarchy.split(' > ');
+        const parents = parts.slice(0, -1);
+        return parents.some(p => p === selectedParent.value || p.includes(selectedParent.value));
+      }
+      return false;
+    });
+  }
+  
+  if (filters.value.is_active !== null) {
+    filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
+  }
+  
+  if (filters.value.type) {
+    filteredWialon = filteredWialon.filter(account => {
+      if (filters.value.type === 'partner') {
+        return account.dealer_rights === true;
+      } else if (filters.value.type === 'client') {
+        return account.dealer_rights !== true;
+      }
+      return true;
+    });
+  }
+  
+  return totalItems.value + filteredWialon.length;
+});
+
 // Вычисляемые свойства для кастомной пагинации
 const totalPages = computed(() => {
-  if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
+  if (itemsPerPage.value === -1 || itemsPerPage.value >= effectiveTotalItems.value) {
     return 1; // Все на одной странице
   }
-  return Math.ceil(totalItems.value / itemsPerPage.value);
+  return Math.ceil(effectiveTotalItems.value / itemsPerPage.value);
 });
 
 const getDisplayRange = () => {
-  if (totalItems.value === 0) return '0-0';
+  if (effectiveTotalItems.value === 0) return '0-0';
   
-  if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
-    return `1-${totalItems.value}`;
+  if (itemsPerPage.value === -1 || itemsPerPage.value >= effectiveTotalItems.value) {
+    return `1-${effectiveTotalItems.value}`;
   }
   
   const start = (currentPage.value - 1) * itemsPerPage.value + 1;
-  const end = Math.min(currentPage.value * itemsPerPage.value, totalItems.value);
+  const end = Math.min(currentPage.value * itemsPerPage.value, effectiveTotalItems.value);
   return `${start}-${end}`;
 };
 
@@ -1067,6 +1381,7 @@ const loadAccounts = async (isBackground = false) => {
       isBackgroundLoading.value = true;
     } else {
       isLoading.value = true;
+      isAxentaLoading.value = true; // Lazy Loading: отслеживаем загрузку Axenta отдельно
     }
     
     // Формируем поисковый запрос с учетом родителя
@@ -1090,11 +1405,16 @@ const loadAccounts = async (isBackground = false) => {
     console.log('✅ Получен ответ:', { count: response.count, results: response.results.length });
 
     // Определяем, какие фильтры поддерживает внешний API
+    // is_active также поддерживается Axenta API!
     const hasServerSupportedFilters = filters.value.type || 
                                      (selectedParent.value && selectedParent.value.trim() !== '') ||
-                                     (searchQuery.value && searchQuery.value.trim() !== '');
+                                     (searchQuery.value && searchQuery.value.trim() !== '') ||
+                                     filters.value.is_active !== null;
     
-    const hasClientOnlyFilters = filters.value.is_active !== null;
+    // Клиентские фильтры - фильтры которые НЕ поддерживаются API
+    // Множественный поиск (через запятую) требует клиентской фильтрации!
+    const isMultiSearch = searchQuery.value && searchQuery.value.includes(',');
+    const hasClientOnlyFilters = isMultiSearch;
     
     const hasActiveFilters = hasServerSupportedFilters || hasClientOnlyFilters;
     
@@ -1111,7 +1431,10 @@ const loadAccounts = async (isBackground = false) => {
       // Если есть только серверные фильтры - используем их напрямую
       if (hasServerSupportedFilters && !hasClientOnlyFilters) {
         console.log('🔧 Используем только серверные фильтры');
-        // Данные уже загружены с фильтрами в response, просто обновляем accounts
+        
+        // Wialon аккаунты добавляются через accountsWithNumbers с фильтрацией
+        // НЕ добавляем их здесь чтобы избежать дублирования
+        
         accounts.value = response.results;
         totalItems.value = response.count;
         lastUpdateTime.value = new Date();
@@ -1135,25 +1458,54 @@ const loadAccounts = async (isBackground = false) => {
         allAccountsCache.value.length > 0 && 
         (now.getTime() - cacheTimestamp.value.getTime()) < CACHE_DURATION;
       
-      let allRecordsResponse;
+      let allRecordsResponse: { results: Account[] };
       if (isCacheValid) {
-        console.log(`🔧 Используем кэшированные данные (${allAccountsCache.value.length} записей)`);
-        allRecordsResponse = { results: allAccountsCache.value };
+        // Явно копируем массив из кэша
+        const cachedData = [...allAccountsCache.value];
+        console.log(`🔧 Используем кэшированные данные (${cachedData.length} записей)`);
+        allRecordsResponse = { results: cachedData };
       } else {
         console.log('🔧 Загружаем все записи для фильтрации...');
-        allRecordsResponse = await accountsService.getAccounts(allRecordsParams);
+        
+        // Загружаем ВСЕ страницы данных
+        let allResults: Account[] = [];
+        let currentPageNum = 1;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const pageParams = {
+            ...allRecordsParams,
+            page: currentPageNum
+          };
+          const pageResponse = await accountsService.getAccounts(pageParams);
+          allResults = [...allResults, ...pageResponse.results];
+          
+          // Проверяем есть ли ещё данные
+          hasMore = pageResponse.results.length === allRecordsParams.per_page && 
+                   allResults.length < pageResponse.count;
+          currentPageNum++;
+          
+          // Защита от бесконечного цикла
+          if (currentPageNum > 10) {
+            console.warn('⚠️ Достигнут лимит страниц (10), прерываем загрузку');
+            break;
+          }
+        }
+        
+        allRecordsResponse = { results: allResults };
         
         // Сохраняем в кэш
-        allAccountsCache.value = allRecordsResponse.results;
+        allAccountsCache.value = allResults;
         cacheTimestamp.value = now;
-        console.log(`🔧 Загружено и кэшировано ${allRecordsResponse.results.length} записей`);
+        console.log(`🔧 Загружено и кэшировано ${allResults.length} записей (всего страниц: ${currentPageNum - 1})`);
       }
       
       // Применяем клиентскую фильтрацию ко всем записям
-      let allFilteredResults = allRecordsResponse.results;
+      // Используем allRecordsResponse.results напрямую (гарантирует доступ к данным)
+      let allFilteredResults = [...allRecordsResponse.results];
       
-      // Фильтр по статусу
-      if (filters.value.is_active !== undefined) {
+      // Фильтр по статусу (только если явно выбран true или false, не null)
+      if (filters.value.is_active !== null && filters.value.is_active !== undefined) {
         allFilteredResults = allFilteredResults.filter(account => 
           account.isActive === filters.value.is_active
         );
@@ -1171,17 +1523,34 @@ const loadAccounts = async (isBackground = false) => {
         if (isMultipleCompanySearch.value) {
           // Множественный поиск - ищем точные совпадения по терминам
           const searchTerms = companySearchTermsArray.value.map(term => term.toLowerCase());
+          console.log('🔎 Клиентская фильтрация Axenta:', {
+            searchTerms,
+            recordsBeforeFilter: allFilteredResults.length,
+            firstRecords: allFilteredResults.slice(0, 5).map(a => a.name)
+          });
+          
           allFilteredResults = allFilteredResults.filter(account => {
-            const accountName = account.name.toLowerCase();
+            const accountName = account.name?.toLowerCase() || '';
             const adminName = account.adminFullname?.toLowerCase() || '';
             const parentName = account.parentAccountName?.toLowerCase() || '';
+            const hierarchy = account.hierarchy?.toLowerCase() || '';
             
-            return searchTerms.some(term => 
+            const matches = searchTerms.some(term => 
               accountName.includes(term) ||
               adminName.includes(term) ||
-              parentName.includes(term)
+              parentName.includes(term) ||
+              hierarchy.includes(term)
             );
+            
+            // Логируем найденные совпадения
+            if (matches) {
+              console.log('✅ Найдено совпадение:', account.name);
+            }
+            
+            return matches;
           });
+          
+          console.log('🔎 После фильтрации Axenta:', allFilteredResults.length);
         } else {
           // Обычный поиск
           const query = searchQuery.value.toLowerCase();
@@ -1195,9 +1564,21 @@ const loadAccounts = async (isBackground = false) => {
       
       // Фильтр по родительскому аккаунту (пустое значение = "Все родители", не фильтруем)
       if (selectedParent.value && selectedParent.value.trim() !== '') {
-        allFilteredResults = allFilteredResults.filter(account =>
-          account.parentAccountName?.includes(selectedParent.value)
-        );
+        allFilteredResults = allFilteredResults.filter(account => {
+          // Для Axenta — проверяем parentAccountName
+          if (account.parentAccountName?.includes(selectedParent.value)) {
+            return true;
+          }
+          // Для Wialon — проверяем hierarchy (содержит родителя в пути)
+          if (account.hierarchy?.includes(selectedParent.value)) {
+            // Убедимся что это именно родитель, а не сам аккаунт
+            const parts = account.hierarchy.split(' > ');
+            // Родитель — это любой элемент кроме последнего (который является именем самого аккаунта)
+            const parents = parts.slice(0, -1);
+            return parents.some(p => p === selectedParent.value || p.includes(selectedParent.value));
+          }
+          return false;
+        });
       }
       
       console.log(`🔧 После фильтрации: ${allFilteredResults.length} записей`);
@@ -1241,6 +1622,10 @@ const loadAccounts = async (isBackground = false) => {
         console.log('🔧 Первоначальная загрузка - устанавливаем данные:', response.results.length);
         accounts.value = response.results;
       }
+    } else {
+      // Есть активные фильтры - устанавливаем отфильтрованные данные
+      console.log('🔧 Установка отфильтрованных данных:', response.results.length);
+      accounts.value = response.results;
     }
     lastUpdateTime.value = new Date();
 
@@ -1269,6 +1654,7 @@ const loadAccounts = async (isBackground = false) => {
       isBackgroundLoading.value = false;
     } else {
       isLoading.value = false;
+      isAxentaLoading.value = false; // Lazy Loading: Axenta загружена
     }
   }
 };
@@ -1279,20 +1665,25 @@ const wialonStats = ref({
   active: 0,
   blocked: 0,
   objects: 0,
+  clients: 0, // Клиенты (не дилеры)
+  dealers: 0, // Дилеры
+  // Раздельная статистика по типам подключения
+  wl: { total: 0, active: 0, clients: 0, dealers: 0 }, // Wialon Local
+  wh: { total: 0, active: 0, clients: 0, dealers: 0 }, // Wialon Hosting
 });
 
-const axentaStats = ref({
-  total: 0,
-  active: 0,
-  blocked: 0,
-});
+// axentaStats пока не используется, но сохранён для будущей статистики
+// const axentaStats = ref({ total: 0, active: 0, blocked: 0 });
 
 // Wialon аккаунты (хранятся отдельно для объединения)
-const wialonAccounts = ref<Array<Account & { source: string }>>([]);
+const wialonAccounts = ref<Array<Account & { source: string; billingAccountId: number }>>([]);
 
 // Загрузка аккаунтов из Wialon
 const loadWialonAccounts = async () => {
   try {
+    isWialonLoading.value = true; // Lazy Loading: начало загрузки Wialon
+    wialonLoadError.value = null;
+    
     const wialonData = await settingsService.getWialonAccounts();
     
     if (wialonData && wialonData.items) {
@@ -1303,14 +1694,18 @@ const loadWialonAccounts = async () => {
         type: item.type as 'client' | 'partner',
         isActive: item.is_active,
         objectsTotal: item.objects_total,
-        objectsActive: item.objects_active,
-        source: 'wialon',
+        objectsActive: item.objects_active || 0,
+        objectsDeleted: 0,
+        source: item.source_label || 'wialon', // Используем source_label из API (WH/WL)
+        dealer_rights: item.dealer_rights || false, // Права дилера для Wialon
+        connection_id: item.connection_id || 0, // ID подключения для toggle-status
         // Заполняем остальные поля значениями по умолчанию
         parentAccountId: 0,
         parentAccountName: '',
-        hierarchy: '',
+        hierarchy: item.hierarchy || '', // Иерархия из API
         adminId: 0,
         adminFullname: '',
+        adminIsActive: true,
         comment: '',
         billingClientId: '',
         balance: 0,
@@ -1318,23 +1713,112 @@ const loadWialonAccounts = async () => {
         blockingBalance: 0,
         daysBeforeBlocking: null,
         blockingDatetime: null,
-        creationDatetime: new Date().toISOString(),
-      } as Account & { source: string }));
+        creationDatetime: item.created_at || '', // Используем дату из API если есть
+        billingAccountId: item.billing_account_id || 0, // ID ресурса биллинга (bact) для связи со статистикой
+      } as Account & { source: string; connection_id: number; billingAccountId: number }));
       
       // Обновляем статистику Wialon
-      wialonStats.value = {
-        total: wialonData.stats?.total || 0,
-        active: wialonData.stats?.active || 0,
-        blocked: wialonData.stats?.blocked || 0,
-        objects: wialonData.stats?.objects_total || 0,
-      };
+      // Подсчитываем статистику по типу подключения (WL/WH) и типу аккаунта (клиент/дилер)
+      let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
+      let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
+      
+      wialonData.items.forEach(item => {
+        const isDealer = item.dealer_rights === true;
+        const sourceLabel = (item.source_label || '').toLowerCase();
+        
+        if (sourceLabel.startsWith('wl')) {
+          wlTotal++;
+          if (item.is_active) wlActive++;
+          if (isDealer) wlDealers++;
+          else wlClients++;
+        } else if (sourceLabel.startsWith('wh')) {
+          whTotal++;
+          if (item.is_active) whActive++;
+          if (isDealer) whDealers++;
+          else whClients++;
+        }
+      });
+      
+      // Общая статистика Wialon = WL + WH
+      wialonStats.value.total = wialonData.items.length;
+      wialonStats.value.active = wialonData.items.filter((i: { is_active: boolean }) => i.is_active).length;
+      wialonStats.value.blocked = wialonData.items.filter((i: { is_active: boolean }) => !i.is_active).length;
+      wialonStats.value.objects = wialonData.items.reduce((sum: number, i: { objects_total?: number }) => sum + (i.objects_total || 0), 0);
+      wialonStats.value.clients = wlClients + whClients;
+      wialonStats.value.dealers = wlDealers + whDealers;
+      
+      // Раздельная статистика по WL и WH
+      wialonStats.value.wl = { total: wlTotal, active: wlActive, clients: wlClients, dealers: wlDealers };
+      wialonStats.value.wh = { total: whTotal, active: whActive, clients: whClients, dealers: whDealers };
       
       console.log(`📡 Загружено ${wialonAccounts.value.length} аккаунтов Wialon`);
+      console.log(`📊 Статистика: WL=${wlTotal}, WH=${whTotal}`);
+      
+      // Обновляем список родительских аккаунтов после загрузки Wialon
+      await updateParentAccountsWithWialon();
+      
+      // Фоновая загрузка статистики объектов (не блокирует UI)
+      loadWialonObjectsStats(wialonData.connectionIds || []);
     }
   } catch (error) {
     console.error('Ошибка загрузки аккаунтов Wialon:', error);
+    wialonLoadError.value = error instanceof Error ? error.message : 'Неизвестная ошибка';
     wialonAccounts.value = [];
+  } finally {
+    isWialonLoading.value = false; // Lazy Loading: Wialon загружен
   }
+};
+
+// Фоновая загрузка статистики объектов Wialon (не блокирует UI)
+const loadWialonObjectsStats = async (connectionIds: number[]) => {
+  if (!connectionIds || connectionIds.length === 0) {
+    console.log('📊 Нет подключений для загрузки статистики объектов');
+    return;
+  }
+
+  console.log(`📊 Фоновая загрузка статистики объектов для ${connectionIds.length} подключений...`);
+
+  for (const connectionId of connectionIds) {
+    try {
+      const statsData = await settingsService.getWialonConnectionObjectsStats(connectionId);
+      
+      if (statsData && statsData.stats) {
+        // Обновляем objectsTotal и objectsActive для каждого аккаунта
+        let updatedCount = 0;
+        wialonAccounts.value = wialonAccounts.value.map(account => {
+          // Используем billingAccountId (bact = resourceID) для поиска статистики,
+          // т.к. бэкенд возвращает карту по resourceID
+          const billingId = (account as Account & { billingAccountId?: number }).billingAccountId || 0;
+          const accountStats = statsData.stats[billingId] || statsData.stats[account.id];
+          if (accountStats) {
+            updatedCount++;
+            return {
+              ...account,
+              objectsTotal: accountStats.objectsTotal,
+              objectsActive: accountStats.objectsActive,
+              objectsDeactivated: accountStats.objectsDeactivated || 0,
+            };
+          }
+          // Если нет статистики, устанавливаем 0 вместо -1
+          if (account.objectsTotal === -1) {
+            return { ...account, objectsTotal: 0, objectsActive: 0, objectsDeactivated: 0 };
+          }
+          return account;
+        });
+
+        console.log(`✅ Статистика обновлена для подключения ${connectionId}: ${updatedCount} аккаунтов`);
+        
+        // Обновляем общую статистику объектов
+        wialonStats.value.objects = wialonAccounts.value.reduce(
+          (sum, acc) => sum + (acc.objectsTotal > 0 ? acc.objectsTotal : 0), 0
+        );
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка загрузки статистики для подключения ${connectionId}:`, error);
+    }
+  }
+
+  console.log('📊 Фоновая загрузка статистики объектов завершена');
 };
 
 // Функция для сравнения массивов аккаунтов
@@ -1399,8 +1883,44 @@ const loadStats = async (isBackground = false, forceRefresh = false) => {
   }
 };
 
+// Обновляет список родительских аккаунтов с добавлением Wialon родителей
+const updateParentAccountsWithWialon = () => {
+  // Получаем текущие опции (без "Все родители")
+  const currentOptions = parentAccountOptions.value.slice(1);
+  const uniqueParentsSet = new Set<string>(currentOptions.map(opt => opt.value));
+  
+  // Добавляем родителей из Wialon аккаунтов (ParentName из иерархии)
+  wialonAccounts.value.forEach(account => {
+    if (account.hierarchy) {
+      const parts = account.hierarchy.split(' > ');
+      // Иерархия: "WL(Профмонитор) > Родитель > Имя" или "WL(Профмонитор) > Имя"
+      if (parts.length >= 2) {
+        // Добавляем sourceLabel как родитель верхнего уровня
+        uniqueParentsSet.add(parts[0].trim());
+        // Если есть промежуточный родитель
+        if (parts.length >= 3) {
+          uniqueParentsSet.add(parts[1].trim());
+        }
+      }
+    }
+  });
+  
+  // Преобразуем Set в отсортированный массив опций
+  const parentNames = Array.from(uniqueParentsSet).sort();
+  
+  parentAccountOptions.value = [
+    { title: 'Все родители', value: '' },
+    ...parentNames.map(name => ({
+      title: name,
+      value: name
+    }))
+  ];
+  
+  console.log(`📋 Обновлено ${parentNames.length} родительских аккаунтов (с Wialon)`);
+};
+
 // Загрузка списка родительских аккаунтов с использованием кеширования
-const loadParentAccounts = async (forceRefresh: boolean = false) => {
+const loadParentAccounts = async (_forceRefresh: boolean = false) => {
   try {
     console.log('📋 Загрузка списка родительских аккаунтов...');
     
@@ -1416,6 +1936,23 @@ const loadParentAccounts = async (forceRefresh: boolean = false) => {
       // Добавляем родительский аккаунт, если он указан
       if (account.parentAccountName && account.parentAccountName.trim()) {
         uniqueParentsSet.add(account.parentAccountName.trim());
+      }
+    });
+    
+    // Добавляем родителей из Wialon аккаунтов (ParentName из иерархии)
+    wialonAccounts.value.forEach(account => {
+      // Извлекаем родителя из иерархии (второй элемент после sourceLabel)
+      if (account.hierarchy) {
+        const parts = account.hierarchy.split(' > ');
+        // Иерархия: "WL(Профмонитор) > Родитель > Имя" или "WL(Профмонитор) > Имя"
+        if (parts.length >= 2) {
+          // Добавляем sourceLabel как родитель верхнего уровня
+          uniqueParentsSet.add(parts[0].trim());
+          // Если есть промежуточный родитель
+          if (parts.length >= 3) {
+            uniqueParentsSet.add(parts[1].trim());
+          }
+        }
       }
     });
     
@@ -1641,17 +2178,45 @@ const loginToCms = async (account: Account) => {
   try {
     console.log('🔗 Вход в CMS для аккаунта:', account.name);
     
-    if (!account.adminId) {
-      showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
-      return;
-    }
+    // Проверяем тип источника аккаунта
+    const accountWithSource = account as Account & { source?: string; connection_id?: number };
+    const isWialon = accountWithSource.source && accountWithSource.source !== 'axenta';
+    
+    if (isWialon) {
+      // Для Wialon аккаунтов используем специальный API для CMS
+      if (!accountWithSource.connection_id) {
+        showSnackbar(`У аккаунта "${account.name}" не указан ID подключения`, 'error');
+        return;
+      }
+      
+      // Используем специальный метод для CMS
+      const result = await settingsService.loginToWialonCms(
+        accountWithSource.connection_id,
+        account.name
+      );
+      
+      if (!result.success) {
+        showSnackbar(result.message || 'Ошибка входа в CMS', 'error');
+        return;
+      }
+      
+      console.log('✅ Открываю CMS:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+      
+    } else {
+      // Для Axenta аккаунтов используем стандартный метод
+      if (!account.adminId) {
+        showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
+        return;
+      }
 
-    const result = await accountsService.loginAs(account.adminId, 'cms');
-    
-    console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
-    
-    // Открываем новую вкладку с URL для входа
-    window.open(result.redirectUrl, '_blank');
+      const result = await accountsService.loginAs(account.adminId, 'cms');
+      
+      console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+      
+      // Открываем новую вкладку с URL для входа
+      window.open(result.redirectUrl, '_blank');
+    }
     
   } catch (error: any) {
     console.error('❌ Ошибка входа в CMS:', error);
@@ -1664,17 +2229,43 @@ const loginToMonitoring = async (account: Account) => {
   try {
     console.log('📊 Вход в мониторинг для аккаунта:', account.name);
     
-    if (!account.adminId) {
-      showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
-      return;
-    }
+    // Проверяем тип источника аккаунта
+    const accountWithSource = account as Account & { source?: string; connection_id?: number };
+    const isWialon = accountWithSource.source && accountWithSource.source !== 'axenta';
+    
+    if (isWialon) {
+      // Для Wialon аккаунтов используем API входа через Wialon
+      if (!accountWithSource.connection_id) {
+        showSnackbar(`У аккаунта "${account.name}" не указан ID подключения`, 'error');
+        return;
+      }
+      
+      // Извлекаем имя пользователя (если это дочерний аккаунт)
+      // Имя пользователя передается для входа под конкретным пользователем через core/duplicate
+      const result = await settingsService.loginToWialonMonitoring(
+        accountWithSource.connection_id,
+        account.name // Передаем имя аккаунта как имя пользователя
+      );
+      
+      if (!result.success) {
+        showSnackbar(`Ошибка входа в мониторинг: ${result.message}`, 'error');
+        return;
+      }
+      
+      console.log('✅ Получен URL для входа в мониторинг Wialon:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    } else {
+      // Для Axenta аккаунтов используем старый метод
+      if (!account.adminId) {
+        showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
+        return;
+      }
 
-    const result = await accountsService.loginAs(account.adminId, 'monitoring');
-    
-    console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
-    
-    // Открываем новую вкладку с URL для входа
-    window.open(result.redirectUrl, '_blank');
+      const result = await accountsService.loginAs(account.adminId, 'monitoring');
+      
+      console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    }
     
   } catch (error: any) {
     console.error('❌ Ошибка входа в мониторинг:', error);
@@ -1700,6 +2291,7 @@ const deleteAccount = (account: Account) => {
   
   accountToDelete.value = account;
   deleteConfirmationId.value = '';
+  deleteReasonKey.value = null;
   deleteDialog.value = true;
 };
 
@@ -1716,15 +2308,44 @@ const confirmDelete = async () => {
   isDeleting.value = true;
   
   try {
-    console.log(`🗑️ Удаление аккаунта ${accountToDelete.value.id}: ${accountToDelete.value.name}`);
+    const account = accountToDelete.value;
+    const accountSource = (account.source || '').toUpperCase();
+    const isWialon = accountSource.startsWith('WL') || accountSource.startsWith('WH');
+    console.log(`🗑️ Удаление аккаунта ${account.id}: ${account.name} (source: ${account.source}, isWialon: ${isWialon})`);
     
-    await accountsService.deleteAccount(accountToDelete.value.id);
-    
-    console.log(`✅ Аккаунт ${accountToDelete.value.name} успешно удален`);
+    // Проверяем источник аккаунта - Wialon или Axenta
+    if (isWialon) {
+      // Для Wialon используем settingsService.deleteWialonAccount
+      // connection_id хранится в поле connection_id (не connectionId)
+      const connId = (account as any).connection_id;
+      if (!connId) {
+        throw new Error('Не указан connection_id для Wialon аккаунта');
+      }
+      
+      // Передаём причину удаления для Wialon Hosting (WH)
+      const reasonKey = accountSource.startsWith('WH') ? (deleteReasonKey.value || undefined) : undefined;
+      const result = await settingsService.deleteWialonAccount(account.id, connId, reasonKey);
+      
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+      
+      console.log(`✅ Wialon аккаунт ${account.name} успешно удален`);
+      
+      // Обновляем данные Wialon
+      await loadWialonAccounts();
+    } else {
+      // Для Axenta используем стандартный метод
+      await accountsService.deleteAccount(account.id);
+      console.log(`✅ Axenta аккаунт ${account.name} успешно удален`);
+      
+      // Обновляем данные Axenta
+      await loadAccounts();
+    }
     
     // Показываем уведомление об успехе
     showSnackbar(
-      `Аккаунт "${accountToDelete.value.name}" успешно удален`,
+      `Аккаунт "${account.name}" успешно удален`,
       'success'
     );
     
@@ -1732,9 +2353,9 @@ const confirmDelete = async () => {
     deleteDialog.value = false;
     accountToDelete.value = null;
     deleteConfirmationId.value = '';
+    deleteReasonKey.value = null;
     
-    // Обновляем данные
-    await loadAccounts();
+    // Обновляем статистику
     await loadStats();
     
   } catch (error) {
@@ -1757,6 +2378,7 @@ const cancelDelete = () => {
   deleteDialog.value = false;
   accountToDelete.value = null;
   deleteConfirmationId.value = '';
+  deleteReasonKey.value = null;
 };
 
 // Загрузка списка партнеров для перемещения
@@ -1830,6 +2452,23 @@ const cancelMove = () => {
   partnerOptions.value = [];
 };
 
+// Получение цвета для источника
+const getSourceColor = (source: string): string => {
+  if (source === 'axenta') return 'primary';
+  const lowerSource = source?.toLowerCase() || '';
+  if (lowerSource.startsWith('wh(') || lowerSource.startsWith('wh ')) return 'orange';
+  if (lowerSource.startsWith('wl(') || lowerSource.startsWith('wl ')) return 'cyan';
+  return 'grey'; // Для неизвестных источников
+};
+
+// Получение иконки для источника
+const getSourceIcon = (source: string): string => {
+  if (source === 'axenta') return 'mdi-server';
+  const lowerSource = source?.toLowerCase() || '';
+  if (lowerSource.startsWith('wh(') || lowerSource.startsWith('wh ')) return 'mdi-cloud';
+  if (lowerSource.startsWith('wl(') || lowerSource.startsWith('wl ')) return 'mdi-server-network';
+  return 'mdi-satellite-variant';
+};
 
 // Переход на страницу создания учетной записи
 const goToCreateAccount = () => {
@@ -1849,11 +2488,44 @@ const toggleAccountStatus = async (account: Account) => {
   try {
     console.log(`🔄 ${action} аккаунта:`, account.name);
     
-    // Вызываем API для изменения статуса
-    await accountsService.toggleAccountStatus(account.id, newStatus);
+    // Определяем источник аккаунта (Wialon или Axenta)
+    const accountWithSource = account as Account & { source?: string; connection_id?: number };
+    const isWialon = accountWithSource.source && 
+                     accountWithSource.source.toLowerCase() !== 'axenta' && 
+                     accountWithSource.source !== '';
+    
+    if (isWialon) {
+      // Для Wialon аккаунтов используем Wialon API
+      // ID ресурса = ID пользователя + 1 в Wialon
+      const resourceId = account.id + 1;
+      const connectionId = accountWithSource.connection_id || 0;
+      
+      if (connectionId === 0) {
+        throw new Error('Не найден ID подключения для Wialon аккаунта');
+      }
+      
+      console.log(`📡 Wialon toggle: resourceId=${resourceId}, connectionId=${connectionId}, enable=${newStatus}`);
+      
+      const result = await settingsService.toggleWialonAccountStatus(resourceId, connectionId, newStatus);
+      
+      if (!result.success) {
+        throw new Error(result.message);
+      }
+    } else {
+      // Для Axenta аккаунтов используем стандартный API
+      await accountsService.toggleAccountStatus(account.id, newStatus);
+    }
     
     // Обновляем локальное состояние
     account.isActive = newStatus;
+    
+    // Для Wialon также обновляем в массиве wialonAccounts
+    if (isWialon) {
+      const wialonAccount = wialonAccounts.value.find(acc => acc.id === account.id);
+      if (wialonAccount) {
+        wialonAccount.isActive = newStatus;
+      }
+    }
     
     console.log(`✅ Аккаунт ${account.name} ${newStatus ? 'активирован' : 'деактивирован'}`);
     
@@ -1968,7 +2640,7 @@ const positionPopupInViewport = (popup: HTMLElement | null) => {
   
   // Вертикальное позиционирование - ВСЕГДА СВЕРХУ
   const popupHeight = rect.height;
-  const elementHeight = 50; // Высота строки таблицы
+  // Высота строки таблицы ~50px (зарезервировано для расчётов)
   
   // ВСЕГДА показываем popup сверху элемента
   newY = rect.top - popupHeight - 15; // 15px отступ от элемента
@@ -2096,7 +2768,7 @@ const closePopup = () => {
 // Lifecycle hooks
 onMounted(() => {
   // Восстанавливаем фильтры из localStorage перед загрузкой данных
-  const filtersRestored = loadFiltersFromStorage();
+  loadFiltersFromStorage(); // Результат не используется — важен сам факт вызова
   
   // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
@@ -3460,6 +4132,13 @@ const handleWindowResize = () => {
   border-color: #1976d2;
   transform: scale(1.05);
   box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+}
+
+.objects-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
 }
 
 .objects-active {

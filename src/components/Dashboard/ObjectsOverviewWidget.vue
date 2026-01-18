@@ -41,6 +41,30 @@
         @item-click="onActivityItemClick"
       />
 
+      <!-- Источники данных Wialon -->
+      <div v-if="wialonSources.length > 0" class="wialon-sources mt-3">
+        <div class="text-caption text-medium-emphasis mb-2">
+          <v-icon icon="mdi-satellite-variant" size="14" class="me-1" />
+          Источники Wialon:
+        </div>
+        <div class="d-flex flex-wrap ga-2">
+          <v-chip
+            v-for="source in wialonSources"
+            :key="source.id"
+            size="small"
+            :color="source.connection_type === 'hosting' ? 'primary' : 'secondary'"
+            variant="tonal"
+          >
+            <v-icon 
+              :icon="source.connection_type === 'hosting' ? 'mdi-cloud' : 'mdi-server'" 
+              size="14" 
+              class="me-1" 
+            />
+            {{ source.short_label }}: {{ source.units_count }}
+          </v-chip>
+        </div>
+      </div>
+
       <v-row v-if="data.scheduled_for_deletion > 0" class="mt-2">
         <v-col cols="12">
           <v-alert
@@ -76,6 +100,7 @@ import BaseWidget from './BaseWidget.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import ActivityIndicator, { type ActivityIndicatorItem } from './ActivityIndicator.vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
+import { getWialonConnectionStats, type WialonConnectionSummary } from '@/services/wialonApi';
 
 export default defineComponent({
   name: 'ObjectsOverviewWidget',
@@ -108,6 +133,7 @@ export default defineComponent({
     const loading = ref(false);
     const error = ref<string | undefined>(undefined);
     const showTrashDialog = ref(false);
+    const wialonSources = ref<WialonConnectionSummary[]>([]);
     
     // Real-time обновления
     const realTimeWidget = useObjectsWidget('objects-overview', props.refreshInterval);
@@ -210,8 +236,21 @@ export default defineComponent({
     // Запуск автообновления
     realTimeWidget.startAutoRefresh(loadData);
 
+    // Загрузка источников Wialon
+    const loadWialonSources = async () => {
+      try {
+        const stats = await getWialonConnectionStats();
+        if (stats && stats.connections) {
+          wialonSources.value = stats.connections.filter(c => c.is_active);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки источников Wialon:', err);
+      }
+    };
+
     onMounted(() => {
       loadData();
+      loadWialonSources();
       
       // Подписываемся на автообновление
       unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
@@ -239,7 +278,8 @@ export default defineComponent({
       lastUpdate: realTimeWidget.lastUpdate,
       showTrashDialog,
       openTrashDialog,
-      onActivityItemClick
+      onActivityItemClick,
+      wialonSources
     };
   }
 });

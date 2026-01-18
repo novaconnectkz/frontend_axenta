@@ -706,8 +706,6 @@ const demoIntegrationLogs: IntegrationLog[] = [
 ];
 
 class SettingsService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _baseUrl = config.apiBaseUrl;
   private apiClient = axios.create({
     baseURL: config.apiBaseUrl,
     timeout: 30000,
@@ -1638,8 +1636,16 @@ class SettingsService {
       is_active: boolean;
       objects_total: number;
       objects_active: number;
+      source?: string;
+      source_label?: string;
+      connection_id?: number;
+      created_at?: string;
+      dealer_rights?: boolean;
+      hierarchy?: string;
+      billing_account_id?: number; // ID ресурса биллинга (bact)
     }>;
     total: number;
+    connectionIds?: number[]; // Для фоновой загрузки статистики объектов
     stats: {
       total: number;
       active: number;
@@ -1648,7 +1654,8 @@ class SettingsService {
     };
   } | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/wialon/accounts`, {
+      // Используем новый API для получения аккаунтов из всех подключений
+      const response = await fetch(`${API_BASE_URL}/api/wialon/all-accounts`, {
         method: 'GET',
         headers: createHeaders(),
       });
@@ -1666,6 +1673,207 @@ class SettingsService {
     } catch (error) {
       console.error('Ошибка получения аккаунтов Wialon:', error);
       return null;
+    }
+  }
+
+  // Получение статистики объектов для подключения Wialon (фоновая загрузка)
+  async getWialonConnectionObjectsStats(connectionId: number): Promise<{
+    connectionId: number;
+    stats: Record<number, { objectsTotal: number; objectsActive: number; objectsDeactivated?: number }>;
+    totalObjects: number;
+  } | null> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/wialon/connections/${connectionId}/objects-stats`,
+        {
+          method: 'GET',
+          headers: createHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        console.warn(`⚠️ Статистика недоступна для подключения ${connectionId}`);
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error(`Ошибка получения статистики для подключения ${connectionId}:`, error);
+      return null;
+    }
+  }
+
+  // Блокировка/разблокировка аккаунта Wialon
+  async toggleWialonAccountStatus(
+    accountId: number,
+    connectionId: number,
+    enable: boolean
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/wialon/accounts/${accountId}/toggle-status`,
+        {
+          method: 'POST',
+          headers: createHeaders(),
+          body: JSON.stringify({
+            enable,
+            connection_id: connectionId,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          message: result.error || `Ошибка: ${response.status}`,
+        };
+      }
+
+      return {
+        success: result.success,
+        message: result.message || (enable ? 'Аккаунт активирован' : 'Аккаунт заблокирован'),
+      };
+    } catch (error) {
+      console.error('Ошибка изменения статуса Wialon аккаунта:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  /**
+   * Вход в мониторинг Wialon под конкретным пользователем
+   * Возвращает URL для открытия в новой вкладке
+   */
+  async loginToWialonMonitoring(connectionId: number, userName?: string): Promise<{
+    success: boolean;
+    redirectUrl?: string;
+    message?: string;
+  }> {
+    try {
+      console.log(`🔐 Вход в мониторинг Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}`);
+
+      const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-monitoring`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          connection_id: connectionId,
+          user_name: userName || '',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return {
+          success: false,
+          message: result.error || 'Ошибка входа в мониторинг',
+        };
+      }
+
+      return {
+        success: true,
+        redirectUrl: result.redirectUrl,
+      };
+    } catch (error) {
+      console.error('Ошибка входа в мониторинг Wialon:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  /**
+   * Вход в CMS Wialon под конкретным пользователем
+   * Возвращает URL для открытия в новой вкладке
+   */
+  async loginToWialonCms(connectionId: number, userName?: string): Promise<{
+    success: boolean;
+    redirectUrl?: string;
+    message?: string;
+  }> {
+    try {
+      console.log(`🔐 Вход в CMS Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}`);
+
+      const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-cms`, {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify({
+          connection_id: connectionId,
+          user_name: userName || '',
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return {
+          success: false,
+          message: result.error || 'Ошибка входа в CMS',
+        };
+      }
+
+      return {
+        success: true,
+        redirectUrl: result.redirectUrl,
+      };
+    } catch (error) {
+      console.error('Ошибка входа в CMS Wialon:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
+    }
+  }
+
+  /**
+   * Удалить учетную запись Wialon
+   * Вызывает Wialon API account/delete_account
+   * @param userId ID учетной записи в Wialon
+   * @param connectionId ID подключения
+   * @param reasonKey Причина удаления (для Wialon Hosting с объектами)
+   */
+  async deleteWialonAccount(userId: number, connectionId: number, reasonKey?: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      console.log(`🗑️ Удаление учетной записи Wialon: user_id=${userId}, connection_id=${connectionId}, reason=${reasonKey || 'none'}`);
+
+      let url = `${API_BASE_URL}/api/wialon/users/${userId}?connection_id=${connectionId}`;
+      if (reasonKey) {
+        url += `&reason_key=${encodeURIComponent(reasonKey)}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: createHeaders(),
+      }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        return {
+          success: false,
+          message: result.error || 'Ошибка удаления пользователя',
+        };
+      }
+
+      return {
+        success: true,
+        message: result.message || 'Пользователь успешно удалён',
+      };
+    } catch (error) {
+      console.error('Ошибка удаления пользователя Wialon:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Неизвестная ошибка',
+      };
     }
   }
 

@@ -53,106 +53,172 @@
             }"
             elevation="2"
           >
-            <!-- Заголовок карточки -->
-            <v-card-title class="d-flex align-center justify-space-between">
-              <div class="d-flex align-center gap-3">
-                <v-avatar
-                  :color="getIntegrationColor(integration.type)"
-                  size="40"
-                >
-                  <v-icon :icon="getIntegrationIcon(integration.type)" color="white" />
-                </v-avatar>
-                
-                <div>
-                  <div class="text-subtitle-1 font-weight-bold">
-                    {{ integration.name }}
-                  </div>
-                  <div class="text-caption text-medium-emphasis">
-                    {{ getIntegrationTypeLabel(integration.type) }}
+            <!-- Специальная карточка для Wialon -->
+            <template v-if="integration.type === 'wialon'">
+              <!-- Заголовок карточки -->
+              <v-card-title class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-3">
+                  <v-avatar color="primary" size="40">
+                    <v-icon>mdi-satellite-uplink</v-icon>
+                  </v-avatar>
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">Подключения Wialon</div>
+                    <div class="text-caption text-medium-emphasis">Hosting и Local серверы</div>
                   </div>
                 </div>
-              </div>
-
-              <!-- Статус -->
-              <div class="d-flex align-center gap-2">
-                <!-- Индикатор "в разработке" для демо интеграций -->
                 <v-chip
-                  v-if="isDemoIntegration(integration.id)"
-                  color="orange"
-                  variant="elevated"
-                  size="small"
-                >
-                  <v-icon start size="14">mdi-hammer-wrench</v-icon>
-                  В разработке
-                </v-chip>
-                
-                <v-chip
-                  :color="getStatusColor(integration.status)"
+                  :color="integration.enabled ? 'success' : 'grey'"
                   :variant="integration.enabled ? 'elevated' : 'outlined'"
                   size="small"
                 >
-                  <v-icon
-                    start
-                    :icon="getStatusIcon(integration.status)"
-                    size="14"
-                  />
-                  {{ getStatusLabel(integration.status) }}
+                  {{ integration.enabled ? 'Активно' : 'Неактивна' }}
                 </v-chip>
-              </div>
-            </v-card-title>
+              </v-card-title>
 
-            <!-- Описание -->
-            <v-card-text class="pt-0">
-              <p class="text-body-2 mb-3">{{ integration.description }}</p>
+              <!-- Описание -->
+              <v-card-text class="pt-0">
+                <p class="text-body-2 mb-3">
+                  <v-icon size="16" class="mr-1" color="primary">mdi-cloud</v-icon>
+                  Wialon Hosting
+                  <v-icon size="16" class="ml-3 mr-1" color="primary">mdi-server</v-icon>
+                  Wialon Local
+                </p>
+              </v-card-text>
 
-              <!-- Дополнительная информация -->
-              <div class="d-flex align-center justify-space-between text-caption">
-                <span v-if="integration.lastSync" class="text-medium-emphasis">
-                  <v-icon size="14" class="me-1">mdi-clock</v-icon>
-                  Синхронизация: {{ formatDate(integration.lastSync) }}
-                </span>
-                
-                <span v-if="integration.lastError" class="text-error">
-                  <v-icon size="14" class="me-1">mdi-alert</v-icon>
-                  {{ integration.lastError }}
-                </span>
-              </div>
-            </v-card-text>
+              <!-- Действия -->
+              <v-card-actions class="pt-0">
+                <v-switch
+                  v-model="integration.enabled"
+                  :label="integration.enabled ? 'Включено' : 'Отключено'"
+                  color="primary"
+                  hide-details
+                  @change="toggleIntegration(integration)"
+                />
+                <v-spacer />
+                <v-btn
+                  variant="text"
+                  size="small"
+                  @click="testConnection(integration)"
+                  :loading="testingConnections[integration.id]"
+                >
+                  <v-icon start>mdi-connection</v-icon>
+                  Тест
+                </v-btn>
+                <v-btn
+                  color="primary"
+                  variant="elevated"
+                  size="small"
+                  prepend-icon="mdi-cog"
+                  @click="openMultiConnectionsDialog"
+                >
+                  Настроить
+                </v-btn>
+              </v-card-actions>
+            </template>
 
-            <!-- Действия -->
-            <v-card-actions class="pt-0">
-              <v-switch
-                v-model="integration.enabled"
-                :label="integration.enabled ? 'Включено' : 'Отключено'"
-                :disabled="isDemoIntegration(integration.id)"
-                color="primary"
-                hide-details
-                @change="toggleIntegration(integration)"
-              />
+            <!-- Стандартная карточка для других интеграций -->
+            <template v-else>
+              <!-- Заголовок карточки -->
+              <v-card-title class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-3">
+                  <v-avatar
+                    :color="getIntegrationColor(integration.type)"
+                    size="40"
+                  >
+                    <v-icon :icon="getIntegrationIcon(integration.type)" color="white" />
+                  </v-avatar>
+                  
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">
+                      {{ integration.name }}
+                    </div>
+                    <div class="text-caption text-medium-emphasis">
+                      {{ getIntegrationTypeLabel(integration.type) }}
+                    </div>
+                  </div>
+                </div>
 
-              <v-spacer />
+                <!-- Статус -->
+                <div class="d-flex align-center gap-2">
+                  <!-- Индикатор "в разработке" для демо интеграций -->
+                  <v-chip
+                    v-if="isDemoIntegration(integration.id)"
+                    color="orange"
+                    variant="elevated"
+                    size="small"
+                  >
+                    <v-icon start size="14">mdi-hammer-wrench</v-icon>
+                    В разработке
+                  </v-chip>
+                  
+                  <v-chip
+                    :color="getStatusColor(integration.status)"
+                    :variant="integration.enabled ? 'elevated' : 'outlined'"
+                    size="small"
+                  >
+                    <v-icon
+                      start
+                      :icon="getStatusIcon(integration.status)"
+                      size="14"
+                    />
+                    {{ getStatusLabel(integration.status) }}
+                  </v-chip>
+                </div>
+              </v-card-title>
 
-              <v-btn
-                variant="text"
-                size="small"
-                :disabled="isDemoIntegration(integration.id)"
-                @click="testConnection(integration)"
-                :loading="testingConnections[integration.id]"
-              >
-                <v-icon start>mdi-connection</v-icon>
-                Тест
-              </v-btn>
+              <!-- Описание -->
+              <v-card-text class="pt-0">
+                <p class="text-body-2 mb-3">{{ integration.description }}</p>
 
-              <v-btn
-                variant="text"
-                size="small"
-                :disabled="isDemoIntegration(integration.id)"
-                @click="editIntegration(integration)"
-              >
-                <v-icon start>mdi-cog</v-icon>
-                Настроить
-              </v-btn>
-            </v-card-actions>
+                <!-- Дополнительная информация -->
+                <div class="d-flex align-center justify-space-between text-caption">
+                  <span v-if="integration.lastSync" class="text-medium-emphasis">
+                    <v-icon size="14" class="me-1">mdi-clock</v-icon>
+                    Синхронизация: {{ formatDate(integration.lastSync) }}
+                  </span>
+                  
+                  <span v-if="integration.lastError" class="text-error">
+                    <v-icon size="14" class="me-1">mdi-alert</v-icon>
+                    {{ integration.lastError }}
+                  </span>
+                </div>
+              </v-card-text>
+
+              <!-- Действия -->
+              <v-card-actions class="pt-0">
+                <v-switch
+                  v-model="integration.enabled"
+                  :label="integration.enabled ? 'Включено' : 'Отключено'"
+                  :disabled="isDemoIntegration(integration.id)"
+                  color="primary"
+                  hide-details
+                  @change="toggleIntegration(integration)"
+                />
+
+                <v-spacer />
+
+                <v-btn
+                  variant="text"
+                  size="small"
+                  :disabled="isDemoIntegration(integration.id)"
+                  @click="testConnection(integration)"
+                  :loading="testingConnections[integration.id]"
+                >
+                  <v-icon start>mdi-connection</v-icon>
+                  Тест
+                </v-btn>
+
+                <v-btn
+                  variant="text"
+                  size="small"
+                  :disabled="isDemoIntegration(integration.id)"
+                  @click="editIntegration(integration)"
+                >
+                  <v-icon start>mdi-cog</v-icon>
+                  Настроить
+                </v-btn>
+              </v-card-actions>
+            </template>
           </v-card>
         </v-col>
       </v-row>
@@ -815,154 +881,51 @@
 
           <!-- Настройки Wialon Hosting -->
           <div v-if="editDialog.integration.type === 'wialon'">
-            <v-alert
-              type="info"
-              variant="tonal"
-              class="mb-4"
-              icon="mdi-information"
-            >
-              <div class="text-body-2">
-                <strong>Wialon Hosting</strong> — платформа GPS-мониторинга транспорта.
-                <br />
-                Нажмите кнопку «Получить токен» ниже для автоматической авторизации.
-              </div>
-            </v-alert>
+            <!-- Единый блок управления подключениями -->
+            <v-card variant="tonal" color="primary" class="mb-4">
+              <v-card-item>
+                <template #prepend>
+                  <v-avatar color="primary" size="48">
+                    <v-icon size="24">mdi-satellite-uplink</v-icon>
+                  </v-avatar>
+                </template>
+                <v-card-title>Управление подключениями Wialon</v-card-title>
+                <v-card-subtitle>
+                  Подключайтесь к нескольким серверам Wialon одновременно
+                </v-card-subtitle>
+              </v-card-item>
+              
+              <v-card-text>
+                <div class="text-body-2 mb-3">
+                  Здесь вы можете настроить подключения к:
+                </div>
+                <v-list density="compact" bg-color="transparent" class="py-0">
+                  <v-list-item prepend-icon="mdi-cloud" class="px-0">
+                    <v-list-item-title class="text-body-2">
+                      <strong>Wialon Hosting</strong> — облачная платформа GPS-мониторинга
+                    </v-list-item-title>
+                  </v-list-item>
+                  <v-list-item prepend-icon="mdi-server" class="px-0">
+                    <v-list-item-title class="text-body-2">
+                      <strong>Wialon Local</strong> — локальные серверы мониторинга
+                    </v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-card-text>
 
-            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки Wialon API</h4>
-            
-            <v-select
-              v-model="editDialog.form.settings.data_center"
-              label="Дата-центр"
-              :items="[
-                { title: 'Основной (hst-api.wialon.com)', value: 'com' },
-                { title: 'США (hst-api.wialon.us)', value: 'us' },
-                { title: 'Европа (hst-api.wialon.eu)', value: 'eu' },
-                { title: 'Дополнительный (hst-api.wialon.org)', value: 'org' },
-                { title: 'Альтернативный (hst-api.regwialon.com)', value: 'alt' }
-              ]"
-              variant="outlined"
-              hint="Выберите дата-центр, в котором находится ваш аккаунт Wialon"
-              persistent-hint
-              class="mb-3"
-            />
-            
-            <v-text-field
-              v-model="editDialog.form.settings.token"
-              label="API Token"
-              :type="showToken ? 'text' : 'password'"
-              variant="outlined"
-              hint="72-символьный токен авторизации Wialon"
-              persistent-hint
-              :rules="[v => !v || v.length === 72 || 'Токен должен состоять из 72 символов']"
-              class="mb-2"
-            >
-              <template #append-inner>
+              <v-card-actions class="px-4 pb-4">
+                <v-spacer />
                 <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  @click="showToken = !showToken"
-                  class="mr-1"
+                  color="primary"
+                  variant="elevated"
+                  size="large"
+                  prepend-icon="mdi-cog"
+                  @click="openMultiConnectionsDialog"
                 >
-                  <v-icon>{{ showToken ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                  Открыть настройки подключений
                 </v-btn>
-                <v-btn
-                  icon
-                  variant="text"
-                  size="small"
-                  @click="copyToken"
-                  :disabled="!editDialog.form.settings.token"
-                >
-                  <v-icon>mdi-content-copy</v-icon>
-                </v-btn>
-              </template>
-            </v-text-field>
-            
-            <v-btn
-              color="primary"
-              variant="tonal"
-              size="small"
-              prepend-icon="mdi-key"
-              @click="openWialonOAuth"
-              class="mb-4"
-            >
-              Получить токен
-            </v-btn>
-            <div class="text-caption text-medium-emphasis mb-3">
-              Нажмите кнопку выше, авторизуйтесь в Wialon и скопируйте полученный токен
-            </div>
-
-            <v-divider class="my-4" />
-
-            <h5 class="text-subtitle-2 font-weight-bold mb-3">Настройки синхронизации</h5>
-            
-            <v-text-field
-              v-model.number="editDialog.form.settings.sync_interval"
-              label="Интервал синхронизации (минуты)"
-              type="number"
-              variant="outlined"
-              hint="Как часто синхронизировать данные с Wialon (мин. 1 мин)"
-              persistent-hint
-              :rules="[v => v >= 1 || 'Минимум 1 минута']"
-              class="mb-3"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.auto_sync_enabled"
-              label="Автоматическая синхронизация"
-              color="primary"
-              hint="Включить автоматическую синхронизацию данных"
-              persistent-hint
-              class="mb-3"
-            />
-
-            <v-divider class="my-4" />
-
-            <h5 class="text-subtitle-2 font-weight-bold mb-3">Данные для синхронизации</h5>
-            
-            <v-switch
-              v-model="editDialog.form.settings.sync_vehicles"
-              label="Объекты мониторинга (транспорт)"
-              color="primary"
-              hint="Синхронизировать данные о транспортных средствах"
-              persistent-hint
-              class="mb-2"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.sync_sensors"
-              label="Датчики"
-              color="primary"
-              hint="Синхронизировать данные с датчиков объектов"
-              persistent-hint
-              class="mb-2"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.sync_maintenance"
-              label="Интервалы ТО"
-              color="primary"
-              hint="Синхронизировать данные о техническом обслуживании"
-              persistent-hint
-              class="mb-2"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.sync_drivers"
-              label="Водители"
-              color="primary"
-              hint="Синхронизировать данные о водителях"
-              persistent-hint
-              class="mb-2"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.sync_geozones"
-              label="Геозоны"
-              color="primary"
-              hint="Синхронизировать данные о геозонах"
-              persistent-hint
-            />
+              </v-card-actions>
+            </v-card>
           </div>
         </v-card-text>
 
@@ -979,6 +942,24 @@
             Сохранить
           </v-btn>
         </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог управления несколькими подключениями Wialon -->
+    <v-dialog v-model="multiConnectionsDialog.show" max-width="900" persistent>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon start color="primary">mdi-satellite-uplink</v-icon>
+          Подключения Wialon
+          <v-spacer />
+          <v-btn icon variant="text" @click="multiConnectionsDialog.show = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        
+        <v-card-text>
+          <WialonConnectionsSettings />
+        </v-card-text>
       </v-card>
     </v-dialog>
 
@@ -1007,6 +988,7 @@ import type {
     AxentaIntegrationSettings
 } from '@/types/settings';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
+import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -1024,6 +1006,16 @@ const editDialog = ref({
   },
   saving: false
 });
+
+// Диалог для управления несколькими подключениями Wialon
+const multiConnectionsDialog = ref({
+  show: false
+});
+
+// Открыть диалог мульти-подключений
+const openMultiConnectionsDialog = () => {
+  multiConnectionsDialog.value.show = true;
+};
 
 const snackbar = ref({
   show: false,

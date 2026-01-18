@@ -301,7 +301,20 @@
             </div>
 
             <!-- Wialon интеграция (если подключена) -->
-            <div v-if="wialonIntegration.connected" class="wialon-info-section mb-3">
+            <div v-if="wialonConnections.length > 0" class="wialon-info-section mb-3">
+            <!-- Каждое подключение отдельно -->
+              <div v-for="conn in wialonConnections" :key="conn.name" class="text-caption text-medium-emphasis mb-1">
+                <v-icon :icon="conn.type === 'hosting' ? 'mdi-cloud' : 'mdi-server'" size="14" class="me-1" />
+                {{ conn.type === 'hosting' ? 'WH' : 'WL' }}: 
+                <strong class="text-success">{{ conn.userName || 'Подключено' }}</strong>
+                <span v-if="conn.vehiclesCount > 0" class="text-medium-emphasis">
+                  ({{ conn.vehiclesCount }})
+                </span>
+              </div>
+            </div>
+            
+            <!-- Fallback для старой интеграции -->
+            <div v-else-if="wialonIntegration.connected" class="wialon-info-section mb-3">
               <div class="text-caption text-medium-emphasis mb-2">
                 <v-icon icon="mdi-satellite-variant" size="14" class="me-1" />
                 Wialon Hosting: <strong class="text-success">{{ wialonIntegration.userName || 'Подключено' }}</strong>
@@ -419,12 +432,23 @@ const snackbar = ref({
 });
 
 // Wialon интеграция
+interface WialonConnectionInfo {
+  name: string;
+  type: 'hosting' | 'local';
+  userName: string;
+  vehiclesCount: number;
+  lastSync: string | null;
+  isActive: boolean;
+}
+
 const wialonIntegration = ref({
   connected: false,
   userName: '',
   vehiclesCount: 0,
   lastSync: null as string | null,
 });
+
+const wialonConnections = ref<WialonConnectionInfo[]>([]);
 
 // Диалог справки
 const showHelpDialog = ref(false);
@@ -863,7 +887,57 @@ onMounted(() => {
 // Функция загрузки Wialon интеграции
 const loadWialonIntegration = async () => {
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const API_BASE_URL = 'http://localhost:8080';
+    
+    // Загружаем все подключения из новой таблицы wialon_connections
+    console.log('🔄 Загрузка Wialon подключений...');
+    const connectionsResponse = await fetch(`${API_BASE_URL}/api/wialon/connections`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('axenta_token') || ''}`,
+      },
+    });
+    
+    console.log('📡 Wialon connections response status:', connectionsResponse.status);
+    
+    if (connectionsResponse.ok) {
+      const response = await connectionsResponse.json();
+      console.log('📦 Wialon connections data:', response);
+      
+      // API возвращает {data: {connections: [...], total: 2}, success: true}
+      const connectionsData = response.data?.connections || response.data || response;
+      const connections = Array.isArray(connectionsData) ? connectionsData : [];
+      console.log('📦 Wialon connections array:', connections);
+      
+      if (Array.isArray(connections) && connections.length > 0) {
+        // Преобразуем подключения в формат для отображения
+        wialonConnections.value = connections
+          .filter((c: any) => c.is_active)
+          .map((c: any) => ({
+            name: c.name,
+            type: c.connection_type as 'hosting' | 'local',
+            userName: c.user_name || '',
+            vehiclesCount: c.units_count || 0,
+            lastSync: c.last_sync_at || null,
+            isActive: c.is_active,
+          }));
+        
+        console.log('✅ Wialon connections loaded:', wialonConnections.value);
+        
+        // Устанавливаем флаг connected если есть хотя бы одно активное подключение
+        if (wialonConnections.value.length > 0) {
+          wialonIntegration.value.connected = true;
+          // Суммируем количество объектов со всех подключений
+          wialonIntegration.value.vehiclesCount = wialonConnections.value.reduce(
+            (sum, c) => sum + c.vehiclesCount, 0
+          );
+        }
+        return;
+      }
+    }
+    
+    // Если нет подключений в новой таблице, пробуем старый API
     const response = await fetch(`${API_BASE_URL}/api/wialon/config`, {
       method: 'GET',
       headers: {

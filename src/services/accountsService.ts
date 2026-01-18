@@ -18,12 +18,16 @@ export interface Account {
   objectsActive: number;
   objectsTotal: number;
   objectsDeleted: number;
+  objectsDeactivated?: number; // Деактивированные объекты (для Wialon)
   comment: string | null;
   isActive: boolean;
   blockingDatetime: string | null;
   hierarchy: string;
   daysBeforeBlocking: number | null;
   creationDatetime: string;
+  // Поля для Wialon источников
+  dealer_rights?: boolean; // Права дилера (для Wialon)
+  source?: string; // Источник данных (axenta, WL|Профмонитор и т.д.)
   // Дополнительные поля из API
   country?: string;
   city?: string;
@@ -78,10 +82,10 @@ class AccountsService {
     timestamp: number;
     ttl: number; // Время жизни кеша в миллисекундах (10 секунд)
   } = {
-    data: null,
-    timestamp: 0,
-    ttl: 10000, // 10 секунд
-  };
+      data: null,
+      timestamp: 0,
+      ttl: 10000, // 10 секунд
+    };
 
   // Дедупликация запросов статистики
   private pendingStatsRequest: Promise<{
@@ -98,10 +102,10 @@ class AccountsService {
     timestamp: number;
     ttl: number; // Время жизни кеша в миллисекундах (5 минут)
   } = {
-    data: null,
-    timestamp: 0,
-    ttl: 300000, // 5 минут
-  };
+      data: null,
+      timestamp: 0,
+      ttl: 300000, // 5 минут
+    };
 
   // Дедупликация запросов родительских аккаунтов
   private pendingParentAccountsRequest: Promise<Account[]> | null = null;
@@ -111,12 +115,12 @@ class AccountsService {
     // Добавляем interceptor для автоматического добавления токена авторизации
     this.apiClient.interceptors.request.use((config) => {
       // Проверяем разные ключи для токена (для совместимости)
-      const token = localStorage.getItem("axenta_token") || 
-                   localStorage.getItem("token") ||
-                   localStorage.getItem("authToken");
-      
-      const company = localStorage.getItem("axenta_company") || 
-                     localStorage.getItem("company");
+      const token = localStorage.getItem("axenta_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken");
+
+      const company = localStorage.getItem("axenta_company") ||
+        localStorage.getItem("company");
 
       console.log("AccountsService API request:", {
         url: config.url,
@@ -173,7 +177,7 @@ class AccountsService {
           localStorage.removeItem("axenta_user");
           localStorage.removeItem("axenta_company");
           localStorage.removeItem("axenta_token_expiry");
-          
+
           // Используем replace, чтобы не создавать запись в истории
           if (typeof window !== 'undefined' && window.location) {
             if (window.location.pathname !== '/login') {
@@ -188,14 +192,14 @@ class AccountsService {
     // Добавляем interceptor для Axenta Cloud API
     this.axentaCloudClient.interceptors.request.use((config) => {
       // Используем токен для Axenta Cloud
-      const token = localStorage.getItem("axenta_token") || 
-                   localStorage.getItem("token") ||
-                   localStorage.getItem("authToken");
-      
+      const token = localStorage.getItem("axenta_token") ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("authToken");
+
       if (token) {
         config.headers.Authorization = `Token ${token}`;
       }
-      
+
       return config;
     });
   }
@@ -262,7 +266,7 @@ class AccountsService {
       // Работаем напрямую с данными от Axenta Cloud API
       const accounts = response.data.results || [];
       const count = response.data.count || 0;
-      
+
       // Логируем первую учетную запись для проверки структуры данных
       if (accounts.length > 0) {
         console.log('🔍 DEBUG: Первая учетная запись из API (сырые данные):', {
@@ -281,7 +285,7 @@ class AccountsService {
         const objectsActive = account.objectsActive ?? account.objects_active ?? account.objectsActive ?? 0;
         const objectsTotal = account.objectsTotal ?? account.objects_total ?? account.objectsTotal ?? 0;
         const objectsDeleted = account.objectsDeleted ?? account.objects_deleted ?? 0;
-        
+
         // Логируем для первой учетной записи
         if (accounts.indexOf(account) === 0) {
           console.log('🔍 DEBUG: Маппинг первой учетной записи:', {
@@ -292,7 +296,7 @@ class AccountsService {
             objectsTotalMapped: objectsTotal
           });
         }
-        
+
         return {
           id: account.id,
           name: account.name,
@@ -346,7 +350,7 @@ class AccountsService {
           hierarchy: results[0].hierarchy,
           creationDatetime: results[0].creationDatetime
         });
-        console.log("🔧 DEBUG: All accounts with type and hierarchy:", 
+        console.log("🔧 DEBUG: All accounts with type and hierarchy:",
           results.map(acc => ({ name: acc.name, type: acc.type, hierarchy: acc.hierarchy }))
         );
       }
@@ -370,10 +374,10 @@ class AccountsService {
       );
       const endTime = performance.now();
       const duration = (endTime - startTime).toFixed(2);
-      
+
       // Преобразуем данные аккаунта
       const account = response.data;
-      const result = {
+      const result: Account = {
         id: account.id,
         name: account.name,
         type: account.type === "partner" ? "partner" : "client",
@@ -402,14 +406,14 @@ class AccountsService {
         maxUsers: account.maxUsers,
         storageQuota: account.storageQuota,
       };
-      
+
       console.log(`✅ API ответ получен за ${duration}ms для учетной записи ${id}`);
-      
+
       // Предупреждение о медленной загрузке
       if (endTime - startTime > 2000) {
         console.warn(`⚠️ Медленный ответ API: ${duration}ms для учетной записи ${id}`);
       }
-      
+
       return result;
     } catch (error) {
       const endTime = performance.now();
@@ -425,14 +429,14 @@ class AccountsService {
   async clearBlockingDatetime(id: number): Promise<void> {
     try {
       console.log(`🔄 Очистка даты блокировки для аккаунта ${id}`);
-      
+
       const response = await this.axentaCloudClient.patch<any>(
         `/api/cms/accounts/${id}/`,
         { blockingDatetime: null }
       );
-      
+
       console.log(`✅ Дата блокировки очищена для аккаунта ${id}:`, response.data);
-      
+
       if (response.status !== 200) {
         throw new Error('Ошибка очистки даты блокировки');
       }
@@ -442,56 +446,56 @@ class AccountsService {
     }
   }
 
-        /**
-         * Активировать учетную запись
-         */
-        async activateAccount(id: number): Promise<void> {
-          try {
-            console.log(`🔄 Активация учетной записи ${id}`);
-            
-            // Сначала очищаем дату блокировки, если она есть
-            await this.clearBlockingDatetime(id);
-            
-            // Затем активируем аккаунт через POST метод к /activate/ эндпоинту
-            const response = await this.axentaCloudClient.post<any>(
-              `/api/cms/accounts/${id}/activate/`,
-              { state: true }
-            );
-            
-            console.log(`✅ Учетная запись ${id} активирована:`, response.data);
-            
-            if (response.status !== 201) {
-              throw new Error('Ошибка активации учетной записи');
-            }
-          } catch (error) {
-            console.error(`❌ Ошибка активации учетной записи ${id}:`, error);
-            throw error;
-          }
-        }
+  /**
+   * Активировать учетную запись
+   */
+  async activateAccount(id: number): Promise<void> {
+    try {
+      console.log(`🔄 Активация учетной записи ${id}`);
 
-        /**
-         * Деактивировать учетную запись
-         */
-        async deactivateAccount(id: number): Promise<void> {
-          try {
-            console.log(`🔄 Деактивация учетной записи ${id}`);
-            
-            // Используем правильный POST метод к /activate/ эндпоинту
-            const response = await this.axentaCloudClient.post<any>(
-              `/api/cms/accounts/${id}/activate/`,
-              { state: false }
-            );
-            
-            console.log(`✅ Учетная запись ${id} деактивирована:`, response.data);
-            
-            if (response.status !== 201) {
-              throw new Error('Ошибка деактивации учетной записи');
-            }
-          } catch (error) {
-            console.error(`❌ Ошибка деактивации учетной записи ${id}:`, error);
-            throw error;
-          }
-        }
+      // Сначала очищаем дату блокировки, если она есть
+      await this.clearBlockingDatetime(id);
+
+      // Затем активируем аккаунт через POST метод к /activate/ эндпоинту
+      const response = await this.axentaCloudClient.post<any>(
+        `/api/cms/accounts/${id}/activate/`,
+        { state: true }
+      );
+
+      console.log(`✅ Учетная запись ${id} активирована:`, response.data);
+
+      if (response.status !== 201) {
+        throw new Error('Ошибка активации учетной записи');
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка активации учетной записи ${id}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Деактивировать учетную запись
+   */
+  async deactivateAccount(id: number): Promise<void> {
+    try {
+      console.log(`🔄 Деактивация учетной записи ${id}`);
+
+      // Используем правильный POST метод к /activate/ эндпоинту
+      const response = await this.axentaCloudClient.post<any>(
+        `/api/cms/accounts/${id}/activate/`,
+        { state: false }
+      );
+
+      console.log(`✅ Учетная запись ${id} деактивирована:`, response.data);
+
+      if (response.status !== 201) {
+        throw new Error('Ошибка деактивации учетной записи');
+      }
+    } catch (error) {
+      console.error(`❌ Ошибка деактивации учетной записи ${id}:`, error);
+      throw error;
+    }
+  }
 
   /**
    * Переключить статус учетной записи (активация/деактивация)
@@ -594,7 +598,7 @@ class AccountsService {
       };
     } catch (error: any) {
       console.error("❌ Ошибка создания учетной записи:", error);
-      
+
       let errorMessage = 'Ошибка создания учетной записи';
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
@@ -678,7 +682,7 @@ class AccountsService {
       };
     } catch (error: any) {
       console.error("❌ Ошибка обновления учетной записи:", error);
-      
+
       let errorMessage = 'Ошибка обновления учетной записи';
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
@@ -702,19 +706,19 @@ class AccountsService {
   async deleteAccount(id: number): Promise<void> {
     try {
       console.log(`🗑️ Удаление учетной записи ${id}`);
-      
+
       const response = await this.axentaCloudClient.delete(
         `/api/cms/accounts/${id}/`
       );
-      
+
       console.log(`✅ Учетная запись ${id} успешно удалена:`, response.status);
-      
+
       if (response.status !== 204) {
         throw new Error('Ошибка удаления учетной записи');
       }
     } catch (error: any) {
       console.error(`❌ Ошибка удаления учетной записи ${id}:`, error);
-      
+
       let errorMessage = 'Ошибка удаления учетной записи';
       if (error.response?.data?.detail) {
         errorMessage = error.response.data.detail;
@@ -725,7 +729,7 @@ class AccountsService {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -744,7 +748,7 @@ class AccountsService {
     if (!forceRefresh && this.statsCache.data) {
       const now = Date.now();
       const age = now - this.statsCache.timestamp;
-      
+
       if (age < this.statsCache.ttl) {
         console.log(`📦 Используем кешированную статистику учетных записей (возраст: ${Math.round(age / 1000)}с)`);
         return this.statsCache.data;
@@ -778,7 +782,7 @@ class AccountsService {
 
         // Обновляем кеш
         this.updateStatsCache(stats);
-        
+
         return stats;
       } catch (error) {
         console.error("❌ Ошибка получения статистики учетных записей:", error);
@@ -831,7 +835,7 @@ class AccountsService {
     if (!forceRefresh && this.parentAccountsCache.data) {
       const now = Date.now();
       const age = now - this.parentAccountsCache.timestamp;
-      
+
       if (age < this.parentAccountsCache.ttl) {
         console.log(`📦 Используем кешированные родительские аккаунты (возраст: ${Math.round(age / 1000)}с)`);
         return this.parentAccountsCache.data.map(account => account.parentAccountName).filter(Boolean);
@@ -857,7 +861,7 @@ class AccountsService {
 
         // Обновляем кеш
         this.updateParentAccountsCache(response.results);
-        
+
         return response.results;
       } catch (error) {
         console.error("❌ Ошибка получения родительских аккаунтов:", error);
@@ -903,7 +907,7 @@ class AccountsService {
   async moveAccount(accountId: number, targetAccountId: number): Promise<void> {
     try {
       console.log(`🔄 Перемещение учетной записи ${accountId} к партнеру ${targetAccountId}`);
-      
+
       const response = await this.axentaCloudClient.post<any>(
         `/api/cms/accounts/change_account/`,
         {
@@ -925,7 +929,7 @@ class AccountsService {
   async loginAs(userId: number, type: 'cms' | 'monitoring'): Promise<{ redirectUrl: string }> {
     try {
       console.log(`🔐 Вход в ${type} для пользователя ${userId}`);
-      
+
       const response = await this.axentaCloudClient.post<any>(
         `/api/cms/users/login_as/`,
         {
@@ -935,7 +939,7 @@ class AccountsService {
       );
 
       console.log(`✅ Получен URL для входа в ${type}:`, response.data);
-      
+
       if (!response.data.redirectUrl) {
         throw new Error('Не получен URL для перенаправления');
       }

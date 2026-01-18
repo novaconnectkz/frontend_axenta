@@ -25,6 +25,10 @@ import { setupGlobalErrorHandler } from "./utils/errorHandler";
 import "./utils/themeDebug"; // Утилиты отладки темы
 import "./utils/authDebug"; // Утилиты отладки авторизации
 
+// Vue Virtual Scroller для виртуализации больших списков
+import { RecycleScroller } from 'vue-virtual-scroller';
+import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
+
 const app = createApp(App);
 
 // Настройка Vuetify с Apple темой
@@ -75,6 +79,9 @@ app.use(vuetify); // Затем UI библиотека
 // Router подключаем в последнюю очередь, чтобы auth context был готов
 app.use(router);
 
+// Регистрируем RecycleScroller как глобальный компонент для виртуализации списков
+app.component('RecycleScroller', RecycleScroller);
+
 // Инициализируем демо режим
 initDemoMode();
 
@@ -86,14 +93,14 @@ if (!document.body.hasAttribute("data-theme")) {
 // Принудительно исправляем прокрутку для продакшена
 const forceScrollFix = () => {
   console.log('🔧 Applying scroll fixes for production...');
-  
+
   // Добавляем классы для принудительного исправления прокрутки
   document.documentElement.classList.add('force-scroll-fix');
   document.body.classList.add('force-scroll-fix');
-  
+
   // Убеждаемся, что основные элементы имеют правильные стили прокрутки
   const elementsToFix = ['html', 'body', '#app', '.v-application'];
-  
+
   elementsToFix.forEach(selector => {
     const element = document.querySelector(selector);
     if (element) {
@@ -103,7 +110,7 @@ const forceScrollFix = () => {
       (element as HTMLElement).style.minHeight = '100vh';
     }
   });
-  
+
   console.log('✅ Scroll fixes applied');
 };
 
@@ -118,11 +125,11 @@ nextTick(() => {
   // Даем время на первичный рендеринг и инициализацию
   setTimeout(() => {
     console.log('🚀 App mounted, hiding loading screen...');
-    
+
     // Принудительно скрываем загрузочный экран
     const loadingScreen = document.getElementById('app-loading');
     const app = document.getElementById('app');
-    
+
     if (loadingScreen) {
       console.log('🎯 Hiding loading screen element...');
       loadingScreen.style.display = 'none';
@@ -130,14 +137,14 @@ nextTick(() => {
       loadingScreen.style.visibility = 'hidden';
       loadingScreen.style.pointerEvents = 'none';
     }
-    
+
     if (app) {
       console.log('🎯 Showing main app...');
       app.style.opacity = '1';
       app.style.visibility = 'visible';
       app.classList.add('loaded');
     }
-    
+
     // Дополнительная проверка через секунду
     setTimeout(() => {
       const stillVisible = document.getElementById('app-loading');
@@ -145,10 +152,10 @@ nextTick(() => {
         console.warn('⚠️ Loading screen still visible, force hiding...');
         stillVisible.remove(); // Полностью удаляем элемент
       }
-      
+
       // Принудительно отключаем все loading состояния
       disableAllLoading();
     }, 1000);
-    
+
   }, 100); // Уменьшаем время для более быстрого скрытия
 });
