@@ -74,8 +74,10 @@ const dataCenters = [
   { title: 'Альтернативный (hst-api.regwialon.com)', value: 'alt' },
 ]
 
-// API - используем бэкенд напрямую
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+import { config } from '@/config/env'
+
+// API - используем централизованную конфигурацию
+const API_BASE = config.backendUrl
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('axenta_token')
