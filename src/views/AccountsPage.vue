@@ -213,6 +213,14 @@
 
     <!-- Таблица учетных записей -->
     <v-card class="accounts-table-card">
+      <!-- Индикатор фонового обновления Wialon данных из кэша -->
+      <v-progress-linear
+        v-if="isWialonRefreshing"
+        indeterminate
+        color="primary"
+        height="3"
+        class="wialon-refresh-indicator"
+      />
 
       <v-data-table-virtual
         :headers="headers"
@@ -888,6 +896,7 @@ import { debounce } from 'lodash-es';
 import { useRouter } from 'vue-router';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import { wialonCacheService, type CachedWialonAccount } from '@/services/wialonCacheService';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 
 // Router
@@ -899,7 +908,14 @@ const isLoading = ref(false);
 const isBackgroundLoading = ref(false); // Для фонового обновления
 const isAxentaLoading = ref(false);     // Загрузка данных Axenta (Lazy Loading)
 const isWialonLoading = ref(false);     // Загрузка данных Wialon (Lazy Loading)
+const isWialonRefreshing = ref(false);  // Фоновое обновление данных Wialon (из кэша в актуальные)
+const isWialonFromCache = ref(false);   // Данные загружены из кэша
 const wialonLoadError = ref<string | null>(null); // Ошибка загрузки Wialon
+
+// Lazy Loading статистики объектов
+const objectsStatsLoaded = ref<Set<number>>(new Set()); // ID аккаунтов с загруженной статистикой
+const isLoadingObjectsStats = ref(false); // Флаг загрузки статистики
+const wialonConnectionIds = ref<number[]>([]); // Connection IDs для lazy loading статистики
 const searchQuery = ref('');
 const showAllSearchChips = ref(false); // Показать все чипы поиска
 const currentPage = ref(1);
@@ -1681,12 +1697,78 @@ const wialonAccounts = ref<Array<Account & { source: string; billingAccountId: n
 // Загрузка аккаунтов из Wialon
 const loadWialonAccounts = async () => {
   try {
-    isWialonLoading.value = true; // Lazy Loading: начало загрузки Wialon
     wialonLoadError.value = null;
     
+    // Шаг 1: Попробовать загрузить из кэша (мгновенно)
+    const cachedAccounts = await wialonCacheService.getAccounts();
+    
+    if (cachedAccounts.length > 0) {
+      // Показываем данные из кэша сразу
+      isWialonFromCache.value = true;
+      isWialonRefreshing.value = true; // Начинаем фоновое обновление
+      
+      wialonAccounts.value = cachedAccounts.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type as 'client' | 'partner',
+        isActive: item.isActive,
+        objectsTotal: item.objectsTotal,
+        objectsActive: item.objectsActive || 0,
+        objectsDeactivated: item.objectsDeactivated || 0,
+        objectsDeleted: 0,
+        source: item.sourceLabel || 'wialon',
+        dealer_rights: item.dealerRights || false,
+        connection_id: item.connectionId || 0,
+        parentAccountId: 0,
+        parentAccountName: '',
+        hierarchy: item.hierarchy || '',
+        adminId: 0,
+        adminFullname: '',
+        adminIsActive: true,
+        comment: '',
+        billingClientId: '',
+        balance: 0,
+        monthlyPayment: 0,
+        blockingBalance: 0,
+        daysBeforeBlocking: null,
+        blockingDatetime: null,
+        creationDatetime: item.createdAt || '',
+        billingAccountId: item.billingAccountId || 0,
+      } as Account & { source: string; connection_id: number; billingAccountId: number }));
+      
+      console.log(`📦 Загружено ${cachedAccounts.length} аккаунтов Wialon ИЗ КЭША`);
+      
+      // Обновляем статистику из кэша
+      updateWialonStats(cachedAccounts);
+    } else {
+      // Кэш пуст — показываем индикатор загрузки
+      isWialonLoading.value = true;
+    }
+    
+    // Шаг 2: Загружаем свежие данные с сервера (в фоне или как основная загрузка)
     const wialonData = await settingsService.getWialonAccounts();
     
     if (wialonData && wialonData.items) {
+      // Преобразуем данные для сохранения в кэш
+      const accountsForCache: CachedWialonAccount[] = wialonData.items.map(item => ({
+        id: item.id,
+        connectionId: item.connection_id || 0,
+        name: item.name,
+        type: item.type,
+        isActive: item.is_active,
+        objectsTotal: item.objects_total,
+        objectsActive: item.objects_active || 0,
+        sourceLabel: item.source_label || 'wialon',
+        createdAt: item.created_at || '',
+        dealerRights: item.dealer_rights || false,
+        hierarchy: item.hierarchy || '',
+        billingAccountId: item.billing_account_id || 0,
+        _cachedAt: Date.now(),
+      }));
+      
+      // Сохраняем в кэш (асинхронно, не блокируем UI)
+      wialonCacheService.setAccounts(accountsForCache);
+      
       // Преобразуем Wialon аккаунты в формат Account
       wialonAccounts.value = wialonData.items.map(item => ({
         id: item.id,
@@ -1718,55 +1800,97 @@ const loadWialonAccounts = async () => {
       } as Account & { source: string; connection_id: number; billingAccountId: number }));
       
       // Обновляем статистику Wialon
-      // Подсчитываем статистику по типу подключения (WL/WH) и типу аккаунта (клиент/дилер)
-      let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
-      let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
+      updateWialonStatsFromApi(wialonData.items);
       
-      wialonData.items.forEach(item => {
-        const isDealer = item.dealer_rights === true;
-        const sourceLabel = (item.source_label || '').toLowerCase();
-        
-        if (sourceLabel.startsWith('wl')) {
-          wlTotal++;
-          if (item.is_active) wlActive++;
-          if (isDealer) wlDealers++;
-          else wlClients++;
-        } else if (sourceLabel.startsWith('wh')) {
-          whTotal++;
-          if (item.is_active) whActive++;
-          if (isDealer) whDealers++;
-          else whClients++;
-        }
-      });
-      
-      // Общая статистика Wialon = WL + WH
-      wialonStats.value.total = wialonData.items.length;
-      wialonStats.value.active = wialonData.items.filter((i: { is_active: boolean }) => i.is_active).length;
-      wialonStats.value.blocked = wialonData.items.filter((i: { is_active: boolean }) => !i.is_active).length;
-      wialonStats.value.objects = wialonData.items.reduce((sum: number, i: { objects_total?: number }) => sum + (i.objects_total || 0), 0);
-      wialonStats.value.clients = wlClients + whClients;
-      wialonStats.value.dealers = wlDealers + whDealers;
-      
-      // Раздельная статистика по WL и WH
-      wialonStats.value.wl = { total: wlTotal, active: wlActive, clients: wlClients, dealers: wlDealers };
-      wialonStats.value.wh = { total: whTotal, active: whActive, clients: whClients, dealers: whDealers };
-      
-      console.log(`📡 Загружено ${wialonAccounts.value.length} аккаунтов Wialon`);
-      console.log(`📊 Статистика: WL=${wlTotal}, WH=${whTotal}`);
+      console.log(`📡 Загружено ${wialonAccounts.value.length} аккаунтов Wialon С СЕРВЕРА`);
       
       // Обновляем список родительских аккаунтов после загрузки Wialon
       await updateParentAccountsWithWialon();
       
-      // Фоновая загрузка статистики объектов (не блокирует UI)
-      loadWialonObjectsStats(wialonData.connectionIds || []);
+      // LAZY LOADING: Статистика объектов загружается по требованию при скролле
+      // Сохраняем connectionIds для использования в lazy loading
+      wialonConnectionIds.value = wialonData.connectionIds || [];
+      console.log(`⏳ Статистика объектов будет загружена по требованию (lazy loading)`);
     }
+    
+    isWialonFromCache.value = false;
   } catch (error) {
     console.error('Ошибка загрузки аккаунтов Wialon:', error);
     wialonLoadError.value = error instanceof Error ? error.message : 'Неизвестная ошибка';
-    wialonAccounts.value = [];
+    // Если есть данные из кэша — не очищаем их при ошибке
+    if (!isWialonFromCache.value) {
+      wialonAccounts.value = [];
+    }
   } finally {
     isWialonLoading.value = false; // Lazy Loading: Wialon загружен
+    isWialonRefreshing.value = false; // Фоновое обновление завершено
   }
+};
+
+// Обновление статистики из кэшированных данных
+const updateWialonStats = (items: CachedWialonAccount[]) => {
+  let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
+  let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
+  
+  items.forEach(item => {
+    const isDealer = item.dealerRights === true;
+    const sourceLabel = (item.sourceLabel || '').toLowerCase();
+    
+    if (sourceLabel.startsWith('wl')) {
+      wlTotal++;
+      if (item.isActive) wlActive++;
+      if (isDealer) wlDealers++;
+      else wlClients++;
+    } else if (sourceLabel.startsWith('wh')) {
+      whTotal++;
+      if (item.isActive) whActive++;
+      if (isDealer) whDealers++;
+      else whClients++;
+    }
+  });
+  
+  wialonStats.value.total = items.length;
+  wialonStats.value.active = items.filter(i => i.isActive).length;
+  wialonStats.value.blocked = items.filter(i => !i.isActive).length;
+  wialonStats.value.objects = items.reduce((sum, i) => sum + (i.objectsTotal || 0), 0);
+  wialonStats.value.clients = wlClients + whClients;
+  wialonStats.value.dealers = wlDealers + whDealers;
+  wialonStats.value.wl = { total: wlTotal, active: wlActive, clients: wlClients, dealers: wlDealers };
+  wialonStats.value.wh = { total: whTotal, active: whActive, clients: whClients, dealers: whDealers };
+};
+
+// Обновление статистики из API данных
+const updateWialonStatsFromApi = (items: Array<{ is_active: boolean; dealer_rights?: boolean; source_label?: string; objects_total?: number }>) => {
+  let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
+  let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
+  
+  items.forEach(item => {
+    const isDealer = item.dealer_rights === true;
+    const sourceLabel = (item.source_label || '').toLowerCase();
+    
+    if (sourceLabel.startsWith('wl')) {
+      wlTotal++;
+      if (item.is_active) wlActive++;
+      if (isDealer) wlDealers++;
+      else wlClients++;
+    } else if (sourceLabel.startsWith('wh')) {
+      whTotal++;
+      if (item.is_active) whActive++;
+      if (isDealer) whDealers++;
+      else whClients++;
+    }
+  });
+  
+  wialonStats.value.total = items.length;
+  wialonStats.value.active = items.filter(i => i.is_active).length;
+  wialonStats.value.blocked = items.filter(i => !i.is_active).length;
+  wialonStats.value.objects = items.reduce((sum, i) => sum + (i.objects_total || 0), 0);
+  wialonStats.value.clients = wlClients + whClients;
+  wialonStats.value.dealers = wlDealers + whDealers;
+  wialonStats.value.wl = { total: wlTotal, active: wlActive, clients: wlClients, dealers: wlDealers };
+  wialonStats.value.wh = { total: whTotal, active: whActive, clients: whClients, dealers: whDealers };
+  
+  console.log(`📊 Статистика: WL=${wlTotal}, WH=${whTotal}`);
 };
 
 // Фоновая загрузка статистики объектов Wialon (не блокирует UI)
@@ -1820,6 +1944,84 @@ const loadWialonObjectsStats = async (connectionIds: number[]) => {
 
   console.log('📊 Фоновая загрузка статистики объектов завершена');
 };
+
+// Lazy Loading: Загрузка статистики только для видимых аккаунтов
+const loadVisibleObjectsStats = debounce(async () => {
+  // Получаем видимые строки таблицы
+  const table = document.querySelector('.accounts-table');
+  if (!table) return;
+  
+  const visibleRows = table.querySelectorAll('tbody tr');
+  if (visibleRows.length === 0) return;
+  
+  // Собираем ID аккаунтов для загрузки статистики
+  const accountsToLoad: Array<{ id: number; connectionId: number; billingAccountId: number }> = [];
+  
+  visibleRows.forEach(row => {
+    // Получаем данные строки через data-атрибуты или через wialonAccounts
+    const rowIndex = Array.from(visibleRows).indexOf(row);
+    const visibleAccounts = accountsWithNumbers.value.slice(0, Math.min(20, accountsWithNumbers.value.length));
+    const account = visibleAccounts[rowIndex];
+    
+    if (account && account.source && account.source.startsWith('W') && !objectsStatsLoaded.value.has(account.id)) {
+      accountsToLoad.push({
+        id: account.id,
+        connectionId: (account as any).connection_id || 0,
+        billingAccountId: (account as any).billingAccountId || 0
+      });
+    }
+  });
+  
+  if (accountsToLoad.length === 0) return;
+  
+  console.log(`🔄 Lazy loading: загрузка статистики для ${accountsToLoad.length} видимых аккаунтов`);
+  isLoadingObjectsStats.value = true;
+  
+  // Группируем по connectionId
+  const byConnection = new Map<number, typeof accountsToLoad>();
+  accountsToLoad.forEach(acc => {
+    const list = byConnection.get(acc.connectionId) || [];
+    list.push(acc);
+    byConnection.set(acc.connectionId, list);
+  });
+  
+  // Загружаем статистику для каждого connection
+  for (const [connectionId, accounts] of byConnection) {
+    if (connectionId === 0) continue;
+    
+    try {
+      const statsData = await settingsService.getWialonConnectionObjectsStats(connectionId);
+      
+      if (statsData && statsData.stats) {
+        // Обновляем только запрошенные аккаунты
+        wialonAccounts.value = wialonAccounts.value.map(account => {
+          const requested = accounts.find(a => a.id === account.id);
+          if (!requested) return account;
+          
+          const billingId = (account as any).billingAccountId || 0;
+          const accountStats = statsData.stats[billingId] || statsData.stats[account.id];
+          
+          if (accountStats) {
+            objectsStatsLoaded.value.add(account.id);
+            return {
+              ...account,
+              objectsTotal: accountStats.objectsTotal,
+              objectsActive: accountStats.objectsActive,
+              objectsDeactivated: accountStats.objectsDeactivated || 0,
+            };
+          }
+          return account;
+        });
+        
+        console.log(`✅ Lazy loading: статистика обновлена для ${accounts.length} аккаунтов (connection ${connectionId})`);
+      }
+    } catch (error) {
+      console.error(`❌ Lazy loading: ошибка для connection ${connectionId}:`, error);
+    }
+  }
+  
+  isLoadingObjectsStats.value = false;
+}, 500); // Дебаунс 500ms
 
 // Функция для сравнения массивов аккаунтов
 const areAccountsEqual = (oldAccounts: Account[], newAccounts: Account[]): boolean => {
@@ -2781,12 +2983,29 @@ onMounted(() => {
   
   // Добавляем обработчик изменения размера окна
   window.addEventListener('resize', handleWindowResize);
+  
+  // LAZY LOADING: Загружаем статистику для видимых строк после инициализации
+  setTimeout(() => {
+    loadVisibleObjectsStats();
+    
+    // Добавляем обработчик скролла на таблицу
+    const table = document.querySelector('.accounts-table .v-table__wrapper');
+    if (table) {
+      table.addEventListener('scroll', loadVisibleObjectsStats);
+    }
+  }, 1500); // Даём время на загрузку данных Wialon
 });
 
 onUnmounted(() => {
   stopAutoRefresh();
-  // Удаляем обработчик при размонтировании компонента
+  // Удаляем обработчики при размонтировании компонента
   window.removeEventListener('resize', handleWindowResize);
+  
+  // Удаляем обработчик скролла lazy loading
+  const table = document.querySelector('.accounts-table .v-table__wrapper');
+  if (table) {
+    table.removeEventListener('scroll', loadVisibleObjectsStats);
+  }
 });
 
 const handleWindowResize = () => {
@@ -3049,6 +3268,17 @@ const handleWindowResize = () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   overflow: hidden;
+  position: relative; /* Для позиционирования индикатора */
+}
+
+/* Индикатор фонового обновления Wialon данных */
+.wialon-refresh-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  opacity: 0.8;
 }
 
 .accounts-table {
