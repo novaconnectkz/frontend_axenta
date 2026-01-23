@@ -9,6 +9,12 @@
           <p class="page-subtitle">Управление учетными записями и организациями</p>
         </div>
       </div>
+      <div class="page-actions">
+        <v-btn color="success" variant="flat" prepend-icon="mdi-microsoft-excel" :loading="exporting"
+          @click="exportAccounts">
+          Экспорт в Excel
+        </v-btn>
+      </div>
     </div>
 
     <!-- Статистика -->
@@ -16,15 +22,8 @@
       <div class="stats-grid">
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <AppleCard 
-              v-bind="props"
-              :title="totalStats.total.toString()" 
-              subtitle="Доступных записей"
-              icon="mdi-account-group" 
-              icon-color="primary" 
-              variant="outlined" 
-              class="stat-card" 
-            />
+            <AppleCard v-bind="props" :title="totalStats.total.toString()" subtitle="Доступных записей"
+              icon="mdi-account-group" icon-color="primary" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.total }}</div>
@@ -34,15 +33,8 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <AppleCard 
-              v-bind="props"
-              :title="totalStats.active.toString()" 
-              subtitle="Активных"
-              icon="mdi-account-check" 
-              icon-color="success" 
-              variant="outlined" 
-              class="stat-card" 
-            />
+            <AppleCard v-bind="props" :title="totalStats.active.toString()" subtitle="Активных" icon="mdi-account-check"
+              icon-color="success" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.active }}</div>
@@ -52,15 +44,8 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <AppleCard 
-              v-bind="props"
-              :title="(stats.clients + wialonStats.clients).toString()" 
-              subtitle="Клиентов"
-              icon="mdi-account" 
-              icon-color="warning" 
-              variant="outlined" 
-              class="stat-card" 
-            />
+            <AppleCard v-bind="props" :title="(stats.clients + wialonStats.clients).toString()" subtitle="Клиентов"
+              icon="mdi-account" icon-color="warning" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.clients }}</div>
@@ -70,15 +55,9 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <AppleCard 
-              v-bind="props"
-              :title="(stats.partners + wialonStats.dealers).toString()" 
-              subtitle="Партнеров/Дилеров"
-              icon="mdi-handshake" 
-              icon-color="purple" 
-              variant="outlined" 
-              class="stat-card" 
-            />
+            <AppleCard v-bind="props" :title="(stats.partners + wialonStats.dealers).toString()"
+              subtitle="Партнеров/Дилеров" icon="mdi-handshake" icon-color="purple" variant="outlined"
+              class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.partners }}</div>
@@ -95,85 +74,37 @@
       <div class="filters-content">
         <div class="filters-row">
           <div class="filter-item filter-search">
-            <v-text-field
-              v-model="searchQuery"
+            <v-text-field v-model="searchQuery"
               placeholder="Поиск по названию компании (через запятую для нескольких)..."
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="comfortable"
-              clearable
-              @input="debouncedSearch"
-              class="search-field"
-            />
+              prepend-inner-icon="mdi-magnify" variant="outlined" density="comfortable" clearable
+              @input="debouncedSearch" class="search-field" />
           </div>
           <div class="filter-item">
-            <v-select
-              v-model="filters.type"
-              label="Тип аккаунта"
-              :items="accountTypes"
-              variant="outlined"
-              density="comfortable"
-              @update:model-value="onTypeFilterChange"
-            />
+            <v-select v-model="filters.type" label="Тип аккаунта" :items="accountTypes" variant="outlined"
+              density="comfortable" @update:model-value="onTypeFilterChange" />
           </div>
           <div class="filter-item">
-            <v-select
-              v-model="filters.is_active"
-              label="Статус"
-              :items="statusOptions"
-              variant="outlined"
-              density="comfortable"
-              @update:model-value="onStatusFilterChange"
-            />
+            <v-select v-model="filters.is_active" label="Статус" :items="statusOptions" variant="outlined"
+              density="comfortable" @update:model-value="onStatusFilterChange" />
           </div>
           <div class="filter-item">
-            <v-select
-              v-model="filters.source"
-              label="Система"
-              :items="sourceOptions"
-              variant="outlined"
-              density="comfortable"
-              @update:model-value="onSourceFilterChange"
-            />
+            <v-select v-model="filters.source" label="Система" :items="sourceOptions" variant="outlined"
+              density="comfortable" @update:model-value="onSourceFilterChange" />
           </div>
           <div class="filter-item">
-            <v-autocomplete
-              v-model="selectedParent"
-              label="Родительский аккаунт"
-              :items="parentAccountOptions"
-              variant="outlined"
-              density="comfortable"
-              clearable
-              no-data-text="Нет данных"
-              @update:model-value="onParentChange"
-            />
+            <v-autocomplete v-model="selectedParent" label="Родительский аккаунт" :items="parentAccountOptions"
+              variant="outlined" density="comfortable" clearable no-data-text="Нет данных"
+              @update:model-value="onParentChange" />
           </div>
           <div class="filter-create">
-            <v-btn
-              icon="mdi-plus"
-              color="primary"
-              variant="flat"
-              @click="goToCreateAccount"
-              class="create-button"
-            />
+            <v-btn icon="mdi-plus" color="primary" variant="flat" @click="goToCreateAccount" class="create-button" />
           </div>
           <div class="filter-clear">
-            <v-btn
-              v-show="hasAnyActiveFilters"
-              icon="mdi-filter-remove"
-              variant="flat"
-              color="warning"
-              density="comfortable"
-              @click="resetFilters"
+            <v-btn v-show="hasAnyActiveFilters" icon="mdi-filter-remove" variant="flat" color="warning"
+              density="comfortable" @click="resetFilters"
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
-              :class="{ 'filter-clear-active': hasAnyActiveFilters }"
-            >
-              <v-badge
-                :content="activeFiltersCount"
-                color="white"
-                text-color="warning"
-                inline
-              />
+              :class="{ 'filter-clear-active': hasAnyActiveFilters }">
+              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
             </v-btn>
           </div>
         </div>
@@ -185,27 +116,14 @@
       <span class="text-caption text-grey mr-2">Найдено по запросу:</span>
       <!-- Чипы с реальными индексами -->
       <template v-for="(term, realIndex) in companySearchTermsArray" :key="realIndex">
-        <v-chip
-          v-if="showAllSearchChips || realIndex < 3"
-          size="small"
-          color="primary"
-          variant="outlined"
-          class="mr-1"
-          closable
-          @click:close="removeCompanySearchTerm(realIndex)"
-        >
+        <v-chip v-if="showAllSearchChips || realIndex < 3" size="small" color="primary" variant="outlined" class="mr-1"
+          closable @click:close="removeCompanySearchTerm(realIndex)">
           {{ term }}
         </v-chip>
       </template>
       <!-- Кнопка показать/скрыть остальные -->
-      <v-chip
-        v-if="companySearchTermsArray.length > 3"
-        size="small"
-        color="grey"
-        variant="tonal"
-        class="mr-1"
-        @click="showAllSearchChips = !showAllSearchChips"
-      >
+      <v-chip v-if="companySearchTermsArray.length > 3" size="small" color="grey" variant="tonal" class="mr-1"
+        @click="showAllSearchChips = !showAllSearchChips">
         <v-icon size="14" class="mr-1">{{ showAllSearchChips ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
         {{ showAllSearchChips ? 'Скрыть' : `Ещё +${companySearchTermsArray.length - 3}` }}
       </v-chip>
@@ -214,29 +132,14 @@
     <!-- Таблица учетных записей -->
     <v-card class="accounts-table-card">
       <!-- Индикатор фонового обновления Wialon данных из кэша -->
-      <v-progress-linear
-        v-if="isWialonRefreshing"
-        indeterminate
-        color="primary"
-        height="3"
-        class="wialon-refresh-indicator"
-      />
+      <v-progress-linear v-if="isWialonRefreshing" indeterminate color="primary" height="3"
+        class="wialon-refresh-indicator" />
 
-      <v-data-table-virtual
-        :headers="headers"
-        :items="accountsWithNumbers"
-        :loading="isLoading"
-        :sort-by="[{ key: sortBy, order: sortOrder }]"
-        @update:sort-by="onSortChange"
-        :must-sort="false"
-        :multi-sort="false"
-        class="accounts-table"
-        :class="{ 'updating': isBackgroundLoading }"
-        loading-text="Загрузка учетных записей..."
-        no-data-text="Учетные записи не найдены"
-        height="600"
-        item-height="54"
-      >
+      <v-data-table-virtual :headers="headers" :items="accountsWithNumbers" :loading="isLoading"
+        :sort-by="[{ key: sortBy, order: sortOrder }]" @update:sort-by="onSortChange" :must-sort="false"
+        :multi-sort="false" class="accounts-table" :class="{ 'updating': isBackgroundLoading }"
+        loading-text="Загрузка учетных записей..." no-data-text="Учетные записи не найдены" height="600"
+        item-height="54">
         <!-- Колонка "№" -->
         <template #item.rowNumber="{ item }">
           <span class="row-number">{{ item.rowNumber }}</span>
@@ -244,39 +147,21 @@
 
         <!-- Колонка "ID" -->
         <template #item.id="{ item }">
-         <v-tooltip
-           location="top"
-           class="id-tooltip"
-           :close-on-content-click="false"
-           :close-on-back="false"
-           :close-on-click="false"
-           :close-on-hover="false"
-           persistent
-           no-click-animation
-           @update:model-value="onTooltipOpen"
-         >
+          <v-tooltip location="top" class="id-tooltip" :close-on-content-click="false" :close-on-back="false"
+            :close-on-click="false" :close-on-hover="false" persistent no-click-animation
+            @update:model-value="onTooltipOpen">
             <template #activator="{ props }">
               <span class="id-minimal" v-bind="props">
                 {{ item.id }}
               </span>
             </template>
-           <div
-             class="id-popup draggable-popup"
-             @mouseenter="keepOpen"
-             @mouseleave="keepOpen"
-           >
+            <div class="id-popup draggable-popup" @mouseenter="keepOpen" @mouseleave="keepOpen">
               <div class="popup-header draggable-header">
                 <div class="popup-icon">
                   <v-icon>mdi-domain</v-icon>
                 </div>
                 <div class="popup-title">{{ item.name }}</div>
-                <v-btn 
-                  icon="mdi-close" 
-                  size="small" 
-                  variant="text" 
-                  class="close-btn"
-                  @click="closePopup"
-                />
+                <v-btn icon="mdi-close" size="small" variant="text" class="close-btn" @click="closePopup" />
               </div>
               <div class="popup-content">
                 <div class="popup-field">
@@ -315,7 +200,8 @@
                 </div>
                 <div v-if="item.daysBeforeBlocking !== null" class="popup-field">
                   <span class="field-label">Дней до блокировки</span>
-                  <span class="field-value" :class="{ 'text-error': item.daysBeforeBlocking <= 3, 'text-warning': item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7 }">
+                  <span class="field-value"
+                    :class="{ 'text-error': item.daysBeforeBlocking <= 3, 'text-warning': item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7 }">
                     {{ item.daysBeforeBlocking }}
                   </span>
                 </div>
@@ -337,18 +223,15 @@
 
         <!-- Колонка "Тип" -->
         <template #item.type="{ item }">
-          <span 
-            class="type-minimal" 
-            :class="{ 
-              'type-partner': item.source === 'axenta' ? item.type === 'partner' : item.dealer_rights, 
-              'type-client': item.source === 'axenta' ? item.type !== 'partner' : !item.dealer_rights 
-            }"
-          >
+          <span class="type-minimal" :class="{
+            'type-partner': item.source === 'axenta' ? item.type === 'partner' : item.dealer_rights,
+            'type-client': item.source === 'axenta' ? item.type !== 'partner' : !item.dealer_rights
+          }">
             <!-- Axenta: Партнер/Клиент (по type) -->
             <!-- Wialon: Дилер/Клиент (по dealer_rights) -->
-            {{ item.source === 'axenta' 
+            {{ item.source === 'axenta'
               ? (item.type === 'partner' ? 'Партнер' : 'Клиент')
-              : (item.dealer_rights ? 'Дилер' : 'Клиент') 
+              : (item.dealer_rights ? 'Дилер' : 'Клиент')
             }}
           </span>
         </template>
@@ -358,27 +241,14 @@
 
         <!-- Колонка "Объекты" -->
         <template #item.objectsTotal="{ item }">
-         <v-tooltip
-           location="top"
-           class="objects-tooltip"
-           :close-on-content-click="false"
-           :close-on-back="false"
-           :close-on-click="false"
-           :close-on-hover="false"
-           persistent
-           no-click-animation
-           @update:model-value="onTooltipOpen"
-         >
+          <v-tooltip location="top" class="objects-tooltip" :close-on-content-click="false" :close-on-back="false"
+            :close-on-click="false" :close-on-hover="false" persistent no-click-animation
+            @update:model-value="onTooltipOpen">
             <template #activator="{ props }">
               <div class="objects-compact" v-bind="props">
                 <!-- Загрузка статистики -->
                 <div v-if="item.objectsTotal === -1" class="objects-loading">
-                  <v-progress-circular
-                    indeterminate
-                    size="16"
-                    width="2"
-                    color="primary"
-                  />
+                  <v-progress-circular indeterminate size="16" width="2" color="primary" />
                 </div>
                 <!-- Нет объектов -->
                 <span v-else-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
@@ -396,23 +266,13 @@
                 </div>
               </div>
             </template>
-            <div 
-              class="objects-popup draggable-popup"
-              @mouseenter="keepOpen"
-              @mouseleave="keepOpen"
-            >
+            <div class="objects-popup draggable-popup" @mouseenter="keepOpen" @mouseleave="keepOpen">
               <div class="popup-header draggable-header">
                 <div class="popup-icon">
                   <v-icon>mdi-radar</v-icon>
                 </div>
                 <div class="popup-title">Объекты мониторинга</div>
-                <v-btn 
-                  icon="mdi-close" 
-                  size="small" 
-                  variant="text" 
-                  class="close-btn"
-                  @click="closePopup"
-                />
+                <v-btn icon="mdi-close" size="small" variant="text" class="close-btn" @click="closePopup" />
               </div>
               <div class="popup-content">
                 <div class="popup-field">
@@ -438,29 +298,17 @@
 
         <!-- Колонка "Статус" -->
         <template #item.isActive="{ item }">
-          <v-tooltip
-            location="top"
-            :text="item.isActive ? 'Активен' : 'Заблокирован'"
-          >
+          <v-tooltip location="top" :text="item.isActive ? 'Активен' : 'Заблокирован'">
             <template #activator="{ props }">
-              <v-icon
-                v-bind="props"
-                :icon="item.isActive ? 'mdi-check-circle' : 'mdi-close-circle'"
-                :color="item.isActive ? 'success' : 'error'"
-                size="24"
-                class="status-icon"
-              />
+              <v-icon v-bind="props" :icon="item.isActive ? 'mdi-check-circle' : 'mdi-close-circle'"
+                :color="item.isActive ? 'success' : 'error'" size="24" class="status-icon" />
             </template>
           </v-tooltip>
         </template>
 
         <!-- Колонка "Источник" -->
         <template #item.source="{ item }">
-          <v-chip
-            :color="getSourceColor(item.source)"
-            size="small"
-            variant="tonal"
-          >
+          <v-chip :color="getSourceColor(item.source)" size="small" variant="tonal">
             <v-icon start size="16">
               {{ getSourceIcon(item.source) }}
             </v-icon>
@@ -470,15 +318,11 @@
 
         <!-- Колонка "Блокировка" -->
         <template #item.blockingInfo="{ item }">
-          <span 
-            v-if="item.blockingDatetime"
-            class="blocking-minimal" 
-            :class="{ 
-              'blocking-critical': item.daysBeforeBlocking !== null && item.daysBeforeBlocking <= 3,
-              'blocking-warning': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7,
-              'blocking-normal': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 7
-            }"
-          >
+          <span v-if="item.blockingDatetime" class="blocking-minimal" :class="{
+            'blocking-critical': item.daysBeforeBlocking !== null && item.daysBeforeBlocking <= 3,
+            'blocking-warning': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 3 && item.daysBeforeBlocking <= 7,
+            'blocking-normal': item.daysBeforeBlocking !== null && item.daysBeforeBlocking > 7
+          }">
             {{ formatDateShort(item.blockingDatetime) }}
           </span>
           <span v-else class="blocking-minimal blocking-none">
@@ -497,53 +341,28 @@
         <template #item.actions="{ item }">
           <div class="actions-row">
             <!-- Иконки "Просмотр" и "Редактировать" удалены -->
-            <v-btn
-              :icon="item.isActive ? 'mdi-pause' : 'mdi-play'"
-              variant="text"
-              size="x-small"
-              :color="item.isActive ? 'warning' : 'success'"
-              @click="toggleAccountStatus(item)"
-              :title="item.isActive ? 'Деактивировать' : 'Активировать'"
-            />
+            <v-btn :icon="item.isActive ? 'mdi-pause' : 'mdi-play'" variant="text" size="x-small"
+              :color="item.isActive ? 'warning' : 'success'" @click="toggleAccountStatus(item)"
+              :title="item.isActive ? 'Деактивировать' : 'Активировать'" />
             <v-menu>
               <template #activator="{ props }">
-                <v-btn
-                  icon="mdi-dots-vertical"
-                  variant="text"
-                  size="x-small"
-                  v-bind="props"
-                  title="Дополнительные действия"
-                />
+                <v-btn icon="mdi-dots-vertical" variant="text" size="x-small" v-bind="props"
+                  title="Дополнительные действия" />
               </template>
               <v-list density="compact">
                 <!-- Пункт "Войти в мониторинг" - отображается для всех типов аккаунтов -->
-                <v-list-item
-                  prepend-icon="mdi-arrow-right-bold"
-                  title="Войти в мониторинг"
-                  @click="loginToMonitoring(item)"
-                />
-                
+                <v-list-item prepend-icon="mdi-arrow-right-bold" title="Войти в мониторинг"
+                  @click="loginToMonitoring(item)" />
+
                 <!-- Пункт "Войти в CMS" - отображается для партнеров Axenta и дилеров Wialon -->
-                <v-list-item
-                  v-if="item.type === 'partner' || item.dealer_rights"
-                  prepend-icon="mdi-arrow-right-bold"
-                  title="Войти в CMS"
-                  @click="loginToCms(item)"
-                />
-                
-                <v-list-item
-                  v-if="item.source === 'axenta' || !item.source"
-                  prepend-icon="mdi-swap-horizontal"
-                  title="Переместить учетную запись"
-                  @click="moveAccount(item)"
-                />
+                <v-list-item v-if="item.type === 'partner' || item.dealer_rights" prepend-icon="mdi-arrow-right-bold"
+                  title="Войти в CMS" @click="loginToCms(item)" />
+
+                <v-list-item v-if="item.source === 'axenta' || !item.source" prepend-icon="mdi-swap-horizontal"
+                  title="Переместить учетную запись" @click="moveAccount(item)" />
                 <v-divider />
-                <v-list-item
-                  prepend-icon="mdi-delete"
-                  title="Удалить учетную запись"
-                  @click="deleteAccount(item)"
-                  class="text-error"
-                />
+                <v-list-item prepend-icon="mdi-delete" title="Удалить учетную запись" @click="deleteAccount(item)"
+                  class="text-error" />
               </v-list>
             </v-menu>
           </div>
@@ -551,13 +370,8 @@
       </v-data-table-virtual>
 
       <!-- Lazy Loading: Индикатор догрузки Wialon -->
-      <v-alert
-        v-if="isWialonLoading && !isAxentaLoading"
-        type="info"
-        variant="tonal"
-        density="compact"
-        class="mt-2 mb-0 wialon-loading-alert"
-      >
+      <v-alert v-if="isWialonLoading && !isAxentaLoading" type="info" variant="tonal" density="compact"
+        class="mt-2 mb-0 wialon-loading-alert">
         <div class="d-flex align-center">
           <v-progress-circular indeterminate size="18" width="2" class="mr-2" />
           <span>Загрузка аккаунтов из Wialon...</span>
@@ -566,50 +380,19 @@
 
       <!-- Компактная пагинация справа -->
       <div class="compact-pagination">
-        <v-select
-          v-model="itemsPerPage"
-          :items="itemsPerPageOptions"
-          variant="outlined"
-          density="compact"
-          class="items-select"
-          @update:model-value="onItemsPerPageChange"
-          hide-details
-        />
+        <v-select v-model="itemsPerPage" :items="itemsPerPageOptions" variant="outlined" density="compact"
+          class="items-select" @update:model-value="onItemsPerPageChange" hide-details />
         <span class="range-info">{{ getDisplayRange() }} из {{ effectiveTotalItems }}</span>
         <div class="nav-controls">
-          <v-btn
-            icon="mdi-page-first"
-            variant="text"
-            size="x-small"
-            :disabled="currentPage === 1"
-            @click="goToFirstPage"
-            title="Первая"
-          />
-          <v-btn
-            icon="mdi-chevron-left"
-            variant="text"
-            size="x-small"
-            :disabled="currentPage === 1"
-            @click="goToPrevPage"
-            title="Предыдущая"
-          />
+          <v-btn icon="mdi-page-first" variant="text" size="x-small" :disabled="currentPage === 1"
+            @click="goToFirstPage" title="Первая" />
+          <v-btn icon="mdi-chevron-left" variant="text" size="x-small" :disabled="currentPage === 1"
+            @click="goToPrevPage" title="Предыдущая" />
           <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-          <v-btn
-            icon="mdi-chevron-right"
-            variant="text"
-            size="x-small"
-            :disabled="currentPage === totalPages"
-            @click="goToNextPage"
-            title="Следующая"
-          />
-          <v-btn
-            icon="mdi-page-last"
-            variant="text"
-            size="x-small"
-            :disabled="currentPage === totalPages"
-            @click="goToLastPage"
-            title="Последняя"
-          />
+          <v-btn icon="mdi-chevron-right" variant="text" size="x-small" :disabled="currentPage === totalPages"
+            @click="goToNextPage" title="Следующая" />
+          <v-btn icon="mdi-page-last" variant="text" size="x-small" :disabled="currentPage === totalPages"
+            @click="goToLastPage" title="Последняя" />
         </div>
       </div>
     </v-card>
@@ -625,53 +408,25 @@
         <v-card-text>
           <v-row>
             <v-col cols="12" md="6">
-              <v-text-field
-                label="ID"
-                :model-value="selectedAccount.id"
-                readonly
-                variant="outlined"
-              />
+              <v-text-field label="ID" :model-value="selectedAccount.id" readonly variant="outlined" />
             </v-col>
             <v-col cols="12" md="6">
-              <v-text-field
-                label="Название"
-                :model-value="selectedAccount.name"
-                readonly
-                variant="outlined"
-              />
+              <v-text-field label="Название" :model-value="selectedAccount.name" readonly variant="outlined" />
             </v-col>
             <v-col cols="12">
-              <v-text-field
-                label="Иерархия"
-                :model-value="selectedAccount.hierarchy"
-                readonly
-                variant="outlined"
-              />
+              <v-text-field label="Иерархия" :model-value="selectedAccount.hierarchy" readonly variant="outlined" />
             </v-col>
             <v-col cols="12" md="6">
-              <v-text-field
-                label="Родительский аккаунт"
-                :model-value="selectedAccount.parentAccountName"
-                readonly
-                variant="outlined"
-              />
+              <v-text-field label="Родительский аккаунт" :model-value="selectedAccount.parentAccountName" readonly
+                variant="outlined" />
             </v-col>
             <v-col cols="12" md="6">
-              <v-text-field
-                label="Администратор"
-                :model-value="selectedAccount.adminFullname"
-                readonly
-                variant="outlined"
-              />
+              <v-text-field label="Администратор" :model-value="selectedAccount.adminFullname" readonly
+                variant="outlined" />
             </v-col>
             <v-col cols="12">
-              <v-textarea
-                label="Комментарий"
-                :model-value="selectedAccount.comment || 'Нет комментария'"
-                readonly
-                variant="outlined"
-                rows="3"
-              />
+              <v-textarea label="Комментарий" :model-value="selectedAccount.comment || 'Нет комментария'" readonly
+                variant="outlined" rows="3" />
             </v-col>
           </v-row>
         </v-card-text>
@@ -696,7 +451,7 @@
           <v-icon icon="mdi-alert-circle" color="error" size="32" class="mr-2" />
           Подтверждение удаления
         </v-card-title>
-        
+
         <v-card-text class="pa-4">
           <div class="mb-4">
             <p class="text-body-1 mb-2">
@@ -706,75 +461,48 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToDelete?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToDelete?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToDelete?.source === 'axenta' 
+                Тип: {{ accountToDelete?.source === 'axenta'
                   ? (accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент')
-                  : (accountToDelete?.dealer_rights ? 'Дилер' : 'Клиент') 
+                  : (accountToDelete?.dealer_rights ? 'Дилер' : 'Клиент')
                 }}
               </div>
             </div>
           </div>
-          
+
           <div class="mb-4">
             <p class="text-body-2 text-grey-darken-1 mb-2">
-              <strong>Внимание!</strong> Это действие нельзя отменить. Все данные учетной записи будут безвозвратно удалены.
+              <strong>Внимание!</strong> Это действие нельзя отменить. Все данные учетной записи будут безвозвратно
+              удалены.
             </p>
           </div>
-          
+
           <div class="mb-4">
             <p class="text-body-2 mb-2">
               Для подтверждения введите ID учетной записи:
             </p>
-            <v-text-field
-              v-model="deleteConfirmationId"
-              label="ID учетной записи"
-              placeholder="Введите ID для подтверждения"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isDeleting"
-              @keyup.enter="confirmDelete"
-            />
+            <v-text-field v-model="deleteConfirmationId" label="ID учетной записи"
+              placeholder="Введите ID для подтверждения" variant="outlined" density="comfortable" :disabled="isDeleting"
+              @keyup.enter="confirmDelete" />
           </div>
-          
+
           <!-- Выбор причины для Wialon Hosting -->
-          <div 
-            v-if="accountToDelete && (accountToDelete.source || '').toUpperCase().startsWith('WH')"
-            class="mb-4"
-          >
+          <div v-if="accountToDelete && (accountToDelete.source || '').toUpperCase().startsWith('WH')" class="mb-4">
             <p class="text-body-2 mb-2">
               <v-icon icon="mdi-information" color="info" size="16" class="mr-1" />
               Для Wialon Hosting необходимо указать причину удаления:
             </p>
-            <v-select
-              v-model="deleteReasonKey"
-              :items="wialonDeleteReasons"
-              item-title="label"
-              item-value="key"
-              label="Причина удаления"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isDeleting"
-              clearable
-            />
+            <v-select v-model="deleteReasonKey" :items="wialonDeleteReasons" item-title="label" item-value="key"
+              label="Причина удаления" variant="outlined" density="comfortable" :disabled="isDeleting" clearable />
           </div>
         </v-card-text>
-        
+
         <v-card-actions class="pa-4">
           <v-spacer />
-          <v-btn
-            color="grey"
-            variant="text"
-            @click="cancelDelete"
-            :disabled="isDeleting"
-          >
+          <v-btn color="grey" variant="text" @click="cancelDelete" :disabled="isDeleting">
             Отмена
           </v-btn>
-          <v-btn
-            color="error"
-            variant="flat"
-            @click="confirmDelete"
-            :loading="isDeleting"
-            :disabled="deleteConfirmationId !== accountToDelete?.id?.toString()"
-          >
+          <v-btn color="error" variant="flat" @click="confirmDelete" :loading="isDeleting"
+            :disabled="deleteConfirmationId !== accountToDelete?.id?.toString()">
             <v-icon icon="mdi-delete" class="mr-1" />
             Удалить
           </v-btn>
@@ -789,7 +517,7 @@
           <v-icon icon="mdi-swap-horizontal" color="primary" size="32" class="mr-2" />
           Переместить учетную запись
         </v-card-title>
-        
+
         <v-card-text class="pa-4">
           <div class="mb-4">
             <p class="text-body-1 mb-2">
@@ -799,31 +527,21 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToMove?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToMove?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToMove?.source === 'axenta' 
+                Тип: {{ accountToMove?.source === 'axenta'
                   ? (accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент')
-                  : (accountToMove?.dealer_rights ? 'Дилер' : 'Клиент') 
+                  : (accountToMove?.dealer_rights ? 'Дилер' : 'Клиент')
                 }}
               </div>
             </div>
           </div>
-          
+
           <div class="mb-4">
             <p class="text-body-2 mb-2">
               <strong>Выберите целевого партнера:</strong>
             </p>
-            <v-select
-              v-model="selectedTargetPartner"
-              :items="partnerOptions"
-              item-title="name"
-              item-value="id"
-              label="Партнер"
-              placeholder="Выберите партнера"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isMoving"
-              :loading="loadingPartners"
-              clearable
-            >
+            <v-select v-model="selectedTargetPartner" :items="partnerOptions" item-title="name" item-value="id"
+              label="Партнер" placeholder="Выберите партнера" variant="outlined" density="comfortable"
+              :disabled="isMoving" :loading="loadingPartners" clearable>
               <template #item="{ props, item }">
                 <v-list-item v-bind="props">
                   <template #title>
@@ -841,46 +559,31 @@
               </template>
             </v-select>
           </div>
-          
+
           <div class="mb-4">
             <p class="text-body-2 text-grey-darken-1 mb-2">
-              <strong>Внимание!</strong> При перемещении учетной записи все её данные (объекты, пользователи, настройки) будут переданы выбранному партнеру. Это действие нельзя отменить.
+              <strong>Внимание!</strong> При перемещении учетной записи все её данные (объекты, пользователи, настройки)
+              будут переданы выбранному партнеру. Это действие нельзя отменить.
             </p>
           </div>
-          
+
           <div class="mb-4">
             <p class="text-body-2 mb-2">
               Для подтверждения введите ID учетной записи:
             </p>
-            <v-text-field
-              v-model="moveConfirmationId"
-              label="ID учетной записи"
-              placeholder="Введите ID для подтверждения"
-              variant="outlined"
-              density="comfortable"
-              :disabled="isMoving"
-              @keyup.enter="confirmMove"
-            />
+            <v-text-field v-model="moveConfirmationId" label="ID учетной записи"
+              placeholder="Введите ID для подтверждения" variant="outlined" density="comfortable" :disabled="isMoving"
+              @keyup.enter="confirmMove" />
           </div>
         </v-card-text>
-        
+
         <v-card-actions class="pa-4">
           <v-spacer />
-          <v-btn
-            color="grey"
-            variant="text"
-            @click="cancelMove"
-            :disabled="isMoving"
-          >
+          <v-btn color="grey" variant="text" @click="cancelMove" :disabled="isMoving">
             Отмена
           </v-btn>
-          <v-btn
-            color="primary"
-            variant="flat"
-            @click="confirmMove"
-            :loading="isMoving"
-            :disabled="!selectedTargetPartner || moveConfirmationId !== accountToMove?.id?.toString()"
-          >
+          <v-btn color="primary" variant="flat" @click="confirmMove" :loading="isMoving"
+            :disabled="!selectedTargetPartner || moveConfirmationId !== accountToMove?.id?.toString()">
             <v-icon icon="mdi-swap-horizontal" class="mr-1" />
             Переместить
           </v-btn>
@@ -891,13 +594,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { debounce } from 'lodash-es';
-import { useRouter } from 'vue-router';
+import AppleCard from '@/components/Apple/AppleCard.vue';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import { wialonCacheService, type CachedWialonAccount } from '@/services/wialonCacheService';
-import AppleCard from '@/components/Apple/AppleCard.vue';
+import { debounce } from 'lodash-es';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 // Router
 const router = useRouter();
@@ -975,6 +678,7 @@ const deleteDialog = ref(false);
 const accountToDelete = ref<Account | null>(null);
 const deleteConfirmationId = ref('');
 const isDeleting = ref(false);
+const exporting = ref(false); // Флаг экспорта в Excel
 const deleteReasonKey = ref<string | null>(null); // Причина удаления для WH
 
 // Причины удаления для Wialon Hosting
@@ -1127,8 +831,8 @@ const isParentFilterActive = computed(() => {
 });
 
 const hasAnyActiveFilters = computed(() => {
-  return isSearchActive.value || isTypeFilterActive.value || 
-         isStatusFilterActive.value || isParentFilterActive.value;
+  return isSearchActive.value || isTypeFilterActive.value ||
+    isStatusFilterActive.value || isParentFilterActive.value;
 });
 
 const activeFiltersCount = computed(() => {
@@ -1156,16 +860,16 @@ const companySearchTermsArray = computed(() => {
 // Computed свойство для добавления нумерации строк и объединения источников
 const accountsWithNumbers = computed(() => {
   const startNumber = (currentPage.value - 1) * itemsPerPage.value + 1;
-  
+
   // Добавляем source='axenta' к аккаунтам Axenta
   const axentaAccountsWithSource = accounts.value.map(account => ({
     ...account,
     source: 'axenta',
   }));
-  
+
   // Фильтруем Wialon аккаунты по родителю если выбран фильтр
   let filteredWialon = [...wialonAccounts.value];
-  
+
   // === Фильтр по поиску (searchQuery) для Wialon ===
   if (searchQuery.value && searchQuery.value.trim() !== '') {
     // Разбиваем поисковый запрос по запятым (без пробелов)
@@ -1173,15 +877,15 @@ const accountsWithNumbers = computed(() => {
       .split(',')
       .map(term => term.trim().toLowerCase())
       .filter(term => term.length > 0);
-    
+
     if (searchTerms.length > 0) {
       filteredWialon = filteredWialon.filter(account => {
         const accountName = account.name.toLowerCase();
         const hierarchy = account.hierarchy?.toLowerCase() || '';
         const id = account.id?.toString() || '';
-        
+
         // Проверяем совпадение хотя бы с одним термином
-        return searchTerms.some(term => 
+        return searchTerms.some(term =>
           accountName.includes(term) ||
           hierarchy.includes(term) ||
           id.includes(term)
@@ -1189,7 +893,7 @@ const accountsWithNumbers = computed(() => {
       });
     }
   }
-  
+
   // Фильтр по родителю для Wialon
   if (selectedParent.value && selectedParent.value.trim() !== '') {
     filteredWialon = filteredWialon.filter(account => {
@@ -1202,12 +906,12 @@ const accountsWithNumbers = computed(() => {
       return false;
     });
   }
-  
+
   // Фильтр по статусу (is_active) для Wialon
   if (filters.value.is_active !== null) {
     filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
   }
-  
+
   // Фильтр по типу (партнёр/клиент) для Wialon
   if (filters.value.type) {
     filteredWialon = filteredWialon.filter(account => {
@@ -1219,16 +923,16 @@ const accountsWithNumbers = computed(() => {
       return true;
     });
   }
-  
+
   // Определяем какие аккаунты включать на основе фильтра по системе
   let allAccounts: typeof axentaAccountsWithSource = [];
-  
+
   // Фильтруем Axenta аккаунты по статусу (is_active) — API не поддерживает этот фильтр!
   let filteredAxenta = axentaAccountsWithSource;
   if (filters.value.is_active !== null) {
     filteredAxenta = axentaAccountsWithSource.filter(account => account.isActive === filters.value.is_active);
   }
-  
+
   if (filters.value.source === 'axenta') {
     // Только Axenta — данные уже пришли с пагинацией, не добавляем Wialon
     allAccounts = filteredAxenta;
@@ -1249,7 +953,7 @@ const accountsWithNumbers = computed(() => {
     // Все системы — объединяем Axenta и Wialon
     allAccounts = [...filteredAxenta, ...filteredWialon];
   }
-  
+
   // Добавляем нумерацию
   console.log('🔍 accountsWithNumbers computed:', {
     axentaCount: filteredAxenta.length,
@@ -1258,11 +962,11 @@ const accountsWithNumbers = computed(() => {
     sourceFilter: filters.value.source,
     searchQuery: searchQuery.value
   });
-  
+
   // Для Axenta — данные приходят уже с серверной пагинацией
   // Для Wialon и смешанных источников — применяем клиентскую пагинацию
   let paginatedAccounts: typeof allAccounts;
-  
+
   if (filters.value.source === 'axenta') {
     // Axenta: серверная пагинация уже применена
     paginatedAccounts = allAccounts;
@@ -1272,7 +976,7 @@ const accountsWithNumbers = computed(() => {
     const endIndex = startIndex + itemsPerPage.value;
     paginatedAccounts = allAccounts.slice(startIndex, endIndex);
   }
-  
+
   // Добавляем нумерацию (учитываем пагинацию)
   return paginatedAccounts.map((account, index) => ({
     ...account,
@@ -1292,7 +996,7 @@ const effectiveTotalItems = computed(() => {
   } else if (filters.value.source === 'wialon' || filters.value.source === 'wl' || filters.value.source === 'wh') {
     // Только Wialon — считаем отфильтрованных
     let filteredWialon = [...wialonAccounts.value];
-    
+
     // Применяем те же фильтры что и в accountsWithNumbers
     if (selectedParent.value && selectedParent.value.trim() !== '') {
       filteredWialon = filteredWialon.filter(account => {
@@ -1304,11 +1008,11 @@ const effectiveTotalItems = computed(() => {
         return false;
       });
     }
-    
+
     if (filters.value.is_active !== null) {
       filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
     }
-    
+
     if (filters.value.type) {
       filteredWialon = filteredWialon.filter(account => {
         if (filters.value.type === 'partner') {
@@ -1319,7 +1023,7 @@ const effectiveTotalItems = computed(() => {
         return true;
       });
     }
-    
+
     // Фильтр по WL/WH/Wialon
     filteredWialon = filteredWialon.filter(acc => {
       const source = acc.source?.toLowerCase() || '';
@@ -1332,13 +1036,13 @@ const effectiveTotalItems = computed(() => {
       }
       return true;
     });
-    
+
     return filteredWialon.length;
   }
-  
+
   // Все системы — объединяем Axenta и отфильтрованные Wialon
   let filteredWialon = [...wialonAccounts.value];
-  
+
   if (selectedParent.value && selectedParent.value.trim() !== '') {
     filteredWialon = filteredWialon.filter(account => {
       if (account.hierarchy?.includes(selectedParent.value)) {
@@ -1349,11 +1053,11 @@ const effectiveTotalItems = computed(() => {
       return false;
     });
   }
-  
+
   if (filters.value.is_active !== null) {
     filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
   }
-  
+
   if (filters.value.type) {
     filteredWialon = filteredWialon.filter(account => {
       if (filters.value.type === 'partner') {
@@ -1364,7 +1068,7 @@ const effectiveTotalItems = computed(() => {
       return true;
     });
   }
-  
+
   return totalItems.value + filteredWialon.length;
 });
 
@@ -1378,11 +1082,11 @@ const totalPages = computed(() => {
 
 const getDisplayRange = () => {
   if (effectiveTotalItems.value === 0) return '0-0';
-  
+
   if (itemsPerPage.value === -1 || itemsPerPage.value >= effectiveTotalItems.value) {
     return `1-${effectiveTotalItems.value}`;
   }
-  
+
   const start = (currentPage.value - 1) * itemsPerPage.value + 1;
   const end = Math.min(currentPage.value * itemsPerPage.value, effectiveTotalItems.value);
   return `${start}-${end}`;
@@ -1399,7 +1103,7 @@ const loadAccounts = async (isBackground = false) => {
       isLoading.value = true;
       isAxentaLoading.value = true; // Lazy Loading: отслеживаем загрузку Axenta отдельно
     }
-    
+
     // Формируем поисковый запрос с учетом родителя
     let searchParam = searchQuery.value || '';
     if (selectedParent.value && selectedParent.value.trim() !== '') {
@@ -1422,18 +1126,18 @@ const loadAccounts = async (isBackground = false) => {
 
     // Определяем, какие фильтры поддерживает внешний API
     // is_active также поддерживается Axenta API!
-    const hasServerSupportedFilters = filters.value.type || 
-                                     (selectedParent.value && selectedParent.value.trim() !== '') ||
-                                     (searchQuery.value && searchQuery.value.trim() !== '') ||
-                                     filters.value.is_active !== null;
-    
+    const hasServerSupportedFilters = filters.value.type ||
+      (selectedParent.value && selectedParent.value.trim() !== '') ||
+      (searchQuery.value && searchQuery.value.trim() !== '') ||
+      filters.value.is_active !== null;
+
     // Клиентские фильтры - фильтры которые НЕ поддерживаются API
     // Множественный поиск (через запятую) требует клиентской фильтрации!
     const isMultiSearch = searchQuery.value && searchQuery.value.includes(',');
     const hasClientOnlyFilters = isMultiSearch;
-    
+
     const hasActiveFilters = hasServerSupportedFilters || hasClientOnlyFilters;
-    
+
     if (hasActiveFilters) {
       console.log('🔧 Обнаружены активные фильтры:', {
         serverSupported: hasServerSupportedFilters,
@@ -1443,23 +1147,23 @@ const loadAccounts = async (isBackground = false) => {
         parent: selectedParent.value,
         is_active: filters.value.is_active
       });
-      
+
       // Если есть только серверные фильтры - используем их напрямую
       if (hasServerSupportedFilters && !hasClientOnlyFilters) {
         console.log('🔧 Используем только серверные фильтры');
-        
+
         // Wialon аккаунты добавляются через accountsWithNumbers с фильтрацией
         // НЕ добавляем их здесь чтобы избежать дублирования
-        
+
         accounts.value = response.results;
         totalItems.value = response.count;
         lastUpdateTime.value = new Date();
         return;
       }
-      
+
       // Если есть клиентские фильтры - загружаем данные для фильтрации
       console.log('🔧 Загружаем данные для клиентской фильтрации');
-      
+
       // Загружаем все записи без фильтрации для клиентской обработки
       const allRecordsParams = {
         page: 1,
@@ -1467,13 +1171,13 @@ const loadAccounts = async (isBackground = false) => {
         ordering: requestParams.ordering
         // Убираем все фильтры, чтобы получить все записи
       };
-      
+
       // Проверяем кэш
       const now = new Date();
-      const isCacheValid = cacheTimestamp.value && 
-        allAccountsCache.value.length > 0 && 
+      const isCacheValid = cacheTimestamp.value &&
+        allAccountsCache.value.length > 0 &&
         (now.getTime() - cacheTimestamp.value.getTime()) < CACHE_DURATION;
-      
+
       let allRecordsResponse: { results: Account[] };
       if (isCacheValid) {
         // Явно копируем массив из кэша
@@ -1482,12 +1186,12 @@ const loadAccounts = async (isBackground = false) => {
         allRecordsResponse = { results: cachedData };
       } else {
         console.log('🔧 Загружаем все записи для фильтрации...');
-        
+
         // Загружаем ВСЕ страницы данных
         let allResults: Account[] = [];
         let currentPageNum = 1;
         let hasMore = true;
-        
+
         while (hasMore) {
           const pageParams = {
             ...allRecordsParams,
@@ -1495,45 +1199,45 @@ const loadAccounts = async (isBackground = false) => {
           };
           const pageResponse = await accountsService.getAccounts(pageParams);
           allResults = [...allResults, ...pageResponse.results];
-          
+
           // Проверяем есть ли ещё данные
-          hasMore = pageResponse.results.length === allRecordsParams.per_page && 
-                   allResults.length < pageResponse.count;
+          hasMore = pageResponse.results.length === allRecordsParams.per_page &&
+            allResults.length < pageResponse.count;
           currentPageNum++;
-          
+
           // Защита от бесконечного цикла
           if (currentPageNum > 10) {
             console.warn('⚠️ Достигнут лимит страниц (10), прерываем загрузку');
             break;
           }
         }
-        
+
         allRecordsResponse = { results: allResults };
-        
+
         // Сохраняем в кэш
         allAccountsCache.value = allResults;
         cacheTimestamp.value = now;
         console.log(`🔧 Загружено и кэшировано ${allResults.length} записей (всего страниц: ${currentPageNum - 1})`);
       }
-      
+
       // Применяем клиентскую фильтрацию ко всем записям
       // Используем allRecordsResponse.results напрямую (гарантирует доступ к данным)
       let allFilteredResults = [...allRecordsResponse.results];
-      
+
       // Фильтр по статусу (только если явно выбран true или false, не null)
       if (filters.value.is_active !== null && filters.value.is_active !== undefined) {
-        allFilteredResults = allFilteredResults.filter(account => 
+        allFilteredResults = allFilteredResults.filter(account =>
           account.isActive === filters.value.is_active
         );
       }
-      
+
       // Фильтр по типу аккаунта
       if (filters.value.type) {
-        allFilteredResults = allFilteredResults.filter(account => 
+        allFilteredResults = allFilteredResults.filter(account =>
           account.type === filters.value.type
         );
       }
-      
+
       // Фильтр по поиску (если есть) - дополнительная фильтрация поверх серверного поиска
       if (searchQuery.value) {
         if (isMultipleCompanySearch.value) {
@@ -1544,28 +1248,28 @@ const loadAccounts = async (isBackground = false) => {
             recordsBeforeFilter: allFilteredResults.length,
             firstRecords: allFilteredResults.slice(0, 5).map(a => a.name)
           });
-          
+
           allFilteredResults = allFilteredResults.filter(account => {
             const accountName = account.name?.toLowerCase() || '';
             const adminName = account.adminFullname?.toLowerCase() || '';
             const parentName = account.parentAccountName?.toLowerCase() || '';
             const hierarchy = account.hierarchy?.toLowerCase() || '';
-            
-            const matches = searchTerms.some(term => 
+
+            const matches = searchTerms.some(term =>
               accountName.includes(term) ||
               adminName.includes(term) ||
               parentName.includes(term) ||
               hierarchy.includes(term)
             );
-            
+
             // Логируем найденные совпадения
             if (matches) {
               console.log('✅ Найдено совпадение:', account.name);
             }
-            
+
             return matches;
           });
-          
+
           console.log('🔎 После фильтрации Axenta:', allFilteredResults.length);
         } else {
           // Обычный поиск
@@ -1577,7 +1281,7 @@ const loadAccounts = async (isBackground = false) => {
           );
         }
       }
-      
+
       // Фильтр по родительскому аккаунту (пустое значение = "Все родители", не фильтруем)
       if (selectedParent.value && selectedParent.value.trim() !== '') {
         allFilteredResults = allFilteredResults.filter(account => {
@@ -1596,18 +1300,18 @@ const loadAccounts = async (isBackground = false) => {
           return false;
         });
       }
-      
+
       console.log(`🔧 После фильтрации: ${allFilteredResults.length} записей`);
-      
+
       // Применяем пагинацию к отфильтрованным результатам
       const startIndex = (currentPage.value - 1) * itemsPerPage.value;
       const endIndex = startIndex + itemsPerPage.value;
       const paginatedResults = allFilteredResults.slice(startIndex, endIndex);
-      
+
       // Обновляем ответ
       response.results = paginatedResults;
       response.count = allFilteredResults.length;
-      
+
       console.log(`🔧 Показано ${paginatedResults.length} записей из ${allFilteredResults.length} отфильтрованных`);
       console.log(`🔧 Активные фильтры:`, {
         is_active: filters.value.is_active,
@@ -1622,7 +1326,7 @@ const loadAccounts = async (isBackground = false) => {
     if (response.count !== undefined && response.count >= 0) {
       totalItems.value = response.count;
     }
-    
+
     // Обновляем данные если нет активных фильтров (случай без фильтров)
     if (!hasActiveFilters) {
       console.log('🔧 Нет активных фильтров - обновляем данные напрямую');
@@ -1647,12 +1351,12 @@ const loadAccounts = async (isBackground = false) => {
 
   } catch (error: any) {
     console.error('❌ Ошибка загрузки учетных записей:', error);
-    
+
     // Показываем детальную информацию об ошибке
     if (error.response) {
       console.error('Статус ошибки:', error.response.status);
       console.error('Данные ошибки:', error.response.data);
-      
+
       if (error.response.status === 401) {
         console.error('🔐 Ошибка авторизации - проверьте токен');
       } else if (error.response.status === 403) {
@@ -1698,15 +1402,15 @@ const wialonAccounts = ref<Array<Account & { source: string; billingAccountId: n
 const loadWialonAccounts = async () => {
   try {
     wialonLoadError.value = null;
-    
+
     // Шаг 1: Попробовать загрузить из кэша (мгновенно)
     const cachedAccounts = await wialonCacheService.getAccounts();
-    
+
     if (cachedAccounts.length > 0) {
       // Показываем данные из кэша сразу
       isWialonFromCache.value = true;
       isWialonRefreshing.value = true; // Начинаем фоновое обновление
-      
+
       wialonAccounts.value = cachedAccounts.map(item => ({
         id: item.id,
         name: item.name,
@@ -1735,19 +1439,19 @@ const loadWialonAccounts = async () => {
         creationDatetime: item.createdAt || '',
         billingAccountId: item.billingAccountId || 0,
       } as Account & { source: string; connection_id: number; billingAccountId: number }));
-      
+
       console.log(`📦 Загружено ${cachedAccounts.length} аккаунтов Wialon ИЗ КЭША`);
-      
+
       // Обновляем статистику из кэша
       updateWialonStats(cachedAccounts);
     } else {
       // Кэш пуст — показываем индикатор загрузки
       isWialonLoading.value = true;
     }
-    
+
     // Шаг 2: Загружаем свежие данные с сервера (в фоне или как основная загрузка)
     const wialonData = await settingsService.getWialonAccounts();
-    
+
     if (wialonData && wialonData.items) {
       // Преобразуем данные для сохранения в кэш
       const accountsForCache: CachedWialonAccount[] = wialonData.items.map(item => ({
@@ -1765,10 +1469,10 @@ const loadWialonAccounts = async () => {
         billingAccountId: item.billing_account_id || 0,
         _cachedAt: Date.now(),
       }));
-      
+
       // Сохраняем в кэш (асинхронно, не блокируем UI)
       wialonCacheService.setAccounts(accountsForCache);
-      
+
       // Преобразуем Wialon аккаунты в формат Account
       wialonAccounts.value = wialonData.items.map(item => ({
         id: item.id,
@@ -1798,21 +1502,21 @@ const loadWialonAccounts = async () => {
         creationDatetime: item.created_at || '', // Используем дату из API если есть
         billingAccountId: item.billing_account_id || 0, // ID ресурса биллинга (bact) для связи со статистикой
       } as Account & { source: string; connection_id: number; billingAccountId: number }));
-      
+
       // Обновляем статистику Wialon
       updateWialonStatsFromApi(wialonData.items);
-      
+
       console.log(`📡 Загружено ${wialonAccounts.value.length} аккаунтов Wialon С СЕРВЕРА`);
-      
+
       // Обновляем список родительских аккаунтов после загрузки Wialon
       await updateParentAccountsWithWialon();
-      
+
       // LAZY LOADING: Статистика объектов загружается по требованию при скролле
       // Сохраняем connectionIds для использования в lazy loading
       wialonConnectionIds.value = wialonData.connectionIds || [];
       console.log(`⏳ Статистика объектов будет загружена по требованию (lazy loading)`);
     }
-    
+
     isWialonFromCache.value = false;
   } catch (error) {
     console.error('Ошибка загрузки аккаунтов Wialon:', error);
@@ -1831,11 +1535,11 @@ const loadWialonAccounts = async () => {
 const updateWialonStats = (items: CachedWialonAccount[]) => {
   let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
   let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
-  
+
   items.forEach(item => {
     const isDealer = item.dealerRights === true;
     const sourceLabel = (item.sourceLabel || '').toLowerCase();
-    
+
     if (sourceLabel.startsWith('wl')) {
       wlTotal++;
       if (item.isActive) wlActive++;
@@ -1848,7 +1552,7 @@ const updateWialonStats = (items: CachedWialonAccount[]) => {
       else whClients++;
     }
   });
-  
+
   wialonStats.value.total = items.length;
   wialonStats.value.active = items.filter(i => i.isActive).length;
   wialonStats.value.blocked = items.filter(i => !i.isActive).length;
@@ -1863,11 +1567,11 @@ const updateWialonStats = (items: CachedWialonAccount[]) => {
 const updateWialonStatsFromApi = (items: Array<{ is_active: boolean; dealer_rights?: boolean; source_label?: string; objects_total?: number }>) => {
   let wlTotal = 0, wlActive = 0, wlClients = 0, wlDealers = 0;
   let whTotal = 0, whActive = 0, whClients = 0, whDealers = 0;
-  
+
   items.forEach(item => {
     const isDealer = item.dealer_rights === true;
     const sourceLabel = (item.source_label || '').toLowerCase();
-    
+
     if (sourceLabel.startsWith('wl')) {
       wlTotal++;
       if (item.is_active) wlActive++;
@@ -1880,7 +1584,7 @@ const updateWialonStatsFromApi = (items: Array<{ is_active: boolean; dealer_righ
       else whClients++;
     }
   });
-  
+
   wialonStats.value.total = items.length;
   wialonStats.value.active = items.filter(i => i.is_active).length;
   wialonStats.value.blocked = items.filter(i => !i.is_active).length;
@@ -1889,7 +1593,7 @@ const updateWialonStatsFromApi = (items: Array<{ is_active: boolean; dealer_righ
   wialonStats.value.dealers = wlDealers + whDealers;
   wialonStats.value.wl = { total: wlTotal, active: wlActive, clients: wlClients, dealers: wlDealers };
   wialonStats.value.wh = { total: whTotal, active: whActive, clients: whClients, dealers: whDealers };
-  
+
   console.log(`📊 Статистика: WL=${wlTotal}, WH=${whTotal}`);
 };
 
@@ -1905,7 +1609,7 @@ const loadWialonObjectsStats = async (connectionIds: number[]) => {
   for (const connectionId of connectionIds) {
     try {
       const statsData = await settingsService.getWialonConnectionObjectsStats(connectionId);
-      
+
       if (statsData && statsData.stats) {
         // Обновляем objectsTotal и objectsActive для каждого аккаунта
         let updatedCount = 0;
@@ -1931,7 +1635,7 @@ const loadWialonObjectsStats = async (connectionIds: number[]) => {
         });
 
         console.log(`✅ Статистика обновлена для подключения ${connectionId}: ${updatedCount} аккаунтов`);
-        
+
         // Обновляем общую статистику объектов
         wialonStats.value.objects = wialonAccounts.value.reduce(
           (sum, acc) => sum + (acc.objectsTotal > 0 ? acc.objectsTotal : 0), 0
@@ -1950,19 +1654,19 @@ const loadVisibleObjectsStats = debounce(async () => {
   // Получаем видимые строки таблицы
   const table = document.querySelector('.accounts-table');
   if (!table) return;
-  
+
   const visibleRows = table.querySelectorAll('tbody tr');
   if (visibleRows.length === 0) return;
-  
+
   // Собираем ID аккаунтов для загрузки статистики
   const accountsToLoad: Array<{ id: number; connectionId: number; billingAccountId: number }> = [];
-  
+
   visibleRows.forEach(row => {
     // Получаем данные строки через data-атрибуты или через wialonAccounts
     const rowIndex = Array.from(visibleRows).indexOf(row);
     const visibleAccounts = accountsWithNumbers.value.slice(0, Math.min(20, accountsWithNumbers.value.length));
     const account = visibleAccounts[rowIndex];
-    
+
     if (account && account.source && account.source.startsWith('W') && !objectsStatsLoaded.value.has(account.id)) {
       accountsToLoad.push({
         id: account.id,
@@ -1971,12 +1675,12 @@ const loadVisibleObjectsStats = debounce(async () => {
       });
     }
   });
-  
+
   if (accountsToLoad.length === 0) return;
-  
+
   console.log(`🔄 Lazy loading: загрузка статистики для ${accountsToLoad.length} видимых аккаунтов`);
   isLoadingObjectsStats.value = true;
-  
+
   // Группируем по connectionId
   const byConnection = new Map<number, typeof accountsToLoad>();
   accountsToLoad.forEach(acc => {
@@ -1984,23 +1688,23 @@ const loadVisibleObjectsStats = debounce(async () => {
     list.push(acc);
     byConnection.set(acc.connectionId, list);
   });
-  
+
   // Загружаем статистику для каждого connection
   for (const [connectionId, accounts] of byConnection) {
     if (connectionId === 0) continue;
-    
+
     try {
       const statsData = await settingsService.getWialonConnectionObjectsStats(connectionId);
-      
+
       if (statsData && statsData.stats) {
         // Обновляем только запрошенные аккаунты
         wialonAccounts.value = wialonAccounts.value.map(account => {
           const requested = accounts.find(a => a.id === account.id);
           if (!requested) return account;
-          
+
           const billingId = (account as any).billingAccountId || 0;
           const accountStats = statsData.stats[billingId] || statsData.stats[account.id];
-          
+
           if (accountStats) {
             objectsStatsLoaded.value.add(account.id);
             return {
@@ -2012,25 +1716,25 @@ const loadVisibleObjectsStats = debounce(async () => {
           }
           return account;
         });
-        
+
         console.log(`✅ Lazy loading: статистика обновлена для ${accounts.length} аккаунтов (connection ${connectionId})`);
       }
     } catch (error) {
       console.error(`❌ Lazy loading: ошибка для connection ${connectionId}:`, error);
     }
   }
-  
+
   isLoadingObjectsStats.value = false;
 }, 500); // Дебаунс 500ms
 
 // Функция для сравнения массивов аккаунтов
 const areAccountsEqual = (oldAccounts: Account[], newAccounts: Account[]): boolean => {
   if (oldAccounts.length !== newAccounts.length) return false;
-  
+
   for (let i = 0; i < oldAccounts.length; i++) {
     const oldAcc = oldAccounts[i];
     const newAcc = newAccounts[i];
-    
+
     // Сравниваем ключевые поля, которые могут измениться
     if (
       oldAcc.id !== newAcc.id ||
@@ -2044,7 +1748,7 @@ const areAccountsEqual = (oldAccounts: Account[], newAccounts: Account[]): boole
       return false;
     }
   }
-  
+
   return true;
 };
 
@@ -2063,7 +1767,7 @@ const loadStats = async (isBackground = false, forceRefresh = false) => {
   try {
     // Используем оптимизированный метод с кешированием
     const statsData = await accountsService.getAccountsStats(forceRefresh);
-    
+
     // Плавное обновление статистики только если есть изменения
     if (isBackground) {
       const hasStatsChanged = (
@@ -2072,7 +1776,7 @@ const loadStats = async (isBackground = false, forceRefresh = false) => {
         stats.value.clients !== statsData.clients ||
         stats.value.partners !== statsData.partners
       );
-      
+
       if (hasStatsChanged) {
         // Анимированное обновление статистики
         await updateStatsSmooth(statsData);
@@ -2090,7 +1794,7 @@ const updateParentAccountsWithWialon = () => {
   // Получаем текущие опции (без "Все родители")
   const currentOptions = parentAccountOptions.value.slice(1);
   const uniqueParentsSet = new Set<string>(currentOptions.map(opt => opt.value));
-  
+
   // Добавляем родителей из Wialon аккаунтов (ParentName из иерархии)
   wialonAccounts.value.forEach(account => {
     if (account.hierarchy) {
@@ -2106,10 +1810,10 @@ const updateParentAccountsWithWialon = () => {
       }
     }
   });
-  
+
   // Преобразуем Set в отсортированный массив опций
   const parentNames = Array.from(uniqueParentsSet).sort();
-  
+
   parentAccountOptions.value = [
     { title: 'Все родители', value: '' },
     ...parentNames.map(name => ({
@@ -2117,7 +1821,7 @@ const updateParentAccountsWithWialon = () => {
       value: name
     }))
   ];
-  
+
   console.log(`📋 Обновлено ${parentNames.length} родительских аккаунтов (с Wialon)`);
 };
 
@@ -2125,13 +1829,13 @@ const updateParentAccountsWithWialon = () => {
 const loadParentAccounts = async (_forceRefresh: boolean = false) => {
   try {
     console.log('📋 Загрузка списка родительских аккаунтов...');
-    
+
     // Загружаем все аккаунты для извлечения уникальных родителей
     const response = await accountsService.getAccounts({
       per_page: 1000,
       ordering: 'name'
     });
-    
+
     // Извлекаем уникальные имена родительских аккаунтов из поля parentAccountName
     const uniqueParentsSet = new Set<string>();
     response.results.forEach(account => {
@@ -2140,7 +1844,7 @@ const loadParentAccounts = async (_forceRefresh: boolean = false) => {
         uniqueParentsSet.add(account.parentAccountName.trim());
       }
     });
-    
+
     // Добавляем родителей из Wialon аккаунтов (ParentName из иерархии)
     wialonAccounts.value.forEach(account => {
       // Извлекаем родителя из иерархии (второй элемент после sourceLabel)
@@ -2157,10 +1861,10 @@ const loadParentAccounts = async (_forceRefresh: boolean = false) => {
         }
       }
     });
-    
+
     // Преобразуем Set в отсортированный массив опций
     const parentNames = Array.from(uniqueParentsSet).sort();
-    
+
     parentAccountOptions.value = [
       { title: 'Все родители', value: '' },
       ...parentNames.map(name => ({
@@ -2168,7 +1872,7 @@ const loadParentAccounts = async (_forceRefresh: boolean = false) => {
         value: name
       }))
     ];
-    
+
     console.log(`✅ Загружено ${parentNames.length} уникальных родительских аккаунтов для фильтра`);
   } catch (error) {
     console.error('❌ Ошибка загрузки родительских аккаунтов:', error);
@@ -2182,11 +1886,11 @@ const updateStatsSmooth = async (newStats: typeof stats.value): Promise<void> =>
     const duration = 500; // 500ms
     const startTime = Date.now();
     const startStats = { ...stats.value };
-    
+
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // Интерполяция значений
       stats.value = {
         total: Math.round(startStats.total + (newStats.total - startStats.total) * progress),
@@ -2195,14 +1899,14 @@ const updateStatsSmooth = async (newStats: typeof stats.value): Promise<void> =>
         clients: Math.round(startStats.clients + (newStats.clients - startStats.clients) * progress),
         partners: Math.round(startStats.partners + (newStats.partners - startStats.partners) * progress),
       };
-      
+
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
         resolve();
       }
     };
-    
+
     requestAnimationFrame(animate);
   });
 };
@@ -2224,14 +1928,14 @@ const resetFilters = () => {
   };
   selectedParent.value = ''; // Сброс на "Все родители"
   currentPage.value = 1;
-  
+
   // Очищаем кэш при сбросе фильтров
   allAccountsCache.value = [];
   cacheTimestamp.value = null;
-  
+
   // Очищаем сохраненные фильтры из localStorage
   clearFiltersFromStorage();
-  
+
   loadAccounts();
 };
 
@@ -2283,11 +1987,11 @@ const removeCompanySearchTerm = (index: number) => {
   const terms = companySearchTermsArray.value;
   terms.splice(index, 1);
   searchQuery.value = terms.join(', ');
-  
+
   // Очищаем кэш при изменении поиска
   allAccountsCache.value = [];
   cacheTimestamp.value = null;
-  
+
   // Если остался только один термин или меньше, перезагружаем
   if (terms.length <= 1) {
     currentPage.value = 1;
@@ -2316,7 +2020,7 @@ const onItemsPerPageChange = (items: number) => {
   } else {
     itemsPerPage.value = items;
   }
-  
+
   currentPage.value = 1; // Всегда сбрасываем на первую страницу
   saveFiltersToStorage(); // Сохраняем фильтры
   loadAccounts();
@@ -2328,22 +2032,22 @@ const onSortChange = (sortOptions: any) => {
     const sortOption = sortOptions[0];
     sortBy.value = sortOption.key;
     sortOrder.value = sortOption.order;
-    
+
     console.log('🔄 Server-side сортировка по всему списку:', {
       sortBy: sortBy.value,
       sortOrder: sortOrder.value,
       totalRecords: totalItems.value
     });
-    
+
     // Сбрасываем на первую страницу при изменении сортировки
     currentPage.value = 1;
-    
+
     // Если выбрано "Все", загружаем все записи с новой сортировкой
     if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
       console.log('📊 Загружаем все записи с новой сортировкой');
       itemsPerPage.value = totalItems.value || 1000; // Загружаем все доступные записи
     }
-    
+
     saveFiltersToStorage(); // Сохраняем фильтры
     loadAccounts();
   }
@@ -2354,9 +2058,9 @@ const startAutoRefresh = () => {
   if (autoRefreshInterval.value) {
     clearInterval(autoRefreshInterval.value);
   }
-  
+
   console.log(`🔄 Автообновление настроено на ${AUTO_REFRESH_DELAY / 1000} секунд`);
-  
+
   autoRefreshInterval.value = setInterval(() => {
     // Используем фоновое обновление только если не идет основная загрузка
     if (!isLoading.value) {
@@ -2379,32 +2083,32 @@ const stopAutoRefresh = () => {
 const loginToCms = async (account: Account) => {
   try {
     console.log('🔗 Вход в CMS для аккаунта:', account.name);
-    
+
     // Проверяем тип источника аккаунта
     const accountWithSource = account as Account & { source?: string; connection_id?: number };
     const isWialon = accountWithSource.source && accountWithSource.source !== 'axenta';
-    
+
     if (isWialon) {
       // Для Wialon аккаунтов используем специальный API для CMS
       if (!accountWithSource.connection_id) {
         showSnackbar(`У аккаунта "${account.name}" не указан ID подключения`, 'error');
         return;
       }
-      
+
       // Используем специальный метод для CMS
       const result = await settingsService.loginToWialonCms(
         accountWithSource.connection_id,
         account.name
       );
-      
+
       if (!result.success) {
         showSnackbar(result.message || 'Ошибка входа в CMS', 'error');
         return;
       }
-      
+
       console.log('✅ Открываю CMS:', result.redirectUrl);
       window.open(result.redirectUrl, '_blank');
-      
+
     } else {
       // Для Axenta аккаунтов используем стандартный метод
       if (!account.adminId) {
@@ -2413,13 +2117,13 @@ const loginToCms = async (account: Account) => {
       }
 
       const result = await accountsService.loginAs(account.adminId, 'cms');
-      
+
       console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
-      
+
       // Открываем новую вкладку с URL для входа
       window.open(result.redirectUrl, '_blank');
     }
-    
+
   } catch (error: any) {
     console.error('❌ Ошибка входа в CMS:', error);
     const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
@@ -2430,30 +2134,30 @@ const loginToCms = async (account: Account) => {
 const loginToMonitoring = async (account: Account) => {
   try {
     console.log('📊 Вход в мониторинг для аккаунта:', account.name);
-    
+
     // Проверяем тип источника аккаунта
     const accountWithSource = account as Account & { source?: string; connection_id?: number };
     const isWialon = accountWithSource.source && accountWithSource.source !== 'axenta';
-    
+
     if (isWialon) {
       // Для Wialon аккаунтов используем API входа через Wialon
       if (!accountWithSource.connection_id) {
         showSnackbar(`У аккаунта "${account.name}" не указан ID подключения`, 'error');
         return;
       }
-      
+
       // Извлекаем имя пользователя (если это дочерний аккаунт)
       // Имя пользователя передается для входа под конкретным пользователем через core/duplicate
       const result = await settingsService.loginToWialonMonitoring(
         accountWithSource.connection_id,
         account.name // Передаем имя аккаунта как имя пользователя
       );
-      
+
       if (!result.success) {
         showSnackbar(`Ошибка входа в мониторинг: ${result.message}`, 'error');
         return;
       }
-      
+
       console.log('✅ Получен URL для входа в мониторинг Wialon:', result.redirectUrl);
       window.open(result.redirectUrl, '_blank');
     } else {
@@ -2464,11 +2168,11 @@ const loginToMonitoring = async (account: Account) => {
       }
 
       const result = await accountsService.loginAs(account.adminId, 'monitoring');
-      
+
       console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
       window.open(result.redirectUrl, '_blank');
     }
-    
+
   } catch (error: any) {
     console.error('❌ Ошибка входа в мониторинг:', error);
     const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
@@ -2478,19 +2182,19 @@ const loginToMonitoring = async (account: Account) => {
 
 const moveAccount = async (account: Account) => {
   console.log('🔄 Перемещение аккаунта:', account.name);
-  
+
   accountToMove.value = account;
   selectedTargetPartner.value = null;
   moveConfirmationId.value = '';
   moveDialog.value = true;
-  
+
   // Загружаем список партнеров
   await loadPartners();
 };
 
 const deleteAccount = (account: Account) => {
   console.log('🗑️ Запрос на удаление аккаунта:', account.name);
-  
+
   accountToDelete.value = account;
   deleteConfirmationId.value = '';
   deleteReasonKey.value = null;
@@ -2500,21 +2204,21 @@ const deleteAccount = (account: Account) => {
 // Подтверждение удаления
 const confirmDelete = async () => {
   if (!accountToDelete.value) return;
-  
+
   // Проверяем, что пользователь ввел правильный ID
   if (deleteConfirmationId.value !== accountToDelete.value.id.toString()) {
     showSnackbar('Неверный ID. Введите правильный ID для подтверждения удаления.', 'error');
     return;
   }
-  
+
   isDeleting.value = true;
-  
+
   try {
     const account = accountToDelete.value;
     const accountSource = (account.source || '').toUpperCase();
     const isWialon = accountSource.startsWith('WL') || accountSource.startsWith('WH');
     console.log(`🗑️ Удаление аккаунта ${account.id}: ${account.name} (source: ${account.source}, isWialon: ${isWialon})`);
-    
+
     // Проверяем источник аккаунта - Wialon или Axenta
     if (isWialon) {
       // Для Wialon используем settingsService.deleteWialonAccount
@@ -2523,46 +2227,46 @@ const confirmDelete = async () => {
       if (!connId) {
         throw new Error('Не указан connection_id для Wialon аккаунта');
       }
-      
+
       // Передаём причину удаления для Wialon Hosting (WH)
       const reasonKey = accountSource.startsWith('WH') ? (deleteReasonKey.value || undefined) : undefined;
       const result = await settingsService.deleteWialonAccount(account.id, connId, reasonKey);
-      
+
       if (!result.success) {
         throw new Error(result.message);
       }
-      
+
       console.log(`✅ Wialon аккаунт ${account.name} успешно удален`);
-      
+
       // Обновляем данные Wialon
       await loadWialonAccounts();
     } else {
       // Для Axenta используем стандартный метод
       await accountsService.deleteAccount(account.id);
       console.log(`✅ Axenta аккаунт ${account.name} успешно удален`);
-      
+
       // Обновляем данные Axenta
       await loadAccounts();
     }
-    
+
     // Показываем уведомление об успехе
     showSnackbar(
       `Аккаунт "${account.name}" успешно удален`,
       'success'
     );
-    
+
     // Закрываем диалог
     deleteDialog.value = false;
     accountToDelete.value = null;
     deleteConfirmationId.value = '';
     deleteReasonKey.value = null;
-    
+
     // Обновляем статистику
     await loadStats();
-    
+
   } catch (error) {
     console.error('❌ Ошибка удаления аккаунта:', error);
-    
+
     // Показываем уведомление об ошибке
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
     const accountName = accountToDelete.value?.name || 'неизвестный аккаунт';
@@ -2588,18 +2292,18 @@ const loadPartners = async () => {
   try {
     loadingPartners.value = true;
     console.log('📋 Загрузка списка партнеров...');
-    
+
     const response = await accountsService.getAccounts({
       type: 'partner',
       per_page: 100,
       is_active: true
     });
-    
+
     // Исключаем текущий аккаунт из списка
-    partnerOptions.value = response.results.filter(account => 
+    partnerOptions.value = response.results.filter(account =>
       account.id !== accountToMove.value?.id
     );
-    
+
     console.log(`✅ Загружено ${partnerOptions.value.length} партнеров`);
   } catch (error) {
     console.error('❌ Ошибка загрузки партнеров:', error);
@@ -2612,31 +2316,31 @@ const loadPartners = async () => {
 // Подтверждение перемещения
 const confirmMove = async () => {
   if (!accountToMove.value || !selectedTargetPartner.value) return;
-  
+
   try {
     isMoving.value = true;
     console.log(`🔄 Перемещение аккаунта ${accountToMove.value.id} к партнеру ${selectedTargetPartner.value}`);
-    
+
     await accountsService.moveAccount(
       accountToMove.value.id,
       selectedTargetPartner.value
     );
-    
+
     showSnackbar(
       `Аккаунт "${accountToMove.value.name}" успешно перемещен`,
       'success'
     );
-    
+
     // Закрываем диалог
     moveDialog.value = false;
     accountToMove.value = null;
     selectedTargetPartner.value = null;
     moveConfirmationId.value = '';
     partnerOptions.value = [];
-    
+
     // Обновляем данные
     await loadAccounts();
-    
+
   } catch (error) {
     console.error('❌ Ошибка перемещения аккаунта:', error);
     showSnackbar('Ошибка перемещения учетной записи', 'error');
@@ -2683,33 +2387,66 @@ const showSnackbar = (text: string, color: string = 'info') => {
   snackbar.value.show = true;
 };
 
+/**
+ * Экспорт учетных записей в Excel
+ */
+const exportAccounts = async () => {
+  try {
+    exporting.value = true;
+
+    // Передаём текущие фильтры для экспорта
+    const blob = await accountsService.exportAccounts({
+      search: filters.value.search || undefined,
+      type: filters.value.type || undefined,
+      is_active: filters.value.is_active,
+    });
+
+    // Создаем ссылку для скачивания
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `accounts_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    showSnackbar('Экспорт завершен', 'success');
+  } catch (error: any) {
+    console.error('Ошибка экспорта:', error);
+    showSnackbar('Ошибка экспорта учетных записей', 'error');
+  } finally {
+    exporting.value = false;
+  }
+};
+
 const toggleAccountStatus = async (account: Account) => {
   const newStatus = !account.isActive;
   const action = newStatus ? 'активации' : 'деактивации';
-  
+
   try {
     console.log(`🔄 ${action} аккаунта:`, account.name);
-    
+
     // Определяем источник аккаунта (Wialon или Axenta)
     const accountWithSource = account as Account & { source?: string; connection_id?: number };
-    const isWialon = accountWithSource.source && 
-                     accountWithSource.source.toLowerCase() !== 'axenta' && 
-                     accountWithSource.source !== '';
-    
+    const isWialon = accountWithSource.source &&
+      accountWithSource.source.toLowerCase() !== 'axenta' &&
+      accountWithSource.source !== '';
+
     if (isWialon) {
       // Для Wialon аккаунтов используем Wialon API
       // ID ресурса = ID пользователя + 1 в Wialon
       const resourceId = account.id + 1;
       const connectionId = accountWithSource.connection_id || 0;
-      
+
       if (connectionId === 0) {
         throw new Error('Не найден ID подключения для Wialon аккаунта');
       }
-      
+
       console.log(`📡 Wialon toggle: resourceId=${resourceId}, connectionId=${connectionId}, enable=${newStatus}`);
-      
+
       const result = await settingsService.toggleWialonAccountStatus(resourceId, connectionId, newStatus);
-      
+
       if (!result.success) {
         throw new Error(result.message);
       }
@@ -2717,10 +2454,10 @@ const toggleAccountStatus = async (account: Account) => {
       // Для Axenta аккаунтов используем стандартный API
       await accountsService.toggleAccountStatus(account.id, newStatus);
     }
-    
+
     // Обновляем локальное состояние
     account.isActive = newStatus;
-    
+
     // Для Wialon также обновляем в массиве wialonAccounts
     if (isWialon) {
       const wialonAccount = wialonAccounts.value.find(acc => acc.id === account.id);
@@ -2728,21 +2465,21 @@ const toggleAccountStatus = async (account: Account) => {
         wialonAccount.isActive = newStatus;
       }
     }
-    
+
     console.log(`✅ Аккаунт ${account.name} ${newStatus ? 'активирован' : 'деактивирован'}`);
-    
+
     // Показываем уведомление об успехе
     showSnackbar(
       `Аккаунт "${account.name}" успешно ${newStatus ? 'активирован' : 'деактивирован'}`,
       'success'
     );
-    
+
     // Обновляем данные
     await loadAccounts();
-    
+
   } catch (error) {
     console.error('❌ Ошибка изменения статуса аккаунта:', error);
-    
+
     // Показываем уведомление об ошибке
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
     showSnackbar(
@@ -2819,19 +2556,19 @@ const keepOpen = (event: Event) => {
 
 const positionPopupInViewport = (popup: HTMLElement | null) => {
   if (!popup) return;
-  
+
   const rect = popup.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
   const margin = 20;
-  
+
   let newX = rect.left;
   let newY = rect.top;
-  
+
   // Горизонтальное позиционирование - центрируем относительно элемента
   const elementCenterX = rect.left + (rect.width / 2);
   newX = elementCenterX - (rect.width / 2);
-  
+
   // Проверяем границы по горизонтали
   if (newX < margin) {
     newX = margin;
@@ -2839,33 +2576,33 @@ const positionPopupInViewport = (popup: HTMLElement | null) => {
   if (newX + rect.width > viewportWidth - margin) {
     newX = viewportWidth - rect.width - margin;
   }
-  
+
   // Вертикальное позиционирование - ВСЕГДА СВЕРХУ
   const popupHeight = rect.height;
   // Высота строки таблицы ~50px (зарезервировано для расчётов)
-  
+
   // ВСЕГДА показываем popup сверху элемента
   newY = rect.top - popupHeight - 15; // 15px отступ от элемента
-  
+
   // Если popup выходит за верхнюю границу - сдвигаем вниз, но все равно сверху
   if (newY < margin) {
     newY = margin;
   }
-  
+
   // Проверяем, не выходит ли popup за нижнюю границу
   if (newY + popupHeight > viewportHeight - margin) {
     newY = viewportHeight - popupHeight - margin;
     // Логируем только при проблемах с позиционированием (для отладки)
     // console.log('Popup выходит за нижнюю границу, сдвигаем вверх:', newY);
   }
-  
+
   // Применяем позицию
   const deltaX = newX - rect.left;
   const deltaY = newY - rect.top;
-  
+
   // Убираем избыточные логи - оставляем только при необходимости отладки
   // console.log('Final positioning:', { newX, newY, deltaX, deltaY });
-  
+
   popup.style.setProperty('--popup-x', `${deltaX}px`);
   popup.style.setProperty('--popup-y', `${deltaY}px`);
 };
@@ -2877,15 +2614,15 @@ const onTooltipOpen = (isOpen: boolean) => {
       const popups = document.querySelectorAll('.draggable-popup');
       popups.forEach(popup => {
         if (!(popup instanceof HTMLElement)) return;
-        
+
         // Находим элемент, который вызвал popup
-        const triggerElement = popup.closest('.v-tooltip')?.querySelector('[data-tooltip]') || 
-                              popup.closest('.v-tooltip')?.querySelector('td');
-        
+        const triggerElement = popup.closest('.v-tooltip')?.querySelector('[data-tooltip]') ||
+          popup.closest('.v-tooltip')?.querySelector('td');
+
         if (triggerElement) {
           const triggerRect = triggerElement.getBoundingClientRect();
           console.log('Trigger element found:', triggerRect);
-          
+
           // Определяем позицию элемента в списке
           const tableRows = document.querySelectorAll('tbody tr');
           const currentRow = triggerElement.closest('tr');
@@ -2893,18 +2630,18 @@ const onTooltipOpen = (isOpen: boolean) => {
           const rowIndex = Array.from(tableRows).indexOf(currentRow);
           const totalRows = tableRows.length;
           const isLastTwoRows = rowIndex >= totalRows - 2;
-          
+
           console.log('Row position:', { rowIndex, totalRows, isLastTwoRows });
-          
+
           // Позиционируем popup относительно элемента-триггера
           const popupRect = popup.getBoundingClientRect();
           const popupHeight = popupRect.height;
           const margin = 20;
-          
+
           // Горизонтальное позиционирование - центрируем относительно элемента
           const elementCenterX = triggerRect.left + (triggerRect.width / 2);
           let newX = elementCenterX - (popupRect.width / 2);
-          
+
           // Проверяем границы по горизонтали
           if (newX < margin) {
             newX = margin;
@@ -2912,10 +2649,10 @@ const onTooltipOpen = (isOpen: boolean) => {
           if (newX + popupRect.width > window.innerWidth - margin) {
             newX = window.innerWidth - popupRect.width - margin;
           }
-          
+
           // Вертикальное позиционирование
           let newY;
-          
+
           if (isLastTwoRows) {
             // Для последних 2 строк - ВСЕГДА СВЕРХУ с большим отступом (как у третьей позиции снизу)
             newY = triggerRect.top - popupHeight - 30; // Увеличенный отступ для последних строк
@@ -2925,27 +2662,27 @@ const onTooltipOpen = (isOpen: boolean) => {
             newY = triggerRect.top - popupHeight - 15;
             console.log('Regular positioning above:', newY);
           }
-          
+
           // Если popup выходит за верхнюю границу
           if (newY < margin) {
             newY = margin;
             console.log('Popup выходит за верхнюю границу, сдвигаем к верху экрана:', newY);
           }
-          
+
           // Применяем позицию
           const deltaX = newX - popupRect.left;
           const deltaY = newY - popupRect.top;
-          
-          console.log('Custom positioning:', { 
-            triggerRect, 
-            popupRect, 
-            newX, 
-            newY, 
-            deltaX, 
+
+          console.log('Custom positioning:', {
+            triggerRect,
+            popupRect,
+            newX,
+            newY,
+            deltaX,
             deltaY,
             isLastTwoRows
           });
-          
+
           popup.style.setProperty('--popup-x', `${deltaX}px`);
           popup.style.setProperty('--popup-y', `${deltaY}px`);
         } else {
@@ -2971,23 +2708,23 @@ const closePopup = () => {
 onMounted(() => {
   // Восстанавливаем фильтры из localStorage перед загрузкой данных
   loadFiltersFromStorage(); // Результат не используется — важен сам факт вызова
-  
+
   // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
   loadWialonAccounts(); // Загружаем аккаунты Wialon
   loadStats();
   loadParentAccounts(); // Загружаем список родительских аккаунтов
-  
+
   // Запускаем автоматическое обновление каждую минуту (начинается после первой загрузки)
   startAutoRefresh();
-  
+
   // Добавляем обработчик изменения размера окна
   window.addEventListener('resize', handleWindowResize);
-  
+
   // LAZY LOADING: Загружаем статистику для видимых строк после инициализации
   setTimeout(() => {
     loadVisibleObjectsStats();
-    
+
     // Добавляем обработчик скролла на таблицу
     const table = document.querySelector('.accounts-table .v-table__wrapper');
     if (table) {
@@ -3000,7 +2737,7 @@ onUnmounted(() => {
   stopAutoRefresh();
   // Удаляем обработчики при размонтировании компонента
   window.removeEventListener('resize', handleWindowResize);
-  
+
   // Удаляем обработчик скролла lazy loading
   const table = document.querySelector('.accounts-table .v-table__wrapper');
   if (table) {
@@ -3022,42 +2759,64 @@ const handleWindowResize = () => {
 
 <style scoped>
 .accounts-page {
-  padding: 0 24px 24px 24px; /* Убираем верхний отступ */
+  padding: 0 24px 24px 24px;
+  /* Убираем верхний отступ */
   background-color: #f5f5f5;
   min-height: 100vh;
 }
 
 /* Заголовок в самом верху страницы */
 .page-header {
-  margin-bottom: 16px; /* Уменьшаем отступ снизу */
-  padding: 0; /* Убираем все отступы */
-  margin-top: 0; /* Убираем отступ сверху */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  /* Уменьшаем отступ снизу */
+  padding: 0;
+  /* Убираем все отступы */
+  margin-top: 0;
+  /* Убираем отступ сверху */
+}
+
+.page-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .page-title-section {
   display: flex;
   align-items: center;
-  gap: 12px; /* Уменьшаем промежуток */
+  gap: 12px;
+  /* Уменьшаем промежуток */
 }
 
 .page-icon {
   color: var(--apple-blue);
-  font-size: 24px !important; /* Уменьшаем размер иконки */
+  font-size: 24px !important;
+  /* Уменьшаем размер иконки */
 }
 
 .page-title {
-  font-size: 1.5rem; /* Уменьшаем размер шрифта */
-  font-weight: 600; /* Уменьшаем жирность */
+  font-size: 1.5rem;
+  /* Уменьшаем размер шрифта */
+  font-weight: 600;
+  /* Уменьшаем жирность */
   margin: 0;
   color: var(--apple-text-primary);
-  line-height: 1.2; /* Уменьшаем межстрочный интервал */
+  line-height: 1.2;
+  /* Уменьшаем межстрочный интервал */
 }
 
 .page-subtitle {
-  font-size: 0.85rem; /* Уменьшаем размер шрифта */
+  font-size: 0.85rem;
+  /* Уменьшаем размер шрифта */
   color: var(--apple-text-secondary);
-  margin: 2px 0 0 0; /* Уменьшаем отступ сверху */
-  line-height: 1.2; /* Уменьшаем межстрочный интервал */
+  margin: 2px 0 0 0;
+  /* Уменьшаем отступ сверху */
+  line-height: 1.2;
+  /* Уменьшаем межстрочный интервал */
 }
 
 
@@ -3231,9 +2990,11 @@ const handleWindowResize = () => {
   0% {
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }
+
   50% {
     box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
   }
+
   100% {
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }
@@ -3268,7 +3029,8 @@ const handleWindowResize = () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   overflow: hidden;
-  position: relative; /* Для позиционирования индикатора */
+  position: relative;
+  /* Для позиционирования индикатора */
 }
 
 /* Индикатор фонового обновления Wialon данных */
@@ -3389,7 +3151,7 @@ const handleWindowResize = () => {
 }
 
 /* Центрирование всех элементов в ячейках */
-.accounts-table :deep(.v-data-table__td) > * {
+.accounts-table :deep(.v-data-table__td)>* {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -3443,9 +3205,12 @@ const handleWindowResize = () => {
 }
 
 .items-select {
-  min-width: 60px !important; /* Увеличиваем минимальную ширину */
-  width: fit-content !important; /* Ширина по содержимому */
-  max-width: 120px !important; /* Максимальная ширина */
+  min-width: 60px !important;
+  /* Увеличиваем минимальную ширину */
+  width: fit-content !important;
+  /* Ширина по содержимому */
+  max-width: 120px !important;
+  /* Максимальная ширина */
   flex-shrink: 0;
   /* Улучшаем внешний вид */
   height: 40px;
@@ -3474,46 +3239,68 @@ const handleWindowResize = () => {
 }
 
 .range-info {
-  font-size: 0.9rem; /* Увеличиваем размер шрифта */
-  color: #555; /* Улучшаем цвет */
+  font-size: 0.9rem;
+  /* Увеличиваем размер шрифта */
+  color: #555;
+  /* Улучшаем цвет */
   flex-shrink: 0;
-  min-width: 120px; /* Увеличиваем минимальную ширину */
+  min-width: 120px;
+  /* Увеличиваем минимальную ширину */
   text-align: center;
-  font-weight: 600; /* Увеличиваем жирность */
-  padding: 8px 12px; /* Добавляем отступы */
-  background-color: #f0f0f0; /* Добавляем фон */
-  border-radius: 6px; /* Скругленные углы */
+  font-weight: 600;
+  /* Увеличиваем жирность */
+  padding: 8px 12px;
+  /* Добавляем отступы */
+  background-color: #f0f0f0;
+  /* Добавляем фон */
+  border-radius: 6px;
+  /* Скругленные углы */
 }
 
 .nav-controls {
   display: flex;
   align-items: center;
-  gap: 6px; /* Увеличиваем промежуток */
+  gap: 6px;
+  /* Увеличиваем промежуток */
   flex-shrink: 0;
-  padding: 4px; /* Добавляем отступы */
-  background-color: #f0f0f0; /* Добавляем фон */
-  border-radius: 6px; /* Скругленные углы */
+  padding: 4px;
+  /* Добавляем отступы */
+  background-color: #f0f0f0;
+  /* Добавляем фон */
+  border-radius: 6px;
+  /* Скругленные углы */
 }
 
 .page-info {
-  font-size: 0.9rem; /* Увеличиваем размер шрифта */
-  color: #555; /* Улучшаем цвет */
-  font-weight: 700; /* Увеличиваем жирность */
-  min-width: 50px; /* Увеличиваем минимальную ширину */
+  font-size: 0.9rem;
+  /* Увеличиваем размер шрифта */
+  color: #555;
+  /* Улучшаем цвет */
+  font-weight: 700;
+  /* Увеличиваем жирность */
+  min-width: 50px;
+  /* Увеличиваем минимальную ширину */
   text-align: center;
-  padding: 8px 12px; /* Увеличиваем отступы */
-  background-color: #e8e8e8; /* Добавляем фон */
-  border-radius: 6px; /* Скругленные углы */
+  padding: 8px 12px;
+  /* Увеличиваем отступы */
+  background-color: #e8e8e8;
+  /* Добавляем фон */
+  border-radius: 6px;
+  /* Скругленные углы */
 }
 
 /* Улучшенные кнопки навигации */
 .nav-controls .v-btn {
-  min-width: 32px !important; /* Увеличиваем размер */
+  min-width: 32px !important;
+  /* Увеличиваем размер */
   width: 32px;
   height: 32px;
-  border-radius: 6px; /* Скругленные углы */
-  background-color: white; /* Белый фон */
-  border: 1px solid #ddd; /* Добавляем рамку */
+  border-radius: 6px;
+  /* Скругленные углы */
+  background-color: white;
+  /* Белый фон */
+  border: 1px solid #ddd;
+  /* Добавляем рамку */
 }
 
 .accounts-table {
@@ -3532,32 +3319,32 @@ const handleWindowResize = () => {
     flex-wrap: wrap;
     margin-top: 0;
   }
-  
+
   .filter-item,
   .filter-search {
     flex: none;
   }
-  
+
   /* Адаптивные колонки для мобильных устройств */
   .accounts-table :deep(.v-data-table__th),
   .accounts-table :deep(.v-data-table__td) {
     min-width: 60px;
     max-width: none;
   }
-  
+
   /* На мобильных устройствах колонка Компания получает больше места */
   .accounts-table :deep(.v-data-table__th:nth-child(2)),
   .accounts-table :deep(.v-data-table__td:nth-child(2)) {
     width: 40% !important;
     min-width: 150px;
   }
-  
+
   .filter-create,
   .filter-clear {
     align-self: flex-end;
     padding-top: 0;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -4617,6 +4404,7 @@ const handleWindowResize = () => {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -4668,9 +4456,11 @@ const handleWindowResize = () => {
   0% {
     box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
   }
+
   50% {
     box-shadow: 0 4px 12px rgba(25, 118, 210, 0.5);
   }
+
   100% {
     box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
   }
@@ -4720,7 +4510,8 @@ const handleWindowResize = () => {
   padding: 0;
   min-width: 380px;
   max-width: 450px;
-  border: none; /* Убираем рамку */
+  border: none;
+  /* Убираем рамку */
 }
 
 .popup-header {
@@ -4913,7 +4704,8 @@ const handleWindowResize = () => {
   transition: transform 0.2s ease-out;
   /* Улучшенные стили для лучшей видимости */
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-  border: none; /* Убираем рамку */
+  border: none;
+  /* Убираем рамку */
   border-radius: 8px;
   background: white;
   /* Максимальная ширина для предотвращения перекрытия */
@@ -4963,33 +4755,40 @@ const handleWindowResize = () => {
   padding: 0;
   min-width: 380px;
   max-width: 450px;
-  border: none; /* Убираем рамку */
+  border: none;
+  /* Убираем рамку */
 }
 
 @media (max-width: 768px) {
   .accounts-page {
-    padding: 0 16px 16px 16px; /* Убираем верхний отступ на мобильных */
+    padding: 0 16px 16px 16px;
+    /* Убираем верхний отступ на мобильных */
   }
-  
+
   .header-content {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .page-title {
-    font-size: 1.25rem; /* Еще меньше на мобильных */
+    font-size: 1.25rem;
+    /* Еще меньше на мобильных */
     line-height: 1.1;
   }
-  
+
   .page-subtitle {
-    font-size: 0.8rem; /* Еще меньше на мобильных */
+    font-size: 0.8rem;
+    /* Еще меньше на мобильных */
     line-height: 1.1;
   }
-  
+
   .page-header {
-    margin-bottom: 12px; /* Еще меньше отступ на мобильных */
-    padding: 0; /* Убираем все отступы на мобильных */
-    margin-top: 0; /* Убираем отступ сверху на мобильных */
+    margin-bottom: 12px;
+    /* Еще меньше отступ на мобильных */
+    padding: 0;
+    /* Убираем все отступы на мобильных */
+    margin-top: 0;
+    /* Убираем отступ сверху на мобильных */
   }
 }
 </style>

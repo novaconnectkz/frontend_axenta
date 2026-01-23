@@ -952,6 +952,45 @@ class AccountsService {
       throw error;
     }
   }
+
+  /**
+   * Экспорт учетных записей в Excel
+   * POST /api/cms/accounts/excel/
+   */
+  async exportAccounts(filters: AccountsFilters = {}): Promise<Blob> {
+    try {
+      console.log("📤 Экспорт учетных записей в Excel:", filters);
+
+      // Формируем данные для запроса
+      const requestData: any = {};
+
+      // Добавляем фильтры если они указаны
+      if (filters.search) {
+        requestData.search = filters.search;
+      }
+      if (filters.type) {
+        requestData.type = filters.type;
+      }
+      if (filters.is_active !== undefined && filters.is_active !== null) {
+        requestData.is_active = filters.is_active;
+      }
+
+      const response = await this.axentaCloudClient.post(
+        "/api/cms/accounts/excel/",
+        requestData,
+        {
+          responseType: "blob",
+        }
+      );
+
+      console.log("✅ Excel файл получен, размер:", response.data.size, "байт");
+
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Ошибка экспорта учетных записей в Excel:", error);
+      throw error;
+    }
+  }
 }
 
 // Экспортируем singleton instance
