@@ -10,32 +10,12 @@
           <p class="page-subtitle">Мониторинг и управление объектами системы</p>
         </div>
       </div>
-      
-      <div class="page-actions">
 
-        
-        <AppleButton
-          variant="secondary"
-          prepend-icon="mdi-export"
-          @click="exportObjects"
-          :loading="exporting"
-          data-testid="export-button"
-        >
-          Экспорт
-        </AppleButton>
-        <AppleButton
-          prepend-icon="mdi-plus"
-          @click="openCreateDialog"
-          data-testid="create-button"
-        >
-          Создать объект
-        </AppleButton>
-      </div>
     </div>
 
     <!-- Уведомление о демо режиме -->
-    <v-alert v-if="objectsService.isMockDataEnabled && objectsService.isMockDataEnabled()" type="info" variant="tonal" prominent border="start"
-      class="demo-alert">
+    <v-alert v-if="objectsService.isMockDataEnabled && objectsService.isMockDataEnabled()" type="info" variant="tonal"
+      prominent border="start" class="demo-alert">
       <template #prepend>
         <v-icon icon="mdi-play-circle" size="24" />
       </template>
@@ -51,18 +31,10 @@
     <!-- Статистика -->
     <div class="stats-section">
       <div class="stats-grid">
-        <AppleCard
-          v-for="stat in stats"
-          :key="stat.key"
-          :title="stat.value.toString()"
-          :subtitle="stat.label"
-          :icon="stat.icon"
-          :icon-color="stat.color"
-          variant="outlined"
-          :clickable="stat.key === 'trash'"
+        <AppleCard v-for="stat in stats" :key="stat.key" :title="stat.value.toString()" :subtitle="stat.label"
+          :icon="stat.icon" :icon-color="stat.color" variant="outlined" :clickable="stat.key === 'trash'"
           :class="['stat-card', { 'clickable': stat.key === 'trash' }]"
-          @click="stat.key === 'trash' ? openTrashDialog() : null"
-        />
+          @click="stat.key === 'trash' ? openTrashDialog() : null" />
       </div>
     </div>
 
@@ -72,124 +44,64 @@
         <v-row align="center" no-gutters>
           <!-- Поиск -->
           <v-col cols="12" md="8" class="pr-3">
-            <v-text-field
-              v-model="filters.search"
-              placeholder="Поиск по названию, IMEI, номеру телефона..."
-              prepend-icon="mdi-magnify"
-              clearable
-              variant="outlined"
-              density="compact"
-              hide-details
-              @input="debouncedSearch"
-            />
+            <v-text-field v-model="filters.search" placeholder="Поиск по названию, IMEI, номеру телефона..."
+              prepend-icon="mdi-magnify" clearable variant="outlined" density="compact" hide-details
+              @input="debouncedSearch" />
           </v-col>
-          
+
           <!-- Компактные фильтры -->
           <v-col cols="12" md="4">
             <div class="inline-filters">
               <div class="filters-toggle-inline" @click="showFilters = !showFilters">
                 <v-icon icon="mdi-filter" size="18" class="mr-2" />
                 <span>Фильтры</span>
-                <v-chip
-                  v-if="hasActiveFilters"
-                  size="x-small"
-                  color="primary"
-                  class="ml-2"
-                >
+                <v-chip v-if="hasActiveFilters" size="x-small" color="primary" class="ml-2">
                   {{ activeFiltersCount }}
                 </v-chip>
                 <v-spacer />
-                <v-icon 
-                  :icon="showFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'" 
-                  size="18"
-                  class="ml-1"
-                />
+                <v-icon :icon="showFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="18" class="ml-1" />
               </div>
             </div>
           </v-col>
         </v-row>
-        
+
         <!-- Развернутые фильтры -->
         <v-expand-transition>
           <div v-show="showFilters" class="expanded-filters">
             <v-divider class="my-3" />
             <v-row>
               <v-col cols="12" md="2">
-                <v-select
-                  v-model="filters.status"
-                  :items="statusOptions"
-                  label="Статус"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                />
+                <v-select v-model="filters.status" :items="statusOptions" label="Статус" clearable variant="outlined"
+                  density="compact" />
               </v-col>
-              
+
               <v-col cols="12" md="2">
-                <v-select
-                  v-model="filters.type"
-                  :items="typeOptions"
-                  label="Тип"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                />
+                <v-select v-model="filters.type" :items="typeOptions" label="Тип" clearable variant="outlined"
+                  density="compact" />
               </v-col>
-              
+
               <v-col cols="12" md="3">
-                <v-select
-                  v-model="filters.contract_id"
-                  :items="contractOptions"
-                  label="Договор"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                  :loading="false"
-                />
+                <v-select v-model="filters.contract_id" :items="contractOptions" label="Договор" clearable
+                  variant="outlined" density="compact" :loading="false" />
               </v-col>
-              
+
               <v-col cols="12" md="3">
-                <v-select
-                  v-model="filters.location_id"
-                  :items="locationOptions"
-                  label="Локация"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                  :loading="false"
-                />
+                <v-select v-model="filters.location_id" :items="locationOptions" label="Локация" clearable
+                  variant="outlined" density="compact" :loading="false" />
               </v-col>
-              
+
               <v-col cols="12" md="2">
-                <v-select
-                  v-model="filters.source"
-                  :items="sourceOptions"
-                  label="Система"
-                  clearable
-                  variant="outlined"
-                  density="compact"
-                />
+                <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
+                  density="compact" />
               </v-col>
-              
+
               <v-col cols="12" md="1">
-                <v-switch
-                  v-model="showDeletedObjects"
-                  label="Корзина"
-                  color="error"
-                  hide-details
-                  density="compact"
-                />
+                <v-switch v-model="showDeletedObjects" label="Корзина" color="error" hide-details density="compact" />
               </v-col>
-              
+
               <v-col cols="12" md="1">
-                <AppleButton
-                  variant="text"
-                  size="small"
-                  @click="clearFilters"
-                  :disabled="!hasActiveFilters"
-                  data-testid="clear-filters"
-                  block
-                >
+                <AppleButton variant="text" size="small" @click="clearFilters" :disabled="!hasActiveFilters"
+                  data-testid="clear-filters" block>
                   Очистить
                 </AppleButton>
               </v-col>
@@ -206,116 +118,70 @@
           <div class="table-title-section">
             <v-icon icon="mdi-format-list-bulleted" class="mr-2" />
             {{ showDeletedObjects ? 'Корзина объектов' : 'Список объектов' }}
-            <v-chip
-              v-if="objectsData"
-              :text="objectsData.total.toString()"
-              size="small"
-              class="ml-2"
-            />
+            <v-chip v-if="objectsData" :text="objectsData.total.toString()" size="small" class="ml-2" />
           </div>
-          
+
           <div class="table-actions">
             <!-- Кнопки массовых операций -->
             <div v-if="selectedObjects.length > 0" class="mass-actions">
-              <v-chip
-                :text="`Выбрано: ${selectedObjects.length}`"
-                color="primary"
-                variant="outlined"
-                size="small"
-                class="mr-2"
-              />
-              <AppleButton
-                variant="secondary"
-                size="small"
-                prepend-icon="mdi-check-circle"
-                @click="toggleAllObjectsActivity(true)"
-                class="mr-2"
-              >
+              <v-chip :text="`Выбрано: ${selectedObjects.length}`" color="primary" variant="outlined" size="small"
+                class="mr-2" />
+              <AppleButton variant="secondary" size="small" prepend-icon="mdi-check-circle"
+                @click="toggleAllObjectsActivity(true)" class="mr-2">
                 Активировать
               </AppleButton>
-              <AppleButton
-                variant="secondary"
-                size="small"
-                prepend-icon="mdi-pause-circle"
-                @click="toggleAllObjectsActivity(false)"
-                class="mr-2"
-              >
+              <AppleButton variant="secondary" size="small" prepend-icon="mdi-pause-circle"
+                @click="toggleAllObjectsActivity(false)" class="mr-2">
                 Деактивировать
               </AppleButton>
-              <AppleButton
-                variant="text"
-                size="small"
-                prepend-icon="mdi-close"
-                @click="selectedObjects = []; selectAll = false"
-              >
+              <AppleButton variant="text" size="small" prepend-icon="mdi-close"
+                @click="selectedObjects = []; selectAll = false">
                 Отменить выбор
               </AppleButton>
             </div>
-            
-            <v-btn-toggle
-              v-model="viewMode"
-              mandatory
-              variant="outlined"
-              density="compact"
-            >
+
+            <v-btn-toggle v-model="viewMode" mandatory variant="outlined" density="compact">
               <v-btn value="table" icon="mdi-table" />
               <v-btn value="grid" icon="mdi-grid" />
             </v-btn-toggle>
           </div>
         </div>
       </template>
-      
+
       <!-- Таблица объектов -->
       <div v-if="viewMode === 'table'" class="table-container">
-        <v-data-table
-          :headers="tableHeaders"
-          :items="combinedObjects"
-          :loading="false"
-          :items-per-page="pagination.per_page"
-          :page="pagination.page"
-          :server-items-length="objectsData?.total || 0"
-          :items-per-page-options="perPageOptions"
-          :model-value="selectedObjects"
-          @update:model-value="selectedObjects = $event"
-          @update:page="handlePageChange"
-          @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange"
-          item-value="id"
-          show-select
-          class="objects-table"
-          no-data-text="Объекты не найдены"
-          loading-text="Загрузка объектов..."
-        >
+        <v-data-table :headers="tableHeaders" :items="combinedObjects" :loading="false"
+          :items-per-page="pagination.per_page" :page="pagination.page" :server-items-length="objectsData?.total || 0"
+          :items-per-page-options="perPageOptions" :model-value="selectedObjects"
+          @update:model-value="selectedObjects = $event" @update:page="handlePageChange"
+          @update:items-per-page="handlePerPageChange" @update:sort-by="handleSortChange" item-value="id" show-select
+          class="objects-table" no-data-text="Объекты не найдены" loading-text="Загрузка объектов...">
           <!-- Активность -->
           <template #item.is_active="{ item }">
-            <v-checkbox
-              :model-value="item.is_active"
-              @update:model-value="toggleObjectActivity(item, $event)"
-              hide-details
-              density="compact"
-            />
+            <v-checkbox :model-value="item.is_active" @update:model-value="toggleObjectActivity(item, $event)"
+              hide-details density="compact" />
           </template>
-          
+
           <!-- ID -->
           <template #item.id="{ item }">
             <span class="font-mono">{{ item.id }}</span>
           </template>
-          
+
           <!-- Название учетной записи -->
           <template #item.accountName="{ item }">
             <span>{{ item.accountName || 'Не указано' }}</span>
           </template>
-          
+
           <!-- Создатель -->
           <template #item.creatorName="{ item }">
             <span>{{ item.creatorName || 'Не указан' }}</span>
           </template>
-          
+
           <!-- Модель устройства -->
           <template #item.deviceTypeName="{ item }">
             <span>{{ item.deviceTypeName || 'Не указана' }}</span>
           </template>
-          
+
           <!-- Номера телефонов -->
           <template #item.phoneNumbers="{ item }">
             <div v-if="item.phoneNumbers && item.phoneNumbers.length > 0">
@@ -325,14 +191,14 @@
             </div>
             <span v-else class="text-medium-emphasis">Не указаны</span>
           </template>
-          
+
           <!-- Дата создания -->
           <template #item.createdAt="{ item }">
             <div class="text-caption">
               {{ formatDate(item.createdAt || item.created_at) }}
             </div>
           </template>
-          
+
           <!-- Дата последнего сообщения -->
           <template #item.lastMessageDatetime="{ item }">
             <div v-if="item.lastMessageDatetime" class="text-caption">
@@ -342,7 +208,7 @@
               Нет данных
             </div>
           </template>
-          
+
           <!-- Уникальный ID -->
           <template #item.uniqueId="{ item }">
             <span class="font-mono">{{ item.uniqueId || item.external_id || 'Не указан' }}</span>
@@ -350,11 +216,7 @@
 
           <!-- Источник -->
           <template #item.source="{ item }">
-            <v-chip
-              :color="item.source === 'axenta' ? 'primary' : 'orange'"
-              size="small"
-              variant="tonal"
-            >
+            <v-chip :color="item.source === 'axenta' ? 'primary' : 'orange'" size="small" variant="tonal">
               <v-icon start size="16">
                 {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
               </v-icon>
@@ -364,14 +226,10 @@
 
           <!-- Статус -->
           <template #item.status="{ item }">
-            <v-chip
-              :text="getStatusText(item.status)"
-              :color="getStatusColor(item.status)"
-              size="small"
-              variant="tonal"
-            />
+            <v-chip :text="getStatusText(item.status)" :color="getStatusColor(item.status)" size="small"
+              variant="tonal" />
           </template>
-          
+
           <!-- Тип -->
           <template #item.type="{ item }">
             <div class="d-flex align-center">
@@ -379,7 +237,7 @@
               {{ getTypeText(item.type) }}
             </div>
           </template>
-          
+
           <!-- Договор -->
           <template #item.contract="{ item }">
             <div v-if="item.contract">
@@ -387,7 +245,7 @@
               <div class="text-caption text-medium-emphasis">№{{ item.contract.id }}</div>
             </div>
           </template>
-          
+
           <!-- Локация -->
           <template #item.location="{ item }">
             <div v-if="item.location">
@@ -395,7 +253,7 @@
               {{ item.location.name }}
             </div>
           </template>
-          
+
           <!-- Последняя активность -->
           <template #item.last_activity_at="{ item }">
             <div v-if="item.last_activity_at" class="text-caption">
@@ -405,7 +263,7 @@
               Нет данных
             </div>
           </template>
-          
+
           <!-- Плановое удаление -->
           <template #item.scheduled_delete_at="{ item }">
             <div v-if="item.scheduled_delete_at" class="d-flex align-center">
@@ -415,99 +273,55 @@
               </span>
             </div>
           </template>
-          
+
           <!-- Действия -->
           <template #item.actions="{ item }">
             <div class="actions-cell">
               <template v-if="!showDeletedObjects">
                 <v-tooltip text="Просмотр">
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-eye"
-                      size="small"
-                      variant="text"
-                      @click="viewObject(item)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewObject(item)" />
                   </template>
                 </v-tooltip>
-                
+
                 <v-tooltip text="Редактировать">
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-pencil"
-                      size="small"
-                      variant="text"
-                      @click="editObject(item)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editObject(item)" />
                   </template>
                 </v-tooltip>
-                
+
                 <v-menu>
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-dots-vertical"
-                      size="small"
-                      variant="text"
-                    />
+                    <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text" />
                   </template>
-                  
+
                   <v-list density="compact">
-                    <v-list-item
-                      prepend-icon="mdi-file-document-plus"
-                      title="Создать шаблон"
-                      @click="createTemplateFromObject(item)"
-                    />
+                    <v-list-item prepend-icon="mdi-file-document-plus" title="Создать шаблон"
+                      @click="createTemplateFromObject(item)" />
                     <v-divider />
-                    <v-list-item
-                      v-if="item.scheduled_delete_at"
-                      prepend-icon="mdi-restore"
-                      title="Отменить удаление"
-                      @click="cancelScheduledDelete(item)"
-                    />
-                    <v-list-item
-                      v-else
-                      prepend-icon="mdi-clock-alert"
-                      title="Запланировать удаление"
-                      @click="scheduleDelete(item)"
-                    />
+                    <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
+                      @click="cancelScheduledDelete(item)" />
+                    <v-list-item v-else prepend-icon="mdi-clock-alert" title="Запланировать удаление"
+                      @click="scheduleDelete(item)" />
                     <v-divider />
-                    <v-list-item
-                      prepend-icon="mdi-delete"
-                      title="Удалить"
-                      class="text-error"
-                      @click="deleteObject(item)"
-                    />
+                    <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error"
+                      @click="deleteObject(item)" />
                   </v-list>
                 </v-menu>
               </template>
-              
+
               <template v-else>
                 <v-tooltip text="Восстановить">
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-restore"
-                      size="small"
-                      variant="text"
-                      color="success"
-                      @click="restoreObject(item)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-restore" size="small" variant="text" color="success"
+                      @click="restoreObject(item)" />
                   </template>
                 </v-tooltip>
-                
+
                 <v-tooltip text="Удалить навсегда">
                   <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-delete-forever"
-                      size="small"
-                      variant="text"
-                      color="error"
-                      @click="permanentDeleteObject(item)"
-                    />
+                    <v-btn v-bind="props" icon="mdi-delete-forever" size="small" variant="text" color="error"
+                      @click="permanentDeleteObject(item)" />
                   </template>
                 </v-tooltip>
               </template>
@@ -515,22 +329,13 @@
           </template>
         </v-data-table>
       </div>
-      
+
       <!-- Сетка объектов -->
       <div v-else class="grid-container">
         <div class="objects-grid">
-          <AppleCard
-            v-for="object in objects"
-            :key="object.id"
-            :title="object.name"
-            :subtitle="getTypeText(object.type)"
-            :icon="getTypeIcon(object.type)"
-            variant="outlined"
-            clickable
-            hover
-            class="object-card"
-            @click="viewObject(object)"
-          >
+          <AppleCard v-for="object in objects" :key="object.id" :title="object.name"
+            :subtitle="getTypeText(object.type)" :icon="getTypeIcon(object.type)" variant="outlined" clickable hover
+            class="object-card" @click="viewObject(object)">
             <div class="object-card-content">
               <div class="object-info">
                 <div class="info-row">
@@ -546,33 +351,19 @@
                   <span>{{ object.location?.name || 'Не указана' }}</span>
                 </div>
               </div>
-              
+
               <div class="object-status">
-                <v-chip
-                  :text="getStatusText(object.status)"
-                  :color="getStatusColor(object.status)"
-                  size="small"
-                  variant="tonal"
-                />
+                <v-chip :text="getStatusText(object.status)" :color="getStatusColor(object.status)" size="small"
+                  variant="tonal" />
               </div>
             </div>
-            
+
             <template #footer>
               <div class="object-card-actions">
-                <AppleButton
-                  variant="text"
-                  size="small"
-                  prepend-icon="mdi-eye"
-                  @click.stop="viewObject(object)"
-                >
+                <AppleButton variant="text" size="small" prepend-icon="mdi-eye" @click.stop="viewObject(object)">
                   Просмотр
                 </AppleButton>
-                <AppleButton
-                  variant="text"
-                  size="small"
-                  prepend-icon="mdi-pencil"
-                  @click.stop="editObject(object)"
-                >
+                <AppleButton variant="text" size="small" prepend-icon="mdi-pencil" @click.stop="editObject(object)">
                   Изменить
                 </AppleButton>
               </div>
@@ -583,41 +374,25 @@
     </AppleCard>
 
     <!-- Диалог создания/редактирования объекта -->
-    <v-dialog
-      v-model="objectDialog.show"
-      max-width="800"
-      @click:outside="closeObjectDialog"
-    >
+    <v-dialog v-model="objectDialog.show" max-width="800" @click:outside="closeObjectDialog">
       <AppleCard>
         <template #header>
           <div class="dialog-header">
             <v-icon :icon="objectDialog.isEdit ? 'mdi-pencil' : 'mdi-plus'" class="mr-2" />
             {{ objectDialog.isEdit ? 'Редактирование объекта' : 'Создание объекта' }}
             <v-spacer />
-            <v-btn
-              icon="mdi-close"
-              variant="text"
-              size="small"
-              @click="closeObjectDialog"
-            />
+            <v-btn icon="mdi-close" variant="text" size="small" @click="closeObjectDialog" />
           </div>
         </template>
-        
+
         <v-form ref="objectFormRef" @submit.prevent="saveObject">
           <div class="form-content">
             <!-- Шаблон объекта -->
             <v-row v-if="!objectDialog.isEdit">
               <v-col cols="12">
-                <v-select
-                  v-model="selectedTemplate"
-                  :items="templateOptions"
-                  label="Шаблон объекта (опционально)"
-                  variant="outlined"
-                  density="comfortable"
-                  clearable
-                  prepend-icon="mdi-file-document-outline"
-                  @update:model-value="applyTemplate"
-                >
+                <v-select v-model="selectedTemplate" :items="templateOptions" label="Шаблон объекта (опционально)"
+                  variant="outlined" density="comfortable" clearable prepend-icon="mdi-file-document-outline"
+                  @update:model-value="applyTemplate">
                   <template #item="{ props, item }">
                     <v-list-item v-bind="props">
                       <template #prepend>
@@ -630,236 +405,127 @@
                 </v-select>
               </v-col>
             </v-row>
-            
+
             <!-- Основная информация -->
             <v-row>
               <v-col cols="12">
                 <h3 class="form-section-title">Основная информация</h3>
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.name"
-                  label="Название объекта *"
-                  placeholder="Введите название"
-                  required
-                  :error-message="formErrors.name"
-                />
+                <AppleInput v-model="objectForm.name" label="Название объекта *" placeholder="Введите название" required
+                  :error-message="formErrors.name" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="objectForm.type"
-                  :items="typeOptions"
-                  label="Тип объекта *"
-                  variant="outlined"
-                  density="comfortable"
-                  required
-                  :error-messages="formErrors.type"
-                />
+                <v-select v-model="objectForm.type" :items="typeOptions" label="Тип объекта *" variant="outlined"
+                  density="comfortable" required :error-messages="formErrors.type" />
               </v-col>
-              
+
               <!-- Новые поля -->
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="objectForm.company_id"
-                  :items="companyOptions"
-                  label="Название учетной записи (компании) *"
-                  variant="outlined"
-                  density="comfortable"
-                  required
-                  :loading="loadingCompanies"
-                  :error-messages="formErrors.company_id"
-                  prepend-icon="mdi-domain"
-                  item-title="name"
-                  item-value="id"
-                  placeholder="Выберите компанию"
-                />
+                <v-select v-model="objectForm.company_id" :items="companyOptions"
+                  label="Название учетной записи (компании) *" variant="outlined" density="comfortable" required
+                  :loading="loadingCompanies" :error-messages="formErrors.company_id" prepend-icon="mdi-domain"
+                  item-title="name" item-value="id" placeholder="Выберите компанию" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.creatorName"
-                  label="Создатель (ФИО)"
-                  placeholder="Введите ФИО создателя"
-                />
+                <AppleInput v-model="objectForm.creatorName" label="Создатель (ФИО)"
+                  placeholder="Введите ФИО создателя" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.deviceTypeName"
-                  label="Модель устройства"
-                  placeholder="Введите модель устройства"
-                />
+                <AppleInput v-model="objectForm.deviceTypeName" label="Модель устройства"
+                  placeholder="Введите модель устройства" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.uniqueId"
-                  label="Уникальный ID"
-                  placeholder="Введите уникальный идентификатор"
-                />
+                <AppleInput v-model="objectForm.uniqueId" label="Уникальный ID"
+                  placeholder="Введите уникальный идентификатор" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <v-switch
-                  v-model="objectForm.is_active"
-                  label="Активный объект"
-                  color="success"
-                  hide-details
-                />
+                <v-switch v-model="objectForm.is_active" label="Активный объект" color="success" hide-details />
               </v-col>
-              
+
               <v-col cols="12">
-                <AppleInput
-                  v-model="objectForm.description"
-                  label="Описание"
-                  placeholder="Введите описание объекта"
-                />
+                <AppleInput v-model="objectForm.description" label="Описание" placeholder="Введите описание объекта" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.imei"
-                  label="IMEI"
-                  placeholder="Введите IMEI устройства"
-                  :error-message="formErrors.imei"
-                />
+                <AppleInput v-model="objectForm.imei" label="IMEI" placeholder="Введите IMEI устройства"
+                  :error-message="formErrors.imei" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.phone_number"
-                  label="Основной номер телефона"
-                  placeholder="+7 (XXX) XXX-XX-XX"
-                />
+                <AppleInput v-model="objectForm.phone_number" label="Основной номер телефона"
+                  placeholder="+7 (XXX) XXX-XX-XX" />
               </v-col>
-              
+
               <!-- Дополнительные номера телефонов -->
               <v-col cols="12">
                 <div class="phone-numbers-section">
                   <div class="d-flex align-center mb-2">
                     <label class="text-subtitle-2">Дополнительные номера телефонов</label>
                     <v-spacer />
-                    <v-btn
-                      icon="mdi-plus"
-                      size="small"
-                      variant="outlined"
-                      @click="addPhoneNumber"
-                    />
+                    <v-btn icon="mdi-plus" size="small" variant="outlined" @click="addPhoneNumber" />
                   </div>
                   <div v-for="(phone, index) in objectForm.phoneNumbers" :key="index" class="d-flex align-center mb-2">
-                    <AppleInput
-                      v-model="objectForm.phoneNumbers[index]"
-                      placeholder="+7 (XXX) XXX-XX-XX"
-                      density="compact"
-                    />
-                    <v-btn
-                      icon="mdi-delete"
-                      size="small"
-                      variant="text"
-                      color="error"
-                      class="ml-2"
-                      @click="removePhoneNumber(index)"
-                    />
+                    <AppleInput v-model="objectForm.phoneNumbers[index]" placeholder="+7 (XXX) XXX-XX-XX"
+                      density="compact" />
+                    <v-btn icon="mdi-delete" size="small" variant="text" color="error" class="ml-2"
+                      @click="removePhoneNumber(index)" />
                   </div>
                 </div>
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.serial_number"
-                  label="Серийный номер"
-                  placeholder="Введите серийный номер"
-                />
+                <AppleInput v-model="objectForm.serial_number" label="Серийный номер"
+                  placeholder="Введите серийный номер" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="objectForm.contract_id"
-                  :items="contractOptions"
-                  label="Договор"
-                  variant="outlined"
-                  density="comfortable"
-                  :error-messages="formErrors.contract_id"
-                  :loading="false"
-                />
+                <v-select v-model="objectForm.contract_id" :items="contractOptions" label="Договор" variant="outlined"
+                  density="comfortable" :error-messages="formErrors.contract_id" :loading="false" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="objectForm.location_id"
-                  :items="locationOptions"
-                  label="Локация"
-                  variant="outlined"
-                  density="comfortable"
-                  :loading="false"
-                />
+                <v-select v-model="objectForm.location_id" :items="locationOptions" label="Локация" variant="outlined"
+                  density="comfortable" :loading="false" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <v-select
-                  v-model="objectForm.template_id"
-                  :items="templateOptions"
-                  label="Шаблон объекта"
-                  clearable
-                  variant="outlined"
-                  density="comfortable"
-                  :loading="false"
-                />
+                <v-select v-model="objectForm.template_id" :items="templateOptions" label="Шаблон объекта" clearable
+                  variant="outlined" density="comfortable" :loading="false" />
               </v-col>
-              
+
               <v-col cols="12">
-                <AppleInput
-                  v-model="objectForm.address"
-                  label="Адрес"
-                  placeholder="Введите адрес объекта"
-                />
+                <AppleInput v-model="objectForm.address" label="Адрес" placeholder="Введите адрес объекта" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.latitude"
-                  label="Широта"
-                  type="number"
-                  placeholder="55.7558"
-                />
+                <AppleInput v-model="objectForm.latitude" label="Широта" type="number" placeholder="55.7558" />
               </v-col>
-              
+
               <v-col cols="12" md="6">
-                <AppleInput
-                  v-model="objectForm.longitude"
-                  label="Долгота"
-                  type="number"
-                  placeholder="37.6176"
-                />
+                <AppleInput v-model="objectForm.longitude" label="Долгота" type="number" placeholder="37.6176" />
               </v-col>
-              
+
               <v-col cols="12">
-                <v-textarea
-                  v-model="objectForm.notes"
-                  label="Заметки"
-                  placeholder="Дополнительная информация"
-                  variant="outlined"
-                  rows="3"
-                />
+                <v-textarea v-model="objectForm.notes" label="Заметки" placeholder="Дополнительная информация"
+                  variant="outlined" rows="3" />
               </v-col>
             </v-row>
           </div>
         </v-form>
-        
+
         <template #footer>
           <div class="dialog-actions">
-            <AppleButton
-              variant="secondary"
-              @click="closeObjectDialog"
-            >
+            <AppleButton variant="secondary" @click="closeObjectDialog">
               Отмена
             </AppleButton>
-            <AppleButton
-              @click="saveObject"
-              :loading="saving"
-            >
+            <AppleButton @click="saveObject" :loading="saving">
               {{ objectDialog.isEdit ? 'Сохранить' : 'Создать' }}
             </AppleButton>
           </div>
@@ -868,45 +534,29 @@
     </v-dialog>
 
     <!-- Диалог планового удаления -->
-    <v-dialog
-      v-model="scheduleDeleteDialog.show"
-      max-width="500"
-    >
+    <v-dialog v-model="scheduleDeleteDialog.show" max-width="500">
       <AppleCard>
         <template #header>
           <v-icon icon="mdi-clock-alert" class="mr-2" color="warning" />
           Плановое удаление объекта
         </template>
-        
+
         <div class="dialog-content">
           <p class="mb-4">
-            Объект <strong>{{ scheduleDeleteDialog.object?.name }}</strong> 
+            Объект <strong>{{ scheduleDeleteDialog.object?.name }}</strong>
             будет автоматически удален в указанную дату.
           </p>
-          
-          <AppleInput
-            v-model="scheduleDeleteForm.scheduled_delete_at"
-            label="Дата удаления"
-            type="date"
-            required
-            :min="minDeleteDate"
-            :error-message="scheduleDeleteErrors.scheduled_delete_at"
-          />
+
+          <AppleInput v-model="scheduleDeleteForm.scheduled_delete_at" label="Дата удаления" type="date" required
+            :min="minDeleteDate" :error-message="scheduleDeleteErrors.scheduled_delete_at" />
         </div>
-        
+
         <template #footer>
           <div class="dialog-actions">
-            <AppleButton
-              variant="secondary"
-              @click="closeScheduleDeleteDialog"
-            >
+            <AppleButton variant="secondary" @click="closeScheduleDeleteDialog">
               Отмена
             </AppleButton>
-            <AppleButton
-              variant="danger"
-              @click="confirmScheduleDelete"
-              :loading="scheduling"
-            >
+            <AppleButton variant="danger" @click="confirmScheduleDelete" :loading="scheduling">
               Запланировать
             </AppleButton>
           </div>
@@ -915,77 +565,45 @@
     </v-dialog>
 
     <!-- Диалог создания шаблона -->
-    <v-dialog
-      v-model="createTemplateDialog.show"
-      max-width="600"
-    >
+    <v-dialog v-model="createTemplateDialog.show" max-width="600">
       <AppleCard>
         <template #header>
           <v-icon icon="mdi-file-document-plus" class="mr-2" color="primary" />
           Создание шаблона на основе объекта
         </template>
-        
+
         <div class="dialog-content">
           <p class="mb-4">
             Создание шаблона на основе объекта <strong>{{ createTemplateDialog.object?.name }}</strong>
           </p>
-          
+
           <div class="form-grid">
-            <AppleInput
-              v-model="createTemplateForm.name"
-              label="Название шаблона"
-              required
-              :error-message="createTemplateErrors.name"
-              placeholder="Введите название шаблона"
-            />
-            
-            <AppleInput
-              v-model="createTemplateForm.category"
-              label="Категория"
-              required
-              :error-message="createTemplateErrors.category"
-              placeholder="Например: Транспорт, Оборудование"
-            />
-            
-            <AppleInput
-              v-model="createTemplateForm.description"
-              label="Описание"
-              type="textarea"
-              :error-message="createTemplateErrors.description"
-              placeholder="Описание шаблона (необязательно)"
-              rows="3"
-            />
-            
+            <AppleInput v-model="createTemplateForm.name" label="Название шаблона" required
+              :error-message="createTemplateErrors.name" placeholder="Введите название шаблона" />
+
+            <AppleInput v-model="createTemplateForm.category" label="Категория" required
+              :error-message="createTemplateErrors.category" placeholder="Например: Транспорт, Оборудование" />
+
+            <AppleInput v-model="createTemplateForm.description" label="Описание" type="textarea"
+              :error-message="createTemplateErrors.description" placeholder="Описание шаблона (необязательно)"
+              rows="3" />
+
             <div class="form-row">
-              <AppleInput
-                v-model="createTemplateForm.icon"
-                label="Иконка"
-                placeholder="mdi-office-building"
-                :error-message="createTemplateErrors.icon"
-              />
-              
-              <AppleInput
-                v-model="createTemplateForm.color"
-                label="Цвет"
-                type="color"
-                :error-message="createTemplateErrors.color"
-              />
+              <AppleInput v-model="createTemplateForm.icon" label="Иконка" placeholder="mdi-office-building"
+                :error-message="createTemplateErrors.icon" />
+
+              <AppleInput v-model="createTemplateForm.color" label="Цвет" type="color"
+                :error-message="createTemplateErrors.color" />
             </div>
           </div>
         </div>
-        
+
         <template #footer>
           <div class="dialog-actions">
-            <AppleButton
-              variant="secondary"
-              @click="closeCreateTemplateDialog"
-            >
+            <AppleButton variant="secondary" @click="closeCreateTemplateDialog">
               Отмена
             </AppleButton>
-            <AppleButton
-              @click="confirmCreateTemplate"
-              :loading="saving"
-            >
+            <AppleButton @click="confirmCreateTemplate" :loading="saving">
               Создать шаблон
             </AppleButton>
           </div>
@@ -994,10 +612,7 @@
     </v-dialog>
 
     <!-- Диалог просмотра объекта -->
-    <v-dialog
-      v-model="viewDialog.show"
-      max-width="900"
-    >
+    <v-dialog v-model="viewDialog.show" max-width="900">
       <AppleCard v-if="viewDialog.object">
         <template #header>
           <div class="view-dialog-header">
@@ -1009,22 +624,14 @@
               </div>
             </div>
             <div class="object-status-section">
-              <v-chip
-                :text="getStatusText(viewDialog.object.status)"
-                :color="getStatusColor(viewDialog.object.status)"
-                variant="tonal"
-              />
+              <v-chip :text="getStatusText(viewDialog.object.status)" :color="getStatusColor(viewDialog.object.status)"
+                variant="tonal" />
             </div>
             <v-spacer />
-            <v-btn
-              icon="mdi-close"
-              variant="text"
-              size="small"
-              @click="closeViewDialog"
-            />
+            <v-btn icon="mdi-close" variant="text" size="small" @click="closeViewDialog" />
           </div>
         </template>
-        
+
         <div class="object-details">
           <v-row>
             <v-col cols="12" md="6">
@@ -1050,7 +657,7 @@
                 </div>
               </div>
             </v-col>
-            
+
             <v-col cols="12" md="6">
               <div class="detail-section">
                 <h4 class="section-title">Связи</h4>
@@ -1075,7 +682,7 @@
                 </div>
               </div>
             </v-col>
-            
+
             <v-col cols="12" v-if="viewDialog.object.address">
               <div class="detail-section">
                 <h4 class="section-title">Местоположение</h4>
@@ -1089,46 +696,32 @@
                 </div>
               </div>
             </v-col>
-            
+
             <v-col cols="12" v-if="viewDialog.object.notes">
               <div class="detail-section">
                 <h4 class="section-title">Заметки</h4>
                 <p class="detail-notes">{{ viewDialog.object.notes }}</p>
               </div>
             </v-col>
-            
+
             <v-col cols="12" v-if="viewDialog.object.tags && viewDialog.object.tags.length">
               <div class="detail-section">
                 <h4 class="section-title">Теги</h4>
                 <div class="tags-container">
-                  <v-chip
-                    v-for="tag in viewDialog.object.tags"
-                    :key="tag"
-                    :text="tag"
-                    size="small"
-                    variant="outlined"
-                    class="mr-2 mb-2"
-                  />
+                  <v-chip v-for="tag in viewDialog.object.tags" :key="tag" :text="tag" size="small" variant="outlined"
+                    class="mr-2 mb-2" />
                 </div>
               </div>
             </v-col>
           </v-row>
         </div>
-        
+
         <template #footer>
           <div class="dialog-actions">
-            <AppleButton
-              variant="secondary"
-              prepend-icon="mdi-pencil"
-              @click="editObjectFromView"
-            >
+            <AppleButton variant="secondary" prepend-icon="mdi-pencil" @click="editObjectFromView">
               Редактировать
             </AppleButton>
-            <AppleButton
-              variant="danger"
-              prepend-icon="mdi-delete"
-              @click="deleteObjectFromView"
-            >
+            <AppleButton variant="danger" prepend-icon="mdi-delete" @click="deleteObjectFromView">
               Удалить
             </AppleButton>
           </div>
@@ -1137,72 +730,51 @@
     </v-dialog>
 
     <!-- Snackbar для уведомлений -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color"
-      :timeout="snackbar.timeout"
-      location="top right"
-      variant="flat"
-      :multi-line="false"
-      :vertical="false"
-      elevation="8"
-      rounded="xl"
-      class="modern-snackbar"
-    >
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="top right"
+      variant="flat" :multi-line="false" :vertical="false" elevation="8" rounded="xl" class="modern-snackbar">
       <div class="snackbar-content">
-        <v-icon 
-          :icon="getSnackbarIcon(snackbar.color)" 
-          size="20" 
-          class="mr-3"
-        />
+        <v-icon :icon="getSnackbarIcon(snackbar.color)" size="20" class="mr-3" />
         <span class="snackbar-text">{{ snackbar.text }}</span>
       </div>
       <template #actions>
-        <v-btn
-          variant="text"
-          size="small"
-          icon="mdi-close"
-          @click="snackbar.show = false"
-        />
+        <v-btn variant="text" size="small" icon="mdi-close" @click="snackbar.show = false" />
       </template>
     </v-snackbar>
 
     <!-- Красивое уведомление об успехе -->
-    <SuccessNotification
-      v-model="successNotification.show"
-      :title="successNotification.title"
-      :message="successNotification.message"
-      :details="successNotification.details"
-      :show-timer="successNotification.showTimer"
-      @timer-complete="onNotificationTimerComplete"
-    />
+    <SuccessNotification v-model="successNotification.show" :title="successNotification.title"
+      :message="successNotification.message" :details="successNotification.details"
+      :show-timer="successNotification.showTimer" @timer-complete="onNotificationTimerComplete" />
 
     <!-- Диалог корзины объектов -->
     <ObjectsTrashDialog v-model="showTrashDialog" />
 
+    <!-- FAB меню -->
+    <AppleFAB icon="mdi-plus" :items="fabMenuItems" @item-click="handleFabAction" />
   </div>
 </template>
 
 <script setup lang="ts">
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
+import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
-import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
+import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
+import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 import getObjectsService from '@/services/objectsService';
+import settingsService from '@/services/settingsService';
 import type {
-    ObjectFilters,
-    ObjectForm,
-    ObjectStatus,
-    ObjectType,
-    ObjectWithRelations,
-    ScheduleDeleteForm,
+  ObjectFilters,
+  ObjectForm,
+  ObjectStatus,
+  ObjectType,
+  ObjectWithRelations,
+  ScheduleDeleteForm,
 } from '@/types/objects';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
-import settingsService from '@/services/settingsService';
 
 // Получаем экземпляр сервиса
 const objectsService = getObjectsService();
@@ -1219,6 +791,30 @@ const loading = ref(false);
 const saving = ref(false);
 const scheduling = ref(false);
 const exporting = ref(false);
+
+// FAB Menu Items - элементы плавающего меню действий
+const fabMenuItems = [
+  {
+    id: 'create',
+    label: 'Создать объект',
+    icon: 'mdi-plus',
+    color: 'success' as const,
+    action: () => openCreateDialog()
+  },
+  {
+    id: 'export',
+    label: 'Экспорт',
+    icon: 'mdi-export',
+    color: 'primary' as const,
+    action: () => exportObjects()
+  }
+];
+
+// Обработчик клика на элементе FAB меню
+const handleFabAction = (item: { id?: string; action?: () => void }) => {
+  // Действие выполняется автоматически через свойство action элемента
+  console.log('FAB action:', item.id);
+};
 const objects = ref<ObjectWithRelations[]>([]);
 const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
@@ -1232,7 +828,7 @@ const wialonObjects = ref<Array<ObjectWithRelations & { source: string }>>([]);
 const loadWialonObjects = async () => {
   try {
     const wialonData = await settingsService.getWialonUnits();
-    
+
     if (wialonData && wialonData.items) {
       // Преобразуем Wialon units в формат ObjectWithRelations
       wialonObjects.value = wialonData.items.map((item: {
@@ -1270,7 +866,7 @@ const loadWialonObjects = async () => {
           lastMessageDatetime: item.last_message ? new Date(item.last_message * 1000).toISOString() : null,
         } as unknown as ObjectWithRelations & { source: string };
       });
-      
+
       console.log(`📡 Загружено ${wialonObjects.value.length} объектов Wialon`);
     }
   } catch (error) {
@@ -1286,15 +882,15 @@ const combinedObjects = computed(() => {
     ...obj,
     source: 'axenta',
   }));
-  
+
   // Объединяем объекты
   let allObjects = [...axentaObjectsWithSource, ...wialonObjects.value];
-  
+
   // Фильтруем по системе если выбран фильтр
   if (filters.value.source) {
     allObjects = allObjects.filter(obj => obj.source === filters.value.source);
   }
-  
+
   return allObjects;
 });
 
@@ -1376,7 +972,7 @@ const objectForm = ref<ObjectForm>({
   name: '',
   type: '',
   description: '',
-  
+
   // Новые поля
   accountName: '',
   creatorName: '',
@@ -1384,14 +980,14 @@ const objectForm = ref<ObjectForm>({
   phoneNumbers: [],
   uniqueId: '',
   is_active: true,
-  
+
   latitude: undefined,
   longitude: undefined,
   address: '',
   imei: '',
   phone_number: '',
   serial_number: '',
-    company_id: 0, // ID компании
+  company_id: 0, // ID компании
   contract_id: 0,
   template_id: undefined,
   location_id: 0,
@@ -1457,7 +1053,7 @@ const successNotification = ref({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some(value => 
+  return Object.values(filters.value).some(value =>
     value !== undefined && value !== null && value !== ''
   );
 });
@@ -1526,7 +1122,7 @@ const tableHeaders = computed(() => [
   { title: 'Дата последнего сообщения', value: 'lastMessageDatetime', sortable: true },
   { title: 'Уникальный ID', value: 'uniqueId', sortable: true },
   { title: 'Источник', value: 'source', sortable: true },
-  ...(showDeletedObjects.value 
+  ...(showDeletedObjects.value
     ? [{ title: 'Дата удаления', value: 'deleted_at', sortable: true }]
     : [{ title: 'Плановое удаление', value: 'scheduled_delete_at', sortable: true }]
   ),
@@ -1548,23 +1144,23 @@ const loadObjects = async () => {
     console.log('📊 Current pagination:', pagination.value);
     console.log('🔍 Current filters:', filters.value);
     console.log('🗑️ Show deleted objects:', showDeletedObjects.value);
-    
+
     // Убираем loading.value = true; чтобы не было размытия экрана
-    
+
     const response = showDeletedObjects.value
       ? await objectsService.getDeletedObjects(
-          pagination.value.page,
-          pagination.value.per_page,
-          filters.value.search
-        )
+        pagination.value.page,
+        pagination.value.per_page,
+        filters.value.search
+      )
       : await objectsService.getObjects(
-          pagination.value.page,
-          pagination.value.per_page,
-          filters.value
-        );
-    
+        pagination.value.page,
+        pagination.value.per_page,
+        filters.value
+      );
+
     console.log('📋 ObjectsService response:', response);
-    
+
     if (response.status === 'success') {
       objects.value = response.data.items || [];
       objectsData.value = response.data;
@@ -1574,7 +1170,7 @@ const loadObjects = async () => {
         page: response.data.page,
         per_page: response.data.per_page
       });
-      
+
       // Обновляем статистику после загрузки объектов
       await loadStats();
     } else {
@@ -1602,19 +1198,19 @@ const loadStats = async () => {
     stats.value[0].value = statsData.total;
     stats.value[1].value = statsData.active;
     stats.value[2].value = statsData.inactive;
-    
+
     // Загружаем статистику корзины
     console.log('🔄 Загружаем статистику корзины (основной блок)...');
     console.log('🔐 Проверяем авторизацию в localStorage (основной блок):', {
       hasToken: !!localStorage.getItem('axenta_token'),
       hasCompany: !!localStorage.getItem('axenta_company')
     });
-    
+
     const trashStats = await objectsService.getTrashStats();
     stats.value[3].value = trashStats.count;
     stats.value[4].value = statsData.scheduled_for_delete;
     console.log('📊 Статистика корзины получена (основной блок):', trashStats.count);
-    
+
     console.log('📊 Статистика загружена:', {
       total: stats.value[0].value,
       active: stats.value[1].value,
@@ -1624,20 +1220,20 @@ const loadStats = async () => {
     });
   } catch (error) {
     console.warn('⚠️ API статистики недоступен, вычисляем из загруженных данных:', error);
-    
+
     // Вычисляем статистику из objectsData если API недоступен
     if (objectsData.value) {
       stats.value[0].value = objectsData.value.total || 0;
-      
+
       // Вычисляем активные/неактивные из загруженных объектов
       const activeCount = objects.value.filter(obj => obj.is_active).length;
       const inactiveCount = objects.value.filter(obj => !obj.is_active).length;
-      
+
       stats.value[1].value = activeCount;
       stats.value[2].value = inactiveCount;
       stats.value[3].value = 0; // Корзина - пока 0
       stats.value[4].value = 0; // Запланированные к удалению - пока 0
-      
+
       console.log('📊 Статистика вычислена из данных:', {
         total: stats.value[0].value,
         active: stats.value[1].value,
@@ -1645,7 +1241,7 @@ const loadStats = async () => {
         trash: stats.value[3].value
       });
     }
-    
+
     // Пытаемся загрузить только статистику корзины
     try {
       console.log('🔄 Загружаем статистику корзины (fallback блок)...');
@@ -1653,7 +1249,7 @@ const loadStats = async () => {
         hasToken: !!localStorage.getItem('axenta_token'),
         hasCompany: !!localStorage.getItem('axenta_company')
       });
-      
+
       const trashStats = await objectsService.getTrashStats();
       stats.value[3].value = trashStats.count;
       console.log('📊 Статистика корзины загружена (fallback):', trashStats.count);
@@ -1670,7 +1266,7 @@ const loadCompanies = async () => {
   try {
     loadingCompanies.value = true;
     const response = await objectsService.getCompanies();
-    
+
     if (response.status === 'success') {
       companyOptions.value = response.data;
     } else {
@@ -1720,7 +1316,7 @@ const loadTemplates = async () => {
   try {
     // Убираем loadingTemplates.value = true; чтобы не было loading индикаторов
     const response = await objectsService.getObjectTemplates();
-    
+
     if (response.status === 'success') {
       templateOptions.value = response.data.items.map((template: any) => ({
         title: template.name,
@@ -1743,14 +1339,14 @@ const loadTemplates = async () => {
 // Apply template to form
 const applyTemplate = (templateId: number | null) => {
   if (!templateId) return;
-  
+
   const template = templateOptions.value.find(t => t.value === templateId);
   if (!template) return;
-  
+
   // Применяем настройки шаблона к форме
   objectForm.value.template_id = templateId;
   objectForm.value.type = template.category || objectForm.value.type;
-  
+
   // Применяем настройки по умолчанию из шаблона
   if (template.default_settings) {
     try {
@@ -1760,7 +1356,7 @@ const applyTemplate = (templateId: number | null) => {
       console.warn('Ошибка парсинга настроек шаблона:', error);
     }
   }
-  
+
   showSnackbar(`Шаблон "${template.name}" применен`, 'success');
 };
 
@@ -1777,7 +1373,7 @@ const debouncedSearch = debounce(() => {
     // Сохраняем в localStorage
     localStorage.setItem('objects_search_history', JSON.stringify(searchHistory.value));
   }
-  
+
   pagination.value.page = 1;
   loadObjects();
 }, 500);
@@ -1799,7 +1395,7 @@ const clearFilters = () => {
     location_id: undefined,
     template_id: undefined,
   };
-  
+
   // Очищаем расширенные фильтры
   advancedFilters.value = {
     accountName: '',
@@ -1809,7 +1405,7 @@ const clearFilters = () => {
     imei: '',
     phoneNumber: '',
   };
-  
+
   pagination.value.page = 1;
   loadObjects();
 };
@@ -1820,13 +1416,13 @@ const handleSearchInput = async (value: string) => {
     searchSuggestions.value = [];
     return;
   }
-  
+
   loadingSuggestions.value = true;
-  
+
   try {
     // Получаем предложения на основе существующих объектов
     const suggestions = [];
-    
+
     // Добавляем предложения из истории поиска
     searchHistory.value
       .filter(item => item.toLowerCase().includes(value.toLowerCase()))
@@ -1838,7 +1434,7 @@ const handleSearchInput = async (value: string) => {
           value: item
         });
       });
-    
+
     // Добавляем предложения по типам поиска
     if (value.match(/^\d+$/)) {
       suggestions.push({
@@ -1848,7 +1444,7 @@ const handleSearchInput = async (value: string) => {
         value: value
       });
     }
-    
+
     if (value.match(/^\d{15}$/)) {
       suggestions.push({
         title: `Поиск по IMEI: ${value}`,
@@ -1857,7 +1453,7 @@ const handleSearchInput = async (value: string) => {
         value: value
       });
     }
-    
+
     if (value.match(/^\+?\d[\d\s\-\(\)]+$/)) {
       suggestions.push({
         title: `Поиск по номеру: ${value}`,
@@ -1866,7 +1462,7 @@ const handleSearchInput = async (value: string) => {
         value: value
       });
     }
-    
+
     searchSuggestions.value = suggestions.slice(0, 8);
   } catch (error) {
     console.error('Ошибка получения предложений поиска:', error);
@@ -1923,7 +1519,7 @@ const toggleQuickFilter = (filter: any) => {
     // Включаем фильтр
     Object.assign(filters.value, filter.filter);
   }
-  
+
   pagination.value.page = 1;
   loadObjects();
 };
@@ -1959,7 +1555,7 @@ const closeObjectDialog = () => {
   resetObjectForm();
   formErrors.value = {};
   selectedTemplate.value = null;
-  
+
   // Очищаем параметр action из URL, если он есть
   if (route.query.action === 'create') {
     console.log('🎯 Очищаем параметр action из URL');
@@ -1973,7 +1569,7 @@ const resetObjectForm = () => {
     name: '',
     type: '',
     description: '',
-    
+
     // Новые поля
     accountName: '',
     creatorName: '',
@@ -1981,7 +1577,7 @@ const resetObjectForm = () => {
     phoneNumbers: [],
     uniqueId: '',
     is_active: true,
-    
+
     latitude: undefined,
     longitude: undefined,
     address: '',
@@ -2004,7 +1600,7 @@ const fillObjectForm = (object: ObjectWithRelations) => {
     name: object.name,
     type: object.type,
     description: object.description,
-    
+
     // Новые поля
     accountName: object.accountName || '',
     creatorName: object.creatorName || '',
@@ -2012,7 +1608,7 @@ const fillObjectForm = (object: ObjectWithRelations) => {
     phoneNumbers: object.phoneNumbers || [],
     uniqueId: object.uniqueId || object.external_id || '',
     is_active: object.is_active,
-    
+
     latitude: object.latitude,
     longitude: object.longitude,
     address: object.address,
@@ -2033,7 +1629,7 @@ const fillObjectForm = (object: ObjectWithRelations) => {
 const saveObject = async () => {
   try {
     formErrors.value = {};
-    
+
     // Валидация
     if (!objectForm.value.name.trim()) {
       formErrors.value.name = 'Название объекта обязательно';
@@ -2047,13 +1643,13 @@ const saveObject = async () => {
       formErrors.value.contract_id = 'Договор обязателен';
       return;
     }
-    
+
     saving.value = true;
-    
+
     const response = objectDialog.value.isEdit
       ? await objectsService.updateObject(objectDialog.value.object!.id, objectForm.value)
       : await objectsService.createObject(objectForm.value);
-    
+
     if (response.status === 'success') {
       if (objectDialog.value.isEdit) {
         showSnackbar('Объект успешно обновлен', 'success');
@@ -2110,7 +1706,7 @@ const deleteObject = async (object: ObjectWithRelations) => {
   if (!confirm(`Вы уверены, что хотите удалить объект "${object.name}"?`)) {
     return;
   }
-  
+
   try {
     const response = await objectsService.deleteObject(object.id);
     if (response.status === 'success') {
@@ -2164,19 +1760,19 @@ const openTrashDialog = () => {
 const confirmScheduleDelete = async () => {
   try {
     scheduleDeleteErrors.value = {};
-    
+
     if (!scheduleDeleteForm.value.scheduled_delete_at) {
       scheduleDeleteErrors.value.scheduled_delete_at = 'Дата удаления обязательна';
       return;
     }
-    
+
     scheduling.value = true;
-    
+
     const response = await objectsService.scheduleObjectDelete(
       scheduleDeleteDialog.value.object!.id,
       scheduleDeleteForm.value
     );
-    
+
     if (response.status === 'success') {
       showSnackbar('Плановое удаление запланировано', 'success');
       closeScheduleDeleteDialog();
@@ -2196,7 +1792,7 @@ const confirmScheduleDelete = async () => {
 const confirmCreateTemplate = async () => {
   try {
     createTemplateErrors.value = {};
-    
+
     // Валидация
     if (!createTemplateForm.value.name.trim()) {
       createTemplateErrors.value.name = 'Название шаблона обязательно';
@@ -2206,14 +1802,14 @@ const confirmCreateTemplate = async () => {
       createTemplateErrors.value.category = 'Категория шаблона обязательна';
       return;
     }
-    
+
     saving.value = true;
-    
+
     const response = await objectsService.createTemplateFromObject(
       createTemplateDialog.value.object!.id,
       createTemplateForm.value
     );
-    
+
     if (response.status === 'success') {
       showSnackbar('Шаблон успешно создан на основе объекта', 'success');
       closeCreateTemplateDialog();
@@ -2233,7 +1829,7 @@ const cancelScheduledDelete = async (object: ObjectWithRelations) => {
   if (!confirm(`Отменить плановое удаление объекта "${object.name}"?`)) {
     return;
   }
-  
+
   try {
     const response = await objectsService.cancelScheduledDelete(object.id);
     if (response.status === 'success') {
@@ -2268,7 +1864,7 @@ const restoreObject = async (object: ObjectWithRelations) => {
   if (!confirm(`Восстановить объект "${object.name}"?`)) {
     return;
   }
-  
+
   try {
     const response = await objectsService.restoreObject(object.id);
     if (response.status === 'success') {
@@ -2288,7 +1884,7 @@ const permanentDeleteObject = async (object: ObjectWithRelations) => {
   if (!confirm(`ВНИМАНИЕ! Объект "${object.name}" будет удален навсегда. Это действие нельзя отменить. Продолжить?`)) {
     return;
   }
-  
+
   try {
     const response = await objectsService.permanentDeleteObject(object.id);
     if (response.status === 'success') {
@@ -2308,7 +1904,7 @@ const exportObjects = async () => {
   try {
     exporting.value = true;
     const blob = await objectsService.exportObjects('excel', filters.value);
-    
+
     // Создаем ссылку для скачивания
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -2318,7 +1914,7 @@ const exportObjects = async () => {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
+
     showSnackbar('Экспорт завершен', 'success');
   } catch (error: any) {
     console.error('Ошибка экспорта:', error);
@@ -2416,16 +2012,16 @@ const showSnackbar = (text: string, color = 'info', timeout?: number) => {
     success: 4000,  // Успех - чуть меньше
     info: 4000,     // Информация - стандартное время
   };
-  
+
   const finalTimeout = timeout || defaultTimeouts[color as keyof typeof defaultTimeouts] || 5000;
-  
-  snackbar.value = { 
-    show: true, 
-    text, 
-    color, 
-    timeout: finalTimeout 
+
+  snackbar.value = {
+    show: true,
+    text,
+    color,
+    timeout: finalTimeout
   };
-  
+
   // Логируем для отладки
   console.log(`📢 Snackbar: ${text} (${color}, ${finalTimeout}ms)`);
 };
@@ -2506,24 +2102,24 @@ const toggleAllObjectsActivity = async (isActive: boolean) => {
   }
 
   try {
-    const promises = selectedObjects.value.map(objectId => 
+    const promises = selectedObjects.value.map(objectId =>
       objectsService.updateObject(objectId, { is_active: isActive })
     );
-    
+
     await Promise.all(promises);
-    
+
     // Обновляем объекты в локальном состоянии
     objects.value.forEach(obj => {
       if (selectedObjects.value.includes(obj.id)) {
         obj.is_active = isActive;
       }
     });
-    
+
     showSnackbar(
       `${selectedObjects.value.length} объект(ов) ${isActive ? 'активированы' : 'деактивированы'}`,
       'success'
     );
-    
+
     selectedObjects.value = [];
     selectAll.value = false;
   } catch (error: any) {
@@ -2586,21 +2182,21 @@ let unsubscribeFromAutoRefresh: (() => void) | null = null;
 // Lifecycle
 onMounted(async () => {
   console.log('🚀 Objects component mounted');
-  
-  
+
+
   // Принудительно закрываем все диалоги при инициализации
   objectDialog.value.show = false;
   scheduleDeleteDialog.value.show = false;
   viewDialog.value.show = false;
   console.log('🎯 Все диалоги принудительно закрыты');
-  
+
   // Загружаем историю поиска
   loadSearchHistory();
-  
+
   try {
     // Загружаем основные данные (объекты) в первую очередь
     await loadObjects();
-    
+
     // Остальные данные загружаем опционально (не критично если не загрузятся)
     Promise.allSettled([
       loadStats(),
@@ -2621,18 +2217,18 @@ onMounted(async () => {
     console.error('Ошибка инициализации страницы объектов:', error);
     showSnackbar('Ошибка загрузки объектов. Проверьте подключение к серверу.', 'error', 8000);
   }
-  
+
   // Временно отключаем автообновление из-за проблем с auth context
   // autoRefresh.setInterval(10);
   // autoRefresh.start();
-  
+
   // Подписываемся на изменения автообновления
   // unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
   //   loadObjects();
   // });
-  
+
   console.log('⚠️ Автообновление временно отключено для стабильности');
-  
+
   // Проверяем, нужно ли открыть диалог создания объекта
   if (route.query.action === 'create') {
     console.log('🎯 Автоматически открываем диалог создания объекта');
@@ -2643,7 +2239,7 @@ onMounted(async () => {
       console.log('🎯 Состояние диалога:', objectDialog.value);
     }, 500);
   }
-  
+
   console.log('✅ Objects component fully loaded');
 });
 
@@ -2652,7 +2248,7 @@ onUnmounted(() => {
   if (unsubscribeFromAutoRefresh) {
     unsubscribeFromAutoRefresh();
   }
-  
+
   console.log('🔄 Objects component unmounted');
 });
 </script>
@@ -3166,6 +2762,7 @@ onUnmounted(() => {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -3180,7 +2777,8 @@ onUnmounted(() => {
 
 /* Принудительно отключаем backdrop для диалогов, если он создает проблемы */
 .v-overlay--active .v-overlay__scrim {
-  opacity: 0.3 !important; /* Уменьшаем прозрачность backdrop */
+  opacity: 0.3 !important;
+  /* Уменьшаем прозрачность backdrop */
 }
 
 /* Альтернативно - полностью отключаем backdrop */
@@ -3223,31 +2821,31 @@ onUnmounted(() => {
     align-items: flex-start;
     gap: 16px;
   }
-  
+
   .page-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
   }
-  
+
   .table-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  
+
   .objects-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .search-actions {
     flex-direction: column;
     gap: 4px;
   }
-  
+
   .quick-filters-chips {
     justify-content: center;
   }
@@ -3257,20 +2855,20 @@ onUnmounted(() => {
   .page-title {
     font-size: 1.5rem;
   }
-  
+
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .page-actions {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .filters-content .v-row {
     margin: 0;
   }
-  
+
   .filters-content .v-col {
     padding: 4px;
   }
@@ -3357,7 +2955,7 @@ onUnmounted(() => {
   gap: 16px;
 }
 
-.form-row > * {
+.form-row>* {
   flex: 1;
 }
 
@@ -3369,12 +2967,12 @@ onUnmounted(() => {
     margin-right: 0;
     margin-bottom: 12px;
   }
-  
+
   .table-actions {
     flex-direction: column;
     align-items: flex-start;
   }
-  
+
   .form-row {
     flex-direction: column;
     gap: 12px;

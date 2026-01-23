@@ -3,17 +3,11 @@
     <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
-        <v-icon icon="mdi-bank" size="32" class="page-icon" />
+        <v-icon icon="mdi-office-building-outline" size="32" class="page-icon" />
         <div>
           <h1 class="page-title">Учетные записи</h1>
           <p class="page-subtitle">Управление учетными записями и организациями</p>
         </div>
-      </div>
-      <div class="page-actions">
-        <v-btn color="success" variant="flat" prepend-icon="mdi-microsoft-excel" :loading="exporting"
-          @click="exportAccounts">
-          Экспорт в Excel
-        </v-btn>
       </div>
     </div>
 
@@ -23,7 +17,7 @@
         <v-tooltip location="bottom">
           <template #activator="{ props }">
             <AppleCard v-bind="props" :title="totalStats.total.toString()" subtitle="Доступных записей"
-              icon="mdi-account-group" icon-color="primary" variant="outlined" class="stat-card" />
+              icon="mdi-account-group-outline" icon-color="primary" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.total }}</div>
@@ -33,8 +27,8 @@
         </v-tooltip>
         <v-tooltip location="bottom">
           <template #activator="{ props }">
-            <AppleCard v-bind="props" :title="totalStats.active.toString()" subtitle="Активных" icon="mdi-account-check"
-              icon-color="success" variant="outlined" class="stat-card" />
+            <AppleCard v-bind="props" :title="totalStats.active.toString()" subtitle="Активных"
+              icon="mdi-account-check-outline" icon-color="success" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.active }}</div>
@@ -45,7 +39,7 @@
         <v-tooltip location="bottom">
           <template #activator="{ props }">
             <AppleCard v-bind="props" :title="(stats.clients + wialonStats.clients).toString()" subtitle="Клиентов"
-              icon="mdi-account" icon-color="warning" variant="outlined" class="stat-card" />
+              icon="mdi-account-outline" icon-color="warning" variant="outlined" class="stat-card" />
           </template>
           <div class="stats-tooltip">
             <div><strong>Axenta:</strong> {{ stats.clients }}</div>
@@ -56,7 +50,7 @@
         <v-tooltip location="bottom">
           <template #activator="{ props }">
             <AppleCard v-bind="props" :title="(stats.partners + wialonStats.dealers).toString()"
-              subtitle="Партнеров/Дилеров" icon="mdi-handshake" icon-color="purple" variant="outlined"
+              subtitle="Партнеров/Дилеров" icon="mdi-handshake-outline" icon-color="purple" variant="outlined"
               class="stat-card" />
           </template>
           <div class="stats-tooltip">
@@ -96,11 +90,9 @@
               variant="outlined" density="comfortable" clearable no-data-text="Нет данных"
               @update:model-value="onParentChange" />
           </div>
-          <div class="filter-create">
-            <v-btn icon="mdi-plus" color="primary" variant="flat" @click="goToCreateAccount" class="create-button" />
-          </div>
+
           <div class="filter-clear">
-            <v-btn v-show="hasAnyActiveFilters" icon="mdi-filter-remove" variant="flat" color="warning"
+            <v-btn v-show="hasAnyActiveFilters" icon="mdi-filter-off-outline" variant="flat" color="warning"
               density="comfortable" @click="resetFilters"
               :title="hasAnyActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
               :class="{ 'filter-clear-active': hasAnyActiveFilters }">
@@ -300,7 +292,7 @@
         <template #item.isActive="{ item }">
           <v-tooltip location="top" :text="item.isActive ? 'Активен' : 'Заблокирован'">
             <template #activator="{ props }">
-              <v-icon v-bind="props" :icon="item.isActive ? 'mdi-check-circle' : 'mdi-close-circle'"
+              <v-icon v-bind="props" :icon="item.isActive ? 'mdi-check-circle-outline' : 'mdi-close-circle-outline'"
                 :color="item.isActive ? 'success' : 'error'" size="24" class="status-icon" />
             </template>
           </v-tooltip>
@@ -341,8 +333,8 @@
         <template #item.actions="{ item }">
           <div class="actions-row">
             <!-- Иконки "Просмотр" и "Редактировать" удалены -->
-            <v-btn :icon="item.isActive ? 'mdi-pause' : 'mdi-play'" variant="text" size="x-small"
-              :color="item.isActive ? 'warning' : 'success'" @click="toggleAccountStatus(item)"
+            <v-btn :icon="item.isActive ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'" variant="text"
+              size="small" :color="item.isActive ? 'warning' : 'success'" @click="toggleAccountStatus(item)"
               :title="item.isActive ? 'Деактивировать' : 'Активировать'" />
             <v-menu>
               <template #activator="{ props }">
@@ -351,18 +343,19 @@
               </template>
               <v-list density="compact">
                 <!-- Пункт "Войти в мониторинг" - отображается для всех типов аккаунтов -->
-                <v-list-item prepend-icon="mdi-arrow-right-bold" title="Войти в мониторинг"
+                <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг"
                   @click="loginToMonitoring(item)" />
 
                 <!-- Пункт "Войти в CMS" - отображается для партнеров Axenta и дилеров Wialon -->
-                <v-list-item v-if="item.type === 'partner' || item.dealer_rights" prepend-icon="mdi-arrow-right-bold"
-                  title="Войти в CMS" @click="loginToCms(item)" />
+                <v-list-item v-if="item.type === 'partner' || item.dealer_rights"
+                  prepend-icon="mdi-cog-transfer-outline" title="Войти в CMS" @click="loginToCms(item)" />
 
-                <v-list-item v-if="item.source === 'axenta' || !item.source" prepend-icon="mdi-swap-horizontal"
-                  title="Переместить учетную запись" @click="moveAccount(item)" />
+                <v-list-item v-if="item.source === 'axenta' || !item.source"
+                  prepend-icon="mdi-account-arrow-right-outline" title="Переместить учетную запись"
+                  @click="moveAccount(item)" />
                 <v-divider />
-                <v-list-item prepend-icon="mdi-delete" title="Удалить учетную запись" @click="deleteAccount(item)"
-                  class="text-error" />
+                <v-list-item prepend-icon="mdi-delete-outline" title="Удалить учетную запись"
+                  @click="deleteAccount(item)" class="text-error" />
               </v-list>
             </v-menu>
           </div>
@@ -590,11 +583,15 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- FAB меню -->
+    <AppleFAB icon="mdi-plus" :items="fabMenuItems" @item-click="handleFabAction" />
   </div>
 </template>
 
 <script setup lang="ts">
 import AppleCard from '@/components/Apple/AppleCard.vue';
+import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import { wialonCacheService, type CachedWialonAccount } from '@/services/wialonCacheService';
@@ -680,6 +677,30 @@ const deleteConfirmationId = ref('');
 const isDeleting = ref(false);
 const exporting = ref(false); // Флаг экспорта в Excel
 const deleteReasonKey = ref<string | null>(null); // Причина удаления для WH
+
+// FAB Menu Items - элементы плавающего меню действий
+const fabMenuItems = [
+  {
+    id: 'create',
+    label: 'Создать аккаунт',
+    icon: 'mdi-plus',
+    color: 'success' as const,
+    action: () => goToCreateAccount()
+  },
+  {
+    id: 'export',
+    label: 'Экспорт в Excel',
+    icon: 'mdi-file-excel-outline',
+    color: 'primary' as const,
+    action: () => exportAccounts()
+  }
+];
+
+// Обработчик клика на элементе FAB меню
+const handleFabAction = (item: { id?: string; action?: () => void }) => {
+  // Действие выполняется автоматически через свойство action элемента
+  console.log('FAB action:', item.id);
+};
 
 // Причины удаления для Wialon Hosting
 const wialonDeleteReasons = [
@@ -2369,11 +2390,11 @@ const getSourceColor = (source: string): string => {
 
 // Получение иконки для источника
 const getSourceIcon = (source: string): string => {
-  if (source === 'axenta') return 'mdi-server';
+  if (source === 'axenta') return 'mdi-server-network-outline';
   const lowerSource = source?.toLowerCase() || '';
-  if (lowerSource.startsWith('wh(') || lowerSource.startsWith('wh ')) return 'mdi-cloud';
-  if (lowerSource.startsWith('wl(') || lowerSource.startsWith('wl ')) return 'mdi-server-network';
-  return 'mdi-satellite-variant';
+  if (lowerSource.startsWith('wh(') || lowerSource.startsWith('wh ')) return 'mdi-cloud-outline';
+  if (lowerSource.startsWith('wl(') || lowerSource.startsWith('wl ')) return 'mdi-server-outline';
+  return 'mdi-satellite-uplink';
 };
 
 // Переход на страницу создания учетной записи
