@@ -743,6 +743,7 @@ const saveFiltersToStorage = () => {
       searchQuery: searchQuery.value,
       type: filters.value.type,
       is_active: filters.value.is_active,
+      source: filters.value.source, // Фильтр "Система"
       selectedParent: selectedParent.value,
       currentPage: currentPage.value,
       itemsPerPage: itemsPerPage.value,
@@ -764,6 +765,7 @@ const loadFiltersFromStorage = () => {
       searchQuery.value = filtersData.searchQuery || '';
       filters.value.type = filtersData.type ?? null;
       filters.value.is_active = filtersData.is_active ?? null;
+      filters.value.source = filtersData.source ?? null; // Восстанавливаем фильтр "Система"
       selectedParent.value = filtersData.selectedParent || '';
       currentPage.value = filtersData.currentPage || 1;
       itemsPerPage.value = filtersData.itemsPerPage || 10;
@@ -851,9 +853,14 @@ const isParentFilterActive = computed(() => {
   return selectedParent.value && selectedParent.value.trim() !== '';
 });
 
+const isSourceFilterActive = computed(() => {
+  return filters.value.source !== null && filters.value.source !== '';
+});
+
 const hasAnyActiveFilters = computed(() => {
   return isSearchActive.value || isTypeFilterActive.value ||
-    isStatusFilterActive.value || isParentFilterActive.value;
+    isStatusFilterActive.value || isParentFilterActive.value ||
+    isSourceFilterActive.value;
 });
 
 const activeFiltersCount = computed(() => {
@@ -862,6 +869,7 @@ const activeFiltersCount = computed(() => {
   if (isTypeFilterActive.value) count++;
   if (isStatusFilterActive.value) count++;
   if (isParentFilterActive.value) count++;
+  if (isSourceFilterActive.value) count++;
   return count;
 });
 
@@ -1532,10 +1540,18 @@ const loadWialonAccounts = async () => {
       // Обновляем список родительских аккаунтов после загрузки Wialon
       await updateParentAccountsWithWialon();
 
-      // LAZY LOADING: Статистика объектов загружается по требованию при скролле
-      // Сохраняем connectionIds для использования в lazy loading
+      // Сохраняем connectionIds для загрузки статистики
       wialonConnectionIds.value = wialonData.connectionIds || [];
-      console.log(`⏳ Статистика объектов будет загружена по требованию (lazy loading)`);
+
+      // АВТОМАТИЧЕСКАЯ ЗАГРУЗКА: Загружаем статистику объектов сразу после данных аккаунтов
+      // Это критично для отображения колонки "Объекты" при первом открытии страницы
+      if (wialonConnectionIds.value.length > 0) {
+        console.log(`📊 Автоматическая загрузка статистики объектов для ${wialonConnectionIds.value.length} подключений...`);
+        // Запускаем фоновую загрузку статистики (не блокируем UI)
+        loadWialonObjectsStats(wialonConnectionIds.value);
+      } else {
+        console.log(`⚠️ Нет подключений для загрузки статистики объектов`);
+      }
     }
 
     isWialonFromCache.value = false;
@@ -1668,6 +1684,26 @@ const loadWialonObjectsStats = async (connectionIds: number[]) => {
   }
 
   console.log('📊 Фоновая загрузка статистики объектов завершена');
+
+  // Обновляем кэш с актуальной статистикой объектов
+  const updatedCacheData = wialonAccounts.value.map(acc => ({
+    id: acc.id,
+    connectionId: (acc as any).connection_id || 0,
+    name: acc.name,
+    type: acc.type,
+    isActive: acc.isActive,
+    objectsTotal: acc.objectsTotal,
+    objectsActive: acc.objectsActive || 0,
+    objectsDeactivated: (acc as any).objectsDeactivated || 0,
+    sourceLabel: acc.source,
+    createdAt: acc.creationDatetime || '',
+    dealerRights: (acc as any).dealer_rights || false,
+    hierarchy: acc.hierarchy || '',
+    billingAccountId: (acc as any).billingAccountId || 0,
+    _cachedAt: Date.now(),
+  }));
+  wialonCacheService.setAccounts(updatedCacheData);
+  console.log('💾 Кэш обновлён с актуальной статистикой объектов');
 };
 
 // Lazy Loading: Загрузка статистики только для видимых аккаунтов
@@ -1946,6 +1982,7 @@ const resetFilters = () => {
   filters.value = {
     type: null,
     is_active: null,
+    source: null, // Сброс фильтра "Система"
   };
   selectedParent.value = ''; // Сброс на "Все родители"
   currentPage.value = 1;
