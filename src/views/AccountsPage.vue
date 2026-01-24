@@ -2446,36 +2446,369 @@ const showSnackbar = (text: string, color: string = 'info') => {
 };
 
 /**
- * Экспорт учетных записей в Excel
+ * Проверяет, есть ли Wialon данные в текущем представлении
+ */
+const hasAnyWialonData = (): boolean => {
+  return wialonAccounts.value.length > 0;
+};
+
+/**
+ * Получить ВСЕ отфильтрованные данные для экспорта (без пагинации)
+ * ТОЧНАЯ КОПИЯ логики из accountsWithNumbers, но возвращает allAccounts ДО пагинации
+ */
+const getFilteredAccountsForExport = (): any[] => {
+  console.log('🔍 getFilteredAccountsForExport: НАЧАЛО');
+
+  // === ТОЧНАЯ КОПИЯ логики из accountsWithNumbers (строки 893-984) ===
+
+  // Добавляем source='axenta' к аккаунтам Axenta
+  const axentaAccountsWithSource = accounts.value.map(account => ({
+    ...account,
+    source: 'axenta',
+  }));
+
+  // Фильтруем Wialon аккаунты по родителю если выбран фильтр
+  let filteredWialon = [...wialonAccounts.value];
+
+  console.log('  🔍 Исходные данные:');
+  console.log('    - axentaAccountsWithSource:', axentaAccountsWithSource.length);
+  console.log('    - wialonAccounts (до фильтрации):', filteredWialon.length);
+
+  // Логируем примеры source для Wialon
+  if (filteredWialon.length > 0) {
+    console.log('    - Примеры source:', filteredWialon.slice(0, 3).map(a => a.source));
+  }
+
+  // === Фильтр по поиску (searchQuery) для Wialon ===
+  if (searchQuery.value && searchQuery.value.trim() !== '') {
+    const searchTerms = searchQuery.value
+      .split(',')
+      .map(term => term.trim().toLowerCase())
+      .filter(term => term.length > 0);
+
+    if (searchTerms.length > 0) {
+      filteredWialon = filteredWialon.filter(account => {
+        const accountName = account.name.toLowerCase();
+        const hierarchy = account.hierarchy?.toLowerCase() || '';
+        const id = account.id?.toString() || '';
+        return searchTerms.some(term =>
+          accountName.includes(term) ||
+          hierarchy.includes(term) ||
+          id.includes(term)
+        );
+      });
+    }
+  }
+
+  // Фильтр по родителю для Wialon
+  if (selectedParent.value && selectedParent.value.trim() !== '') {
+    filteredWialon = filteredWialon.filter(account => {
+      if (account.hierarchy?.includes(selectedParent.value)) {
+        const parts = account.hierarchy.split(' > ');
+        const parents = parts.slice(0, -1);
+        return parents.some(p => p === selectedParent.value || p.includes(selectedParent.value));
+      }
+      return false;
+    });
+  }
+
+  // Фильтр по статусу (is_active) для Wialon
+  if (filters.value.is_active !== null) {
+    filteredWialon = filteredWialon.filter(account => account.isActive === filters.value.is_active);
+  }
+
+  // Фильтр по типу (партнёр/клиент) для Wialon
+  if (filters.value.type) {
+    filteredWialon = filteredWialon.filter(account => {
+      if (filters.value.type === 'partner') {
+        return account.dealer_rights === true;
+      } else if (filters.value.type === 'client') {
+        return account.dealer_rights !== true;
+      }
+      return true;
+    });
+  }
+
+  console.log('    - filteredWialon (после всех фильтров):', filteredWialon.length);
+
+  // Определяем какие аккаунты включать на основе фильтра по системе
+  let allAccounts: any[] = [];
+
+  // Фильтруем Axenta аккаунты по статусу (is_active)
+  let filteredAxenta = axentaAccountsWithSource;
+  if (filters.value.is_active !== null) {
+    filteredAxenta = axentaAccountsWithSource.filter(account => account.isActive === filters.value.is_active);
+  }
+
+  console.log('  🔍 Фильтр системы:', filters.value.source);
+  console.log('    - filteredAxenta:', filteredAxenta.length);
+
+  if (filters.value.source === 'axenta') {
+    // Только Axenta
+    allAccounts = filteredAxenta;
+    console.log('  ➡️ Выбран: axenta');
+  } else if (filters.value.source === 'wialon' || filters.value.source === 'wl' || filters.value.source === 'wh') {
+    // Только Wialon — не добавляем Axenta
+    allAccounts = filteredWialon.filter(acc => {
+      const source = acc.source?.toLowerCase() || '';
+      if (filters.value.source === 'wialon') {
+        return source !== 'axenta' && source !== '';
+      } else if (filters.value.source === 'wh') {
+        return source.startsWith('wh(') || source.startsWith('wh ');
+      } else if (filters.value.source === 'wl') {
+        return source.startsWith('wl(') || source.startsWith('wl ');
+      }
+      return true;
+    });
+    console.log('  ➡️ Выбран: Wialon (', filters.value.source, '), найдено:', allAccounts.length);
+
+    // Если ничего не нашли — возможно формат source другой, покажем примеры
+    if (allAccounts.length === 0 && filteredWialon.length > 0) {
+      console.log('  ⚠️ ВНИМАНИЕ: 0 записей прошли фильтр source!');
+      console.log('  ⚠️ Примеры source в filteredWialon:', filteredWialon.slice(0, 5).map(a => a.source));
+    }
+  } else {
+    // Все системы — объединяем Axenta и Wialon
+    allAccounts = [...filteredAxenta, ...filteredWialon];
+    console.log('  ➡️ Выбрано: все системы');
+  }
+
+  console.log('🔍 getFilteredAccountsForExport: ИТОГО', allAccounts.length, 'записей');
+
+  return allAccounts;
+};
+/**
+ * Экспорт учетных записей в XLSX с автофильтрами
+ * Использует библиотеку ExcelJS для генерации Excel файла
  */
 const exportAccounts = async () => {
   try {
     exporting.value = true;
 
-    // Передаём текущие фильтры для экспорта
-    const blob = await accountsService.exportAccounts({
-      search: filters.value.search || undefined,
-      type: filters.value.type || undefined,
+    const sourceFilter = filters.value.source;
+
+    console.log('📤 Экспорт учетных записей в XLSX');
+    console.log('🔍 Текущие фильтры:', {
+      source: sourceFilter,
+      type: filters.value.type,
       is_active: filters.value.is_active,
+      search: searchQuery.value,
+      parent: selectedParent.value
     });
 
-    // Создаем ссылку для скачивания
+    // Проверяем что данные Wialon загружены для соответствующих фильтров
+    if ((sourceFilter === 'wialon' || sourceFilter === 'wh' || sourceFilter === 'wl')
+      && wialonAccounts.value.length === 0) {
+      showSnackbar('Данные Wialon ещё загружаются. Подождите и попробуйте снова.', 'warning');
+      exporting.value = false;
+      return;
+    }
+
+    // Берём отфильтрованные данные
+    const dataToExport = getFilteredAccountsForExport();
+
+    console.log(`📋 Отфильтровано для экспорта: ${dataToExport.length} записей`);
+
+    if (dataToExport.length === 0) {
+      showSnackbar('Нет данных для экспорта. Проверьте фильтры.', 'warning');
+      return;
+    }
+
+    // Динамический импорт ExcelJS
+    const ExcelJS = await import('exceljs');
+
+    // Создаём Excel файл
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Axenta CRM';
+    workbook.created = new Date();
+
+    const worksheet = workbook.addWorksheet('Учетные записи');
+
+    // Вспомогательная функция для форматирования даты
+    const formatDate = (dateStr: string | null | undefined): string => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return '';
+        return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      } catch {
+        return '';
+      }
+    };
+
+    // Заголовки колонок
+    const columns = [
+      { header: 'ID', key: 'id', width: 10 },
+      { header: 'Название', key: 'name', width: 35 },
+      { header: 'Тип', key: 'type', width: 12 },
+      { header: 'Права дилера', key: 'dealer_rights', width: 14 },
+      { header: 'Статус', key: 'status', width: 14 },
+      { header: 'Дней до блокировки', key: 'days_before_blocking', width: 18 },
+      { header: 'Дата блокировки', key: 'blocking_date', width: 16 },
+      { header: 'Объекты акт.', key: 'objects_active', width: 13 },
+      { header: 'Объекты деакт.', key: 'objects_deactivated', width: 14 },
+      { header: 'Объекты всего', key: 'objects_total', width: 14 },
+      { header: 'Баланс', key: 'balance', width: 12 },
+      { header: 'Ежемес. платеж', key: 'monthly_payment', width: 15 },
+      { header: 'Система', key: 'source', width: 25 },
+      { header: 'Иерархия', key: 'hierarchy', width: 50 },
+      { header: 'Родитель', key: 'parent', width: 25 },
+      { header: 'Администратор', key: 'admin', width: 25 },
+      { header: 'ID админа', key: 'admin_id', width: 10 },
+      { header: 'Комментарий', key: 'comment', width: 30 },
+      { header: 'Дата создания', key: 'created_at', width: 14 }
+    ];
+
+    worksheet.columns = columns;
+
+    // Добавляем данные
+    dataToExport.forEach(acc => {
+      worksheet.addRow({
+        id: acc.id || '',
+        name: acc.name || '',
+        type: acc.type === 'partner' ? 'Партнёр' : 'Клиент',
+        dealer_rights: (acc as any).dealer_rights ? 'Да' : 'Нет',
+        status: acc.isActive ? 'Активен' : 'Заблокирован',
+        days_before_blocking: acc.daysBeforeBlocking !== null && acc.daysBeforeBlocking !== undefined ? acc.daysBeforeBlocking : '',
+        blocking_date: formatDate(acc.blockingDatetime),
+        objects_active: acc.objectsActive || 0,
+        objects_deactivated: acc.objectsDeactivated || 0,
+        objects_total: acc.objectsTotal || 0,
+        balance: acc.balance !== undefined ? acc.balance : '',
+        monthly_payment: acc.monthlyPayment !== undefined ? acc.monthlyPayment : '',
+        source: acc.source || 'Axenta',
+        hierarchy: acc.hierarchy || '',
+        parent: acc.parentAccountName || '',
+        admin: acc.adminFullname || '',
+        admin_id: acc.adminId || '',
+        comment: acc.comment || '',
+        created_at: formatDate(acc.creationDatetime || acc.createdAt)
+      });
+    });
+
+    // Стили заголовков
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4472C4' }
+    };
+    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+
+    // Автофильтр на все колонки
+    worksheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: dataToExport.length + 1, column: columns.length }
+    };
+
+    // Закрепление заголовка
+    worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+    // Генерируем файл
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `accounts_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    // Формируем имя файла
+    let fileName = 'accounts';
+    if (sourceFilter) fileName += `_${sourceFilter}`;
+    if (filters.value.type) fileName += `_${filters.value.type}`;
+    fileName += `_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
 
-    showSnackbar('Экспорт завершен', 'success');
+    showSnackbar(`Экспортировано ${dataToExport.length} записей в Excel`, 'success');
   } catch (error: any) {
-    console.error('Ошибка экспорта:', error);
+    console.error('❌ Ошибка экспорта:', error);
     showSnackbar('Ошибка экспорта учетных записей', 'error');
   } finally {
     exporting.value = false;
   }
+};
+
+/**
+ * Генерация CSV из данных аккаунтов
+ * Универсальный формат с максимумом информации
+ */
+const generateCSV = (data: any[]): string => {
+  if (data.length === 0) return '';
+
+  // Вспомогательная функция для форматирования даты
+  const formatDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return '';
+      return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+
+  // Экранирование для CSV
+  const escapeCSV = (value: any): string => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes('"') || str.includes(';') || str.includes('\n')) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  // Заголовки — максимум информации
+  const headers = [
+    'ID',
+    'Название',
+    'Тип',
+    'Права дилера',
+    'Статус',
+    'Дней до блокировки',
+    'Дата блокировки',
+    'Объекты активные',
+    'Объекты деактивированные',
+    'Объекты всего',
+    'Баланс',
+    'Ежемесячный платеж',
+    'Система',
+    'Иерархия',
+    'Родительский аккаунт',
+    'Администратор',
+    'ID администратора',
+    'Комментарий',
+    'Дата создания'
+  ];
+
+  // Данные
+  const rows = data.map(acc => [
+    acc.id || '',
+    escapeCSV(acc.name),
+    acc.type === 'partner' ? 'Партнёр' : 'Клиент',
+    (acc as any).dealer_rights ? 'Да' : 'Нет',
+    acc.isActive ? 'Активен' : 'Заблокирован',
+    acc.daysBeforeBlocking !== null && acc.daysBeforeBlocking !== undefined ? acc.daysBeforeBlocking : '',
+    formatDate(acc.blockingDatetime),
+    acc.objectsActive || 0,
+    acc.objectsDeactivated || 0,
+    acc.objectsTotal || 0,
+    acc.balance !== undefined ? acc.balance : '',
+    acc.monthlyPayment !== undefined ? acc.monthlyPayment : '',
+    escapeCSV(acc.source || 'Axenta'),
+    escapeCSV(acc.hierarchy),
+    escapeCSV(acc.parentAccountName),
+    escapeCSV(acc.adminFullname),
+    acc.adminId || '',
+    escapeCSV(acc.comment),
+    formatDate(acc.creationDatetime || acc.createdAt)
+  ]);
+
+  return [headers.join(';'), ...rows.map(row => row.join(';'))].join('\n');
 };
 
 const toggleAccountStatus = async (account: Account) => {
