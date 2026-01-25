@@ -1,5 +1,4 @@
 // Сервис для работы с настройками системы
-import axios from 'axios';
 import { config } from "@/config/env";
 import type {
   AxentaIntegrationSettings,
@@ -24,9 +23,10 @@ import {
   INTEGRATION_TYPES,
   NOTIFICATION_CHANNELS,
   NOTIFICATION_EVENTS,
-  TEMPLATE_TYPES,
   TEMPLATE_SYSTEMS,
+  TEMPLATE_TYPES,
 } from "@/types/settings";
+import axios from 'axios';
 
 // API базовый URL
 const API_BASE_URL = config.backendUrl;
@@ -1748,13 +1748,13 @@ class SettingsService {
    * Вход в мониторинг Wialon под конкретным пользователем
    * Возвращает URL для открытия в новой вкладке
    */
-  async loginToWialonMonitoring(connectionId: number, userName?: string): Promise<{
+  async loginToWialonMonitoring(connectionId: number, userName?: string, accountId?: number): Promise<{
     success: boolean;
     redirectUrl?: string;
     message?: string;
   }> {
     try {
-      console.log(`🔐 Вход в мониторинг Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}`);
+      console.log(`🔐 Вход в мониторинг Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, account_id=${accountId || 'не указан'}`);
 
       const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-monitoring`, {
         method: 'POST',
@@ -1762,6 +1762,7 @@ class SettingsService {
         body: JSON.stringify({
           connection_id: connectionId,
           user_name: userName || '',
+          account_id: accountId || 0,
         }),
       });
 
@@ -1791,13 +1792,13 @@ class SettingsService {
    * Вход в CMS Wialon под конкретным пользователем
    * Возвращает URL для открытия в новой вкладке
    */
-  async loginToWialonCms(connectionId: number, userName?: string): Promise<{
+  async loginToWialonCms(connectionId: number, userName?: string, accountId?: number): Promise<{
     success: boolean;
     redirectUrl?: string;
     message?: string;
   }> {
     try {
-      console.log(`🔐 Вход в CMS Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}`);
+      console.log(`🔐 Вход в CMS Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, account_id=${accountId || 'не указан'}`);
 
       const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-cms`, {
         method: 'POST',
@@ -1805,6 +1806,7 @@ class SettingsService {
         body: JSON.stringify({
           connection_id: connectionId,
           user_name: userName || '',
+          account_id: accountId || 0,
         }),
       });
 

@@ -216,15 +216,11 @@
         <!-- Колонка "Тип" -->
         <template #item.type="{ item }">
           <span class="type-minimal" :class="{
-            'type-partner': item.source === 'axenta' ? item.type === 'partner' : item.dealer_rights,
-            'type-client': item.source === 'axenta' ? item.type !== 'partner' : !item.dealer_rights
+            'type-partner': item.type === 'partner',
+            'type-client': item.type !== 'partner'
           }">
-            <!-- Axenta: Партнер/Клиент (по type) -->
-            <!-- Wialon: Дилер/Клиент (по dealer_rights) -->
-            {{ item.source === 'axenta'
-              ? (item.type === 'partner' ? 'Партнер' : 'Клиент')
-              : (item.dealer_rights ? 'Дилер' : 'Клиент')
-            }}
+            <!-- Тип компании: Партнер/Клиент -->
+            {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}
           </span>
         </template>
 
@@ -454,10 +450,7 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToDelete?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToDelete?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToDelete?.source === 'axenta'
-                  ? (accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент')
-                  : (accountToDelete?.dealer_rights ? 'Дилер' : 'Клиент')
-                }}
+                Тип: {{ accountToDelete?.type === 'partner' ? 'Партнер' : 'Клиент' }}
               </div>
             </div>
           </div>
@@ -520,10 +513,7 @@
               <div class="text-subtitle-1 font-weight-bold">{{ accountToMove?.name }}</div>
               <div class="text-caption text-grey-darken-1">ID: {{ accountToMove?.id }}</div>
               <div class="text-caption text-grey-darken-1">
-                Тип: {{ accountToMove?.source === 'axenta'
-                  ? (accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент')
-                  : (accountToMove?.dealer_rights ? 'Дилер' : 'Клиент')
-                }}
+                Тип: {{ accountToMove?.type === 'partner' ? 'Партнер' : 'Клиент' }}
               </div>
             </div>
           </div>
@@ -2153,10 +2143,11 @@ const loginToCms = async (account: Account) => {
         return;
       }
 
-      // Используем специальный метод для CMS
+      // Передаём account_id (ID пользователя) для входа под конкретным пользователем
       const result = await settingsService.loginToWialonCms(
         accountWithSource.connection_id,
-        account.name
+        undefined, // user_name не передаём — бэкенд найдёт его по account_id
+        account.id // ID для поиска пользователя
       );
 
       if (!result.success) {
@@ -2192,6 +2183,7 @@ const loginToCms = async (account: Account) => {
 const loginToMonitoring = async (account: Account) => {
   try {
     console.log('📊 Вход в мониторинг для аккаунта:', account.name);
+    console.log('📊 Account ID:', account.id, 'Type:', typeof account.id);
 
     // Проверяем тип источника аккаунта
     const accountWithSource = account as Account & { source?: string; connection_id?: number };
@@ -2204,11 +2196,12 @@ const loginToMonitoring = async (account: Account) => {
         return;
       }
 
-      // Извлекаем имя пользователя (если это дочерний аккаунт)
-      // Имя пользователя передается для входа под конкретным пользователем через core/duplicate
+      // Передаём account_id (ID ресурса) для поиска связанного пользователя по bact
+      // Бэкенд найдёт пользователя с bact == account.id и войдёт под ним
       const result = await settingsService.loginToWialonMonitoring(
         accountWithSource.connection_id,
-        account.name // Передаем имя аккаунта как имя пользователя
+        undefined, // user_name не передаём — бэкенд найдёт его по account_id
+        account.id // ID ресурса для поиска пользователя
       );
 
       if (!result.success) {
