@@ -77,6 +77,7 @@ export default defineConfig(({ mode }) => {
             "vendor-vue": ["vue", "vue-router", "pinia"],
             "vendor-vuetify": ["vuetify"],
             "vendor-utils": ["axios"],
+            "vendor-excel": ["exceljs"],
           },
         },
       },

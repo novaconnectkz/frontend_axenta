@@ -3,7 +3,7 @@
     <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
-        <v-icon icon="mdi-account-group" size="32" class="page-icon" />
+        <v-icon icon="mdi-account-group-outline" size="32" class="page-icon" />
         <div>
           <h1 class="page-title">Управление пользователями</h1>
           <p class="page-subtitle">Пользователи, роли и права доступа</p>
@@ -26,20 +26,13 @@
       <div class="filters-content">
         <div class="filters-row">
           <div class="filter-item filter-search">
-            <AppleInput 
-              v-model="filters.search" 
-              placeholder="Поиск по имени, email, логину (без создателя)..."
-              clearable 
-              @input="debouncedSearch"
-              :color="isMultipleUserSearch ? 'primary' : undefined"
-            >
+            <AppleInput v-model="filters.search" placeholder="Поиск по имени, email, логину (без создателя)..."
+              clearable @input="debouncedSearch" :color="isMultipleUserSearch ? 'primary' : undefined">
               <template #prepend-icon>
-                <v-icon 
-                  :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'" 
-                  :color="isMultipleUserSearch ? 'primary' : undefined"
-                />
+                <v-icon :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'"
+                  :color="isMultipleUserSearch ? 'primary' : undefined" />
               </template>
-              
+
               <template #append-inner v-if="isMultipleUserSearch">
                 <v-chip size="x-small" color="primary" variant="flat">
                   {{ userSearchTermsArray.length }}
@@ -49,15 +42,8 @@
           </div>
 
           <div class="filter-item">
-            <v-select 
-              v-model="filters.role" 
-              :items="roleOptions" 
-              label="Роль" 
-              clearable 
-              variant="outlined"
-              density="comfortable" 
-              :loading="loadingRoles" 
-            />
+            <v-select v-model="filters.role" :items="roleOptions" label="Роль" clearable variant="outlined"
+              density="comfortable" :loading="loadingRoles" />
           </div>
 
           <!-- Отключено, но функционал сохранен -->
@@ -73,76 +59,35 @@
           </div> -->
 
           <div class="filter-item">
-            <v-select 
-              v-model="filters.active" 
-              :items="[
-                { title: 'Активные', value: true },
-                { title: 'Неактивные', value: false }
-              ]" 
-              label="Статус" 
-              clearable 
-              variant="outlined" 
-              density="comfortable" 
-            />
+            <v-select v-model="filters.active" :items="[
+              { title: 'Активные', value: true },
+              { title: 'Неактивные', value: false }
+            ]" label="Статус" clearable variant="outlined" density="comfortable" />
           </div>
 
           <div class="filter-item">
-            <v-select 
-              v-model="filters.source" 
-              :items="sourceOptions" 
-              label="Система" 
-              clearable 
-              variant="outlined" 
-              density="comfortable" 
-            />
+            <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
+              density="comfortable" />
           </div>
 
           <div class="filter-item filter-create">
-            <v-btn
-              icon="mdi-plus"
-              variant="flat"
-              color="primary"
-              size="small"
-              @click="openCreateDialog"
-              title="Создать пользователя"
-              data-testid="create-button"
-            />
+            <v-btn icon="mdi-plus" variant="flat" color="primary" size="small" @click="openCreateDialog"
+              title="Создать пользователя" data-testid="create-button" />
           </div>
 
           <div class="filter-item filter-clear">
-            <v-btn
-              v-show="hasActiveFilters"
-              icon="mdi-filter-remove"
-              variant="flat"
-              color="warning"
-              size="small"
-              @click="clearFilters"
-              title="Сбросить активные фильтры"
-              :class="{ 'filter-clear-active': hasActiveFilters }"
-              data-testid="clear-filters"
-            >
-              <v-badge
-                :content="activeFiltersCount"
-                color="white"
-                text-color="warning"
-                inline
-              />
+            <v-btn v-show="hasActiveFilters" icon="mdi-filter-off-outline" variant="flat" color="warning" size="small"
+              @click="clearFilters" title="Сбросить активные фильтры"
+              :class="{ 'filter-clear-active': hasActiveFilters }" data-testid="clear-filters">
+              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
             </v-btn>
           </div>
         </div>
 
         <!-- Чипы с найденными пользователями -->
         <div v-if="isMultipleUserSearch && userSearchTermsArray.length > 0" class="search-chips mt-2">
-          <v-chip
-            v-for="(term, index) in userSearchTermsArray"
-            :key="index"
-            size="small"
-            color="primary"
-            variant="outlined"
-            class="mr-1 mb-1"
-            closable
-            @click:close="removeUserSearchTerm(index)"
-          >
+          <v-chip v-for="(term, index) in userSearchTermsArray" :key="index" size="small" color="primary"
+            variant="outlined" class="mr-1 mb-1" closable @click:close="removeUserSearchTerm(index)">
             {{ term }}
           </v-chip>
         </div>
@@ -153,26 +98,13 @@
     <AppleCard class="users-table-card" variant="outlined">
       <!-- Таблица пользователей -->
       <div class="table-container">
-        <v-data-table 
-          :headers="tableHeaders" 
-          :items="combinedUsers" 
-          :loading="loading" 
-          :items-per-page="pagination.limit"
-          :page="pagination.page" 
-          :server-items-length="serverItemsLength"
-          :items-per-page-options="perPageOptions"
-          :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
-          @update:page="handlePageChange" 
-          @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange"
-          item-value="id" 
-          class="users-table" 
-          :row-props="getRowProps"
-          :must-sort="false"
-          hide-default-footer
-          no-data-text="Пользователи не найдены"
-          loading-text="Загрузка пользователей..."
-        >
+        <v-data-table :headers="tableHeaders" :items="combinedUsers" :loading="loading"
+          :items-per-page="pagination.limit" :page="pagination.page" :server-items-length="serverItemsLength"
+          :items-per-page-options="perPageOptions" :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
+          @update:page="handlePageChange" @update:items-per-page="handlePerPageChange"
+          @update:sort-by="handleSortChange" item-value="id" class="users-table" :row-props="getRowProps"
+          :must-sort="false" hide-default-footer no-data-text="Пользователи не найдены"
+          loading-text="Загрузка пользователей...">
           <!-- Активность - отключено, но функционал сохранен -->
           <!-- <template #item.is_active="{ item }">
             <v-checkbox :model-value="item.is_active" @update:model-value="(val) => toggleUserActivity(item, !!val)"
@@ -214,54 +146,42 @@
             <span v-else class="text-medium-emphasis">—</span>
           </template>
 
-        <!-- Создатель -->
-        <template #item.creator_name="{ item }">
-          <span v-if="item.creator_name || item.creatorName" class="text-body-2">
-            {{ item.creator_name || item.creatorName }}
-          </span>
-          <span v-else class="text-medium-emphasis">—</span>
-        </template>
+          <!-- Создатель -->
+          <template #item.creator_name="{ item }">
+            <span v-if="item.creator_name || item.creatorName" class="text-body-2">
+              {{ item.creator_name || item.creatorName }}
+            </span>
+            <span v-else class="text-medium-emphasis">—</span>
+          </template>
 
-        <!-- Дата создания -->
-        <template #item.creation_datetime="{ item }">
-          <v-tooltip v-if="item.creation_datetime" location="top">
-            <template #activator="{ props }">
-              <span v-bind="props" class="text-body-2">
-                {{ formatDateOnly(item.creation_datetime) }}
-              </span>
-            </template>
-            <span>{{ formatTimeOnly(item.creation_datetime) }}</span>
-          </v-tooltip>
-          <span v-else class="text-medium-emphasis">—</span>
-        </template>
+          <!-- Дата создания -->
+          <template #item.creation_datetime="{ item }">
+            <v-tooltip v-if="item.creation_datetime" location="top">
+              <template #activator="{ props }">
+                <span v-bind="props" class="text-body-2">
+                  {{ formatDateOnly(item.creation_datetime) }}
+                </span>
+              </template>
+              <span>{{ formatTimeOnly(item.creation_datetime) }}</span>
+            </v-tooltip>
+            <span v-else class="text-medium-emphasis">—</span>
+          </template>
 
           <!-- Роль -->
           <template #item.role="{ item }">
             <div v-if="item.role" class="d-flex align-center">
-              <!-- Для ролей "Партнер" и "Клиент" показываем только иконку с подсказкой -->
-              <v-tooltip
-                v-if="item.role.display_name === 'Партнер' || item.role.display_name === 'Клиент'"
-                location="top"
-              >
+              <!-- Для ролей "Партнер", "Партнёр" и "Клиент" показываем только иконку с подсказкой -->
+              <v-tooltip v-if="['Партнер', 'Партнёр', 'Клиент'].includes(item.role.display_name)" location="top">
                 <template #activator="{ props }">
-                  <v-icon 
-                    v-bind="props"
-                    :icon="getRoleIcon(item.role.display_name)" 
-                    :color="item.role.color || 'primary'"
-                    size="28"
-                    class="role-icon-only"
-                  />
+                  <v-icon v-bind="props" :icon="getRoleIcon(item.role.display_name)"
+                    :color="item.role.color || 'primary'" size="28" class="role-icon-only" />
                 </template>
                 <span>{{ item.role.display_name }}</span>
               </v-tooltip>
               <!-- Для остальных ролей показываем иконку с текстом -->
               <template v-else>
-                <v-icon 
-                  :icon="getRoleIcon(item.role.display_name)" 
-                  :color="item.role.color || 'primary'"
-                  size="24"
-                  class="role-icon"
-                />
+                <v-icon :icon="getRoleIcon(item.role.display_name)" :color="item.role.color || 'primary'" size="24"
+                  class="role-icon" />
                 <span class="role-name ml-2">{{ item.role.display_name }}</span>
               </template>
             </div>
@@ -278,72 +198,48 @@
 
           <!-- Источник -->
           <template #item.source="{ item }">
-            <v-chip
-              :color="item.source === 'axenta' ? 'primary' : 'orange'"
-              size="small"
-              variant="tonal"
-            >
+            <v-chip :color="getSourceColor(item.source)" size="small" variant="tonal">
               <v-icon start size="16">
-                {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
+                {{ getSourceIcon(item.source) }}
               </v-icon>
-              {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
+              {{ getSourceLabel(item.source) }}
             </v-chip>
           </template>
 
           <!-- Действия -->
           <template #item.actions="{ item }">
             <div class="actions-cell">
-              <v-btn
-                :icon="item.is_active ? 'mdi-pause' : 'mdi-play'"
-                variant="text"
-                size="x-small"
-                :color="item.is_active ? 'warning' : 'success'"
+              <v-btn :icon="item.is_active ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'" variant="text"
+                size="x-small" :color="item.is_active ? 'warning' : 'success'"
                 @click="toggleUserActivity(item, !item.is_active)"
-                :title="item.is_active ? 'Деактивировать' : 'Активировать'"
-              />
+                :title="item.is_active ? 'Деактивировать' : 'Активировать'" />
               <v-menu>
                 <template #activator="{ props }">
-                  <v-btn 
-                    icon="mdi-dots-vertical" 
-                    size="x-small" 
-                    variant="text" 
-                    v-bind="props"
-                    title="Дополнительные действия"
-                  />
+                  <v-btn icon="mdi-dots-vertical" size="x-small" variant="text" v-bind="props"
+                    title="Дополнительные действия" />
                 </template>
                 <v-list density="compact">
                   <!-- Пункт "Войти в мониторинг" - отображается для всех пользователей -->
-                  <v-list-item
-                    prepend-icon="mdi-arrow-right-bold"
-                    title="Войти в мониторинг"
-                    @click="loginToMonitoring(item)"
-                  />
-                  
+                  <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг"
+                    @click="loginToMonitoring(item)" />
+
                   <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
-                  <v-list-item
-                    v-if="item.role && item.role.display_name === 'Партнер'"
-                    prepend-icon="mdi-arrow-right-bold"
-                    title="Войти в CMS"
-                    @click="loginToCMS(item)"
-                  />
-                  
+                  <v-list-item v-if="item.role && item.role.display_name === 'Партнер'"
+                    prepend-icon="mdi-cog-transfer-outline" title="Войти в CMS" @click="loginToCMS(item)" />
+
                   <v-divider />
-                  
-                  <v-list-item @click="showUserProperties(item)" prepend-icon="mdi-account-cog">
+
+                  <v-list-item @click="showUserProperties(item)" prepend-icon="mdi-account-cog-outline">
                     <v-list-item-title>Свойства пользователя</v-list-item-title>
                   </v-list-item>
-                  
-                  <v-list-item @click="resetUserPassword(item)" prepend-icon="mdi-key">
+
+                  <v-list-item @click="resetUserPassword(item)" prepend-icon="mdi-lock-reset">
                     <v-list-item-title>Сменить пароль</v-list-item-title>
                   </v-list-item>
-                  
+
                   <v-divider />
-                  
-                  <v-list-item 
-                    @click="deleteUser(item)" 
-                    prepend-icon="mdi-delete" 
-                    class="text-error"
-                  >
+
+                  <v-list-item @click="deleteUser(item)" prepend-icon="mdi-delete-outline" class="text-error">
                     <v-list-item-title>Удалить пользователя</v-list-item-title>
                   </v-list-item>
                 </v-list>
@@ -354,55 +250,25 @@
 
         <!-- Кастомный футер с пагинацией в стиле Accounts -->
         <div class="compact-pagination">
-          <v-select
-            v-model="itemsPerPageForSelect"
-            :items="perPageOptions"
-            variant="outlined"
-            density="compact"
-            class="items-select"
-            @update:model-value="handlePerPageChange"
-            hide-details
-          />
+          <v-select v-model="itemsPerPageForSelect" :items="perPageOptions" variant="outlined" density="compact"
+            class="items-select" @update:model-value="handlePerPageChange" hide-details />
           <span class="range-info">
-            {{ pagination.limit > 0 && pagination.limit < 100000 
-              ? `${(pagination.page - 1) * pagination.limit + 1}-${Math.min(pagination.page * pagination.limit, serverItemsLength)} из ${serverItemsLength}` 
-              : `Все ${serverItemsLength} записей` }}
-          </span>
-          <div class="nav-controls">
-            <v-btn
-              icon="mdi-page-first"
-              variant="text"
-              size="x-small"
-              :disabled="pagination.page === 1"
-              @click="handlePageChange(1)"
-              title="Первая"
-            />
-            <v-btn
-              icon="mdi-chevron-left"
-              variant="text"
-              size="x-small"
-              :disabled="pagination.page === 1"
-              @click="handlePageChange(pagination.page - 1)"
-              title="Предыдущая"
-            />
-            <span class="page-info">{{ pagination.page }} / {{ usersData?.pages || 1 }}</span>
-            <v-btn
-              icon="mdi-chevron-right"
-              variant="text"
-              size="x-small"
-              :disabled="pagination.page >= (usersData?.pages || 1)"
-              @click="handlePageChange(pagination.page + 1)"
-              title="Следующая"
-            />
-            <v-btn
-              icon="mdi-page-last"
-              variant="text"
-              size="x-small"
-              :disabled="pagination.page >= (usersData?.pages || 1)"
-              @click="handlePageChange(usersData?.pages || 1)"
-              title="Последняя"
-            />
-          </div>
+            {{ pagination.limit > 0 && pagination.limit < 100000 ? `${(pagination.page - 1) * pagination.limit +
+              1}-${Math.min(pagination.page * pagination.limit, serverItemsLength)} из ${serverItemsLength}` : `Все
+              ${serverItemsLength} записей` }} </span>
+              <div class="nav-controls">
+                <v-btn icon="mdi-page-first" variant="text" size="x-small" :disabled="pagination.page === 1"
+                  @click="handlePageChange(1)" title="Первая" />
+                <v-btn icon="mdi-chevron-left" variant="text" size="x-small" :disabled="pagination.page === 1"
+                  @click="handlePageChange(pagination.page - 1)" title="Предыдущая" />
+                <span class="page-info">{{ pagination.page }} / {{ usersData?.pages || 1 }}</span>
+                <v-btn icon="mdi-chevron-right" variant="text" size="x-small"
+                  :disabled="pagination.page >= (usersData?.pages || 1)" @click="handlePageChange(pagination.page + 1)"
+                  title="Следующая" />
+                <v-btn icon="mdi-page-last" variant="text" size="x-small"
+                  :disabled="pagination.page >= (usersData?.pages || 1)"
+                  @click="handlePageChange(usersData?.pages || 1)" title="Последняя" />
+              </div>
         </div>
       </div>
     </AppleCard>
@@ -431,18 +297,12 @@
     </v-snackbar>
 
     <!-- Красивые уведомления об успехе -->
-    <SuccessNotification
-      v-model="successNotification.show"
-      :title="successNotification.title"
-      :message="successNotification.message"
-      :details="successNotification.details"
-      :icon="successNotification.icon"
-    />
+    <SuccessNotification v-model="successNotification.show" :title="successNotification.title"
+      :message="successNotification.message" :details="successNotification.details" :icon="successNotification.icon" />
   </div>
 </template>
 
 <script setup lang="ts">
-import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
@@ -450,9 +310,9 @@ import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
-import usersService from '@/services/usersService';
 import accountsService from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import usersService from '@/services/usersService';
 import type {
   UserFilters,
   UserWithRelations
@@ -494,10 +354,10 @@ const loadingTemplates = ref(false);
 
 // Statistics
 const stats = ref([
-  { key: 'total', label: 'Всего пользователей', value: 0, icon: 'mdi-account-group', color: 'primary' },
-  { key: 'active', label: 'Активные', value: 0, icon: 'mdi-check-circle', color: 'success' },
-  { key: 'inactive', label: 'Неактивные', value: 0, icon: 'mdi-pause-circle', color: 'warning' },
-  { key: 'recent', label: 'Недавние входы', value: 0, icon: 'mdi-login', color: 'info' },
+  { key: 'total', label: 'Всего пользователей', value: 0, icon: 'mdi-account-group-outline', color: 'primary' },
+  { key: 'active', label: 'Активные', value: 0, icon: 'mdi-account-check-outline', color: 'success' },
+  { key: 'inactive', label: 'Неактивные', value: 0, icon: 'mdi-account-off-outline', color: 'warning' },
+  { key: 'recent', label: 'Недавние входы', value: 0, icon: 'mdi-history', color: 'info' },
 ]);
 
 // User dialog
@@ -551,7 +411,7 @@ const hasActiveFilters = computed(() => {
   const realFilters = { ...filters.value };
   // Убираем параметр ordering из проверки, так как это не фильтр, а сортировка
   delete realFilters.ordering;
-  
+
   return Object.values(realFilters).some(value =>
     value !== undefined && value !== null && value !== ''
   );
@@ -562,7 +422,7 @@ const activeFiltersCount = computed(() => {
   const realFilters = { ...filters.value };
   // Убираем параметр ordering из подсчета, так как это не фильтр, а сортировка
   delete realFilters.ordering;
-  
+
   return Object.values(realFilters).filter(value =>
     value !== undefined && value !== null && value !== ''
   ).length;
@@ -592,37 +452,39 @@ const userSearchTermsArray = computed(() => {
   return filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
 });
 
-const userSearchHint = computed(() => {
+/* const userSearchHint = computed(() => {
   if (!filters.value.search) {
     return 'Введите имя, email или логин (поиск по создателю исключен). Для поиска нескольких пользователей разделите запятой';
   }
-  
+
   const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
   if (searchTerms.length > 1) {
     return `Точный поиск по ${searchTerms.length} пользователям: ${searchTerms.join(', ')}`;
   }
-  
+
   return 'Поиск по частичному совпадению или добавьте запятую для точного поиска';
-});
+}); */
 
 // Options
-const userTypeOptions = [
+/* const userTypeOptions = [
   { title: 'Пользователь', value: 'user' },
   { title: 'Клиент', value: 'client' },
   { title: 'Монтажник', value: 'installer' },
   { title: 'Менеджер', value: 'manager' },
   { title: 'Администратор', value: 'admin' },
-];
+]; */
 
 // Опции для фильтра по системе
 const sourceOptions = [
   { title: 'Все системы', value: null },
   { title: 'Axenta', value: 'axenta' },
-  { title: 'Wialon', value: 'wialon' },
+  { title: 'Wialon (все)', value: 'wialon' },
+  { title: 'WH (Hosting)', value: 'wh' },
+  { title: 'WL (Local)', value: 'wl' },
 ];
 
 // Функции для правильной сортировки
-const sortByNumber = (a: any, b: any, key: string) => {
+/* const sortByNumber = (a: any, b: any, key: string) => {
   const numA = parseInt(a[key]) || 0;
   const numB = parseInt(b[key]) || 0;
   return numA - numB;
@@ -635,51 +497,54 @@ const sortByString = (a: any, b: any, key: string) => {
 };
 
 const sortByDate = (a: any, b: any) => {
-  const timeA = a._creation_datetime_sort || 0;
-  const timeB = b._creation_datetime_sort || 0;
-  return timeA - timeB; // Клиентская сортировка по возрастанию (сервер уже присылает в правильном порядке)
+  const dateA = new Date(a.creation_datetime || 0).getTime();
+  const dateB = new Date(b.creation_datetime || 0).getTime();
+  return dateA - dateB;
 };
 
 const sortByRole = (a: any, b: any) => {
   const roleA = a.role?.display_name || '';
   const roleB = b.role?.display_name || '';
   return roleA.localeCompare(roleB, 'ru');
-};
+}; */
+
+
+
 
 // Table headers
 const tableHeaders = computed(() => [
   { title: '№', value: 'rowNumber', sortable: false, width: 60 },
   // { title: 'Активность', value: 'is_active', sortable: false, width: 100 }, // Отключено, но функционал сохранен
-  { 
-    title: 'ID', 
-    value: 'id', 
-    sortable: true, 
+  {
+    title: 'ID',
+    value: 'id',
+    sortable: true,
     width: 80
   },
-  { 
-    title: 'Пользователь', 
-    value: 'username', 
-    sortable: true, 
+  {
+    title: 'Пользователь',
+    value: 'username',
+    sortable: true,
     width: 180
   },
-  { 
-    title: 'Email', 
-    value: 'email', 
+  {
+    title: 'Email',
+    value: 'email',
     sortable: true
   },
-  { 
-    title: 'Полное имя', 
-    value: 'name', 
+  {
+    title: 'Полное имя',
+    value: 'name',
     sortable: true
   },
-  { 
-    title: 'Создатель', 
-    value: 'creator_name', 
+  {
+    title: 'Создатель',
+    value: 'creator_name',
     sortable: true
   },
-  { 
-    title: 'Дата создания', 
-    value: 'creation_datetime', 
+  {
+    title: 'Дата создания',
+    value: 'creation_datetime',
     sortable: true
   },
   { title: 'Роль', value: 'role', sortable: false },
@@ -728,7 +593,7 @@ const loadUsers = async () => {
         }
         return user;
       });
-      
+
       users.value = processedUsers;
       usersData.value = response.data;
       console.log('✅ Users loaded successfully:', users.value.length, 'users');
@@ -744,7 +609,7 @@ const loadUsers = async () => {
       console.log('🔍 usersData.value.total:', usersData.value?.total, 'type:', typeof usersData.value?.total);
       console.log('🔍 users.value.length:', users.value.length);
       console.log('🔍 Размер таблицы будет:', parseInt(usersData.value?.total) || 0);
-      
+
       // Отладка дат отключена для уменьшения логов
       // console.log('📅 Отладка дат создания пользователей:');
       // users.value.slice(0, 5).forEach((user, index) => {
@@ -756,7 +621,7 @@ const loadUsers = async () => {
       //     raw_value: user.creation_datetime
       //   });
       // });
-      
+
       // Статистика активности пользователей (логирование отключено для продакшена)
       // console.log('👥 Статус активности пользователей:');
     } else {
@@ -780,7 +645,7 @@ const loadStats = async (forceRefresh: boolean = false) => {
       axentaStats.value.total = statsData.total || 0;
       axentaStats.value.active = statsData.active_users || statsData.active || 0;
       axentaStats.value.inactive = statsData.inactive_users || statsData.inactive || 0;
-      
+
       // Обновляем общую статистику
       updateTotalStats();
     }
@@ -820,32 +685,51 @@ const updateTotalStats = () => {
 const loadWialonUsers = async () => {
   try {
     const wialonData = await settingsService.getWialonAccounts();
-    
+
     if (wialonData && wialonData.items) {
       // Преобразуем Wialon аккаунты в формат для таблицы
-      wialonUsers.value = wialonData.items.map(item => ({
-        id: item.id,
-        username: item.name,
-        name: item.name,
-        email: '',
-        is_active: item.is_active,
-        source: 'wialon',
-        // Заполняем остальные поля значениями по умолчанию
-        role: null,
-        creator_name: '',
-        creation_datetime: new Date().toISOString(),
-      } as unknown as UserWithRelations & { source: string }));
-      
+      wialonUsers.value = wialonData.items.map(item => {
+        // Извлекаем имя создателя из иерархии (родительский элемент)
+        let creatorName = '';
+        if (item.hierarchy) {
+          const parts = item.hierarchy.split(' > ');
+          if (parts.length >= 2) {
+            // Родитель - предпоследний элемент в иерархии
+            creatorName = parts[parts.length - 2];
+          }
+        }
+
+        // Определяем источник: используем source_label или source если доступны
+        const sourceValue = item.source_label || item.source || 'wialon';
+
+        return {
+          id: item.id,
+          username: item.name,
+          name: item.name,
+          email: '',
+          is_active: item.is_active,
+          source: sourceValue,
+          // Определяем роль на основе dealer_rights
+          role: {
+            id: item.dealer_rights ? 1 : 2,
+            display_name: item.dealer_rights ? 'Партнёр' : 'Клиент',
+            color: item.dealer_rights ? 'primary' : 'info',
+          },
+          creator_name: creatorName,
+          creation_datetime: item.created_at || new Date().toISOString(),
+        } as unknown as UserWithRelations & { source: string };
+      });
+
       // Обновляем статистику Wialon
       wialonStats.value = {
         total: wialonData.stats?.total || 0,
         active: wialonData.stats?.active || 0,
         inactive: wialonData.stats?.blocked || 0,
       };
-      
+
       // Обновляем общую статистику
       updateTotalStats();
-      
+
       console.log(`📡 Загружено ${wialonUsers.value.length} пользователей Wialon`);
     }
   } catch (error) {
@@ -861,15 +745,28 @@ const combinedUsers = computed(() => {
     ...user,
     source: 'axenta',
   }));
-  
+
   // Объединяем пользователей
   let allUsers = [...axentaUsersWithSource, ...wialonUsers.value];
-  
+
   // Фильтруем по системе если выбран фильтр
   if (filters.value.source) {
-    allUsers = allUsers.filter(user => user.source === filters.value.source);
+    allUsers = allUsers.filter(user => {
+      const source = (user.source || '').toLowerCase();
+      if (filters.value.source === 'wialon') {
+        // Все Wialon источники (включая WH и WL)
+        return source !== 'axenta' && source !== '';
+      } else if (filters.value.source === 'wh') {
+        // Только WH (Hosting)
+        return source.startsWith('wh(') || source.startsWith('wh ') || source === 'wh';
+      } else if (filters.value.source === 'wl') {
+        // Только WL (Local)
+        return source.startsWith('wl(') || source.startsWith('wl ') || source === 'wl';
+      }
+      return source === filters.value.source;
+    });
   }
-  
+
   return allUsers;
 });
 
@@ -993,19 +890,19 @@ const resetUserPassword = (user: UserWithRelations) => {
 const loginToMonitoring = async (user: UserWithRelations) => {
   try {
     console.log('📊 Вход в мониторинг для пользователя:', user.username);
-    
+
     if (!user.id) {
       showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
       return;
     }
 
     const result = await accountsService.loginAs(user.id, 'monitoring');
-    
+
     console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
-    
+
     // Открываем новую вкладку с URL для входа
     window.open(result.redirectUrl, '_blank');
-    
+
   } catch (error: any) {
     console.error('❌ Ошибка входа в мониторинг:', error);
     const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
@@ -1017,19 +914,19 @@ const loginToMonitoring = async (user: UserWithRelations) => {
 const loginToCMS = async (user: UserWithRelations) => {
   try {
     console.log('🔗 Вход в CMS для пользователя:', user.username);
-    
+
     if (!user.id) {
       showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
       return;
     }
 
     const result = await accountsService.loginAs(user.id, 'cms');
-    
+
     console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
-    
+
     // Открываем новую вкладку с URL для входа
     window.open(result.redirectUrl, '_blank');
-    
+
   } catch (error: any) {
     console.error('❌ Ошибка входа в CMS:', error);
     const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
@@ -1073,7 +970,7 @@ const handlePerPageChange = (limit: number) => {
 // Sort handler
 const handleSortChange = (sortBy: any[]) => {
   console.log('🔀 Sorting changed:', sortBy);
-  
+
   if (!sortBy || sortBy.length === 0) {
     // Если сортировка сброшена, возвращаем сортировку по дате создания
     filters.value.ordering = '-creation_datetime';
@@ -1081,7 +978,7 @@ const handleSortChange = (sortBy: any[]) => {
     const sortItem = sortBy[0];
     const key = sortItem.key;
     const order = sortItem.order;
-    
+
     // Маппинг полей для серверной сортировки
     const fieldMapping: Record<string, string> = {
       'id': 'id',
@@ -1091,7 +988,7 @@ const handleSortChange = (sortBy: any[]) => {
       'creator_name': 'creator_name',
       'creation_datetime': 'creation_datetime'
     };
-    
+
     const serverField = fieldMapping[key];
     if (serverField) {
       // Формируем параметр ordering для сервера
@@ -1102,15 +999,15 @@ const handleSortChange = (sortBy: any[]) => {
       }
     }
   }
-  
+
   pagination.value.page = 1;
   loadUsers();
 };
 
 // Utility methods
-const getUserFullName = (user: UserWithRelations): string => {
+/* const getUserFullName = (user: UserWithRelations): string => {
   return `${user.first_name} ${user.last_name}`.trim() || user.username;
-};
+}; */
 
 const getUserInitials = (user: UserWithRelations): string => {
   const firstName = user.first_name?.charAt(0) || '';
@@ -1122,11 +1019,11 @@ const getUserInitials = (user: UserWithRelations): string => {
 const getUserAvatarColor = (user: UserWithRelations): string => {
   // Определяем активность пользователя
   let isActive = true; // По умолчанию считаем активным
-  
+
   if (user.is_active !== undefined && user.is_active !== null) {
     if (typeof user.is_active === 'string') {
       // Если строка, проверяем на "false", "0", "no", "off"
-      isActive = !['false', '0', 'no', 'off', ''].includes(user.is_active.toLowerCase());
+      isActive = !['false', '0', 'no', 'off', ''].includes((user.is_active as unknown as string).toLowerCase());
     } else if (typeof user.is_active === 'boolean') {
       // Если boolean, используем как есть
       isActive = user.is_active;
@@ -1135,43 +1032,24 @@ const getUserAvatarColor = (user: UserWithRelations): string => {
       isActive = user.is_active !== 0;
     }
   }
-  
+
   // Возвращаем цвет в зависимости от активности
   return isActive ? 'primary' : 'error';
 };
 
-const getUserTypeText = (type: string): string => {
-  const typeMap = {
-    user: 'Пользователь',
-    client: 'Клиент',
-    installer: 'Монтажник',
-    manager: 'Менеджер',
-    admin: 'Администратор',
-  };
-  return typeMap[type as keyof typeof typeMap] || type;
-};
-
-const getUserTypeIcon = (type: string): string => {
-  const iconMap = {
-    user: 'mdi-account',
-    client: 'mdi-account-tie',
-    installer: 'mdi-account-hard-hat',
-    manager: 'mdi-account-supervisor',
-    admin: 'mdi-shield-account',
-  };
-  return iconMap[type as keyof typeof iconMap] || 'mdi-account';
-};
+// Удалены неиспользуемые функции getUserTypeText и getUserTypeIcon
 
 // Функция для получения иконки роли
 const getRoleIcon = (roleName: string): string => {
   const roleIconMap: Record<string, string> = {
-    'Партнер': 'mdi-handshake',
-    'Клиент': 'mdi-account-group',
-    'Администратор': 'mdi-shield-account',
-    'Менеджер': 'mdi-account-supervisor',
-    'Техник': 'mdi-account-hard-hat',
-    'Бухгалтер': 'mdi-calculator',
-    'Пользователь': 'mdi-account',
+    'Партнер': 'mdi-handshake-outline',
+    'Партнёр': 'mdi-handshake-outline',
+    'Клиент': 'mdi-account-group-outline',
+    'Администратор': 'mdi-shield-account-outline',
+    'Менеджер': 'mdi-account-tie-outline',
+    'Техник': 'mdi-hard-hat',
+    'Бухгалтер': 'mdi-calculator-variant-outline',
+    'Пользователь': 'mdi-account-outline',
   };
   return roleIconMap[roleName] || 'mdi-account-outline';
 };
@@ -1182,13 +1060,13 @@ const formatDateOnly = (dateString: string): string => {
   // console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
   const date = new Date(dateString);
   // console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
-  
+
   const formatted = date.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
-  
+
   // console.log('📅 Отформатированная дата:', formatted);
   return formatted;
 };
@@ -1196,36 +1074,27 @@ const formatDateOnly = (dateString: string): string => {
 // Функция форматирования времени (для подсказки)
 const formatTimeOnly = (dateString: string): string => {
   const date = new Date(dateString);
-  
+
   const formatted = date.toLocaleTimeString('ru-RU', {
     hour: '2-digit',
     minute: '2-digit',
   });
-  
+
   return formatted;
 };
 
 // Функция форматирования полной даты и времени (для обратной совместимости)
-const formatDate = (dateString: string): string => {
-  // Логи отключены для уменьшения количества сообщений в консоли
-  // console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
-  const date = new Date(dateString);
-  // console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
-  
-  const formatted = date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  
-  // console.log('📅 Отформатированная дата:', formatted);
-  return formatted;
-};
+
 
 // Функция для определения CSS класса строки
-const getRowClass = (item: UserWithRelations): string => {
+// Функция форматирования даты (только дата)
+/* const formatDate = (dateString: string): string => {
+  if (!dateString) return '—';
+  return new Date(dateString).toLocaleDateString('ru-RU');
+}; */
+
+// Функция для определения CSS класса строки
+/* const getRowClass = (item: UserWithRelations): string => {
   // Логи отключены для уменьшения количества сообщений в консоли
   // console.log('🔍 Проверяем пользователя:', item.username, 'is_active:', item.is_active);
   const className = item.is_active ? '' : 'inactive-user';
@@ -1234,17 +1103,17 @@ const getRowClass = (item: UserWithRelations): string => {
   //   console.log('🔴 Неактивный пользователь:', item.username, 'класс:', className);
   // }
   return className;
-};
+}; */
 
 // Функция для определения свойств строки
 const getRowProps = (item: UserWithRelations) => {
   // Надежная проверка активности
   let isActive = true; // По умолчанию считаем активным
-  
+
   if (item.is_active !== undefined && item.is_active !== null) {
     if (typeof item.is_active === 'string') {
       // Если строка, проверяем на "false", "0", "no", "off"
-      isActive = !['false', '0', 'no', 'off', ''].includes(item.is_active.toLowerCase());
+      isActive = !['false', '0', 'no', 'off', ''].includes((item.is_active as unknown as string).toLowerCase());
     } else if (typeof item.is_active === 'boolean') {
       // Если boolean, используем как есть
       isActive = item.is_active;
@@ -1253,7 +1122,7 @@ const getRowProps = (item: UserWithRelations) => {
       isActive = item.is_active !== 0;
     }
   }
-  
+
   const props = {
     class: isActive ? '' : 'inactive-user',
     style: isActive ? {} : {
@@ -1261,7 +1130,7 @@ const getRowProps = (item: UserWithRelations) => {
       borderLeft: '4px solid #f44336 !important'
     }
   };
-  
+
   return props;
 };
 
@@ -1269,43 +1138,44 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
   snackbar.value = { show: true, text, color, timeout };
 };
 
-const showSuccessNotification = (title: string, message: string, details?: string, icon?: string) => {
+/* const showSuccessNotification = (title: string, message: string, details?: string, icon?: string) => {
   successNotification.title = title;
   successNotification.message = message;
   successNotification.details = details || '';
-  successNotification.icon = icon || 'mdi-check-circle';
+  successNotification.icon = icon || 'mdi-account-check-outline';
   successNotification.show = true;
-};
+}; */
+
 
 
 // Функции для работы с активностью пользователей
 const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) => {
   const action = isActive ? 'активации' : 'деактивации';
-  
+
   try {
     console.log(`🔄 ${action} пользователя:`, user.username);
-    
+
     // Вызываем API для изменения статуса
     await usersService.toggleUserStatus(user.id, isActive);
-    
+
     // Обновляем локальное состояние
     user.is_active = isActive;
-    
+
     console.log(`✅ Пользователь ${user.username} ${isActive ? 'активирован' : 'деактивирован'}`);
-    
+
     // Показываем уведомление об успехе
     showSnackbar(
       `Пользователь "${user.username}" успешно ${isActive ? 'активирован' : 'деактивирован'}`,
       'success'
     );
-    
+
     // Обновляем данные
     await loadUsers();
     await loadStats();
-    
+
   } catch (error) {
     console.error('❌ Ошибка изменения статуса пользователя:', error);
-    
+
     // Показываем уведомление об ошибке
     const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
     showSnackbar(
@@ -1324,6 +1194,36 @@ const removeUserSearchTerm = (index: number) => {
   debouncedSearch();
 };
 
+// Получение цвета для источника
+const getSourceColor = (source: string | null | undefined): string => {
+  if (!source) return 'grey';
+  const s = source.toLowerCase();
+  if (s === 'axenta') return 'primary';
+  if (s.startsWith('wh')) return 'orange';
+  if (s.startsWith('wl')) return 'blue';
+  return 'orange';
+};
+
+// Получение иконки для источника
+const getSourceIcon = (source: string | null | undefined): string => {
+  if (!source) return 'mdi-help-circle-outline';
+  const s = source.toLowerCase();
+  if (s === 'axenta') return 'mdi-server';
+  if (s.startsWith('wh')) return 'mdi-cloud-outline';
+  if (s.startsWith('wl')) return 'mdi-server-network';
+  return 'mdi-satellite-variant';
+};
+
+// Получение метки для источника
+const getSourceLabel = (source: string | null | undefined): string => {
+  if (!source) return '—';
+  const s = source.toLowerCase();
+  if (s === 'axenta') return 'Axenta';
+  if (s.startsWith('wh')) return source.toUpperCase();
+  if (s.startsWith('wl')) return source.toUpperCase();
+  return 'Wialon';
+};
+
 // Watchers
 watch([filters], () => {
   pagination.value.page = 1;
@@ -1333,24 +1233,24 @@ watch([filters], () => {
 // Lifecycle
 onMounted(async () => {
   console.log('🔧 Users component mounted - loading data...');
-  
+
   // Проверяем авторизацию
   const token = localStorage.getItem('axenta_token');
   const user = localStorage.getItem('axenta_user');
   const company = localStorage.getItem('axenta_company');
-  
+
   console.log('🔐 Auth check:', {
     token: token ? `EXISTS (${token.length} chars)` : 'MISSING',
     user: user ? 'EXISTS' : 'MISSING',
     company: company ? 'EXISTS' : 'MISSING'
   });
-  
+
   if (!token) {
     console.error('❌ No auth token found! Users will not load.');
     showSnackbar('Не найден токен авторизации. Пожалуйста, авторизуйтесь.', 'error');
     return;
   }
-  
+
   try {
     await Promise.all([
       loadUsers(),
@@ -1478,7 +1378,8 @@ onMounted(async () => {
 .filters-row {
   display: flex;
   align-items: center;
-  gap: 10px; /* небольшой отступ между элементами */
+  gap: 10px;
+  /* небольшой отступ между элементами */
   flex-wrap: nowrap;
   width: 100%;
 }
@@ -1539,40 +1440,50 @@ onMounted(async () => {
 }
 
 .filter-item {
-  flex: 1 1 0; /* динамическая ширина, равномерное распределение */
+  flex: 1 1 0;
+  /* динамическая ширина, равномерное распределение */
   min-width: 0;
-  display: flex;            /* выравниваем содержимое по вертикали как у v-select */
-  align-items: center;      /* чтобы верхний край совпадал между инпутом и селектами */
+  display: flex;
+  /* выравниваем содержимое по вертикали как у v-select */
+  align-items: center;
+  /* чтобы верхний край совпадал между инпутом и селектами */
 }
 
 .filter-search {
-  flex: 3 1 0; /* заметно шире остальных */
+  flex: 3 1 0;
+  /* заметно шире остальных */
   min-width: 420px;
-  margin-top: -20px; /* поднимаем поле поиска еще выше */
+  margin-top: -20px;
+  /* поднимаем поле поиска еще выше */
 }
 
 .filter-create {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  margin-top: -26px; /* поднимаем кнопку создания на 2px */
+  margin-top: -26px;
+  /* поднимаем кнопку создания на 2px */
 }
 
 .filter-clear {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  margin-left: auto; /* иконка сброса в конце строки */
-  margin-top: -26px; /* поднимаем кнопку сброса фильтров на 2px */
+  margin-left: auto;
+  /* иконка сброса в конце строки */
+  margin-top: -26px;
+  /* поднимаем кнопку сброса фильтров на 2px */
 }
 
 /* Выравнивание AppleInput под высоту 44px */
 .filters-row :deep(.apple-input-group) {
   display: flex;
   align-items: center;
-  margin: 0; /* убрать возможные внешние отступы */
+  margin: 0;
+  /* убрать возможные внешние отступы */
   padding: 0;
-  gap: 0; /* не добавлять вертикальный зазор внутри группы */
+  gap: 0;
+  /* не добавлять вертикальный зазор внутри группы */
   width: 100%;
 }
 
@@ -1585,7 +1496,8 @@ onMounted(async () => {
   height: 44px;
   min-height: 44px;
   width: 100%;
-  border-radius: 10px; /* выравниваем с v-select */
+  border-radius: 10px;
+  /* выравниваем с v-select */
   border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
   background: rgb(var(--v-theme-surface));
 }
@@ -1608,7 +1520,8 @@ onMounted(async () => {
 /* Приводим кнопки к высоте инпутов/селектов и центрируем */
 .filter-create :deep(.v-btn),
 .filter-clear :deep(.v-btn) {
-  height: 44px !important; /* соответствует density="comfortable" */
+  height: 44px !important;
+  /* соответствует density="comfortable" */
   width: 44px !important;
   min-width: 44px !important;
   min-height: 44px !important;
@@ -1637,14 +1550,14 @@ onMounted(async () => {
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .filter-item,
   .filter-search {
     flex: none;
     width: 100%;
     min-width: auto;
   }
-  
+
   .filter-create,
   .filter-clear {
     align-self: flex-end;
@@ -1663,9 +1576,11 @@ onMounted(async () => {
   0% {
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }
+
   50% {
     box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
   }
+
   100% {
     box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
   }

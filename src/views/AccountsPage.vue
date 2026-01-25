@@ -585,6 +585,7 @@ import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import accountsService, { type Account, type AccountsFilters } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import { wialonCacheService, type CachedWialonAccount } from '@/services/wialonCacheService';
+import ExcelJS from 'exceljs';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -2447,15 +2448,57 @@ const hasAnyWialonData = (): boolean => {
 
 /**
  * Получить ВСЕ отфильтрованные данные для экспорта (без пагинации)
- * ТОЧНАЯ КОПИЯ логики из accountsWithNumbers, но возвращает allAccounts ДО пагинации
+ * Для Axenta: загружает все записи через API
+ * Для Wialon: использует уже загруженные данные wialonAccounts
  */
-const getFilteredAccountsForExport = (): any[] => {
+const getFilteredAccountsForExport = async (): Promise<any[]> => {
   console.log('🔍 getFilteredAccountsForExport: НАЧАЛО');
 
-  // === ТОЧНАЯ КОПИЯ логики из accountsWithNumbers (строки 893-984) ===
+  // === Загружаем ВСЕ записи Axenta через API ===
+  let allAxentaAccounts: Account[] = [];
+
+  try {
+    console.log('📥 Загрузка всех Axenta аккаунтов для экспорта...');
+
+    // Загружаем все страницы Axenta
+    let currentPageNum = 1;
+    let hasMore = true;
+    const perPage = 500; // Большой размер страницы для быстрой загрузки
+
+    while (hasMore) {
+      const response = await accountsService.getAccounts({
+        page: currentPageNum,
+        per_page: perPage,
+        ordering: sortOrder.value === 'desc' ? `-${sortBy.value}` : sortBy.value,
+        // Применяем те же фильтры что и на странице
+        type: filters.value.type || undefined,
+        is_active: filters.value.is_active !== null ? filters.value.is_active : undefined,
+        search: searchQuery.value || undefined,
+      });
+
+      allAxentaAccounts = [...allAxentaAccounts, ...response.results];
+
+      // Проверяем есть ли ещё данные
+      hasMore = response.results.length === perPage && allAxentaAccounts.length < response.count;
+      currentPageNum++;
+
+      // Защита от бесконечного цикла
+      if (currentPageNum > 20) {
+        console.warn('⚠️ Достигнут лимит страниц (20), прерываем загрузку');
+        break;
+      }
+    }
+
+    console.log(`✅ Загружено ${allAxentaAccounts.length} Axenta аккаунтов для экспорта`);
+  } catch (error) {
+    console.error('❌ Ошибка загрузки Axenta аккаунтов для экспорта:', error);
+    // Fallback: используем текущие данные
+    allAxentaAccounts = [...accounts.value];
+    console.log(`⚠️ Fallback: используем ${allAxentaAccounts.length} записей из текущей страницы`);
+  }
 
   // Добавляем source='axenta' к аккаунтам Axenta
-  const axentaAccountsWithSource = accounts.value.map(account => ({
+  const axentaAccountsWithSource = allAxentaAccounts.map(account => ({
     ...account,
     source: 'axenta',
   }));
@@ -2527,11 +2570,8 @@ const getFilteredAccountsForExport = (): any[] => {
   // Определяем какие аккаунты включать на основе фильтра по системе
   let allAccounts: any[] = [];
 
-  // Фильтруем Axenta аккаунты по статусу (is_active)
+  // Фильтруем Axenta аккаунты по статусу (is_active) - уже применено на уровне API
   let filteredAxenta = axentaAccountsWithSource;
-  if (filters.value.is_active !== null) {
-    filteredAxenta = axentaAccountsWithSource.filter(account => account.isActive === filters.value.is_active);
-  }
 
   console.log('  🔍 Фильтр системы:', filters.value.source);
   console.log('    - filteredAxenta:', filteredAxenta.length);
@@ -2597,8 +2637,8 @@ const exportAccounts = async () => {
       return;
     }
 
-    // Берём отфильтрованные данные
-    const dataToExport = getFilteredAccountsForExport();
+    // Берём отфильтрованные данные (загружает ВСЕ Axenta записи)
+    const dataToExport = await getFilteredAccountsForExport();
 
     console.log(`📋 Отфильтровано для экспорта: ${dataToExport.length} записей`);
 
@@ -2607,8 +2647,8 @@ const exportAccounts = async () => {
       return;
     }
 
-    // Динамический импорт ExcelJS
-    const ExcelJS = await import('exceljs');
+    // Динамический импорт заменен на статический для надежности
+    // const ExcelJS = await import('exceljs');
 
     // Создаём Excel файл
     const workbook = new ExcelJS.Workbook();
