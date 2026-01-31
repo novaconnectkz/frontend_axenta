@@ -2,21 +2,19 @@
 
 import { config } from "@/config/env";
 import type {
-  Permission,
-  Role,
-  UserFilters,
-  UserForm,
-  UsersResponse,
-  UserStats,
-  UserTemplate,
-  UserWithRelations,
+    Permission,
+    Role,
+    UserFilters,
+    UserForm,
+    UsersResponse,
+    UserStats,
+    UserTemplate,
+    UserWithRelations,
 } from "@/types/users";
 import axios from "axios";
 import {
-  getMockUsersData,
-  mockRoles,
-  mockStats,
-  mockTemplates,
+    mockRoles,
+    mockTemplates
 } from "./mockUsersData";
 
 export class UsersService {
@@ -191,6 +189,70 @@ export class UsersService {
           page,
           limit,
           pages: 0,
+        },
+        error: error.response?.data?.error || error.message || "Ошибка загрузки пользователей",
+      };
+    }
+  }
+
+  // Получение унифицированного списка пользователей (Axenta + Wialon)
+  async getUnifiedUsers(
+    page = 1,
+    limit = 20,
+    filters: UserFilters & { source?: string | null } = {}
+  ): Promise<{
+    status: string;
+    data: {
+      items: UserWithRelations[];
+      total: number;
+      page: number;
+      per_page: number;
+      total_pages: number;
+      stats: {
+        axenta_total: number;
+        axenta_active: number;
+        wialon_total: number;
+        wialon_active: number;
+      };
+    };
+    error?: string;
+  }> {
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+
+      // Добавляем фильтры
+      if (filters.search) params.append("search", filters.search);
+      if (filters.role) params.append("role", filters.role);
+      if (filters.active !== undefined) params.append("active", filters.active.toString());
+      if (filters.source) params.append("source", filters.source);
+      if (filters.ordering) params.append("ordering", filters.ordering);
+
+      const url = `/auth/unified/users?${params.toString()}`;
+      console.log('📡 Unified Users API URL:', url);
+      
+      const response = await this.apiClient.get(url);
+      console.log('📡 Unified Users API response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Ошибка загрузки унифицированного списка пользователей:", error);
+      
+      return {
+        status: "error",
+        data: {
+          items: [],
+          total: 0,
+          page,
+          per_page: limit,
+          total_pages: 0,
+          stats: {
+            axenta_total: 0,
+            axenta_active: 0,
+            wialon_total: 0,
+            wialon_active: 0,
+          },
         },
         error: error.response?.data?.error || error.message || "Ошибка загрузки пользователей",
       };

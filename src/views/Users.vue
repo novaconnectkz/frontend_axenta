@@ -224,7 +224,8 @@
                     @click="loginToMonitoring(item)" />
 
                   <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
-                  <v-list-item v-if="item.role && item.role.display_name === 'Партнер'"
+                  <v-list-item
+                    v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Партнёр')"
                     prepend-icon="mdi-cog-transfer-outline" title="Войти в CMS" @click="loginToCMS(item)" />
 
                   <v-divider />
@@ -568,24 +569,22 @@ const perPageOptions = [
 const loadUsers = async () => {
   try {
     loading.value = true;
-    console.log('🔄 Loading users...', { page: pagination.value.page, limit: pagination.value.limit, filters: filters.value });
-    console.log('🔍 Фильтры для API:', {
-      search: filters.value.search,
-      role: filters.value.role,
-      active: filters.value.active,
-      roleType: typeof filters.value.role
-    });
+    console.log('🔄 Loading unified users...', { page: pagination.value.page, limit: pagination.value.limit, filters: filters.value });
 
-    const response = await usersService.getUsers(
+    // Используем унифицированный API для загрузки из обоих источников
+    const response = await usersService.getUnifiedUsers(
       pagination.value.page,
       pagination.value.limit,
-      filters.value
+      {
+        ...filters.value,
+        source: filters.value.source || 'all', // Передаём фильтр по источнику
+      }
     );
 
-    console.log('📡 Users API response:', response);
+    console.log('📡 Unified Users API response:', response);
 
     if (response.status === 'success') {
-      // Обрабатываем данные пользователей для правильной сортировки дат
+      // Обрабатываем данные пользователей
       const processedUsers = response.data.items.map((user: any) => {
         // Добавляем поле для правильной сортировки дат
         if (user.creation_datetime) {
@@ -595,41 +594,36 @@ const loadUsers = async () => {
       });
 
       users.value = processedUsers;
-      usersData.value = response.data;
-      console.log('✅ Users loaded successfully:', users.value.length, 'users');
-      console.log('📊 Pagination data:', {
+      usersData.value = {
         total: response.data.total,
         page: response.data.page,
-        limit: response.data.limit,
-        pages: response.data.pages,
-        items_count: response.data.items.length,
-        server_items_length: response.data.total
-      });
-      console.log('🔍 usersData.value:', usersData.value);
-      console.log('🔍 usersData.value.total:', usersData.value?.total, 'type:', typeof usersData.value?.total);
-      console.log('🔍 users.value.length:', users.value.length);
-      console.log('🔍 Размер таблицы будет:', parseInt(usersData.value?.total) || 0);
+        limit: response.data.per_page,
+        pages: response.data.total_pages,
+        items: response.data.items,
+      };
 
-      // Отладка дат отключена для уменьшения логов
-      // console.log('📅 Отладка дат создания пользователей:');
-      // users.value.slice(0, 5).forEach((user, index) => {
-      //   console.log(`📅 Пользователь ${index + 1}:`, {
-      //     username: user.username,
-      //     creation_datetime: user.creation_datetime,
-      //     _creation_datetime_sort: user._creation_datetime_sort,
-      //     type: typeof user.creation_datetime,
-      //     raw_value: user.creation_datetime
-      //   });
-      // });
+      // Обновляем статистику из ответа
+      if (response.data.stats) {
+        axentaStats.value = {
+          total: response.data.stats.axenta_total,
+          active: response.data.stats.axenta_active,
+          inactive: response.data.stats.axenta_total - response.data.stats.axenta_active,
+        };
+        wialonStats.value = {
+          total: response.data.stats.wialon_total,
+          active: response.data.stats.wialon_active,
+          inactive: response.data.stats.wialon_total - response.data.stats.wialon_active,
+        };
+        updateTotalStats();
+      }
 
-      // Статистика активности пользователей (логирование отключено для продакшена)
-      // console.log('👥 Статус активности пользователей:');
+      console.log('✅ Unified users loaded:', users.value.length, 'users');
     } else {
-      console.error('❌ Users API error:', response.error);
+      console.error('❌ Unified Users API error:', response.error);
       showSnackbar(response.error || 'Ошибка загрузки пользователей', 'error');
     }
   } catch (error: any) {
-    console.error('❌ Exception loading users:', error);
+    console.error('❌ Exception loading unified users:', error);
     showSnackbar('Ошибка загрузки пользователей', 'error');
   } finally {
     loading.value = false;
@@ -709,6 +703,7 @@ const loadWialonUsers = async () => {
           email: '',
           is_active: item.is_active,
           source: sourceValue,
+          connection_id: item.connection_id, // ID подключения Wialon
           // Определяем роль на основе dealer_rights
           role: {
             id: item.dealer_rights ? 1 : 2,
@@ -717,7 +712,7 @@ const loadWialonUsers = async () => {
           },
           creator_name: creatorName,
           creation_datetime: item.created_at || new Date().toISOString(),
-        } as unknown as UserWithRelations & { source: string };
+        } as unknown as UserWithRelations & { source: string; connection_id?: number };
       });
 
       // Обновляем статистику Wialon
@@ -731,6 +726,13 @@ const loadWialonUsers = async () => {
       updateTotalStats();
 
       console.log(`📡 Загружено ${wialonUsers.value.length} пользователей Wialon`);
+      // Отладка: показать роли первых 3 WL пользователей
+      console.log('📊 Примеры WL пользователей:', wialonUsers.value.slice(0, 3).map(u => ({
+        name: u.username,
+        source: (u as any).source,
+        role: u.role?.display_name,
+        connection_id: (u as any).connection_id,
+      })));
     }
   } catch (error) {
     console.error('Ошибка загрузки пользователей Wialon:', error);
@@ -738,36 +740,10 @@ const loadWialonUsers = async () => {
   }
 };
 
-// Computed для объединённого списка пользователей с учётом фильтра
+// Computed для объединённого списка пользователей
+// Теперь данные уже приходят объединёнными и отфильтрованными с бэкенда
 const combinedUsers = computed(() => {
-  // Добавляем source='axenta' к пользователям Axenta
-  const axentaUsersWithSource = users.value.map(user => ({
-    ...user,
-    source: 'axenta',
-  }));
-
-  // Объединяем пользователей
-  let allUsers = [...axentaUsersWithSource, ...wialonUsers.value];
-
-  // Фильтруем по системе если выбран фильтр
-  if (filters.value.source) {
-    allUsers = allUsers.filter(user => {
-      const source = (user.source || '').toLowerCase();
-      if (filters.value.source === 'wialon') {
-        // Все Wialon источники (включая WH и WL)
-        return source !== 'axenta' && source !== '';
-      } else if (filters.value.source === 'wh') {
-        // Только WH (Hosting)
-        return source.startsWith('wh(') || source.startsWith('wh ') || source === 'wh';
-      } else if (filters.value.source === 'wl') {
-        // Только WL (Local)
-        return source.startsWith('wl(') || source.startsWith('wl ') || source === 'wl';
-      }
-      return source === filters.value.source;
-    });
-  }
-
-  return allUsers;
+  return users.value;
 });
 
 const loadRoles = async (forceRefresh: boolean = false) => {
@@ -896,12 +872,35 @@ const loginToMonitoring = async (user: UserWithRelations) => {
       return;
     }
 
-    const result = await accountsService.loginAs(user.id, 'monitoring');
+    // Проверяем источник пользователя (Wialon или Axenta)
+    const userWithSource = user as UserWithRelations & { source?: string; connection_id?: number };
+    const source = (userWithSource.source || '').toLowerCase();
+    const isWialon = source.startsWith('wh') || source.startsWith('wl');
 
-    console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
+    if (isWialon) {
+      // Для Wialon пользователей используем Wialon API
+      const connectionId = userWithSource.connection_id;
+      if (!connectionId) {
+        showSnackbar(`У пользователя "${user.username}" не указан ID подключения Wialon`, 'error');
+        return;
+      }
 
-    // Открываем новую вкладку с URL для входа
-    window.open(result.redirectUrl, '_blank');
+      const result = await settingsService.loginToWialonMonitoring(connectionId, user.username, undefined, user.id);
+
+      if (!result.success) {
+        showSnackbar(`Ошибка входа в мониторинг: ${result.message}`, 'error');
+        return;
+      }
+
+      console.log('✅ Получен URL для входа в мониторинг Wialon:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    } else {
+      // Для Axenta пользователей используем стандартный API
+      const result = await accountsService.loginAs(user.id, 'monitoring');
+
+      console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    }
 
   } catch (error: any) {
     console.error('❌ Ошибка входа в мониторинг:', error);
@@ -920,12 +919,35 @@ const loginToCMS = async (user: UserWithRelations) => {
       return;
     }
 
-    const result = await accountsService.loginAs(user.id, 'cms');
+    // Проверяем источник пользователя (Wialon или Axenta)
+    const userWithSource = user as UserWithRelations & { source?: string; connection_id?: number };
+    const source = (userWithSource.source || '').toLowerCase();
+    const isWialon = source.startsWith('wh') || source.startsWith('wl');
 
-    console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+    if (isWialon) {
+      // Для Wialon пользователей используем Wialon API
+      const connectionId = userWithSource.connection_id;
+      if (!connectionId) {
+        showSnackbar(`У пользователя "${user.username}" не указан ID подключения Wialon`, 'error');
+        return;
+      }
 
-    // Открываем новую вкладку с URL для входа
-    window.open(result.redirectUrl, '_blank');
+      const result = await settingsService.loginToWialonCms(connectionId, user.username, undefined, user.id);
+
+      if (!result.success) {
+        showSnackbar(`Ошибка входа в CMS: ${result.message}`, 'error');
+        return;
+      }
+
+      console.log('✅ Получен URL для входа в CMS Wialon:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    } else {
+      // Для Axenta пользователей используем стандартный API
+      const result = await accountsService.loginAs(user.id, 'cms');
+
+      console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
+      window.open(result.redirectUrl, '_blank');
+    }
 
   } catch (error: any) {
     console.error('❌ Ошибка входа в CMS:', error);
@@ -1253,8 +1275,7 @@ onMounted(async () => {
 
   try {
     await Promise.all([
-      loadUsers(),
-      loadWialonUsers(), // Загружаем пользователей Wialon
+      loadUsers(), // Унифицированный API загружает Axenta + Wialon
       loadStats(),
       loadRoles(),
       loadTemplates(),

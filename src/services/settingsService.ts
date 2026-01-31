@@ -1748,13 +1748,13 @@ class SettingsService {
    * Вход в мониторинг Wialon под конкретным пользователем
    * Возвращает URL для открытия в новой вкладке
    */
-  async loginToWialonMonitoring(connectionId: number, userName?: string, accountId?: number): Promise<{
+  async loginToWialonMonitoring(connectionId: number, userName?: string, accountId?: number, userId?: number): Promise<{
     success: boolean;
     redirectUrl?: string;
     message?: string;
   }> {
     try {
-      console.log(`🔐 Вход в мониторинг Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, account_id=${accountId || 'не указан'}`);
+      console.log(`🔐 Вход в мониторинг Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, user_id=${userId || 'не указан'}, account_id=${accountId || 'не указан'}`);
 
       const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-monitoring`, {
         method: 'POST',
@@ -1762,6 +1762,7 @@ class SettingsService {
         body: JSON.stringify({
           connection_id: connectionId,
           user_name: userName || '',
+          user_id: userId || 0,
           account_id: accountId || 0,
         }),
       });
@@ -1792,13 +1793,13 @@ class SettingsService {
    * Вход в CMS Wialon под конкретным пользователем
    * Возвращает URL для открытия в новой вкладке
    */
-  async loginToWialonCms(connectionId: number, userName?: string, accountId?: number): Promise<{
+  async loginToWialonCms(connectionId: number, userName?: string, accountId?: number, userId?: number): Promise<{
     success: boolean;
     redirectUrl?: string;
     message?: string;
   }> {
     try {
-      console.log(`🔐 Вход в CMS Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, account_id=${accountId || 'не указан'}`);
+      console.log(`🔐 Вход в CMS Wialon: connection_id=${connectionId}, user_name=${userName || 'основной'}, user_id=${userId || 'не указан'}, account_id=${accountId || 'не указан'}`);
 
       const response = await fetch(`${API_BASE_URL}/api/wialon/login-to-cms`, {
         method: 'POST',
@@ -1806,6 +1807,7 @@ class SettingsService {
         body: JSON.stringify({
           connection_id: connectionId,
           user_name: userName || '',
+          user_id: userId || 0,
           account_id: accountId || 0,
         }),
       });
