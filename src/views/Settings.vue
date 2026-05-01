@@ -136,6 +136,8 @@
             <!-- Уведомления -->
             <div v-if="activeTab === 'notifications'">
               <NotificationsSettings />
+              <v-divider class="my-8" />
+              <NotificationTemplates />
             </div>
 
             <!-- Шаблоны -->
@@ -327,6 +329,7 @@ import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';
+import NotificationTemplates from '@/components/Settings/NotificationTemplates.vue';
 import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
 import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
