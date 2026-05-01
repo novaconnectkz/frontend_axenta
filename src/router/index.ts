@@ -196,6 +196,17 @@ const routes = [
         },
       },
 
+      // Журнал уведомлений
+      {
+        path: "notification-logs",
+        name: "NotificationLogs",
+        component: () => import("@/views/NotificationLogs.vue"),
+        meta: {
+          title: "Журнал уведомлений",
+          requiresAuth: true,
+        },
+      },
+
       // Настройки системы
       {
         path: "settings",

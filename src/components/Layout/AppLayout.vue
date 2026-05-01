@@ -522,6 +522,12 @@ const navigationItems = computed(() => [
     subtitle: 'Аналитика и отчеты'
   },
   {
+    path: '/notification-logs',
+    icon: 'mdi-bell-ring-outline',
+    title: 'Уведомления',
+    subtitle: 'Журнал и статистика'
+  },
+  {
     path: '/settings',
     icon: 'mdi-cog',
     title: 'Настройки',
