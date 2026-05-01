@@ -336,7 +336,6 @@ export interface SystemSettings {
 
   // Настройки уведомлений
   email_notifications_enabled: boolean;
-  sms_notifications_enabled: boolean;
   telegram_notifications_enabled: boolean;
 
   // Налоговые настройки
@@ -429,7 +428,6 @@ export interface SystemSettingsForm {
   password_require_special: boolean;
   max_login_attempts: number;
   email_notifications_enabled: boolean;
-  sms_notifications_enabled: boolean;
   telegram_notifications_enabled: boolean;
   vat_rate_preset?: "russia" | "kazakhstan" | "none" | "custom";
   vat_rate_custom?: number;

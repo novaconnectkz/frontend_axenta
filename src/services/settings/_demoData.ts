@@ -505,7 +505,6 @@ export const demoSystemSettings: SystemSettings = {
   password_require_special: true,
   max_login_attempts: 5,
   email_notifications_enabled: true,
-  sms_notifications_enabled: false,
   telegram_notifications_enabled: true,
   vat_rate_preset: "russia",
   vat_rate_custom: 20,

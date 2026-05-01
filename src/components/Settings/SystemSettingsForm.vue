@@ -279,14 +279,6 @@
             />
           </v-col>
           
-          <v-col cols="12" md="4">
-            <v-switch
-              v-model="form.sms_notifications_enabled"
-              label="SMS уведомления"
-              color="primary"
-              class="mb-2"
-            />
-          </v-col>
         </v-row>
       </div>
 
@@ -399,7 +391,6 @@ const form = ref<SystemSettingsForm>({
   password_require_special: true,
   max_login_attempts: 5,
   email_notifications_enabled: true,
-  sms_notifications_enabled: false,
   telegram_notifications_enabled: true,
   backup_enabled: true,
   backup_schedule: '0 2 * * *',
@@ -521,7 +512,6 @@ const loadSettings = async () => {
       password_require_special: settings.password_require_special,
       max_login_attempts: settings.max_login_attempts,
       email_notifications_enabled: settings.email_notifications_enabled,
-      sms_notifications_enabled: settings.sms_notifications_enabled,
       telegram_notifications_enabled: settings.telegram_notifications_enabled,
       backup_enabled: settings.backup_enabled,
       backup_schedule: settings.backup_schedule,
@@ -603,7 +593,6 @@ const resetForm = () => {
       password_require_special: originalSettings.value.password_require_special,
       max_login_attempts: originalSettings.value.max_login_attempts,
       email_notifications_enabled: originalSettings.value.email_notifications_enabled,
-      sms_notifications_enabled: originalSettings.value.sms_notifications_enabled,
       telegram_notifications_enabled: originalSettings.value.telegram_notifications_enabled,
       backup_enabled: originalSettings.value.backup_enabled,
       backup_schedule: originalSettings.value.backup_schedule,
