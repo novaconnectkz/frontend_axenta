@@ -15,7 +15,7 @@ import axios from "axios";
 import {
     mockRoles,
     mockTemplates
-} from "./mockUsersData";
+} from "../mocks/mockUsersData";
 
 export class UsersService {
   private static instance: UsersService;

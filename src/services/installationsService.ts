@@ -38,7 +38,7 @@ import {
   mockInstallerStats,
   mockLocationStats,
   mockEquipmentStats,
-} from "./mockInstallationsData";
+} from "../mocks/mockInstallationsData";
 import axios from "axios";
 
 export class InstallationsService {

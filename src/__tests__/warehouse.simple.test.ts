@@ -6,7 +6,7 @@ import {
   mockWarehouseOperations,
   mockStockAlerts,
   mockWarehouseStats 
-} from '@/services/mockWarehouseData';
+} from '@/mocks/mockWarehouseData';
 
 describe('Warehouse Service', () => {
   beforeEach(() => {

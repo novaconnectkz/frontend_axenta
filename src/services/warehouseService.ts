@@ -26,7 +26,7 @@ import {
   mockEquipmentCategories,
   mockWarehouseStats,
   simulateDelay,
-} from "./mockWarehouseData";
+} from "../mocks/mockWarehouseData";
 
 class WarehouseService {
   private apiUrl = `${API_BASE_URL}/api`;

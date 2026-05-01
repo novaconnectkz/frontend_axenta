@@ -282,7 +282,7 @@
 
 <script setup lang="ts">
 import { cacheService } from '@/services/cacheService'
-import { mockTopCacheKeys, mockCacheKeyTypes, mockCacheEvents } from '@/services/mockCacheData'
+import { mockTopCacheKeys, mockCacheKeyTypes, mockCacheEvents } from '@/mocks/mockCacheData'
 import type { CacheMetrics } from '@/types/performance'
 import { onMounted, onUnmounted, reactive, ref } from 'vue'
 import { formatDistanceToNow } from 'date-fns'

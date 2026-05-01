@@ -21,7 +21,7 @@ import {
   mockNotifications,
   mockRecentActivity,
   simulateDelay,
-} from "./mockDashboardData";
+} from "../mocks/mockDashboardData";
 
 class DashboardService {
   // private auth = useAuth(); // Временно отключаем

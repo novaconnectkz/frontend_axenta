@@ -15,7 +15,7 @@ import {
   mockCacheStats,
   mockTopCacheKeys,
   updateCacheMetrics,
-} from "./mockCacheData";
+} from "../mocks/mockCacheData";
 
 class CacheService {
   private metricsCache: CacheMetrics = mockCacheMetrics;
