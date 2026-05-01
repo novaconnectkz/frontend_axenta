@@ -43,6 +43,29 @@ export const settingsApiClient = axios.create({
   timeout: 30000,
 });
 
+// fetchIntegrationsList — общий запрос списка всех интеграций компании.
+// Используется доменными модулями (axenta/novaconnect) для проверки
+// наличия интеграции до setup/update вызовов.
+export async function fetchIntegrationsList(): Promise<
+  { type: string; configured: boolean; is_active: boolean }[]
+> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/integrations`, {
+      method: "GET",
+      headers: createHeaders(),
+    });
+    if (!response.ok) {
+      console.error("Ошибка получения списка интеграций:", response.status);
+      return [];
+    }
+    const data = await response.json();
+    return data.integrations || [];
+  } catch (error) {
+    console.error("Ошибка получения списка интеграций:", error);
+    return [];
+  }
+}
+
 settingsApiClient.interceptors.request.use((cfg) => {
   const token = getAuthToken();
   if (token) {
