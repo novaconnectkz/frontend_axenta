@@ -411,8 +411,7 @@ const getIntegrationIcon = (type?: string) => {
     bitrix24: 'mdi-briefcase',
     '1c': 'mdi-database',
     telegram: 'mdi-telegram',
-    email: 'mdi-email',
-    sms: 'mdi-message-text'
+    email: 'mdi-email'
   };
   return icons[type as keyof typeof icons] || 'mdi-connection';
 };
@@ -423,8 +422,7 @@ const getIntegrationColor = (type?: string) => {
     bitrix24: 'orange',
     '1c': 'green',
     telegram: 'cyan',
-    email: 'purple',
-    sms: 'teal'
+    email: 'purple'
   };
   return colors[type as keyof typeof colors] || 'primary';
 };

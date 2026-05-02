@@ -1351,8 +1351,7 @@
                 { title: 'Система', value: 'system' },
                 { title: 'Email', value: 'email' },
                 { title: 'Telegram', value: 'telegram' },
-                { title: 'MAX', value: 'max' },
-                { title: 'SMS', value: 'sms' }
+                { title: 'MAX', value: 'max' }
               ]" label="Канал" />
             </v-col>
             <v-col cols="12" md="6">

@@ -554,7 +554,6 @@ const getChannelIcon = (channel: string) => {
   const icons = {
     telegram: 'mdi-telegram',
     email: 'mdi-email',
-    sms: 'mdi-message-text',
     push: 'mdi-bell'
   };
   return icons[channel as keyof typeof icons] || 'mdi-bell';
@@ -564,7 +563,6 @@ const getChannelColor = (channel: string) => {
   const colors = {
     telegram: 'cyan',
     email: 'purple',
-    sms: 'teal',
     push: 'orange'
   };
   return colors[channel as keyof typeof colors] || 'primary';
@@ -574,7 +572,6 @@ const getChannelLabel = (channel: string) => {
   const labels = {
     telegram: 'Telegram',
     email: 'Email',
-    sms: 'SMS',
     push: 'Push'
   } as any;
   return labels[channel] || channel;

@@ -123,13 +123,6 @@
                 </div>
               </div>
 
-              <div v-if="channel.channel === 'sms'" class="channel-info">
-                <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
-                  <v-icon size="14">mdi-cellphone</v-icon>
-                  <span>{{ channel.settings.provider }} {{ channel.settings.test_mode ? '(тест)' : '' }}</span>
-                </div>
-              </div>
-
               <div v-if="channel.channel === 'max'" class="channel-info">
                 <div class="d-flex align-center gap-2 text-caption text-medium-emphasis">
                   <v-icon size="14">mdi-message-processing</v-icon>
@@ -340,47 +333,6 @@
             </v-row>
           </div>
 
-          <div v-if="editDialog.channel.channel === 'sms'">
-            <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки SMS</h4>
-            
-            <v-select
-              v-model="editDialog.form.settings.provider"
-              label="Провайдер SMS"
-              :items="[
-                { value: 'sms_ru', title: 'SMS.RU' },
-                { value: 'smsc', title: 'SMSC.RU' },
-                { value: 'twilio', title: 'Twilio' }
-              ]"
-              variant="outlined"
-              class="mb-3"
-            />
-            
-            <v-text-field
-              v-model="editDialog.form.settings.api_key"
-              label="API ключ"
-              type="password"
-              variant="outlined"
-              class="mb-3"
-            />
-            
-            <v-text-field
-              v-model="editDialog.form.settings.sender_name"
-              label="Имя отправителя"
-              variant="outlined"
-              hint="Не более 11 символов"
-              persistent-hint
-              class="mb-3"
-            />
-            
-            <v-switch
-              v-model="editDialog.form.settings.test_mode"
-              label="Тестовый режим"
-              color="primary"
-              hint="SMS не будут отправляться реально"
-              persistent-hint
-            />
-          </div>
-
           <div v-if="editDialog.channel.channel === 'max'">
             <h4 class="text-subtitle-1 font-weight-bold mb-3">Настройки MAX</h4>
             
@@ -541,7 +493,6 @@ const getChannelIcon = (channel: string) => {
   const icons = {
     telegram: 'mdi-telegram',
     email: 'mdi-email',
-    sms: 'mdi-message-text',
     push: 'mdi-bell',
     max: 'mdi-message-flash'
   };
@@ -552,7 +503,6 @@ const getChannelColor = (channel: string) => {
   const colors = {
     telegram: 'cyan',
     email: 'purple',
-    sms: 'teal',
     push: 'orange',
     max: 'blue'
   };
@@ -563,7 +513,6 @@ const getChannelLabel = (channel: string) => {
   const labels = {
     telegram: 'Telegram Bot',
     email: 'Email SMTP',
-    sms: 'SMS Gateway',
     push: 'Push-уведомления',
     max: 'MAX Messenger'
   } as any;

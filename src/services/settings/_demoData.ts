@@ -195,22 +195,6 @@ export const demoNotificationChannels: NotificationChannelSettings[] = [
       NOTIFICATION_EVENTS.SYNC_ERROR,
     ],
   },
-  {
-    id: "3",
-    channel: NOTIFICATION_CHANNELS.SMS,
-    name: "SMS уведомления",
-    enabled: false,
-    settings: {
-      provider: "sms_ru" as const,
-      api_key: "your_sms_ru_api_key",
-      sender_name: "CRM",
-      test_mode: true,
-    },
-    events: [
-      NOTIFICATION_EVENTS.INSTALLATION_CANCELLED,
-      NOTIFICATION_EVENTS.SYSTEM_ERROR,
-    ],
-  },
 ];
 
 // Демо данные для шаблонов
@@ -382,7 +366,6 @@ export const demoUserTemplates: UserTemplate[] = [
       notifications: {
         email: true,
         telegram: true,
-        sms: false,
       },
       theme: "light",
     },
@@ -413,7 +396,6 @@ export const demoUserTemplates: UserTemplate[] = [
       notifications: {
         email: false,
         telegram: true,
-        sms: true,
       },
       theme: "auto",
     },
@@ -485,7 +467,6 @@ export const demoNotificationTemplates: NotificationTemplate[] = [
     channels: [
       NOTIFICATION_CHANNELS.TELEGRAM,
       NOTIFICATION_CHANNELS.EMAIL,
-      NOTIFICATION_CHANNELS.SMS,
     ],
   },
 ];

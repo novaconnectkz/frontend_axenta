@@ -21,7 +21,6 @@ export const INTEGRATION_TYPES = {
   ONEC: "1c",
   TELEGRAM: "telegram",
   EMAIL: "email",
-  SMS: "sms",
   WIALON: "wialon",
   NOVACONNECT: "novaconnect",
   MAX: "max",
@@ -137,7 +136,6 @@ export interface EmailIntegrationSettings {
 export const NOTIFICATION_CHANNELS = {
   TELEGRAM: "telegram",
   EMAIL: "email",
-  SMS: "sms",
   PUSH: "push",
 } as const;
 
@@ -165,7 +163,7 @@ export interface NotificationChannelSettings {
   channel: NotificationChannel;
   name: string;
   enabled: boolean;
-  settings: TelegramSettings | EmailSettings | SmsSettings;
+  settings: TelegramSettings | EmailSettings;
   events: NotificationEvent[];
 }
 
@@ -190,14 +188,6 @@ export interface EmailSettings {
   from_name: string;
   template_header?: string;
   template_footer?: string;
-}
-
-// Настройки SMS
-export interface SmsSettings {
-  provider: "sms_ru" | "smsc" | "twilio";
-  api_key: string;
-  sender_name?: string;
-  test_mode: boolean;
 }
 
 // === ШАБЛОНЫ ===
@@ -529,7 +519,6 @@ export const INTEGRATION_TYPE_LABELS = {
   [INTEGRATION_TYPES.ONEC]: "1С:Предприятие",
   [INTEGRATION_TYPES.TELEGRAM]: "Telegram Bot",
   [INTEGRATION_TYPES.EMAIL]: "Email SMTP",
-  [INTEGRATION_TYPES.SMS]: "SMS Gateway",
   [INTEGRATION_TYPES.WIALON]: "Wialon Hosting",
   [INTEGRATION_TYPES.NOVACONNECT]: "NovaConnect API",
   [INTEGRATION_TYPES.MAX]: "MAX Messenger",
@@ -539,7 +528,6 @@ export const INTEGRATION_TYPE_LABELS = {
 export const NOTIFICATION_CHANNEL_LABELS = {
   [NOTIFICATION_CHANNELS.TELEGRAM]: "Telegram",
   [NOTIFICATION_CHANNELS.EMAIL]: "Email",
-  [NOTIFICATION_CHANNELS.SMS]: "SMS",
   [NOTIFICATION_CHANNELS.PUSH]: "Push-уведомления",
 } as const;
 

@@ -234,7 +234,6 @@ export type {
   ObjectTemplate,
   ObjectTemplateField,
   OneCIntegrationSettings,
-  SmsSettings,
   SystemSettings,
   SystemSettingsForm,
   TelegramSettings,

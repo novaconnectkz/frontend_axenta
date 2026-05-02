@@ -1065,7 +1065,6 @@ const getIntegrationIcon = (type: string) => {
     telegram: 'mdi-telegram',
     max: 'mdi-message-flash',
     email: 'mdi-email',
-    sms: 'mdi-message-text',
     wialon: 'mdi-map-marker-radius'
   };
   return icons[type as keyof typeof icons] || 'mdi-connection';
@@ -1080,7 +1079,6 @@ const getIntegrationColor = (type: string) => {
     telegram: 'cyan',
     max: 'blue',
     email: 'purple',
-    sms: 'teal',
     wialon: 'lime-darken-2'
   };
   return colors[type as keyof typeof colors] || 'primary';
@@ -1095,7 +1093,6 @@ const getIntegrationTypeLabel = (type: string) => {
     telegram: 'Telegram Bot',
     max: 'MAX Messenger',
     email: 'Email SMTP',
-    sms: 'SMS Gateway',
     wialon: 'Wialon Hosting'
   } as any;
   return labels[type] || type;
