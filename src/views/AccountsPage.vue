@@ -1,16 +1,5 @@
 <template>
   <div class="accounts-page">
-    <!-- Заголовок страницы -->
-    <div class="page-header">
-      <div class="page-title-section">
-        <v-icon icon="mdi-office-building-outline" size="32" class="page-icon" />
-        <div>
-          <h1 class="page-title">Учетные записи</h1>
-          <p class="page-subtitle">Управление учетными записями и организациями</p>
-        </div>
-      </div>
-    </div>
-
     <!-- Статистика -->
     <AccountsStats :stats="stats" :wialon-stats="wialonStats" :total-stats="totalStats" />
 

@@ -113,11 +113,11 @@
             </template>
           </div>
 
-          <!-- Заголовок текущей страницы -->
-          <div class="page-title-header">
-            <v-icon 
-              v-if="currentPageIcon" 
-              :icon="currentPageIcon" 
+          <!-- Заголовок текущей страницы — рендерим ТОЛЬКО если breadcrumb пустой (Главная или мобилка). На остальных страницах breadcrumb-current уже даёт title, лишний h1 не нужен -->
+          <div v-if="breadcrumbs.length <= 1 || mobile" class="page-title-header">
+            <v-icon
+              v-if="currentPageIcon"
+              :icon="currentPageIcon"
               class="page-icon"
               size="20"
             />
