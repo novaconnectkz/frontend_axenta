@@ -326,10 +326,7 @@ export default defineComponent({
     const gridContainer = ref<HTMLElement>();
     const configDialog = ref(false);
     const showLayoutDialog = ref(false);
-    // QuickActionsBlock отключён по умолчанию — заменён фиксированной
-    // KPIBar + AlertsRow + Today row в Dashboard.vue. Оставлен для
-    // backwards-совместимости с пользовательскими макетами.
-    const showQuickActions = ref(false);
+    const showQuickActions = ref(true);
     const layoutTab = ref('current');
     const selectedWidget = ref<Widget | null>(null);
     const widgetConfig = ref<any>({});

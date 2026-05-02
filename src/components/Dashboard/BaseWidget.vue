@@ -116,16 +116,13 @@ export default defineComponent({
       type: String,
       default: 'primary'
     },
-    // Кнопки refresh/configure в header'е виджета упрощены — в новой
-    // структуре дашборда (KPIBar + Today row) per-widget кнопки убраны
-    // как visual noise. Можно включить точечно через prop при необходимости.
     refreshable: {
       type: Boolean,
-      default: false
+      default: true
     },
     configurable: {
       type: Boolean,
-      default: false
+      default: true
     },
     showHeader: {
       type: Boolean,
