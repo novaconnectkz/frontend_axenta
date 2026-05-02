@@ -47,6 +47,20 @@ export default defineConfig(({ mode }) => {
     plugins: [
       vue(),
       {
+        name: "git-version-watch",
+        configureServer(server) {
+          const headPath = resolve(__dirname, ".git/HEAD");
+          const refPath = resolve(__dirname, ".git/refs/heads/main");
+          server.watcher.add([headPath, refPath]);
+          server.watcher.on("change", (file) => {
+            if (file.includes("/.git/")) {
+              console.log("[git-version-watch] git HEAD changed → restart server");
+              server.restart();
+            }
+          });
+        },
+      },
+      {
         name: "html-transform",
         transformIndexHtml(html) {
           // Заменяем все переменные окружения в HTML
