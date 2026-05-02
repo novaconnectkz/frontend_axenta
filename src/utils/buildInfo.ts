@@ -36,6 +36,10 @@ export function getBuildInfo(): BuildInfo {
 }
 
 export function getVersionString(): string {
+  return getBuildInfo().version;
+}
+
+export function getVersionStringFull(): string {
   const buildInfo = getBuildInfo();
   return `${buildInfo.version} (${buildInfo.commitHash})`;
 }
