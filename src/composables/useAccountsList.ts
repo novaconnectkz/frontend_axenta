@@ -141,10 +141,12 @@ export function useAccountsList(ctx: UseAccountsListContext) {
 
       const isMultiSearch = ctx.searchQuery.value && ctx.searchQuery.value.includes(',');
       const hasClientOnlyFilters = !!isMultiSearch;
-      const hasActiveFilters = !!hasServerSupportedFilters || hasClientOnlyFilters;
+      // Merge-режим: source = null (все системы) — нужно грузить все axenta для корректного merge с wialon на стороне клиента, иначе двойная пагинация (бэк paginated + client slice) теряет записи на стр.2+
+      const isMergeMode = !ctx.filters.value.source;
+      const hasActiveFilters = !!hasServerSupportedFilters || hasClientOnlyFilters || isMergeMode;
 
       if (hasActiveFilters) {
-        if (hasServerSupportedFilters && !hasClientOnlyFilters) {
+        if (hasServerSupportedFilters && !hasClientOnlyFilters && !isMergeMode) {
           accounts.value = response.results;
           totalItems.value = response.count;
           lastUpdateTime.value = new Date();
@@ -232,12 +234,18 @@ export function useAccountsList(ctx: UseAccountsListContext) {
           });
         }
 
-        const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-        const endIndex = startIndex + itemsPerPage.value;
-        const paginatedResults = allFilteredResults.slice(startIndex, endIndex);
+        // В merge-режиме отдаём полный список — пагинацию делает useMergedAccounts после слияния с wialon. Иначе при двойной пагинации (бэк → useAccountsList → useMergedAccounts) на стр.2+ список ломается, т.к. в merged-массиве [paginated_axenta + wialon] слайс выкидывает axenta, оставляя только хвост wialon
+        if (isMergeMode) {
+          response.results = allFilteredResults;
+          response.count = allFilteredResults.length;
+        } else {
+          const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+          const endIndex = startIndex + itemsPerPage.value;
+          const paginatedResults = allFilteredResults.slice(startIndex, endIndex);
 
-        response.results = paginatedResults;
-        response.count = allFilteredResults.length;
+          response.results = paginatedResults;
+          response.count = allFilteredResults.length;
+        }
       }
 
       if (response.count !== undefined && response.count >= 0) {
