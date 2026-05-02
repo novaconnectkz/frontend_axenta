@@ -1,8 +1,6 @@
 <template>
   <div class="dash">
     <div class="dash-head">
-      <h1>Главная</h1>
-
       <div class="search-wrap">
         <div class="search-box" :class="{ focused: searchFocused || searchOpen }">
           <v-icon size="16" class="search-icon">mdi-magnify</v-icon>
@@ -392,11 +390,10 @@ onMounted(load);
 }
 .dash-head {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: 20px;
 }
-.dash-head h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
 
 /* Глобальный поиск */
 .search-wrap {
@@ -742,9 +739,6 @@ td.value.danger { color: #ff3b30; }
     align-items: stretch;
     gap: 12px;
   }
-  .dash-head h1 {
-    font-size: 22px;
-  }
   .search-wrap {
     width: 100%;
   }
@@ -796,8 +790,6 @@ td.value.danger { color: #ff3b30; }
 [data-theme="dark"] .dash {
   background: #0a0a0a;
 }
-[data-theme="dark"] .dash-head h1 { color: #f5f5f7; }
-
 [data-theme="dark"] .kpi-block,
 [data-theme="dark"] .chart-card,
 [data-theme="dark"] .table-card,

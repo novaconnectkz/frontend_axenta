@@ -554,7 +554,7 @@ const breadcrumbs = computed((): Breadcrumb[] => {
   for (const path of paths) {
     currentPath += `/${path}`;
     const item = navigationItems.value.find(item => item.path === currentPath);
-    if (item) {
+    if (item && currentPath !== '/dashboard') {
       crumbs.push({
         title: item.title,
         to: currentPath,
