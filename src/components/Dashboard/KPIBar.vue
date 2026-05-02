@@ -20,14 +20,8 @@
         </v-card>
       </v-col>
 
-      <v-col v-if="loading && !metrics.length" cols="12" sm="6" md="3">
+      <v-col v-if="loading && !metrics.length" cols="12">
         <v-skeleton-loader type="card" />
-      </v-col>
-
-      <v-col v-if="error && !metrics.length" cols="12">
-        <v-alert type="warning" variant="tonal" density="compact">
-          KPI временно недоступны: {{ error }}
-        </v-alert>
       </v-col>
     </v-row>
   </div>
