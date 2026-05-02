@@ -714,6 +714,67 @@ td.value.danger { color: #ff3b30; }
 }
 .donut-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
 
+/* =====================================================================
+   Mobile (< 900px) — одна колонка, search под заголовком, компакт.
+   ===================================================================== */
+@media (max-width: 900px) {
+  .dash {
+    padding: 16px;
+  }
+  .dash-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .dash-head h1 {
+    font-size: 22px;
+  }
+  .search-wrap {
+    width: 100%;
+  }
+  .search-dropdown {
+    width: 100%;
+    max-height: 60vh;
+  }
+  .top-grid,
+  .bot-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-block {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .kpi {
+    padding: 12px 14px;
+  }
+  .kpi-value {
+    font-size: 22px;
+  }
+  .chart-card,
+  .table-card,
+  .donut-card {
+    padding: 16px;
+  }
+  .chart-area svg { height: 180px; }
+  .donut-svg { width: 160px; height: 160px; }
+  .donut-legend { gap: 8px; }
+  .donut-legend span { font-size: 11px; }
+  /* Таблица — горизонтальный скролл если не помещается */
+  .table-card { overflow-x: auto; }
+  table { min-width: 480px; }
+}
+
+/* Очень узкий экран (< 480px) — KPI в одну колонку */
+@media (max-width: 480px) {
+  .kpi-block {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+  }
+  .kpi-value {
+    font-size: 20px;
+  }
+}
+
 /* placeholder — реальные dark-overrides ниже в non-scoped style */
 
 [data-theme="dark"] .dash {
