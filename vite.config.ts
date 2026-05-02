@@ -11,7 +11,8 @@ export default defineConfig(({ mode }) => {
   
   // Получаем хеш коммита с приоритетом по источникам
   let commitHash = 'unknown';
-  
+  let commitCount = 0;
+
   if (process.env.GITHUB_SHA) {
     commitHash = process.env.GITHUB_SHA.substring(0, 7);
   } else if (process.env.VERCEL_GIT_COMMIT_SHA) {
@@ -27,9 +28,17 @@ export default defineConfig(({ mode }) => {
         commitHash = gitHash;
       }
     } catch (error) {
-      // Если не удалось получить git хеш, используем timestamp
       commitHash = Math.floor(Date.now() / 1000).toString(36);
     }
+  }
+
+  // Кол-во коммитов = build-номер (авто-инкремент)
+  try {
+    const { execSync } = require('child_process');
+    const count = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim();
+    commitCount = parseInt(count, 10) || 0;
+  } catch (error) {
+    commitCount = 0;
   }
 
   return {
@@ -162,6 +171,7 @@ export default defineConfig(({ mode }) => {
       // Информация о сборке
       "__BUILD_TIME__": JSON.stringify(buildTime),
       "__COMMIT_HASH__": JSON.stringify(commitHash),
+      "__COMMIT_COUNT__": JSON.stringify(commitCount),
     },
 
     // Настройки для совместимости с Node.js модулями

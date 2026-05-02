@@ -1,17 +1,14 @@
 // Информация о сборке приложения
 
-// Получаем версию из package.json
 import packageJson from '../../package.json';
 
-// Объявляем глобальные переменные, которые подставляются во время сборки
 declare const __BUILD_TIME__: string;
 declare const __COMMIT_HASH__: string;
+declare const __COMMIT_COUNT__: number;
 
-// Получаем время сборки (подставляется во время сборки)
 const BUILD_TIME = (typeof __BUILD_TIME__ !== 'undefined') ? __BUILD_TIME__ : new Date().toISOString();
-
-// Получаем хеш коммита (подставляется во время сборки)
 const COMMIT_HASH = (typeof __COMMIT_HASH__ !== 'undefined') ? __COMMIT_HASH__ : 'dev';
+const COMMIT_COUNT = (typeof __COMMIT_COUNT__ !== 'undefined') ? __COMMIT_COUNT__ : 0;
 
 export interface BuildInfo {
   version: string;
@@ -21,22 +18,15 @@ export interface BuildInfo {
 }
 
 export function getBuildInfo(): BuildInfo {
-  // Определяем режим более надежным способом
-  // В production сборке import.meta.env.DEV должен быть false
   const isDev = import.meta.env.DEV === true;
-  const isProduction = import.meta.env.PROD === true;
-  
-  // Если версия 0.0.0, используем timestamp как версию
-  let version = packageJson.version;
-  if (version === '0.0.0') {
-    const timestamp = Math.floor(Date.now() / 1000);
-    version = `1.0.${timestamp}`;
-  }
-  
-  // В development показываем версию с пометкой dev
-  // В production показываем чистую версию
-  const finalVersion = isDev ? `${version}-dev` : version;
-  
+
+  // MAJOR.MINOR из package.json, PATCH = git commit count (авто-инкремент при каждом коммите)
+  const [major = '1', minor = '0'] = (packageJson.version || '1.0.0').split('.');
+  const patch = COMMIT_COUNT > 0 ? COMMIT_COUNT : 0;
+  const baseVersion = `${major}.${minor}.${patch}`;
+
+  const finalVersion = isDev ? `${baseVersion}-dev` : baseVersion;
+
   return {
     version: finalVersion,
     buildTime: BUILD_TIME,

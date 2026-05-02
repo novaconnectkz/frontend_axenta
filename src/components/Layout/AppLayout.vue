@@ -47,32 +47,21 @@
       <!-- Футер боковой панели - информация о системе -->
       <template #append>
         <div class="sidebar-footer">
-          <!-- Системная информация -->
-          <div v-if="!rail" class="system-info-card">
-            <div class="system-status">
-              <div class="d-flex align-center mb-2">
+          <!-- Системная информация (компактная строка) -->
+          <v-tooltip v-if="!rail" location="top">
+            <template #activator="{ props }">
+              <div v-bind="props" class="system-info-compact">
                 <v-icon icon="mdi-circle" size="8" color="success" class="me-2" />
-                <span class="status-text">Система работает нормально</span>
+                <span class="compact-text">{{ appVersion }}</span>
               </div>
-              
-              <div class="system-details">
-                <div class="detail-item">
-                  <v-icon icon="mdi-update" size="14" class="me-1" />
-                  <span>{{ lastRefresh ? formatTimeAgo(lastRefresh) : 'Не обновлялось' }}</span>
-                </div>
-                
-                <div class="detail-item">
-                  <v-icon icon="mdi-domain" size="14" class="me-1" />
-                  <span>{{ auth.user.value?.accountName || 'Не указана' }}</span>
-                </div>
-                
-                <div class="detail-item">
-                  <v-icon icon="mdi-information" size="14" class="me-1" />
-                  <span>{{ appVersion }}</span>
-                </div>
+            </template>
+            <div>
+              <div>Система работает нормально</div>
+              <div class="text-caption">
+                Обновлено: {{ lastRefresh ? formatTimeAgo(lastRefresh) : 'Не обновлялось' }}
               </div>
             </div>
-          </div>
+          </v-tooltip>
           
           <!-- Компактная версия для свернутого меню -->
           <div v-else class="system-info-rail">
@@ -83,6 +72,11 @@
                 </div>
               </template>
             </v-tooltip>
+          </div>
+
+          <!-- Копирайт -->
+          <div v-if="!rail" class="copyright-line">
+            © {{ copyrightYears }} by ProfMonitor
           </div>
         </div>
       </template>
@@ -574,6 +568,14 @@ const notificationsCount = computed(() => {
 
 const appVersion = computed(() => {
   return getVersionString();
+});
+
+const COPYRIGHT_START_YEAR = 2025;
+const copyrightYears = computed(() => {
+  const current = new Date().getFullYear();
+  return current > COPYRIGHT_START_YEAR
+    ? `${COPYRIGHT_START_YEAR}–${current}`
+    : `${COPYRIGHT_START_YEAR}`;
 });
 
 // Определяем, является ли пользователь партнером
@@ -1444,49 +1446,39 @@ onUnmounted(() => {
 }
 
 .sidebar-footer {
-  padding: 20px;
+  padding: 12px 16px;
   border-top: 1px solid rgba(var(--v-border-color), 0.12);
 }
 
-/* Системная информация в боковом меню */
-.system-info-card {
-  background: rgba(0, 122, 255, 0.05);
-  border: 1px solid rgba(0, 122, 255, 0.1);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 8px;
-}
-
-.system-status {
-  font-size: 0.75rem;
-  line-height: 1.4;
-}
-
-.status-text {
-  font-weight: 500;
-  color: var(--apple-text-primary);
-  font-size: 0.75rem;
-}
-
-.system-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.detail-item {
+.system-info-compact {
   display: flex;
   align-items: center;
-  color: var(--apple-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 400;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--apple-text-tertiary);
+  cursor: default;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
 }
 
-.detail-item span {
-  font-size: 0.7rem;
-  line-height: 1.2;
-  word-break: break-word;
+.compact-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+  letter-spacing: 0.1px;
+}
+
+.copyright-line {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--apple-text-tertiary);
+  text-align: center;
+  letter-spacing: 0.2px;
+  opacity: 0.7;
 }
 
 /* Компактная версия для rail режима */
@@ -1513,18 +1505,12 @@ onUnmounted(() => {
   transform: scale(1.1);
 }
 
-/* Темная тема для системной информации */
-[data-theme="dark"] .system-info-card {
-  background: rgba(77, 166, 255, 0.08);
-  border-color: rgba(77, 166, 255, 0.15);
+[data-theme="dark"] .system-info-compact {
+  color: var(--apple-text-tertiary-dark);
 }
 
-[data-theme="dark"] .status-text {
-  color: var(--apple-text-primary-dark);
-}
-
-[data-theme="dark"] .detail-item {
-  color: var(--apple-text-secondary-dark);
+[data-theme="dark"] .copyright-line {
+  color: var(--apple-text-tertiary-dark);
 }
 
 [data-theme="dark"] .rail-status-indicator {
