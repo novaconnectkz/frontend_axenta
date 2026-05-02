@@ -20,8 +20,23 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Добавляем заголовок тенанта если есть
-    const tenantId = localStorage.getItem("tenant_id");
+    // Добавляем заголовок тенанта если есть.
+    // Fallback на axenta_company.id — Axenta auth login не сохраняет tenant_id
+    // отдельно, но кладёт всю company в localStorage.axenta_company.
+    let tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      try {
+        const companyRaw = localStorage.getItem("axenta_company");
+        if (companyRaw) {
+          const company = JSON.parse(companyRaw);
+          if (company && (company.id || company.company_id)) {
+            tenantId = String(company.id ?? company.company_id);
+          }
+        }
+      } catch {
+        // ignore — пустой/битый axenta_company
+      }
+    }
     if (tenantId) {
       config.headers["X-Tenant-ID"] = tenantId;
     }

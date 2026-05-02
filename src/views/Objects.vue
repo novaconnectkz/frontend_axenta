@@ -2190,6 +2190,11 @@ onMounted(async () => {
   viewDialog.value.show = false;
   console.log('🎯 Все диалоги принудительно закрыты');
 
+  // Подхватываем ?search=... из URL (например, из глобального поиска на дашборде)
+  if (route.query.search && typeof route.query.search === 'string') {
+    filters.value.search = route.query.search;
+  }
+
   // Загружаем историю поиска
   loadSearchHistory();
 

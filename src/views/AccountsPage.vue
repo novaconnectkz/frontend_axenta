@@ -588,10 +588,11 @@ import { wialonCacheService, type CachedWialonAccount } from '@/services/wialonC
 import ExcelJS from 'exceljs';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 // Router
 const router = useRouter();
+const route = useRoute();
 
 // Реактивные данные
 const accounts = ref<Account[]>([]);
@@ -3132,6 +3133,11 @@ const closePopup = () => {
 onMounted(() => {
   // Восстанавливаем фильтры из localStorage перед загрузкой данных
   loadFiltersFromStorage(); // Результат не используется — важен сам факт вызова
+
+  // Подхватываем ?search=... из URL (например, из глобального поиска на дашборде)
+  if (route.query.search && typeof route.query.search === 'string') {
+    searchQuery.value = route.query.search;
+  }
 
   // Немедленная загрузка данных при первой загрузке страницы
   loadAccounts();
