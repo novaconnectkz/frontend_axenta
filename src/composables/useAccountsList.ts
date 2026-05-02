@@ -202,14 +202,11 @@ export function useAccountsList(ctx: UseAccountsListContext) {
         if (ctx.searchQuery.value) {
           if (ctx.isMultipleCompanySearch()) {
             const searchTerms = ctx.companySearchTermsArray().map(term => term.toLowerCase());
+            // Multi-search ищет только в name + adminFullname. parent/hierarchy исключены, иначе при поиске "ООО,Иваново" проходят дочерние записи родителей с "ООО" в названии — поведение неинтуитивное
             allFilteredResults = allFilteredResults.filter(account => {
               const name = account.name?.toLowerCase() || '';
               const admin = account.adminFullname?.toLowerCase() || '';
-              const parent = account.parentAccountName?.toLowerCase() || '';
-              const hierarchy = account.hierarchy?.toLowerCase() || '';
-              return searchTerms.some(t =>
-                name.includes(t) || admin.includes(t) || parent.includes(t) || hierarchy.includes(t)
-              );
+              return searchTerms.some(t => name.includes(t) || admin.includes(t));
             });
           } else {
             const query = ctx.searchQuery.value.toLowerCase();

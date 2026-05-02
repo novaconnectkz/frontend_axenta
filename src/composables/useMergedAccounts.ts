@@ -85,11 +85,11 @@ export function useMergedAccounts(ctx: UseMergedAccountsContext): {
         .filter(t => t.length > 0);
 
       if (searchTerms.length > 0) {
+        // Поиск по name и id. hierarchy исключён — проходят дочерние родителей с матчем, поведение неинтуитивное (см. concepts/accounts-pagination)
         filteredWialon = filteredWialon.filter(account => {
           const name = account.name.toLowerCase();
-          const hierarchy = account.hierarchy?.toLowerCase() || '';
           const id = account.id?.toString() || '';
-          return searchTerms.some(t => name.includes(t) || hierarchy.includes(t) || id.includes(t));
+          return searchTerms.some(t => name.includes(t) || id.includes(t));
         });
       }
     }
