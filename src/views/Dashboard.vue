@@ -159,23 +159,23 @@
         <div class="donut-area">
           <svg class="donut-svg" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" stroke-width="14"/>
-            <circle v-if="objectsStats.total > 0"
+            <circle v-if="arcTotal > 0"
                     cx="50" cy="50" r="40" fill="none" stroke="#34c759" stroke-width="14"
                     :stroke-dasharray="`${activeArc} 251.3`" stroke-dashoffset="0"
                     transform="rotate(-90 50 50)"/>
-            <circle v-if="objectsStats.total > 0"
+            <circle v-if="arcTotal > 0"
                     cx="50" cy="50" r="40" fill="none" stroke="#ff9500" stroke-width="14"
                     :stroke-dasharray="`${inactiveArc} 251.3`"
                     :stroke-dashoffset="`-${activeArc}`"
                     transform="rotate(-90 50 50)"/>
-            <circle v-if="objectsStats.total > 0"
+            <circle v-if="arcTotal > 0"
                     cx="50" cy="50" r="40" fill="none" stroke="#ff3b30" stroke-width="14"
                     :stroke-dasharray="`${trashArc} 251.3`"
                     :stroke-dashoffset="`-${activeArc + inactiveArc}`"
                     transform="rotate(-90 50 50)"/>
           </svg>
           <div class="donut-center">
-            <div class="total">{{ formatNum(objectsStats.total) }}</div>
+            <div class="total">{{ formatNum(arcTotal) }}</div>
             <div class="lbl">всего</div>
           </div>
         </div>
@@ -246,9 +246,14 @@ const overdueText = computed(() => {
 });
 
 const CIRC = 251.3;
-const activeArc = computed(() => objectsStats.total ? (objectsStats.active / objectsStats.total) * CIRC : 0);
-const inactiveArc = computed(() => objectsStats.total ? (objectsStats.inactive / objectsStats.total) * CIRC : 0);
-const trashArc = computed(() => objectsStats.total ? ((objectsStats.deleted + objectsStats.scheduled_for_delete) / objectsStats.total) * CIRC : 0);
+// Total из бэка не всегда = active + inactive + trash (корзина может не входить в total).
+// Иначе получали overflow: trash-арка стартует с offset = full circle и красное торчит поверх зелёного.
+// Нормализуем по фактической сумме частей.
+const trashCount = computed(() => objectsStats.deleted + objectsStats.scheduled_for_delete);
+const arcTotal = computed(() => objectsStats.active + objectsStats.inactive + trashCount.value);
+const activeArc = computed(() => arcTotal.value ? (objectsStats.active / arcTotal.value) * CIRC : 0);
+const inactiveArc = computed(() => arcTotal.value ? (objectsStats.inactive / arcTotal.value) * CIRC : 0);
+const trashArc = computed(() => arcTotal.value ? (trashCount.value / arcTotal.value) * CIRC : 0);
 
 function formatNum(n: number): string {
   return new Intl.NumberFormat("ru-RU").format(n);
