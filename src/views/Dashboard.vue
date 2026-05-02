@@ -823,6 +823,8 @@ td.value.danger { color: #ff3b30; }
 [data-theme="dark"] .dots { color: #636366; }
 [data-theme="dark"] .kpi-value { color: #f5f5f7; }
 [data-theme="dark"] .kpi-delta { background: rgba(52, 199, 89, 0.2); color: #5ed47e; }
+[data-theme="dark"] .kpi.highlight .kpi-delta { background: rgba(52, 199, 89, 0.25); color: #87f0a4; }
+[data-theme="dark"] .kpi.warn .kpi-delta { background: rgba(255, 149, 0, 0.22); color: #ffcc70; }
 [data-theme="dark"] .kpi-delta.down { background: rgba(255, 59, 48, 0.2); color: #ff6961; }
 [data-theme="dark"] .kpi-delta.flat { background: #2c2c2e; color: #98989d; }
 

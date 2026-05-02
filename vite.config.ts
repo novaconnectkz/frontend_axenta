@@ -1,5 +1,6 @@
 import vue from "@vitejs/plugin-vue";
 import { resolve } from "path";
+import { execSync } from "node:child_process";
 import { defineConfig, loadEnv } from "vite";
 
 // https://vite.dev/config/
@@ -20,26 +21,27 @@ export default defineConfig(({ mode }) => {
   } else if (process.env.GIT_COMMIT_SHA) {
     commitHash = process.env.GIT_COMMIT_SHA.substring(0, 7);
   } else {
-    // Пытаемся получить из git
     try {
-      const { execSync } = require('child_process');
       const gitHash = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
       if (gitHash && gitHash !== 'HEAD') {
         commitHash = gitHash;
       }
     } catch (error) {
+      console.warn('[vite.config] git rev-parse failed:', (error as Error).message);
       commitHash = Math.floor(Date.now() / 1000).toString(36);
     }
   }
 
   // Кол-во коммитов = build-номер (авто-инкремент)
   try {
-    const { execSync } = require('child_process');
     const count = execSync('git rev-list --count HEAD', { encoding: 'utf8' }).trim();
     commitCount = parseInt(count, 10) || 0;
   } catch (error) {
+    console.warn('[vite.config] git rev-list failed:', (error as Error).message);
     commitCount = 0;
   }
+
+  console.log(`[vite.config] version: 1.0.${commitCount} (${commitHash})`);
 
   return {
     plugins: [
