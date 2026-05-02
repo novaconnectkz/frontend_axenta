@@ -968,6 +968,29 @@ onUnmounted(() => {
   -webkit-backdrop-filter: blur(20px);
 }
 
+/* Sidebar: __content (sidebar-header + sidebar-nav) скроллится внутри,
+   __append (footer) всегда виден внизу. Высота даётся Vuetify через layout. */
+.app-sidebar :deep(.v-navigation-drawer__content) {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+.app-sidebar :deep(.v-navigation-drawer__content)::-webkit-scrollbar {
+  width: 6px;
+}
+.app-sidebar :deep(.v-navigation-drawer__content)::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+.app-sidebar :deep(.v-navigation-drawer__append) {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
 /* Настройки ширины для свернутого состояния */
 .app-sidebar.sidebar-rail {
   width: 72px !important;
@@ -1810,8 +1833,7 @@ onUnmounted(() => {
 
 .app-main {
   background: var(--bg-secondary);
-  min-height: 100vh;
-  /* ИСПРАВЛЕНО: Обеспечиваем правильную прокрутку */
+  /* Скролл только тут. height управляет Vuetify через layout. */
   overflow-x: hidden;
   overflow-y: auto;
   position: relative;
@@ -2168,5 +2190,31 @@ onUnmounted(() => {
 
 .help-btn .v-icon {
   color: rgb(var(--v-theme-primary));
+}
+</style>
+
+<!-- Глобальные правила: запрет body-скролла. Скролл только внутри .app-main. -->
+<style>
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+.v-application,
+.v-application__wrap {
+  height: 100vh !important;
+  overflow: hidden !important;
+}
+/* v-main — растягиваем на всё доступное пространство без переполнения */
+.v-main {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.v-main > .v-main__wrap,
+.v-main > .v-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 </style>

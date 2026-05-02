@@ -33,32 +33,21 @@ export interface KPIResponse {
   generated_at: string;
 }
 
-export interface TodayInstallationItem {
-  id: number;
-  scheduled_at: string;
-  time_label: string;
-  status: "planned" | "in_progress" | "completed" | "cancelled" | string;
-  type: string;
-  address: string;
-  installer_id: number;
-  installer_name: string;
-  object_id: number;
-  object_name: string;
-}
-
-export interface RecentInvoiceItem {
-  id: number;
-  number: string;
-  status: "draft" | "sent" | "paid" | "overdue" | "cancelled" | string;
-  total_amount: string; // Decimal serialised
-  paid_amount: string;
-  due_date: string;
-  created_at: string;
-  client_name: string;
-  is_overdue: boolean;
-}
-
 const BASE = "/auth/dashboard";
+
+export interface SearchResultItem {
+  id: string;
+  type: "object" | "client" | "contract" | "invoice" | string;
+  title: string;
+  subtitle: string;
+  url: string;
+}
+
+export interface SearchResponse {
+  objects: SearchResultItem[];
+  clients: SearchResultItem[];
+  query: string;
+}
 
 export const dashboardKpiService = {
   async getAlerts(): Promise<DashboardAlert[]> {
@@ -71,13 +60,8 @@ export const dashboardKpiService = {
     return res.data?.data || { metrics: [], generated_at: new Date().toISOString() };
   },
 
-  async getTodayInstallations(): Promise<TodayInstallationItem[]> {
-    const res = await apiClient.get(`${BASE}/today-installations`);
-    return res.data?.data || [];
-  },
-
-  async getRecentInvoices(): Promise<RecentInvoiceItem[]> {
-    const res = await apiClient.get(`${BASE}/recent-invoices`);
-    return res.data?.data || [];
+  async search(query: string, limit = 10): Promise<SearchResponse> {
+    const res = await apiClient.get(`/auth/search`, { params: { q: query, limit } });
+    return res.data?.data || { objects: [], clients: [], query };
   },
 };
