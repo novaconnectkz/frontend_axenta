@@ -993,6 +993,15 @@ onUnmounted(() => {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+/* Mobile: полностью скрываем drawer когда не открыт (hamburger в header).
+   Без этого в iOS-браузерах виден 1-2px артефакт от translateX(-100%). */
+@media (max-width: 768px) {
+  .app-sidebar.v-navigation-drawer:not(.v-navigation-drawer--active) {
+    transform: translateX(-105%) !important;
+    box-shadow: none !important;
+  }
+}
+
 /* Настройки ширины для свернутого состояния */
 .app-sidebar.sidebar-rail {
   width: 72px !important;
