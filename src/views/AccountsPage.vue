@@ -64,6 +64,8 @@
       @move="moveAccount"
       @delete="deleteAccount"
       @toggle-status="toggleAccountStatus"
+      @refresh-stats="refreshSingleWialonAccount"
+      :refreshing-ids="refreshingIds"
       @scroll="loadVisibleObjectsStats"
     />
 
@@ -828,6 +830,46 @@ const { isExporting: exporting, exportToExcel } = useAccountsExport({
   showSnackbar,
 });
 
+// Точечный refresh stats одной wialon-учётки (B+D из плана). Reactive map чтобы показывать
+// loading-индикатор на кнопке и не запускать параллельный refresh для одной строки.
+const refreshingIds = ref<Record<number, boolean>>({});
+
+const refreshSingleWialonAccount = async (account: Account) => {
+  const acc = account as Account & { source?: string; connection_id?: number };
+  if (!acc.source || acc.source.toLowerCase() === 'axenta') return;
+  if (refreshingIds.value[account.id]) return;
+
+  const connectionId = acc.connection_id || 0;
+  if (!connectionId) {
+    showSnackbar(`Не найден ID подключения для "${account.name}"`, 'error');
+    return;
+  }
+
+  refreshingIds.value = { ...refreshingIds.value, [account.id]: true };
+  try {
+    const result = await settingsService.refreshWialonAccount(connectionId, account.id);
+    if (!result) {
+      showSnackbar(`Не удалось обновить "${account.name}"`, 'warning');
+      return;
+    }
+    // Обновляем строку in-place: и в локальном accounts (axenta), и в wialonAccounts
+    const wAcc = wialonAccounts.value.find(a => a.id === account.id);
+    if (wAcc) {
+      wAcc.objectsTotal = result.objectsTotal;
+      wAcc.objectsActive = result.objectsActive;
+    }
+    // accountsWithNumbers — computed, обновится автоматически после изменения wialonAccounts
+    showSnackbar(`Обновлено: ${result.objectsActive}/${result.objectsTotal} объектов`, 'success');
+  } catch (e) {
+    console.error('refreshSingleWialonAccount:', e);
+    showSnackbar(`Ошибка обновления "${account.name}"`, 'error');
+  } finally {
+    const next = { ...refreshingIds.value };
+    delete next[account.id];
+    refreshingIds.value = next;
+  }
+};
+
 const toggleAccountStatus = async (account: Account) => {
   const newStatus = !account.isActive;
   const action = newStatus ? 'активации' : 'деактивации';
@@ -881,6 +923,11 @@ const toggleAccountStatus = async (account: Account) => {
       `Аккаунт "${account.name}" успешно ${newStatus ? 'активирован' : 'деактивирован'}`,
       'success'
     );
+
+    // Для Wialon: сразу подтягиваем свежий objectsTotal через точечный refresh — не ждём 15-минутный scheduler
+    if (isWialon) {
+      void refreshSingleWialonAccount(account);
+    }
 
     // Обновляем данные
     await loadAccounts();

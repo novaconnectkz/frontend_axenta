@@ -203,6 +203,18 @@
 
       <template #item.actions="{ item }">
         <div class="actions-row">
+          <!-- Кнопка обновления stats — только для Wialon, видна на hover строки. Дёрнет /refresh-account, обновит objectsTotal без перезагрузки списка -->
+          <v-btn
+            v-if="item.source && item.source !== 'axenta'"
+            :loading="!!refreshingIds[item.id]"
+            class="row-refresh-btn"
+            icon="mdi-refresh"
+            variant="text"
+            size="x-small"
+            color="primary"
+            title="Обновить количество объектов"
+            @click="$emit('refreshStats', item)"
+          />
           <v-btn
             :icon="item.isActive ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"
             variant="text"
@@ -284,6 +296,7 @@ defineProps<{
   effectiveTotal: number;
   displayRange: string;
   itemsPerPageOptions: Array<{ value: number; title: string }>;
+  refreshingIds?: Record<number, boolean>;
 }>();
 
 const emit = defineEmits<{
@@ -298,6 +311,7 @@ const emit = defineEmits<{
   (e: 'move', item: any): void;
   (e: 'delete', item: any): void;
   (e: 'toggleStatus', item: any): void;
+  (e: 'refreshStats', item: any): void;
   (e: 'scroll'): void;
 }>();
 
@@ -1233,6 +1247,19 @@ onUnmounted(() => {
 
 .actions-row .v-btn:hover {
   opacity: 1;
+}
+
+/* Refresh-кнопка для wialon записей: видна только при hover строки. Чтобы не засорять таблицу 3000+ иконок */
+.row-refresh-btn {
+  opacity: 0 !important;
+  transition: opacity 0.15s ease;
+}
+:deep(tr:hover) .row-refresh-btn,
+.row-refresh-btn:focus-visible {
+  opacity: 0.85 !important;
+}
+.row-refresh-btn:hover {
+  opacity: 1 !important;
 }
 
 /* Стили для меню дополнительных действий */

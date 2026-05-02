@@ -103,6 +103,37 @@ export async function getWialonConnectionObjectsStats(connectionId: number): Pro
   }
 }
 
+// Точечный refresh stats одной учётной записи Wialon (~2-3 сек к Wialon API).
+// Возвращает свежие objectsTotal/Active/Deactivated. После toggle/edit или ручного клика "обновить".
+export async function refreshWialonAccount(
+  connectionId: number,
+  userId: number
+): Promise<{
+  resourceId: number;
+  objectsTotal: number;
+  objectsActive: number;
+  objectsDeactivated: number;
+} | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/wialon/connections/${connectionId}/refresh-account/${userId}`,
+      {
+        method: 'POST',
+        headers: createHeaders(),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      console.warn(`Refresh wialon account ${userId} failed:`, err);
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка refreshWialonAccount:', error);
+    return null;
+  }
+}
+
 // Блокировка/разблокировка аккаунта Wialon
 export async function toggleWialonAccountStatus(
   accountId: number,
