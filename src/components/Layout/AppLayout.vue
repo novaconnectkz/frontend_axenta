@@ -985,10 +985,12 @@ onUnmounted(() => {
 }
 
 .app-sidebar :deep(.v-navigation-drawer__append) {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* Прозрачный — наследует от sidebar background, корректно работает в обеих темах */
+  background: transparent;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+[data-theme="dark"] .app-sidebar :deep(.v-navigation-drawer__append) {
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 /* Настройки ширины для свернутого состояния */
