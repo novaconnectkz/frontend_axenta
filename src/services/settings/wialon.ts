@@ -103,6 +103,99 @@ export async function getWialonConnectionObjectsStats(connectionId: number): Pro
   }
 }
 
+// Список активных wialon-подключений компании (для селектора "Система мониторинга")
+export async function getWialonConnections(): Promise<Array<{
+  id: number;
+  name: string;
+  user_name: string;
+  connection_type: 'hosting' | 'local';
+  is_active: boolean;
+  source_label: string;
+}>> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/wialon/connections`, {
+      method: 'GET',
+      headers: createHeaders(),
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    // Backend отдаёт { data: { connections: [...] } } | { connections: [...] } | [...]
+    const list = Array.isArray(data)
+      ? data
+      : (data?.data?.connections ?? data?.connections ?? data?.data ?? []);
+    return (list as any[]).filter(c => c.is_active).map(c => ({
+      id: c.id,
+      name: c.name,
+      user_name: c.user_name,
+      connection_type: c.connection_type,
+      is_active: c.is_active,
+      source_label: c.connection_type === 'hosting' ? `WH(${c.user_name})` : `WL(${c.user_name})`,
+    }));
+  } catch (e) {
+    console.error('getWialonConnections:', e);
+    return [];
+  }
+}
+
+// Список тарифных планов для wialon-подключения (для UI селектора при создании аккаунта)
+export async function getWialonBillingPlans(connectionId: number): Promise<Array<{ name: string }>> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/wialon/connections/${connectionId}/billing-plans`,
+      { method: 'GET', headers: createHeaders() }
+    );
+    if (!response.ok) {
+      console.warn(`Тарифы недоступны для connection=${connectionId}`);
+      return [];
+    }
+    const data = await response.json();
+    return data.plans || [];
+  } catch (e) {
+    console.error('getWialonBillingPlans:', e);
+    return [];
+  }
+}
+
+// Создание новой учётки в Wialon-подключении (5-step flow на backend)
+export async function createWialonAccount(connectionId: number, payload: {
+  name: string;
+  username: string;
+  password: string;
+  email: string;
+  type: 'client' | 'partner';
+  billingPlan?: string;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  data?: {
+    userId: number;
+    resourceId: number;
+    name: string;
+    type: string;
+    sourceLabel: string;
+    hierarchy: string;
+  };
+}> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/wialon/connections/${connectionId}/accounts`,
+      {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: data.error || `HTTP ${response.status}` };
+    }
+    return { ok: true, data };
+  } catch (e: any) {
+    console.error('createWialonAccount:', e);
+    return { ok: false, error: e?.message || 'network error' };
+  }
+}
+
 // Точечный refresh stats одной учётной записи Wialon (~2-3 сек к Wialon API).
 // Возвращает свежие objectsTotal/Active/Deactivated. После toggle/edit или ручного клика "обновить".
 export async function refreshWialonAccount(

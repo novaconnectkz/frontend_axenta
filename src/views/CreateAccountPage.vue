@@ -32,10 +32,27 @@
       
       <v-form ref="formRef" @submit.prevent="createAccount">
         <div class="form-content">
+          <!-- Выбор системы мониторинга. Скрываем если активна только Axenta (нет wialon connections) -->
+          <div v-if="systemOptions.length > 1" class="form-section">
+            <h4 class="form-section-title">Система мониторинга</h4>
+            <div class="form-row full-width">
+              <v-select
+                v-model="form.system"
+                :items="systemOptions"
+                label="Где создать учётную запись"
+                variant="outlined"
+                density="compact"
+                required
+                :loading="loadingConnections"
+                @update:model-value="onSystemChange"
+              />
+            </div>
+          </div>
+
           <!-- Основная информация -->
           <div class="form-section">
             <h4 class="form-section-title">Основная информация</h4>
-            
+
             <div class="form-row full-width">
               <AppleInput
                 v-model="form.name"
@@ -48,19 +65,36 @@
                 density="compact"
               />
             </div>
-            
+
             <div class="form-row">
               <v-select
                 v-model="form.type"
                 :items="typeOptions"
-                label="Тип учетной записи"
+                :label="isWialon ? 'Тип учётной записи (Партнёр = права дилера)' : 'Тип учетной записи'"
                 variant="outlined"
                 density="compact"
                 required
                 :error-messages="errors.type"
               />
-              
+
+              <!-- Тарифный план — только для Wialon -->
               <v-select
+                v-if="isWialon"
+                v-model="form.billingPlan"
+                :items="billingPlanOptions"
+                label="Тарифный план"
+                variant="outlined"
+                density="compact"
+                :loading="loadingPlans"
+                :no-data-text="loadingPlans ? 'Загрузка...' : (isWialonLocal ? 'Wialon Local — без тарифа' : 'Тарифы не найдены')"
+                clearable
+                :hint="isWialonLocal ? 'Для Wialon Local можно оставить пустым' : ''"
+                persistent-hint
+              />
+
+              <!-- Видимые вкладки — только для Axenta -->
+              <v-select
+                v-if="!isWialon"
                 v-model="form.admin.visibleTabsNames"
                 :items="visibleTabsOptions"
                 label="Видимые вкладки"
@@ -72,8 +106,9 @@
                 :error-messages="errors['admin.visibleTabsNames']"
               />
             </div>
-            
-            <div class="form-row">
+
+            <!-- Axenta-only поля: комментарий + дата блокировки -->
+            <div v-if="!isWialon" class="form-row">
               <AppleInput
                 v-model="form.comment"
                 label="Комментарий"
@@ -81,7 +116,7 @@
                 clearable
                 density="compact"
               />
-              
+
               <AppleInput
                 v-model="form.blockingDatetime"
                 label="Дата блокировки"
@@ -96,9 +131,10 @@
           <!-- Секция администратора -->
           <div class="form-section">
             <h4 class="form-section-title">Данные администратора</h4>
-            
+
             <div class="form-row">
               <AppleInput
+                v-if="!isWialon"
                 v-model="form.admin.name"
                 label="Имя администратора"
                 placeholder="Введите имя"
@@ -108,7 +144,7 @@
                 clearable
                 density="compact"
               />
-              
+
               <AppleInput
                 v-model="form.admin.username"
                 label="Логин администратора"
@@ -120,7 +156,7 @@
                 density="compact"
               />
             </div>
-            
+
             <div class="form-row">
               <AppleInput
                 v-model="form.admin.email"
@@ -133,8 +169,9 @@
                 clearable
                 density="compact"
               />
-              
+
               <AppleInput
+                v-if="!isWialon"
                 v-model="form.adminId"
                 label="ID администратора"
                 type="number"
@@ -143,7 +180,7 @@
                 density="compact"
               />
             </div>
-            
+
             <div class="form-row">
               <AppleInput
                 v-model="form.admin.password"
@@ -156,8 +193,9 @@
                 clearable
                 density="compact"
               />
-              
+
               <AppleInput
+                v-if="!isWialon"
                 v-model="form.admin.confirmPassword"
                 label="Подтверждение пароля"
                 type="password"
@@ -169,7 +207,7 @@
                 density="compact"
               />
             </div>
-            
+
           </div>
         </div>
       </v-form>
@@ -218,14 +256,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import accountsService from '@/services/accountsService';
-import type { Account } from '@/services/accountsService';
+import settingsService from '@/services/settingsService';
 
 // Router
 const router = useRouter();
@@ -233,14 +271,24 @@ const router = useRouter();
 // Reactive data
 const saving = ref(false);
 const formRef = ref();
+const loadingConnections = ref(false);
+const loadingPlans = ref(false);
+
+// Список wialon-подключений (загружается на mount). Используется в селекторе "Система мониторинга".
+type WialonConnection = { id: number; name: string; user_name: string; connection_type: 'hosting' | 'local'; is_active: boolean; source_label: string };
+const wialonConnections = ref<WialonConnection[]>([]);
+const billingPlans = ref<Array<{ name: string }>>([]);
 
 // Интерфейс для формы создания учетной записи
 interface AccountForm {
+  // 'axenta' — создать через Axenta API; 'wialon:N' — через Wialon connection N
+  system: string;
   name: string;
   type: 'client' | 'partner';
   comment: string;
   blockingDatetime: string;
   adminId: number | null;
+  billingPlan: string;
   admin: {
     name: string;
     username: string;
@@ -252,11 +300,13 @@ interface AccountForm {
 }
 
 const form = ref<AccountForm>({
+  system: 'axenta',
   name: '',
   type: 'client',
   comment: '',
   blockingDatetime: '',
   adminId: null,
+  billingPlan: '',
   admin: {
     name: '',
     username: '',
@@ -287,23 +337,39 @@ const successNotification = ref({
 });
 
 // Computed
+const isWialon = computed(() => form.value.system.startsWith('wialon:'));
+const selectedConnection = computed<WialonConnection | undefined>(() => {
+  if (!isWialon.value) return undefined;
+  const id = Number(form.value.system.slice('wialon:'.length));
+  return wialonConnections.value.find(c => c.id === id);
+});
+const isWialonLocal = computed(() => selectedConnection.value?.connection_type === 'local');
+
+const systemOptions = computed(() => {
+  const opts: Array<{ value: string; title: string }> = [
+    { value: 'axenta', title: 'Axenta Cloud' },
+  ];
+  for (const c of wialonConnections.value) {
+    opts.push({ value: `wialon:${c.id}`, title: c.source_label });
+  }
+  return opts;
+});
+
+const billingPlanOptions = computed(() => billingPlans.value.map(p => ({ value: p.name, title: p.name })));
+
 const isFormValid = computed(() => {
-  // Проверяем обязательные поля
-  const hasRequiredFields = form.value.name.trim() && 
-                           form.value.type && 
-                           form.value.admin.name.trim() && 
-                           form.value.admin.username.trim() && 
-                           form.value.admin.email.trim() && 
-                           form.value.admin.password.trim() &&
-                           form.value.admin.confirmPassword.trim();
-  
-  // Проверяем совпадение паролей
-  const passwordsMatch = form.value.admin.password === form.value.admin.confirmPassword;
-  
-  // Проверяем отсутствие ошибок
-  const hasNoErrors = !Object.values(errors.value).some(error => error);
-  
-  return hasRequiredFields && passwordsMatch && hasNoErrors;
+  if (!form.value.name.trim() || !form.value.type) return false;
+  if (!form.value.admin.username.trim() || !form.value.admin.email.trim() || !form.value.admin.password.trim()) return false;
+
+  if (isWialon.value) {
+    // Для Wialon: name пользователя необязателен (используется username), confirmPassword нет
+    return !Object.values(errors.value).some(e => e);
+  }
+
+  // Axenta: требуем admin.name + confirmPassword + совпадение паролей
+  if (!form.value.admin.name.trim() || !form.value.admin.confirmPassword.trim()) return false;
+  if (form.value.admin.password !== form.value.admin.confirmPassword) return false;
+  return !Object.values(errors.value).some(e => e);
 });
 
 // Options
@@ -327,11 +393,13 @@ const visibleTabsOptions = [
 // Methods
 const resetForm = () => {
   form.value = {
+    system: form.value.system, // оставляем выбор системы, чтобы юзер мог создать ещё один
     name: '',
     type: 'client',
     comment: '',
     blockingDatetime: '',
     adminId: null,
+    billingPlan: '',
     admin: {
       name: '',
       username: '',
@@ -344,49 +412,75 @@ const resetForm = () => {
   errors.value = {};
 };
 
+// При изменении выбранной системы — для wialon загружаем тарифы
+const onSystemChange = async () => {
+  form.value.billingPlan = '';
+  billingPlans.value = [];
+  if (!isWialon.value) return;
+  const conn = selectedConnection.value;
+  if (!conn) return;
+  loadingPlans.value = true;
+  try {
+    const plans = await settingsService.getWialonBillingPlans(conn.id);
+    billingPlans.value = plans;
+    // Автовыбор если план единственный
+    if (plans.length === 1) {
+      form.value.billingPlan = plans[0].name;
+    }
+  } finally {
+    loadingPlans.value = false;
+  }
+};
+
+onMounted(async () => {
+  loadingConnections.value = true;
+  try {
+    wialonConnections.value = await settingsService.getWialonConnections();
+  } finally {
+    loadingConnections.value = false;
+  }
+});
+
 const validateForm = (): boolean => {
   errors.value = {};
-  
+
   if (!form.value.name.trim()) {
     errors.value.name = 'Название учетной записи обязательно';
     return false;
   }
-  
   if (!form.value.type) {
     errors.value.type = 'Тип учетной записи обязателен';
     return false;
   }
-  
-  if (!form.value.admin.name.trim()) {
-    errors.value['admin.name'] = 'Имя администратора обязательно';
-    return false;
-  }
-  
   if (!form.value.admin.username.trim()) {
-    errors.value['admin.username'] = 'Логин администратора обязателен';
+    errors.value['admin.username'] = 'Логин обязателен';
     return false;
   }
-  
   if (!form.value.admin.email.trim()) {
-    errors.value['admin.email'] = 'Email администратора обязателен';
+    errors.value['admin.email'] = 'Email обязателен';
     return false;
   }
-  
   if (!form.value.admin.password.trim()) {
-    errors.value['admin.password'] = 'Пароль администратора обязателен';
+    errors.value['admin.password'] = 'Пароль обязателен';
     return false;
   }
-  
-  if (!form.value.admin.confirmPassword.trim()) {
-    errors.value['admin.confirmPassword'] = 'Подтверждение пароля обязательно';
-    return false;
+
+  // Axenta-only валидация
+  if (!isWialon.value) {
+    if (!form.value.admin.name.trim()) {
+      errors.value['admin.name'] = 'Имя администратора обязательно';
+      return false;
+    }
+    if (!form.value.admin.confirmPassword.trim()) {
+      errors.value['admin.confirmPassword'] = 'Подтверждение пароля обязательно';
+      return false;
+    }
+    if (form.value.admin.password !== form.value.admin.confirmPassword) {
+      errors.value['admin.confirmPassword'] = 'Пароли не совпадают';
+      return false;
+    }
   }
-  
-  if (form.value.admin.password !== form.value.admin.confirmPassword) {
-    errors.value['admin.confirmPassword'] = 'Пароли не совпадают';
-    return false;
-  }
-  
+
   return true;
 };
 
@@ -394,11 +488,38 @@ const createAccount = async () => {
   if (!validateForm()) {
     return;
   }
-  
+
   try {
     saving.value = true;
-    
-    // Подготавливаем данные для API
+
+    if (isWialon.value) {
+      // Wialon: вызываем backend POST /api/wialon/connections/:id/accounts
+      const conn = selectedConnection.value!;
+      const result = await settingsService.createWialonAccount(conn.id, {
+        name: form.value.name,
+        username: form.value.admin.username,
+        password: form.value.admin.password,
+        email: form.value.admin.email,
+        type: form.value.type,
+        billingPlan: form.value.billingPlan || undefined,
+      });
+      if (!result.ok) {
+        showSnackbar(result.error || 'Ошибка создания Wialon-аккаунта', 'error');
+        return;
+      }
+      successNotification.value = {
+        show: true,
+        title: 'Wialon-аккаунт создан',
+        message: `"${form.value.name}" создан в ${conn.source_label}`,
+        details: `Тип: ${form.value.type === 'client' ? 'Клиент' : 'Партнёр (дилер)'}${form.value.billingPlan ? `, тариф: ${form.value.billingPlan}` : ''}`,
+        icon: 'mdi-check-circle',
+      };
+      resetForm();
+      setTimeout(() => router.push('/accounts'), 2000);
+      return;
+    }
+
+    // Axenta: существующий поток
     const accountData: any = {
       name: form.value.name,
       type: form.value.type,
@@ -413,31 +534,22 @@ const createAccount = async () => {
         visibleTabsNames: form.value.admin.visibleTabsNames,
       },
     };
-
-    // Добавляем adminId только если он указан
     if (form.value.adminId) {
       accountData.adminId = form.value.adminId;
     }
-    
+
     const response = await accountsService.createAccount(accountData);
-    
+
     if (response.status === 'success') {
-      // Показываем уведомление об успехе
       successNotification.value = {
         show: true,
         title: 'Учетная запись создана',
         message: `Учетная запись "${form.value.name}" успешно создана`,
         details: `Тип: ${form.value.type === 'client' ? 'Клиент' : 'Партнер'}`,
-        icon: 'mdi-check-circle'
+        icon: 'mdi-check-circle',
       };
-      
-      // Сбрасываем форму
       resetForm();
-      
-      // Через 2 секунды перенаправляем на страницу списка
-      setTimeout(() => {
-        router.push('/accounts');
-      }, 2000);
+      setTimeout(() => router.push('/accounts'), 2000);
     } else {
       showSnackbar(response.error || 'Ошибка создания учетной записи', 'error');
     }
