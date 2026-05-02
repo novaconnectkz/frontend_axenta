@@ -392,6 +392,27 @@ router.beforeEach((to, from, next) => {
 // Обработка ошибок навигации
 router.onError((error) => {
   console.error("Router error:", error);
+
+  // Vite SPA: после деплоя старый index.html в браузере ссылается на
+  // chunk с устаревшим хешем (Objects-XXX.js → 404). Lazy-import view
+  // фейлится — авто-перезагружаем чтобы подтянуть свежий bundle.
+  const msg = (error as Error)?.message || "";
+  if (
+    msg.includes("dynamically imported module") ||
+    msg.includes("Failed to fetch") ||
+    msg.includes("Importing a module script failed")
+  ) {
+    // Защита от бесконечного цикла: один reload в сессии
+    if (!sessionStorage.getItem("acrm_chunk_reload")) {
+      sessionStorage.setItem("acrm_chunk_reload", String(Date.now()));
+      window.location.reload();
+    }
+  }
+});
+
+// Сбрасываем флаг защиты после успешной первой навигации
+router.afterEach(() => {
+  sessionStorage.removeItem("acrm_chunk_reload");
 });
 
 // Экспортируем routes для тестов
