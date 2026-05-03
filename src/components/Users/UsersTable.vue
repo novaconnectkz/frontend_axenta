@@ -16,7 +16,7 @@
         item-value="id"
         class="users-table"
         :row-props="getRowProps"
-        :must-sort="false"
+        :must-sort="true"
         hide-default-footer
         no-data-text="Пользователи не найдены"
         loading-text="Загрузка пользователей..."
@@ -253,16 +253,16 @@ const {
 } = useUserAvatar();
 
 const tableHeaders = [
-  { title: '№', value: 'rowNumber', sortable: false, width: 60 },
-  { title: 'ID', value: 'id', sortable: true, width: 80 },
-  { title: 'Пользователь', value: 'username', sortable: true, width: 180 },
-  { title: 'Email', value: 'email', sortable: true },
+  { title: '№', value: 'rowNumber', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'ID', value: 'id', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Email', value: 'email', sortable: true, cellProps: { class: 'col-grow' }, headerProps: { class: 'col-grow' } },
   { title: 'Полное имя', value: 'name', sortable: true },
   { title: 'Создатель', value: 'creator_name', sortable: true },
-  { title: 'Дата создания', value: 'creation_datetime', sortable: true },
-  { title: 'Роль', value: 'role', sortable: false },
-  { title: 'Источник', value: 'source', sortable: true },
-  { title: 'Действия', value: 'actions', sortable: false, width: 160 },
+  { title: 'Дата создания', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Роль', value: 'role', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Источник', value: 'source', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Действия', value: 'actions', sortable: false, cellProps: { class: 'col-fit actions-col' }, headerProps: { class: 'col-fit actions-col' } },
 ];
 
 const perPageOptions = [
@@ -304,6 +304,10 @@ const formatTimeOnly = (dateString: string): string => {
 .users-table {
   background: transparent !important;
 }
+:deep(.users-table table) { table-layout: auto; }
+:deep(.users-table .col-fit) { width: 1%; white-space: nowrap; }
+:deep(.users-table .col-grow) { width: 100%; }
+:deep(.users-table .col-fit.actions-col) { padding-left: 8px; padding-right: 8px; }
 .user-cell {
   display: flex;
   align-items: center;
