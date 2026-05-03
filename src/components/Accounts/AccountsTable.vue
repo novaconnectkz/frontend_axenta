@@ -21,7 +21,7 @@
         <span class="row-number">{{ item.rowNumber }}</span>
       </template>
 
-      <template #item.id="{ item }">
+      <template #item.name="{ item }">
         <v-tooltip
           location="top"
           class="id-tooltip"
@@ -34,7 +34,7 @@
           @update:model-value="onTooltipOpen"
         >
           <template #activator="{ props: tooltipProps }">
-            <span class="id-minimal" v-bind="tooltipProps">{{ item.id }}</span>
+            <div class="company-name-compact" v-bind="tooltipProps">{{ item.name }}</div>
           </template>
           <div class="id-popup draggable-popup" @mouseenter="keepOpen" @mouseleave="keepOpen">
             <div class="popup-header draggable-header">
@@ -90,10 +90,6 @@
             </div>
           </div>
         </v-tooltip>
-      </template>
-
-      <template #item.name="{ item }">
-        <div class="company-name-compact">{{ item.name }}</div>
       </template>
 
       <template #item.type="{ item }">
@@ -325,8 +321,7 @@ const emit = defineEmits<{
 
 const headers = computed(() => [
   { title: '№', key: 'rowNumber', sortable: false, width: '60px' },
-  { title: 'ID', key: 'id', sortable: true },
-  { title: 'Компания', key: 'name', sortable: true, width: '25%' },
+  { title: 'Компания', key: 'name', sortable: true, width: '30%' },
   { title: 'Тип', key: 'type', sortable: true },
   { title: 'Объекты', key: 'objectsTotal', sortable: true },
   { title: 'Статус', key: 'isActive', sortable: true },
