@@ -160,6 +160,7 @@
 import { computed, defineComponent, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth, type LoginForm } from '../context/auth'
+import { useAppVersion } from '@/composables/useAppVersion'
 
 export default defineComponent({
   name: 'LoginPage',
@@ -177,8 +178,8 @@ export default defineComponent({
     const auth = useAuth()
     const router = useRouter()
 
-    // Версия приложения и текущий год
-    const appVersion = ref('1.0.0')
+    // Версия приложения и текущий год (формат: MAJOR.{backend_count}.{frontend_count})
+    const { version: appVersion } = useAppVersion()
     const currentYear = new Date().getFullYear()
 
     // Функции валидации

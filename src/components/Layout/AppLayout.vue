@@ -394,7 +394,7 @@ import { useAuth } from '@/context/auth';
 import { computed, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useDisplay, useTheme } from 'vuetify';
-import { getVersionString } from '@/utils/buildInfo';
+import { useAppVersion } from '@/composables/useAppVersion';
 import UserAvatar from '@/components/Common/UserAvatar.vue';
 import HelpDialog from '@/components/Common/HelpDialog.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
@@ -566,9 +566,7 @@ const notificationsCount = computed(() => {
 
 // Неиспользуемые переменные удалены (userAvatar, wsStatus) - используется компонент UserAvatar
 
-const appVersion = computed(() => {
-  return getVersionString();
-});
+const { version: appVersion } = useAppVersion();
 
 const COPYRIGHT_START_YEAR = 2025;
 const copyrightYears = computed(() => {
