@@ -764,31 +764,30 @@ class AccountsService {
     // Создаем новый Promise для запроса
     this.pendingStatsRequest = (async () => {
       try {
-        // Выполняем все запросы параллельно для ускорения
-        const [response, activeResponse, clientsResponse, partnersResponse] = await Promise.all([
-          this.getAccounts({ per_page: 1 }),
-          this.getAccounts({ per_page: 1, is_active: true }),
-          this.getAccounts({ per_page: 1, type: "client" }),
-          this.getAccounts({ per_page: 1, type: "partner" })
-        ]);
+        // Один endpoint /api/auth/accounts/stats возвращает все 5 чисел из snapshot одним COUNT FILTER запросом.
+        // Раньше были 4 параллельных запроса с per_page=1 — каждый платил middleware overhead ~1.5с.
+        const res = await this.apiClient.get<{
+          total: number;
+          active: number;
+          blocked: number;
+          clients: number;
+          partners: number;
+        }>("/auth/accounts/stats");
 
         const stats = {
-          total: response.count,
-          active: activeResponse.count,
-          blocked: response.count - activeResponse.count,
-          clients: clientsResponse.count,
-          partners: partnersResponse.count,
+          total: res.data.total || 0,
+          active: res.data.active || 0,
+          blocked: res.data.blocked || 0,
+          clients: res.data.clients || 0,
+          partners: res.data.partners || 0,
         };
 
-        // Обновляем кеш
         this.updateStatsCache(stats);
-
         return stats;
       } catch (error) {
         console.error("❌ Ошибка получения статистики учетных записей:", error);
         throw error;
       } finally {
-        // Очищаем pending запрос после завершения
         this.pendingStatsRequest = null;
       }
     })();
