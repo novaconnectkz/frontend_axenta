@@ -78,17 +78,26 @@
               />
 
               <!-- Тарифный план — только для Wialon Hosting (на Wialon Local билинга нет вообще) -->
-              <v-select
-                v-if="isWialon && showBillingPlanField"
-                v-model="form.billingPlan"
-                :items="billingPlanOptions"
-                label="Тарифный план"
-                variant="outlined"
-                density="compact"
-                :loading="loadingPlans"
-                :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
-                required
-              />
+              <div v-if="isWialon && showBillingPlanField" class="billing-plan-wrap">
+                <v-select
+                  v-model="form.billingPlan"
+                  :items="billingPlanOptions"
+                  label="Тарифный план"
+                  variant="outlined"
+                  density="compact"
+                  :loading="loadingPlans"
+                  :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
+                  required
+                />
+                <v-checkbox
+                  v-model="setAsDefaultPlan"
+                  density="compact"
+                  hide-details
+                  class="default-plan-checkbox"
+                  :disabled="!form.billingPlan"
+                  :label="defaultPlanLabel"
+                />
+              </div>
 
               <!-- Видимые вкладки — только для Axenta -->
               <v-select
@@ -180,17 +189,29 @@
             </div>
 
             <div class="form-row">
-              <AppleInput
-                v-model="form.admin.password"
-                label="Пароль администратора"
-                type="password"
-                placeholder="Введите пароль"
-                required
-                :error-message="errors['admin.password']"
-                :error="!!errors['admin.password']"
-                clearable
-                density="compact"
-              />
+              <div class="password-field-wrap">
+                <AppleInput
+                  v-model="form.admin.password"
+                  label="Пароль администратора"
+                  type="password"
+                  placeholder="Введите пароль"
+                  required
+                  :error-message="errors['admin.password']"
+                  :error="!!errors['admin.password']"
+                  clearable
+                  density="compact"
+                  :action-icon="isWialon ? 'mdi-refresh' : undefined"
+                  action-title="Сгенерировать новый пароль"
+                  @action="regenerateWialonPassword"
+                />
+                <!-- Live-валидация требований Wialon -->
+                <div v-if="isWialon && form.admin.password" class="password-rules">
+                  <div v-for="rule in wialonPasswordRules" :key="rule.label" class="rule" :class="{ ok: rule.ok }">
+                    <v-icon size="14">{{ rule.ok ? 'mdi-check-circle' : 'mdi-close-circle' }}</v-icon>
+                    <span>{{ rule.label }}</span>
+                  </div>
+                </div>
+              </div>
 
               <AppleInput
                 v-if="!isWialon"
@@ -357,12 +378,74 @@ const billingPlanOptions = computed(() => billingPlans.value.map(p => ({ value: 
 // Селектор тарифа показываем только если: Wialon Hosting + есть тарифы. На WL/при отсутствии — скрываем (поле опциональное).
 const showBillingPlanField = computed(() => isWialon.value && !isWialonLocal.value && billingPlans.value.length > 0);
 
+// Wialon password requirements (по общеизвестной практике Wialon Hosting Strong policy):
+// 8+ символов, заглавная, строчная, цифра, спецсимвол. Не должно совпадать с username.
+const wialonPasswordRules = computed(() => {
+  const pw = form.value.admin.password || '';
+  const username = form.value.admin.username || '';
+  return [
+    { label: 'Минимум 8 символов', ok: pw.length >= 8 },
+    { label: 'Заглавная буква (A-Z)', ok: /[A-Z]/.test(pw) },
+    { label: 'Строчная буква (a-z)', ok: /[a-z]/.test(pw) },
+    { label: 'Цифра (0-9)', ok: /\d/.test(pw) },
+    { label: 'Спецсимвол (!@#$%...)', ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pw) },
+    { label: 'Не совпадает с логином', ok: pw.length > 0 && pw !== username },
+  ];
+});
+const isWialonPasswordValid = computed(() => wialonPasswordRules.value.every(r => r.ok));
+
+// Генерация пароля под Wialon-требования. 14 символов, гарантировано всех категорий.
+function generateWialonPassword(): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';   // без I, O — путаются
+  const lower = 'abcdefghijkmnopqrstuvwxyz';   // без l
+  const digits = '23456789';                    // без 0, 1
+  const special = '!@#$%^&*_+-=';
+  const all = upper + lower + digits + special;
+  const pick = (set: string) => set[Math.floor(Math.random() * set.length)];
+
+  // Гарантируем хотя бы по одному из каждой категории
+  const required = [pick(upper), pick(lower), pick(digits), pick(special)];
+  // Добиваем до 14 случайными
+  for (let i = 0; i < 10; i++) required.push(pick(all));
+  // Перемешиваем
+  for (let i = required.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [required[i], required[j]] = [required[j], required[i]];
+  }
+  return required.join('');
+}
+
+const regenerateWialonPassword = () => {
+  form.value.admin.password = generateWialonPassword();
+  form.value.admin.confirmPassword = form.value.admin.password;
+  delete errors.value['admin.password'];
+};
+
+// Default billing plan per connection — храним в localStorage чтобы не дёргать backend.
+// Ключ: wialon_default_plan_<connectionId>. Значение: имя плана.
+const setAsDefaultPlan = ref(false);
+const defaultPlanKey = (connId: number) => `wialon_default_plan_${connId}`;
+const getDefaultPlan = (connId: number): string => {
+  try { return localStorage.getItem(defaultPlanKey(connId)) || ''; } catch { return ''; }
+};
+const saveDefaultPlan = (connId: number, plan: string) => {
+  try { localStorage.setItem(defaultPlanKey(connId), plan); } catch {}
+};
+const defaultPlanLabel = computed(() => {
+  const conn = selectedConnection.value;
+  if (!conn) return 'Сделать тарифом по умолчанию';
+  const current = getDefaultPlan(conn.id);
+  if (current && current === form.value.billingPlan) return `Тариф по умолчанию: ${current}`;
+  return current ? `Заменить тариф по умолчанию (${current})` : 'Сделать тарифом по умолчанию';
+});
+
 const isFormValid = computed(() => {
   if (!form.value.name.trim() || !form.value.type) return false;
   if (!form.value.admin.username.trim() || !form.value.admin.email.trim() || !form.value.admin.password.trim()) return false;
 
   if (isWialon.value) {
-    // Для Wialon: name пользователя необязателен (используется username), confirmPassword нет
+    // Для Wialon: проверяем все правила пароля
+    if (!isWialonPasswordValid.value) return false;
     return !Object.values(errors.value).some(e => e);
   }
 
@@ -412,21 +495,32 @@ const resetForm = () => {
   errors.value = {};
 };
 
-// При изменении выбранной системы — для wialon загружаем тарифы
+// При изменении выбранной системы — для wialon загружаем тарифы и автогенерим пароль
 const onSystemChange = async () => {
   form.value.billingPlan = '';
   billingPlans.value = [];
   if (!isWialon.value) return;
+
+  // Автогенерация пароля для Wialon (если ещё не задан или был установлен только что для axenta)
+  if (!form.value.admin.password || form.value.admin.password.length < 8) {
+    form.value.admin.password = generateWialonPassword();
+    form.value.admin.confirmPassword = form.value.admin.password;
+  }
+
   const conn = selectedConnection.value;
   if (!conn) return;
   loadingPlans.value = true;
   try {
     const plans = await settingsService.getWialonBillingPlans(conn.id);
     billingPlans.value = plans;
-    // Автовыбор если план единственный
-    if (plans.length === 1) {
+    // Приоритет: default из localStorage → единственный план → ничего
+    const def = getDefaultPlan(conn.id);
+    if (def && plans.some(p => p.name === def)) {
+      form.value.billingPlan = def;
+    } else if (plans.length === 1) {
       form.value.billingPlan = plans[0].name;
     }
+    setAsDefaultPlan.value = false;
   } finally {
     loadingPlans.value = false;
   }
@@ -465,8 +559,15 @@ const validateForm = (): boolean => {
     return false;
   }
 
-  // Axenta-only валидация
-  if (!isWialon.value) {
+  // Wialon-only: жёсткая валидация пароля
+  if (isWialon.value) {
+    if (!isWialonPasswordValid.value) {
+      const failed = wialonPasswordRules.value.filter(r => !r.ok).map(r => r.label);
+      errors.value['admin.password'] = `Пароль не подходит: ${failed.join(', ')}`;
+      return false;
+    }
+  } else {
+    // Axenta-only валидация
     if (!form.value.admin.name.trim()) {
       errors.value['admin.name'] = 'Имя администратора обязательно';
       return false;
@@ -506,6 +607,10 @@ const createAccount = async () => {
       if (!result.ok) {
         showSnackbar(result.error || 'Ошибка создания Wialon-аккаунта', 'error');
         return;
+      }
+      // Сохраняем тариф по умолчанию если юзер поставил галочку
+      if (setAsDefaultPlan.value && form.value.billingPlan) {
+        saveDefaultPlan(conn.id, form.value.billingPlan);
       }
       successNotification.value = {
         show: true,
@@ -586,6 +691,42 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 </script>
 
 <style scoped>
+/* Wrap для пароля — содержит правила валидации под input */
+.password-field-wrap {
+  flex: 1;
+}
+.password-rules {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+  font-size: 12px;
+}
+.password-rules .rule {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ff3b30; /* невыполненные — красным */
+}
+.password-rules .rule.ok {
+  color: #34c759; /* выполненные — зелёным */
+}
+.billing-plan-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.default-plan-checkbox {
+  margin-top: -8px;
+  font-size: 12px;
+}
+.default-plan-checkbox :deep(label) {
+  font-size: 12px;
+  color: #666;
+}
+
+
 .create-account-page {
   padding: 8px 24px 24px 24px;
   max-width: 1400px;

@@ -41,6 +41,18 @@
           v-bind="$attrs"
         />
         
+        <!-- Action кнопка (например, ↻ для регенерации пароля) — выглядит как глаз/X -->
+        <button
+          v-if="actionIcon"
+          type="button"
+          class="apple-input-password-toggle"
+          @click="$emit('action')"
+          :aria-label="actionTitle || 'Действие'"
+          :title="actionTitle || ''"
+        >
+          <v-icon :icon="actionIcon" :size="iconSize" />
+        </button>
+
         <!-- Password toggle -->
         <button
           v-if="type === 'password'"
@@ -49,9 +61,9 @@
           @click="togglePasswordVisibility"
           :aria-label="showPassword ? 'Скрыть пароль' : 'Показать пароль'"
         >
-          <v-icon 
-            :icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'" 
-            :size="iconSize" 
+          <v-icon
+            :icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+            :size="iconSize"
           />
         </button>
         
@@ -101,6 +113,8 @@ interface Props {
   clearable?: boolean;
   prependIcon?: string;
   appendIcon?: string;
+  actionIcon?: string;
+  actionTitle?: string;
   size?: 'small' | 'medium' | 'large';
   variant?: 'outlined' | 'filled' | 'underlined';
   autocomplete?: string;
@@ -126,6 +140,7 @@ const emit = defineEmits<{
   blur: [event: FocusEvent];
   keydown: [event: KeyboardEvent];
   clear: [];
+  action: [];
 }>();
 
 // Refs
