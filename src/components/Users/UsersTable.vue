@@ -259,13 +259,19 @@ const formatTimeOnly = (dateString: string): string => {
 <style scoped>
 .users-table-card {
   padding: 0;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .table-container {
   padding: 0 16px 16px;
   overflow-x: auto;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 :deep(.users-table-card .v-card__content),
 :deep(.users-table-card .apple-card-content) {

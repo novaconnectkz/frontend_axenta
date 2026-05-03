@@ -190,14 +190,25 @@ const removeSearchTerm = (index: number) => {
 </script>
 
 <style scoped>
-.filters-card { margin: 0; }
-.filters-content { padding: 0; }
+.filters-card {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.filters-content {
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+}
 .filters-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   width: 100%;
+  min-width: 0;
 }
 .filters-row :deep(.v-input) { margin-top: 0; margin-bottom: 0; }
 .filters-row :deep(.v-field--variant-outlined) { height: 44px; }

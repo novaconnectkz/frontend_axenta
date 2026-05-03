@@ -340,6 +340,16 @@ onMounted(async () => {
   flex-direction: column;
   gap: 20px;
   padding: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.users-page > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .page-header {
   display: flex;
