@@ -772,7 +772,7 @@ class AccountsService {
           blocked: number;
           clients: number;
           partners: number;
-        }>("/auth/accounts/stats");
+        }>("/api/auth/accounts/stats");
 
         const stats = {
           total: res.data.total || 0,
