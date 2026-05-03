@@ -77,19 +77,17 @@
                 :error-messages="errors.type"
               />
 
-              <!-- Тарифный план — только для Wialon -->
+              <!-- Тарифный план — только для Wialon Hosting (на Wialon Local билинга нет вообще) -->
               <v-select
-                v-if="isWialon"
+                v-if="isWialon && showBillingPlanField"
                 v-model="form.billingPlan"
                 :items="billingPlanOptions"
                 label="Тарифный план"
                 variant="outlined"
                 density="compact"
                 :loading="loadingPlans"
-                :no-data-text="loadingPlans ? 'Загрузка...' : (isWialonLocal ? 'Wialon Local — без тарифа' : 'Тарифы не найдены')"
-                clearable
-                :hint="isWialonLocal ? 'Для Wialon Local можно оставить пустым' : ''"
-                persistent-hint
+                :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
+                required
               />
 
               <!-- Видимые вкладки — только для Axenta -->
@@ -356,6 +354,8 @@ const systemOptions = computed(() => {
 });
 
 const billingPlanOptions = computed(() => billingPlans.value.map(p => ({ value: p.name, title: p.name })));
+// Селектор тарифа показываем только если: Wialon Hosting + есть тарифы. На WL/при отсутствии — скрываем (поле опциональное).
+const showBillingPlanField = computed(() => isWialon.value && !isWialonLocal.value && billingPlans.value.length > 0);
 
 const isFormValid = computed(() => {
   if (!form.value.name.trim() || !form.value.type) return false;
