@@ -104,7 +104,17 @@ class WialonCacheService {
                 _cachedAt: now
             }));
 
-            // Используем bulkPut для upsert
+            // Atomic replace: удаляем записи которых нет в свежем массиве, иначе F5 показывает
+            // ранее удалённые в Wialon аккаунты (Dexie не синхронизировался при bulkPut)
+            const freshIds = new Set(accounts.map(a => a.id));
+            const existingIds = await db.wialonAccounts.toCollection().primaryKeys() as number[];
+            const toRemove = existingIds.filter(id => !freshIds.has(id));
+            if (toRemove.length > 0) {
+                await db.wialonAccounts.bulkDelete(toRemove);
+                console.log(`🧹 WialonCache: удалено ${toRemove.length} устаревших записей из кэша`);
+            }
+
+            // Upsert свежих
             await db.wialonAccounts.bulkPut(accountsWithTimestamp);
 
             // Сохраняем время последнего обновления
@@ -113,6 +123,18 @@ class WialonCacheService {
             console.log(`💾 WialonCache: сохранено ${accounts.length} аккаунтов в кэш`);
         } catch (error) {
             console.error('❌ WialonCache: ошибка сохранения аккаунтов', error);
+        }
+    }
+
+    /**
+     * Удалить аккаунт из кэша по id (сразу после backend-delete, чтобы F5 не возвращал stale)
+     */
+    async removeAccount(id: number): Promise<void> {
+        try {
+            await db.wialonAccounts.delete(id);
+            console.log(`🗑️ WialonCache: удалён аккаунт ${id} из кэша`);
+        } catch (error) {
+            console.error(`❌ WialonCache: ошибка удаления аккаунта ${id}`, error);
         }
     }
 

@@ -114,6 +114,7 @@ import AccountsFilters from '@/components/Accounts/AccountsFilters.vue';
 import AccountsTable from '@/components/Accounts/AccountsTable.vue';
 import accountsService, { type Account, type AccountsFilters as AccountsFiltersType } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import { wialonCacheService } from '@/services/wialonCacheService';
 import { useAccountsExport } from '@/composables/useAccountsExport';
 import { useWialonAccounts } from '@/composables/useWialonAccounts';
 import { useAccountsList } from '@/composables/useAccountsList';
@@ -684,6 +685,9 @@ const confirmDelete = async () => {
       // снова появится в списке. Локальное удаление + следующий natural refresh достаточно.
       const idx = wialonAccounts.value.findIndex(a => a.id === account.id);
       if (idx >= 0) wialonAccounts.value.splice(idx, 1);
+
+      // Инвалидируем Dexie-кэш — иначе F5 покажет удалённый аккаунт из IndexedDB
+      await wialonCacheService.removeAccount(account.id);
     } else {
       // Для Axenta используем стандартный метод
       await accountsService.deleteAccount(account.id);
