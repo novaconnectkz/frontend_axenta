@@ -97,9 +97,16 @@
       </template>
 
       <template #item.type="{ item }">
-        <span class="type-minimal" :class="{ 'type-partner': item.type === 'partner', 'type-client': item.type !== 'partner' }">
-          {{ item.type === 'partner' ? 'Партнер' : 'Клиент' }}
-        </span>
+        <v-tooltip location="top" :text="item.type === 'partner' ? 'Партнёр' : 'Клиент'">
+          <template #activator="{ props: tipProps }">
+            <v-icon
+              v-bind="tipProps"
+              :icon="item.type === 'partner' ? 'mdi-handshake-outline' : 'mdi-account-outline'"
+              :class="['type-icon', item.type === 'partner' ? 'type-icon--partner' : 'type-icon--client']"
+              size="20"
+            />
+          </template>
+        </v-tooltip>
       </template>
 
       <template #item.objectsTotal="{ item }">
@@ -849,8 +856,11 @@ onUnmounted(() => {
 }
 
 
-[data-theme="dark"] .type-minimal {
-  color: #ffffff;
+[data-theme="dark"] .type-icon--client {
+  color: #7aa9ed;
+}
+[data-theme="dark"] .type-icon--partner {
+  color: #c990d4;
 }
 
 [data-theme="dark"] .status-minimal {
@@ -1102,20 +1112,15 @@ onUnmounted(() => {
   transition: width 0.3s ease;
 }
 
-/* Минималистичное отображение типа аккаунта */
-.type-minimal {
-  font-weight: 500;
-  font-size: 0.875rem;
-  padding: 2px 4px;
-  color: #333;
+/* Иконка типа аккаунта (клиент/партнёр) */
+.type-icon {
+  opacity: 0.85;
 }
-
-.type-minimal.type-partner {
-  color: #333;
+.type-icon--client {
+  color: #5b89c6;
 }
-
-.type-minimal.type-client {
-  color: #333;
+.type-icon--partner {
+  color: #b06ab3;
 }
 
 
