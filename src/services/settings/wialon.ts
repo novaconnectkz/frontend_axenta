@@ -195,6 +195,45 @@ export async function createWialonAccount(connectionId: number, payload: {
   }
 }
 
+// Создание одиночного Wialon-юзера (без ресурса/биллинга) — для страницы /users/create.
+// creatorId — ID существующего юзера/билинг-аккаунта, под которым будет числиться новый.
+export async function createWialonUser(connectionId: number, payload: {
+  username: string;
+  password: string;
+  email?: string;
+  creatorId?: number;
+}): Promise<{
+  ok: boolean;
+  error?: string;
+  data?: {
+    userId: number;
+    username: string;
+    email?: string;
+    connectionId: number;
+    sourceLabel: string;
+    creatorId: number;
+  };
+}> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/wialon/connections/${connectionId}/users`,
+      {
+        method: 'POST',
+        headers: createHeaders(),
+        body: JSON.stringify(payload),
+      }
+    );
+    const data = await response.json();
+    if (!response.ok) {
+      return { ok: false, error: data.error || `HTTP ${response.status}` };
+    }
+    return { ok: true, data };
+  } catch (e: any) {
+    console.error('createWialonUser:', e);
+    return { ok: false, error: e?.message || 'network error' };
+  }
+}
+
 // Точечный refresh stats одной учётной записи Wialon (~2-3 сек к Wialon API).
 // Возвращает свежие objectsTotal/Active/Deactivated. После toggle/edit или ручного клика "обновить".
 export async function refreshWialonAccount(

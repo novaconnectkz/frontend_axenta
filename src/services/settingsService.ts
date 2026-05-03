@@ -736,6 +736,7 @@ class SettingsService {
   async getWialonBillingPlans(connectionId: number, forceRefresh = false) { return wialon.getWialonBillingPlans(connectionId, forceRefresh); }
   async getWialonConnections() { return wialon.getWialonConnections(); }
   async createWialonAccount(connectionId: number, payload: { name: string; username: string; password: string; email: string; type: 'client' | 'partner'; billingPlan?: string }) { return wialon.createWialonAccount(connectionId, payload); }
+  async createWialonUser(connectionId: number, payload: { username: string; password: string; email?: string; creatorId?: number }) { return wialon.createWialonUser(connectionId, payload); }
   async loginToWialonMonitoring(connectionId: number, userName?: string, accountId?: number, userId?: number) { return wialon.loginToWialonMonitoring(connectionId, userName, accountId, userId); }
   async loginToWialonCms(connectionId: number, userName?: string, accountId?: number, userId?: number) { return wialon.loginToWialonCms(connectionId, userName, accountId, userId); }
   async deleteWialonAccount(userId: number, connectionId: number, reasonKey?: string) { return wialon.deleteWialonAccount(userId, connectionId, reasonKey); }

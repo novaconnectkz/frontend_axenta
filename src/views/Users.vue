@@ -184,7 +184,14 @@ const loadRoles = async (forceRefresh = false) => {
   try {
     const response = await usersService.getRoles(1, 100, { active_only: true }, forceRefresh);
     if (response.status === 'success') {
-      roleOptions.value = response.data.items.map((r) => ({ title: r.display_name, value: r.display_name }));
+      // Для фильтра в UI показываем только реально присутствующие в Axenta/Wialon роли:
+      // Партнёр (= дилер) и Клиент. Остальные роли (Пользователь, Менеджер и т.п.) — для
+      // локальных пользователей которых в snapshot нет, они просто пустят выборку.
+      const filterRoles = ['Партнёр', 'Партнер', 'Клиент'];
+      roleOptions.value = response.data.items
+        .filter((r) => filterRoles.includes(r.display_name))
+        .map((r) => ({ title: r.display_name, value: r.display_name }));
+      // Для формы создания/редактирования — все роли как есть
       roleOptionsForForm.value = response.data.items.map((r) => ({ title: r.display_name, value: r.id }));
     }
   } catch (e) {
@@ -278,6 +285,7 @@ const onSortChange = (sortBy: any[]) => {
       name: 'name',
       creator_name: 'creator_name',
       creation_datetime: 'creation_datetime',
+      source: 'source',
     };
     const field = fieldMap[key];
     if (field) {

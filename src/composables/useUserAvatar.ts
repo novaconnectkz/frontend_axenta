@@ -36,29 +36,26 @@ export function useUserAvatar() {
 
   const getSourceColor = (source: string | null | undefined): string => {
     if (!source) return 'grey';
-    const s = source.toLowerCase();
-    if (s === 'axenta') return 'primary';
-    if (s.startsWith('wh')) return 'orange';
-    if (s.startsWith('wl')) return 'blue';
-    return 'orange';
+    if (source === 'axenta') return 'primary';
+    const lower = source.toLowerCase();
+    if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'orange';
+    if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'cyan';
+    return 'grey';
   };
 
   const getSourceIcon = (source: string | null | undefined): string => {
-    if (!source) return 'mdi-help-circle-outline';
-    const s = source.toLowerCase();
-    if (s === 'axenta') return 'mdi-server';
-    if (s.startsWith('wh')) return 'mdi-cloud-outline';
-    if (s.startsWith('wl')) return 'mdi-server-network';
-    return 'mdi-satellite-variant';
+    if (!source) return 'mdi-satellite-uplink';
+    if (source === 'axenta') return 'mdi-server-network-outline';
+    const lower = source.toLowerCase();
+    if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'mdi-cloud-outline';
+    if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'mdi-server-outline';
+    return 'mdi-satellite-uplink';
   };
 
   const getSourceLabel = (source: string | null | undefined): string => {
     if (!source) return '—';
-    const s = source.toLowerCase();
-    if (s === 'axenta') return 'Axenta';
-    if (s.startsWith('wh')) return source.toUpperCase();
-    if (s.startsWith('wl')) return source.toUpperCase();
-    return 'Wialon';
+    if (source === 'axenta') return 'Axenta';
+    return source;
   };
 
   const getRowProps = (item: UserWithRelations) => {

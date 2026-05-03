@@ -87,9 +87,9 @@
         </template>
 
         <template #item.source="{ item }">
-          <v-chip :color="getSourceColor(item.source)" size="small" variant="tonal">
-            <v-icon start size="16">{{ getSourceIcon(item.source) }}</v-icon>
-            {{ getSourceLabel(item.source) }}
+          <v-chip :color="getSourceColor(getDisplaySource(item))" size="small" variant="tonal">
+            <v-icon start size="16">{{ getSourceIcon(getDisplaySource(item)) }}</v-icon>
+            {{ getSourceLabel(getDisplaySource(item)) }}
           </v-chip>
         </template>
 
@@ -208,13 +208,20 @@ const {
   getRowProps,
 } = useUserAvatar();
 
+// Источник: для axenta используем "axenta", для wialon — source_label ("WH(glomoskz)" / "WL(...)")
+const getDisplaySource = (item: any): string => {
+  const src = (item.source || '').toLowerCase();
+  if (src === 'axenta') return 'axenta';
+  return item.source_label || item.sourceLabel || item.source || '';
+};
+
 const tableHeaders = [
   { title: '№', value: 'rowNumber', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
   { title: 'Создатель', value: 'creator_name', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
-  { title: 'Дата', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Роль', value: 'role', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Источник', value: 'source', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Дата', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Действия', value: 'actions', sortable: false, cellProps: { class: 'col-fit actions-col' }, headerProps: { class: 'col-fit actions-col' } },
 ];
 
@@ -288,6 +295,8 @@ const formatTimeOnly = (dateString: string): string => {
   min-width: 100px;
 }
 :deep(.users-table .col-fit.actions-col) { padding-left: 8px; padding-right: 8px; }
+:deep(.users-table .col-creator) { padding-right: 4px !important; }
+:deep(.users-table .col-date) { padding-left: 4px !important; }
 .user-cell {
   display: flex;
   align-items: center;

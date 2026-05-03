@@ -1,111 +1,74 @@
 <template>
   <div class="create-user-page">
-    <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
-        <v-icon icon="mdi-account-plus" size="24" class="page-icon" />
-        <h1 class="page-title">Создание пользователя</h1>
+        <v-icon icon="mdi-account-plus" size="32" class="page-icon" />
+        <div>
+          <h1 class="page-title">Создание пользователя</h1>
+          <p class="page-subtitle">Создание нового пользователя в выбранной системе мониторинга</p>
+        </div>
       </div>
 
-      <AppleButton
-        variant="secondary"
-        prepend-icon="mdi-arrow-left"
-        @click="goBack"
-        size="small"
-      >
-        Назад
-      </AppleButton>
+      <div class="page-actions">
+        <AppleButton variant="secondary" prepend-icon="mdi-arrow-left" @click="goBack">
+          Назад к списку
+        </AppleButton>
+      </div>
     </div>
 
-    <!-- Форма создания пользователя -->
-    <AppleCard class="form-card" variant="outlined">
-      <v-form ref="formRef" v-model="formValid" @submit.prevent="handleSubmit">
+    <AppleCard class="create-form-card" variant="outlined">
+      <template #header>
+        <div class="form-header">
+          <v-icon icon="mdi-account-plus" class="form-icon" />
+          <span>Информация о пользователе</span>
+        </div>
+      </template>
+
+      <v-form ref="formRef" @submit.prevent="createUser">
         <div class="form-content">
-          <v-row>
-            <v-col cols="12" md="6">
-              <AppleInput
-                v-model="form.name"
-                label="Полное имя"
-                placeholder="Введите полное имя"
-                :rules="nameRules"
+          <!-- Система мониторинга + Создатель в одной строке -->
+          <div class="form-section">
+            <div class="form-row">
+              <v-select
+                v-model="form.system"
+                :items="systemOptions"
+                label="Система мониторинга"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
                 required
-                clearable
+                :loading="loadingConnections"
+                @update:model-value="onSystemChange"
               />
-            </v-col>
-            
-            <v-col cols="12" md="6">
-              <AppleInput
-                v-model="form.username"
-                label="Имя пользователя"
-                placeholder="Введите имя пользователя"
-                :rules="usernameRules"
-                required
-                clearable
-              />
-            </v-col>
-          </v-row>
 
-          <v-row>
-            <v-col cols="12" md="6">
-              <AppleInput
-                v-model="form.email"
-                label="Email"
-                type="email"
-                placeholder="user@example.com"
-                :rules="emailRules"
-                required
-                clearable
-              />
-            </v-col>
-            
-            <v-col cols="12" md="6">
-              <AppleInput
-                v-model="form.password"
-                label="Пароль"
-                :type="showPassword ? 'text' : 'password'"
-                placeholder="Введите пароль"
-                :rules="passwordRules"
-                required
-                clearable
-                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showPassword = !showPassword"
-              />
-            </v-col>
-          </v-row>
-
-          <v-row>
-            <v-col cols="12" md="6">
               <v-autocomplete
+                v-if="!isWialon"
                 v-model="form.accountId"
-                :items="accountOptions"
+                :items="axentaAccountOptions"
                 item-title="displayName"
                 item-value="id"
-                label="Учетная запись"
-                placeholder="Начните вводить название или ID..."
+                label="Создатель (учетная запись Axenta)"
+                placeholder="Начните вводить название..."
                 variant="outlined"
-                density="comfortable"
-                :loading="loadingAccounts"
-                :rules="accountRules"
+                density="compact"
+                persistent-placeholder
+                :loading="loadingAxentaAccounts"
                 required
                 clearable
-                :search="searchQuery"
-                @update:search="searchQuery = $event"
-                :filter="filterAccounts"
                 no-data-text="Учетные записи не найдены"
-                loading-text="Загрузка учетных записей..."
-                :menu-props="{ maxHeight: 300 }"
                 hide-no-data
                 auto-select-first
+                :rules="[(v: any) => !!v || 'Выберите учетную запись']"
               >
-                <template #item="{ props, item }">
-                  <v-list-item v-bind="props">
+                <template #item="{ props: itemProps, item }">
+                  <v-list-item v-bind="itemProps">
                     <template #title>
                       <span class="font-weight-medium">{{ item.raw.name }}</span>
                     </template>
                     <template #subtitle>
                       <span class="text-caption text-grey-600">Admin ID: {{ item.raw.adminId }}</span>
                       <span v-if="item.raw.type" class="text-caption text-grey-500 ml-2">
-                        • {{ item.raw.type === 'client' ? 'Клиент' : item.raw.type === 'partner' ? 'Партнер' : item.raw.type }}
+                        • {{ item.raw.type === 'client' ? 'Клиент' : item.raw.type === 'partner' ? 'Партнёр' : item.raw.type }}
                       </span>
                     </template>
                   </v-list-item>
@@ -115,136 +78,269 @@
                   <span class="text-caption text-grey-600 ml-2">(Admin ID: {{ item.raw.adminId }})</span>
                 </template>
               </v-autocomplete>
-              
-              <!-- Информационное сообщение о создании пользователя -->
-              <v-alert
-                type="info"
-                variant="tonal"
-                density="compact"
-                class="mt-2"
-                :text="true"
-              >
-                <template #text>
-                  <div class="text-caption">
-                    <strong>Информация:</strong> Пользователь будет создан в выбранной учетной записи 
-                    с использованием токена администратора этой учетной записи.
-                  </div>
-                </template>
-              </v-alert>
-              
-              <!-- Информация о количестве загруженных учетных записей -->
-              <div v-if="!loadingAccounts && accountOptions.length > 0" class="text-caption text-grey-600 mt-1">
-                Загружено {{ accountOptions.length }} из {{ totalAccountsCount || accountOptions.length }} учетных записей
-                <v-btn 
-                  v-if="totalAccountsCount > accountOptions.length" 
-                  variant="text" 
-                  size="x-small" 
-                  color="primary"
-                  @click="loadMoreAccounts"
-                  :loading="loadingAccounts"
-                  class="ml-2"
-                >
-                  Загрузить еще
-                </v-btn>
-              </div>
-            </v-col>
-            
-            <v-col cols="12" md="6">
-              <v-switch
-                v-model="form.hasAdminAccess"
-                label="Административный доступ"
-                color="primary"
-                density="comfortable"
-              />
-            </v-col>
-          </v-row>
 
-          <v-row>
-            <v-col cols="12">
-              <v-select
-                v-model="form.visibleTabsNames"
-                :items="availableTabs"
-                item-title="title"
-                item-value="value"
-                label="Видимые вкладки"
-                multiple
-                chips
+              <v-autocomplete
+                v-else
+                v-model="form.wialonCreatorId"
+                :items="wialonAccountOptions"
+                item-title="displayName"
+                item-value="id"
+                :label="`Создатель (учётная запись ${selectedConnection?.source_label || ''})`"
+                placeholder="Начните вводить название..."
                 variant="outlined"
-                density="comfortable"
+                density="compact"
+                persistent-placeholder
+                :loading="loadingWialonAccounts"
+                clearable
+                hide-no-data
+                auto-select-first
+                :rules="[(v: any) => !!v || 'Выберите учётную запись Wialon']"
+              >
+                <template #item="{ props: itemProps, item }">
+                  <v-list-item v-bind="itemProps">
+                    <template #title>
+                      <span class="font-weight-medium">{{ item.raw.name }}</span>
+                    </template>
+                    <template #subtitle>
+                      <span class="text-caption text-grey-500">
+                        {{ item.raw.dealer_rights ? 'Партнёр (дилер)' : 'Клиент' }}
+                        <span v-if="item.raw.id"> • ID: {{ item.raw.id }}</span>
+                      </span>
+                    </template>
+                  </v-list-item>
+                </template>
+              </v-autocomplete>
+            </div>
+
+            <v-alert
+              v-if="isWialon"
+              type="info"
+              variant="tonal"
+              density="compact"
+              text
+              class="mt-2"
+            >
+              <div class="text-caption">
+                Создание Wialon-пользователя <strong>без</strong> биллинг-ресурса.
+                Для аккаунта с биллингом — страница «Учетные записи».
+              </div>
+            </v-alert>
+          </div>
+
+          <!-- Логин + Email -->
+          <div class="form-section">
+            <div class="form-row">
+              <v-text-field
+                v-model="form.username"
+                label="Имя пользователя (логин)"
+                placeholder="Введите логин"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                required
+                clearable
+                :rules="usernameRules"
               />
-            </v-col>
-          </v-row>
+              <v-text-field
+                v-model="form.email"
+                label="Email"
+                type="email"
+                placeholder="user@example.com"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                :required="!isWialon"
+                clearable
+                :rules="emailRules"
+              />
+            </div>
+          </div>
+
+          <!-- Полное имя (только axenta) -->
+          <div v-if="!isWialon" class="form-section">
+            <div class="form-row full-width">
+              <v-text-field
+                v-model="form.name"
+                label="Полное имя"
+                placeholder="Иванов Иван Иванович"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                required
+                clearable
+                :rules="nameRules"
+              />
+            </div>
+          </div>
+
+          <!-- Пароль -->
+          <div class="form-section">
+            <div class="form-row">
+              <div class="password-field-wrap">
+                <v-text-field
+                  v-model="form.password"
+                  label="Пароль"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  density="compact"
+                persistent-placeholder
+                  required
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showPassword = !showPassword"
+                  :rules="passwordRules"
+                />
+                <div v-if="isWialon" class="password-rules">
+                  <div v-for="rule in wialonPasswordRules" :key="rule.label" class="rule" :class="{ ok: rule.ok }">
+                    <v-icon size="14">{{ rule.ok ? 'mdi-check' : 'mdi-close' }}</v-icon>
+                    {{ rule.label }}
+                  </div>
+                </div>
+              </div>
+              <v-text-field
+                v-if="!isWialon"
+                v-model="form.confirmPassword"
+                label="Подтверждение пароля"
+                :type="showPassword ? 'text' : 'password'"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                required
+                :rules="confirmPasswordRules"
+              />
+            </div>
+          </div>
+
+          <!-- Axenta-specific: hasAdminAccess + visibleTabsNames -->
+          <template v-if="!isWialon">
+            <div class="form-section">
+              <div class="form-row">
+                <v-switch
+                  v-model="form.hasAdminAccess"
+                  label="Административный доступ"
+                  color="primary"
+                  density="compact"
+                persistent-placeholder
+                  hide-details
+                />
+              </div>
+            </div>
+
+            <div class="form-section">
+              <div class="form-row full-width">
+                <v-select
+                  v-model="form.visibleTabsNames"
+                  :items="availableTabs"
+                  item-title="title"
+                  item-value="value"
+                  label="Видимые вкладки"
+                  multiple
+                  chips
+                  variant="outlined"
+                  density="compact"
+                persistent-placeholder
+                />
+              </div>
+            </div>
+          </template>
         </div>
 
-        <!-- Кнопки действий -->
         <div class="form-actions">
-          <AppleButton
-            variant="secondary"
-            @click="goBack"
-            :disabled="submitting"
-            size="small"
-          >
-            Отмена
-          </AppleButton>
-          <AppleButton
-            type="submit"
-            color="primary"
-            :loading="submitting"
-            :disabled="!formValid"
-            size="small"
-          >
-            Создать
-          </AppleButton>
+          <AppleButton variant="secondary" @click="goBack" :disabled="submitting">Отмена</AppleButton>
+          <AppleButton type="submit" color="primary" :loading="submitting">Создать</AppleButton>
         </div>
       </v-form>
     </AppleCard>
 
-    <!-- Уведомления теперь обрабатываются глобальной системой -->
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="bottom right"
+    >
+      {{ snackbar.text }}
+      <template #actions>
+        <v-btn variant="text" @click="snackbar.show = false">Закрыть</v-btn>
+      </template>
+    </v-snackbar>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
-import AppleInput from '@/components/Apple/AppleInput.vue';
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import accountsService from '@/services/accountsService';
+import settingsService from '@/services/settingsService';
 import { config } from '@/config/env';
-import { useNotifications } from '@/composables/useNotifications';
-import { errorHandler } from '@/utils/errorHandler';
 
-// Router
 const router = useRouter();
-
-// Notifications
-const notifications = useNotifications();
-
-// Refs
 const formRef = ref();
-const formValid = ref(false);
 const submitting = ref(false);
 const showPassword = ref(false);
+const loadingConnections = ref(false);
+const loadingAxentaAccounts = ref(false);
+const loadingWialonAccounts = ref(false);
 
-// Form data
-const form = reactive({
-  name: '',
+type WialonConnection = { id: number; name: string; user_name: string; connection_type: 'hosting' | 'local'; is_active: boolean; source_label: string };
+const wialonConnections = ref<WialonConnection[]>([]);
+
+interface AxentaAccountOption {
+  id: number;
+  adminId: number;
+  name: string;
+  type?: string;
+  displayName: string;
+}
+
+interface WialonAccountOption {
+  id: number; // wialon user id, используется как creatorId
+  name: string;
+  dealer_rights: boolean;
+  source_label: string;
+  displayName: string;
+}
+
+const axentaAccountOptions = ref<AxentaAccountOption[]>([]);
+const wialonAccountOptions = ref<WialonAccountOption[]>([]);
+
+const form = ref({
+  system: 'axenta', // 'axenta' | 'wialon:N'
   username: '',
   email: '',
+  name: '',
   password: '',
-  accountId: null,
+  confirmPassword: '',
+  accountId: null as number | null,
+  wialonCreatorId: null as number | null,
   hasAdminAccess: false,
-  visibleTabsNames: ['monitoring', 'reports']
+  visibleTabsNames: ['monitoring', 'reports'] as string[],
 });
 
-// Snackbar удален, используется глобальная система уведомлений
+const snackbar = ref({ show: false, text: '', color: 'info', timeout: 5000 });
 
-// Account options
-const accountOptions = ref([]);
-const loadingAccounts = ref(false);
-const searchQuery = ref('');
-const totalAccountsCount = ref(0);
+const showSnackbar = (text: string, color: 'info' | 'success' | 'error' | 'warning' = 'info') => {
+  snackbar.value = { show: true, text, color, timeout: 5000 };
+};
 
-// Available options
+// Computed
+const isWialon = computed(() => form.value.system.startsWith('wialon:'));
+const selectedConnection = computed<WialonConnection | undefined>(() => {
+  if (!isWialon.value) return undefined;
+  const id = Number(form.value.system.slice('wialon:'.length));
+  return wialonConnections.value.find((c) => c.id === id);
+});
+
+const systemOptions = computed(() => {
+  const opts: Array<{ value: string; title: string }> = [
+    { value: 'axenta', title: 'Axenta Cloud' },
+  ];
+  for (const c of wialonConnections.value) {
+    opts.push({ value: `wialon:${c.id}`, title: c.source_label });
+  }
+  return opts;
+});
+
 const availableTabs = [
   { title: 'Мониторинг', value: 'monitoring' },
   { title: 'Треки', value: 'tracks' },
@@ -257,418 +353,314 @@ const availableTabs = [
   { title: 'Объекты', value: 'objects' },
   { title: 'Пользователи', value: 'users' },
   { title: 'Здания', value: 'buildings' },
-  { title: 'Устройства', value: 'devices' }
+  { title: 'Устройства', value: 'devices' },
 ];
 
-
-// Validation rules
-const nameRules = [
-  (v: string) => !!v || 'Имя обязательно для заполнения',
-  (v: string) => v.length >= 2 || 'Имя должно содержать минимум 2 символа',
-  (v: string) => v.length <= 100 || 'Имя не должно превышать 100 символов'
-];
-
+// Validation
 const usernameRules = [
-  (v: string) => !!v || 'Имя пользователя обязательно',
-  (v: string) => v.length >= 3 || 'Минимум 3 символа',
-  (v: string) => v.length <= 50 || 'Максимум 50 символов',
-  (v: string) => /^[a-zA-Z0-9_.-]+$/.test(v) || 'Только латинские буквы, цифры, точки, дефисы и подчеркивания'
+  (v: string) => !!v || 'Логин обязателен',
+  (v: string) => (v && v.length >= 3) || 'Минимум 3 символа',
+  (v: string) => /^[a-zA-Z0-9_.\- ]+$/.test(v) || 'Латиница, цифры, точки, дефисы, пробелы',
 ];
 
-const emailRules = [
-  (v: string) => !!v || 'Email обязателен',
-  (v: string) => /.+@.+\..+/.test(v) || 'Некорректный формат email'
+const emailRules = computed(() => {
+  const required = !isWialon.value;
+  return [
+    (v: string) => (required ? !!v || 'Email обязателен' : true),
+    (v: string) => !v || /.+@.+\..+/.test(v) || 'Неверный формат email',
+  ];
+});
+
+const nameRules = [
+  (v: string) => !!v || 'Полное имя обязательно',
+  (v: string) => (v && v.length >= 2) || 'Минимум 2 символа',
 ];
 
-const passwordRules = [
+const passwordRules = computed(() => [
   (v: string) => !!v || 'Пароль обязателен',
-  (v: string) => v.length >= 6 || 'Пароль должен содержать минимум 6 символов'
+  (v: string) => (isWialon.value ? isWialonPasswordValid.value || 'Не выполнены требования Wialon' : (v && v.length >= 6) || 'Минимум 6 символов'),
+]);
+
+const confirmPasswordRules = [
+  (v: string) => !!v || 'Подтвердите пароль',
+  (v: string) => v === form.value.password || 'Пароли не совпадают',
 ];
 
-const accountRules = [
-  (v: any) => !!v || 'Учетная запись обязательна для выбора'
-];
+// Wialon strong-policy
+const wialonPasswordRules = computed(() => {
+  const p = form.value.password || '';
+  const u = form.value.username || '';
+  return [
+    { label: '8+ символов', ok: p.length >= 8 },
+    { label: 'Заглавная', ok: /[A-Z]/.test(p) },
+    { label: 'Строчная', ok: /[a-z]/.test(p) },
+    { label: 'Цифра', ok: /[0-9]/.test(p) },
+    { label: 'Спецсимвол', ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(p) },
+    { label: 'Не равен логину', ok: !p || !u || p.toLowerCase() !== u.toLowerCase() },
+  ];
+});
+const isWialonPasswordValid = computed(() => wialonPasswordRules.value.every((r) => r.ok));
 
-
-// Methods
-const goBack = () => {
-  router.push('/users');
+// Loaders
+const loadWialonConnections = async () => {
+  loadingConnections.value = true;
+  try {
+    wialonConnections.value = await settingsService.getWialonConnections();
+  } catch (e) {
+    console.error('loadWialonConnections', e);
+    wialonConnections.value = [];
+  } finally {
+    loadingConnections.value = false;
+  }
 };
 
-// Загрузка учетных записей
-const loadAccounts = async () => {
-  loadingAccounts.value = true;
+const loadAxentaAccounts = async () => {
+  loadingAxentaAccounts.value = true;
   try {
-    // Для CMS endpoints нужен токен Axenta Cloud
-    const token = localStorage.getItem('axenta_token');
-    if (!token) {
-      throw new Error('Токен Axenta Cloud не найден. Необходимо авторизоваться через Axenta Cloud.');
-    }
-
-    let allAccounts = [];
-    let page = 1;
-    let hasMore = true;
-    const perPage = 100; // Максимальное количество записей на страницу
-    const maxPages = 50; // Максимальное количество страниц для предотвращения бесконечных циклов
-
-    // Загружаем все страницы с учетными записями
-    while (hasMore && page <= maxPages) {
-      const response = await fetch(`${config.apiBaseUrl}/auth/accounts?page=${page}&per_page=${perPage}&ordering=name`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Token ${token}`
-        }
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        if (data.results && data.results.length > 0) {
-          allAccounts = allAccounts.concat(data.results);
-          
-          // Сохраняем общее количество учетных записей
-          if (data.count) {
-            totalAccountsCount.value = data.count;
-          }
-          
-          // Проверяем, есть ли еще страницы
-          hasMore = data.next !== null && data.next !== undefined;
-          page++;
-          
-          // Логируем прогресс загрузки
-          console.log(`📋 Загружено ${allAccounts.length} из ${data.count || 'неизвестно'} учетных записей`);
-        } else {
-          hasMore = false;
-        }
-      } else {
-        throw new Error(data.error || 'Ошибка загрузки учетных записей');
-      }
-    }
-
-    // Добавляем поле displayName для удобного отображения и поиска
-    accountOptions.value = allAccounts.map(account => ({
-      ...account,
-      displayName: `${account.name} (ID: ${account.id})`
+    const r = await accountsService.getAccounts({ page: 1, per_page: 200, ordering: 'name' });
+    axentaAccountOptions.value = (r.results || []).map((acc: any) => ({
+      id: acc.id,
+      adminId: acc.adminId || acc.admin_id || acc.id,
+      name: acc.name,
+      type: acc.type,
+      displayName: `${acc.name} (Admin ID: ${acc.adminId || acc.admin_id || acc.id})`,
     }));
-
-    console.log(`✅ Всего загружено ${accountOptions.value.length} учетных записей`);
-    
-    // Предупреждаем, если не все записи загружены
-    if (totalAccountsCount.value > 0 && accountOptions.value.length < totalAccountsCount.value) {
-      console.warn(`⚠️ Загружено не все учетные записи: ${accountOptions.value.length} из ${totalAccountsCount.value}`);
-      notifications.showWarning(
-        'Не все учетные записи загружены', 
-        `Загружено ${accountOptions.value.length} из ${totalAccountsCount.value} учетных записей. Используйте поиск для навигации.`
-      );
-    }
-    
-  } catch (error: any) {
-    console.error('Ошибка загрузки учетных записей:', error);
-    notifications.showError('Ошибка загрузки учетных записей', error.message);
+  } catch (e) {
+    console.error('loadAxentaAccounts', e);
+    axentaAccountOptions.value = [];
   } finally {
-    loadingAccounts.value = false;
+    loadingAxentaAccounts.value = false;
   }
 };
 
-// Функция для получения токена пользователя CMS
-const getUserCmsToken = async (adminId: number): Promise<string> => {
+const loadWialonAccountsForConnection = async (connectionId: number) => {
+  loadingWialonAccounts.value = true;
   try {
-    console.log('🔐 Получение токена пользователя CMS для администратора:', adminId);
-    
-    // Получаем текущий токен для авторизации
-    const currentToken = localStorage.getItem('axenta_token');
-    
-    if (!currentToken) {
-      throw new Error('Токен Axenta Cloud не найден. Необходимо авторизоваться через Axenta Cloud.');
-    }
-
-    // Отправляем запрос на получение токена пользователя CMS
-    const response = await fetch(`${config.apiBaseUrl}/cms/users/login_as/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${currentToken}`
-      },
-      body: JSON.stringify({
-        userId: adminId,
-        type: 'monitoring'
-      })
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.data && data.data.redirectUrl) {
-      // Извлекаем токен из URL
-      const url = new URL(data.data.redirectUrl);
-      const token = url.searchParams.get('authToken');
-      
-      if (token) {
-        console.log('✅ Получен токен пользователя CMS');
-        return token;
-      } else {
-        throw new Error('Токен не найден в URL перенаправления');
-      }
-    } else {
-      throw new Error(data.error || data.message || 'Ошибка получения токена пользователя CMS');
-    }
-  } catch (error: any) {
-    console.error('❌ Ошибка получения токена пользователя CMS:', error);
-    throw error;
-  }
-};
-
-// Функция для загрузки дополнительных учетных записей
-const loadMoreAccounts = async () => {
-  if (loadingAccounts.value) return;
-  
-  loadingAccounts.value = true;
-  try {
-    // Для CMS endpoints нужен токен Axenta Cloud
-    const token = localStorage.getItem('axenta_token');
-    if (!token) {
-      throw new Error('Токен Axenta Cloud не найден. Необходимо авторизоваться через Axenta Cloud.');
-    }
-
-    const currentPage = Math.floor(accountOptions.value.length / 100) + 1;
-    const response = await fetch(`${config.apiBaseUrl}/auth/accounts?page=${currentPage}&per_page=100&ordering=name`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${token}`
-      }
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.results && data.results.length > 0) {
-      const newAccounts = data.results.map(account => ({
-        ...account,
-        displayName: `${account.name} (ID: ${account.id})`
+    const data = await settingsService.getWialonAccounts();
+    wialonAccountOptions.value = (data?.items || [])
+      .filter((acc: any) => acc.connection_id === connectionId)
+      .map((acc: any) => ({
+        id: acc.id,
+        name: acc.name,
+        dealer_rights: acc.dealer_rights || false,
+        source_label: acc.source_label || '',
+        displayName: acc.name,
       }));
-      
-      accountOptions.value = accountOptions.value.concat(newAccounts);
-      
-      if (data.count) {
-        totalAccountsCount.value = data.count;
-      }
-      
-      console.log(`📋 Дополнительно загружено ${newAccounts.length} учетных записей. Всего: ${accountOptions.value.length}`);
-    }
-  } catch (error: any) {
-    console.error('Ошибка загрузки дополнительных учетных записей:', error);
-    notifications.showError('Ошибка загрузки', error.message);
+  } catch (e) {
+    console.error('loadWialonAccountsForConnection', e);
+    wialonAccountOptions.value = [];
   } finally {
-    loadingAccounts.value = false;
+    loadingWialonAccounts.value = false;
   }
 };
 
-// Функция фильтрации учетных записей для поиска
-const filterAccounts = (value: string, query: string) => {
-  if (!query) return true;
-  
-  const searchTerm = query.toLowerCase();
-  
-  // Поиск по названию учетной записи
-  if (value.name && value.name.toLowerCase().includes(searchTerm)) {
-    return true;
+const onSystemChange = () => {
+  // Сбросить creator при смене системы
+  form.value.accountId = null;
+  form.value.wialonCreatorId = null;
+  if (isWialon.value && selectedConnection.value) {
+    loadWialonAccountsForConnection(selectedConnection.value.id);
   }
-  
-  // Поиск по ID учетной записи
-  if (value.id && value.id.toString().includes(searchTerm)) {
-    return true;
-  }
-  
-  // Поиск по Admin ID
-  if (value.adminId && value.adminId.toString().includes(searchTerm)) {
-    return true;
-  }
-  
-  // Поиск по типу учетной записи
-  if (value.type) {
-    const typeText = value.type === 'client' ? 'клиент' : 
-                    value.type === 'partner' ? 'партнер' : 
-                    value.type.toLowerCase();
-    if (typeText.includes(searchTerm)) {
-      return true;
-    }
-  }
-  
-  // Поиск по displayName (название + ID)
-  if (value.displayName && value.displayName.toLowerCase().includes(searchTerm)) {
-    return true;
-  }
-  
-  return false;
 };
 
-// Удаляем старую функцию showSnackbar, используем новую систему уведомлений
+watch(() => form.value.system, () => onSystemChange());
 
-const handleSubmit = async () => {
-  if (!formValid.value) {
-    notifications.showValidationError('Пожалуйста, исправьте ошибки в форме');
+// Submit
+const createUser = async () => {
+  const valid = await formRef.value?.validate();
+  if (!valid?.valid) {
+    showSnackbar('Заполните обязательные поля', 'error');
     return;
   }
 
   submitting.value = true;
-
   try {
-    // Находим выбранную учетную запись
-    const selectedAccount = accountOptions.value.find(acc => acc.id === form.accountId);
-    if (!selectedAccount) {
-      notifications.showError('Ошибка', 'Выбранная учетная запись не найдена');
+    if (isWialon.value && selectedConnection.value) {
+      const result = await settingsService.createWialonUser(selectedConnection.value.id, {
+        username: form.value.username,
+        password: form.value.password,
+        email: form.value.email || undefined,
+        creatorId: form.value.wialonCreatorId || undefined,
+      });
+      if (!result.ok) {
+        showSnackbar(result.error || 'Ошибка создания Wialon-пользователя', 'error');
+        return;
+      }
+      showSnackbar(`Wialon-пользователь "${form.value.username}" создан`, 'success');
+      setTimeout(() => router.push('/users'), 1500);
       return;
     }
 
-    console.log('🔍 Выбранная учетная запись:', selectedAccount);
-    console.log('🔍 Admin ID для получения токена:', selectedAccount.adminId);
+    // Axenta-flow
+    const accountId = form.value.accountId;
+    if (!accountId) {
+      showSnackbar('Выберите учетную запись Axenta', 'error');
+      return;
+    }
 
-    // Получаем токен администратора выбранной учетной записи
-    console.log('🔐 Получение токена администратора для учетной записи:', selectedAccount.name);
-    const adminToken = await getUserCmsToken(selectedAccount.adminId);
-    
-    console.log('🔐 Получен токен администратора:', adminToken ? 'EXISTS' : 'MISSING');
-    console.log('🔐 Токен администратора (первые 20 символов):', adminToken ? adminToken.substring(0, 20) + '...' : 'NONE');
-
-    // Подготавливаем данные для отправки с правильной структурой
-    const requestData = {
-      name: form.name,
-      username: form.username,
-      email: form.email,
-      password: form.password,
-      confirmPassword: form.password, // Добавляем confirmPassword
-      language: "ru", // Добавляем language
-      timezone: 3, // Добавляем timezone
-      visibleTabsNames: form.visibleTabsNames,
-      accesses: {
-        common: {}
-      }
-      // Убираем hasAdminAccess, так как оно вызывает ошибку
+    const payload = {
+      name: form.value.name,
+      username: form.value.username,
+      email: form.value.email,
+      password: form.value.password,
+      hasAdminAccess: form.value.hasAdminAccess,
+      visibleTabsNames: form.value.visibleTabsNames,
     };
 
-            // Используем токен администратора для создания нового пользователя
-            console.log('📡 Отправляем запрос на создание пользователя с токеном администратора:', {
-              url: `${config.apiBaseUrl}/users/`,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Token ${adminToken.substring(0, 20)}...`
-              },
-              data: requestData
-            });
-            
-            const response = await fetch(`${config.apiBaseUrl}/users/`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Token ${adminToken}`
-              },
-              body: JSON.stringify(requestData)
-            });
-
-    const data = await response.json();
-
-    console.log('📡 Ответ сервера:', {
-      status: response.status,
-      statusText: response.statusText,
-      data: data
-    });
-
-    if (response.ok) {
-      // Успешное создание
-      notifications.showSuccess(
-        'Пользователь создан',
-        `Пользователь успешно создан! ID: ${data.id}, Учетная запись: ${data.accountName}`
-      );
-      
-      // Перенаправляем на страницу пользователей через 2 секунды
-      setTimeout(() => {
-        router.push('/users');
-      }, 2000);
-    } else {
-      // Ошибка от сервера - используем обработчик ошибок
-      const apiError = {
-        response: {
-          status: response.status,
-          data: data
-        }
-      };
-      errorHandler.handleApiError(apiError, 'создание пользователя');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    const tok = localStorage.getItem('axenta_token');
+    if (tok) headers['Authorization'] = `Token ${tok}`;
+    const company = localStorage.getItem('axenta_company');
+    if (company) {
+      try {
+        headers['X-Tenant-ID'] = String(JSON.parse(company).id);
+      } catch (e) { /* ignore */ }
     }
-  } catch (error: any) {
-    // Обрабатываем ошибку через универсальный обработчик
-    errorHandler.handleApiError(error, 'создание пользователя');
+    headers['X-Account-Id'] = String(accountId);
+
+    const resp = await fetch(`${config.apiBaseUrl}/api/cms/users/create`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...payload, accountId }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      showSnackbar(data?.error || `Ошибка создания (HTTP ${resp.status})`, 'error');
+      return;
+    }
+    showSnackbar(`Пользователь "${form.value.username}" создан`, 'success');
+    setTimeout(() => router.push('/users'), 1500);
+  } catch (e: any) {
+    console.error('createUser', e);
+    showSnackbar(e?.message || 'Ошибка создания пользователя', 'error');
   } finally {
     submitting.value = false;
   }
 };
 
-// Загружаем учетные записи при монтировании компонента
-onMounted(() => {
-  loadAccounts();
+const goBack = () => router.push('/users');
+
+onMounted(async () => {
+  await Promise.all([loadAxentaAccounts(), loadWialonConnections()]);
 });
 </script>
 
 <style scoped>
+.password-field-wrap { flex: 1; }
+.password-rules {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px 12px;
+  font-size: 12px;
+}
+.password-rules .rule {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #ff3b30;
+}
+.password-rules .rule.ok { color: #34c759; }
+
 .create-user-page {
-  padding: 16px;
-  max-width: 800px;
+  padding: 8px 24px 24px 24px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
 .page-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+  gap: 24px;
 }
 
 .page-title-section {
   display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.page-icon {
+  color: var(--color-primary);
+  margin-top: 4px;
+}
+
+.page-title {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.page-actions {
+  display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.page-icon {
-  color: rgb(var(--v-theme-primary));
+.create-form-card {
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.page-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin: 0;
-  color: rgb(var(--v-theme-on-surface));
+.form-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
 }
 
-.form-card {
-  margin-bottom: 16px;
-}
+.form-icon { color: var(--color-primary); }
+.form-content { padding: 0; }
+.form-section { margin-bottom: 16px; }
+.form-section:last-child { margin-bottom: 0; }
 
-.form-content {
-  padding: 16px;
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+  align-items: start;
 }
+.form-row:last-child { margin-bottom: 0; }
+.form-row.full-width { grid-template-columns: 1fr; }
+
+:deep(.v-field) {
+  --v-field-padding-top: 8px;
+  --v-field-padding-bottom: 8px;
+}
+:deep(.v-label) { font-size: 14px; line-height: 1.2; }
+:deep(.v-input__details) { min-height: 16px; padding-top: 4px; }
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 12px;
-  padding: 16px;
-  border-top: 1px solid rgb(var(--v-theme-outline-variant));
-  background-color: rgb(var(--v-theme-surface-variant));
+  justify-content: flex-end;
 }
 
 @media (max-width: 768px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .create-user-page {
-    padding: 12px;
-  }
+  .create-user-page { padding: 6px 16px 16px 16px; }
+  .page-header { flex-direction: column; align-items: stretch; gap: 8px; margin-bottom: 10px; }
+  .page-title { font-size: 20px; }
+  .page-subtitle { font-size: 13px; }
+  .form-row { grid-template-columns: 1fr; gap: 8px; }
+  .form-section { margin-bottom: 12px; }
+  .form-actions { flex-direction: column-reverse; }
 }
 </style>
