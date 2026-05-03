@@ -49,15 +49,23 @@ export default defineConfig(({ mode }) => {
       {
         name: "git-version-watch",
         configureServer(server) {
-          const headPath = resolve(__dirname, ".git/HEAD");
-          const refPath = resolve(__dirname, ".git/refs/heads/main");
-          server.watcher.add([headPath, refPath]);
-          server.watcher.on("change", (file) => {
-            if (file.includes("/.git/")) {
-              console.log("[git-version-watch] git HEAD changed → restart server");
-              server.restart();
-            }
-          });
+          // Polling по hash каждые 5с — надёжнее чем file-watch на .git/refs/heads/main
+          // (refs могут попадать в packed-refs, тогда отдельного файла нет и fswatch не срабатывает).
+          let lastHash = '';
+          try {
+            lastHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+          } catch {}
+          const interval = setInterval(() => {
+            try {
+              const cur = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+              if (cur && cur !== lastHash) {
+                console.log(`[git-version-watch] HEAD changed ${lastHash.slice(0,7)} → ${cur.slice(0,7)}, restart`);
+                lastHash = cur;
+                server.restart();
+              }
+            } catch {}
+          }, 5000);
+          server.httpServer?.on('close', () => clearInterval(interval));
         },
       },
       {
