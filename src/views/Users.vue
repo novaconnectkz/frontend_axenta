@@ -1,6 +1,5 @@
 <template>
   <div class="users-page">
-    <!-- Заголовок страницы -->
     <div class="page-header">
       <div class="page-title-section">
         <v-icon icon="mdi-account-group-outline" size="32" class="page-icon" />
@@ -11,349 +10,131 @@
       </div>
     </div>
 
+    <UsersStats :stats="statsCards" />
 
-    <!-- Статистика -->
-    <div class="stats-section">
-      <div class="stats-grid">
-        <AppleCard v-for="stat in stats" :key="stat.key" :title="(stat.value || 0).toString()" :subtitle="stat.label"
-          :icon="stat.icon" :icon-color="stat.color" variant="outlined" class="stat-card" />
-      </div>
-    </div>
+    <UsersFilters
+      :filters="filters"
+      :role-options="roleOptions"
+      :loading-roles="loadingRoles"
+      @update:filters="onFiltersUpdate"
+      @search="debouncedSearch"
+      @create="actions.openCreate"
+      @clear="clearFilters"
+    />
 
+    <UsersTable
+      :users="users"
+      :loading="loading"
+      :pagination="pagination"
+      :server-items-length="serverItemsLength"
+      :total-pages="usersData?.pages || 0"
+      @page-change="onPageChange"
+      @per-page-change="onPerPageChange"
+      @sort-change="onSortChange"
+      @toggle-activity="onToggleActivity"
+      @login-monitoring="actions.loginToMonitoring"
+      @login-cms="actions.loginToCMS"
+      @view="onView"
+      @reset-password="onResetPassword"
+      @delete="onDelete"
+    />
 
-    <!-- Фильтры -->
-    <AppleCard class="filters-card" variant="outlined">
-      <div class="filters-content">
-        <div class="filters-row">
-          <div class="filter-item filter-search">
-            <AppleInput v-model="filters.search" placeholder="Поиск по имени, email, логину (без создателя)..."
-              clearable @input="debouncedSearch" :color="isMultipleUserSearch ? 'primary' : undefined">
-              <template #prepend-icon>
-                <v-icon :icon="isMultipleUserSearch ? 'mdi-account-search' : 'mdi-magnify'"
-                  :color="isMultipleUserSearch ? 'primary' : undefined" />
-              </template>
+    <UserDialog
+      v-model="userDialog.show"
+      :user="userDialog.user"
+      :role-options="roleOptionsForForm"
+      :template-options="templateOptions"
+      :loading-roles="loadingRoles"
+      :loading-templates="loadingTemplates"
+      @saved="onUserSaved"
+      @error="(msg: string) => showSnackbar(msg, 'error')"
+    />
 
-              <template #append-inner v-if="isMultipleUserSearch">
-                <v-chip size="x-small" color="primary" variant="flat">
-                  {{ userSearchTermsArray.length }}
-                </v-chip>
-              </template>
-            </AppleInput>
-          </div>
+    <UserViewDialog
+      v-model="viewDialog.show"
+      :user="viewDialog.user"
+      @edit="onEdit"
+      @delete="onDelete"
+    />
 
-          <div class="filter-item">
-            <v-select v-model="filters.role" :items="roleOptions" label="Роль" clearable variant="outlined"
-              density="comfortable" :loading="loadingRoles" />
-          </div>
+    <PasswordResetDialog
+      v-model="passwordDialog.show"
+      :user="passwordDialog.user"
+      @success="(msg: string) => showSnackbar(msg, 'success')"
+      @error="(msg: string) => showSnackbar(msg, 'error')"
+    />
 
-          <!-- Отключено, но функционал сохранен -->
-          <!-- <div class="filter-item">
-            <v-select 
-              v-model="filters.user_type" 
-              :items="userTypeOptions" 
-              label="Тип пользователя" 
-              clearable
-              variant="outlined" 
-              density="comfortable" 
-            />
-          </div> -->
+    <InactiveUsersDialog
+      v-model="inactiveUsersDialog.show"
+      @success="onInactiveUsersSuccess"
+      @error="(msg: string) => showSnackbar(msg, 'error')"
+    />
 
-          <div class="filter-item">
-            <v-select v-model="filters.active" :items="[
-              { title: 'Активные', value: true },
-              { title: 'Неактивные', value: false }
-            ]" label="Статус" clearable variant="outlined" density="comfortable" />
-          </div>
-
-          <div class="filter-item">
-            <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
-              density="comfortable" />
-          </div>
-
-          <div class="filter-item filter-create">
-            <v-btn icon="mdi-plus" variant="flat" color="primary" size="small" @click="openCreateDialog"
-              title="Создать пользователя" data-testid="create-button" />
-          </div>
-
-          <div class="filter-item filter-clear">
-            <v-btn v-show="hasActiveFilters" icon="mdi-filter-off-outline" variant="flat" color="warning" size="small"
-              @click="clearFilters" title="Сбросить активные фильтры"
-              :class="{ 'filter-clear-active': hasActiveFilters }" data-testid="clear-filters">
-              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
-            </v-btn>
-          </div>
-        </div>
-
-        <!-- Чипы с найденными пользователями -->
-        <div v-if="isMultipleUserSearch && userSearchTermsArray.length > 0" class="search-chips mt-2">
-          <v-chip v-for="(term, index) in userSearchTermsArray" :key="index" size="small" color="primary"
-            variant="outlined" class="mr-1 mb-1" closable @click:close="removeUserSearchTerm(index)">
-            {{ term }}
-          </v-chip>
-        </div>
-      </div>
-    </AppleCard>
-
-    <!-- Список пользователей -->
-    <AppleCard class="users-table-card" variant="outlined">
-      <!-- Таблица пользователей -->
-      <div class="table-container">
-        <v-data-table :headers="tableHeaders" :items="combinedUsers" :loading="loading"
-          :items-per-page="pagination.limit" :page="pagination.page" :server-items-length="serverItemsLength"
-          :items-per-page-options="perPageOptions" :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
-          @update:page="handlePageChange" @update:items-per-page="handlePerPageChange"
-          @update:sort-by="handleSortChange" item-value="id" class="users-table" :row-props="getRowProps"
-          :must-sort="false" hide-default-footer no-data-text="Пользователи не найдены"
-          loading-text="Загрузка пользователей...">
-          <!-- Активность - отключено, но функционал сохранен -->
-          <!-- <template #item.is_active="{ item }">
-            <v-checkbox :model-value="item.is_active" @update:model-value="(val) => toggleUserActivity(item, !!val)"
-              hide-details density="compact" />
-          </template> -->
-
-          <!-- Номер строки -->
-          <template #item.rowNumber="{ index }">
-            <span class="row-number">{{ (pagination.page - 1) * pagination.limit + index + 1 }}</span>
-          </template>
-
-          <!-- ID -->
-          <template #item.id="{ item }">
-            <span class="font-mono">{{ item.id }}</span>
-          </template>
-
-          <!-- Пользователь -->
-          <template #item.username="{ item }">
-            <div class="user-cell">
-              <div class="user-avatar">
-                <v-avatar size="32" :color="getUserAvatarColor(item)">
-                  <span class="text-white">{{ getUserInitials(item) }}</span>
-                </v-avatar>
-              </div>
-              <div class="user-info">
-                <div class="user-username">@{{ item.username }}</div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Email -->
-          <template #item.email="{ item }">
-            <a :href="`mailto:${item.email}`" class="email-link">{{ item.email }}</a>
-          </template>
-
-          <!-- Полное имя -->
-          <template #item.name="{ item }">
-            <span v-if="item.name" class="text-body-2">{{ item.name }}</span>
-            <span v-else class="text-medium-emphasis">—</span>
-          </template>
-
-          <!-- Создатель -->
-          <template #item.creator_name="{ item }">
-            <span v-if="item.creator_name || item.creatorName" class="text-body-2">
-              {{ item.creator_name || item.creatorName }}
-            </span>
-            <span v-else class="text-medium-emphasis">—</span>
-          </template>
-
-          <!-- Дата создания -->
-          <template #item.creation_datetime="{ item }">
-            <v-tooltip v-if="item.creation_datetime" location="top">
-              <template #activator="{ props }">
-                <span v-bind="props" class="text-body-2">
-                  {{ formatDateOnly(item.creation_datetime) }}
-                </span>
-              </template>
-              <span>{{ formatTimeOnly(item.creation_datetime) }}</span>
-            </v-tooltip>
-            <span v-else class="text-medium-emphasis">—</span>
-          </template>
-
-          <!-- Роль -->
-          <template #item.role="{ item }">
-            <div v-if="item.role" class="d-flex align-center">
-              <!-- Для ролей "Партнер", "Партнёр" и "Клиент" показываем только иконку с подсказкой -->
-              <v-tooltip v-if="['Партнер', 'Партнёр', 'Клиент'].includes(item.role.display_name)" location="top">
-                <template #activator="{ props }">
-                  <v-icon v-bind="props" :icon="getRoleIcon(item.role.display_name)"
-                    :color="item.role.color || 'primary'" size="28" class="role-icon-only" />
-                </template>
-                <span>{{ item.role.display_name }}</span>
-              </v-tooltip>
-              <!-- Для остальных ролей показываем иконку с текстом -->
-              <template v-else>
-                <v-icon :icon="getRoleIcon(item.role.display_name)" :color="item.role.color || 'primary'" size="24"
-                  class="role-icon" />
-                <span class="role-name ml-2">{{ item.role.display_name }}</span>
-              </template>
-            </div>
-            <span v-else class="text-medium-emphasis">Не назначена</span>
-          </template>
-
-          <!-- Тип пользователя - отключено, но функционал сохранен -->
-          <!-- <template #item.user_type="{ item }">
-            <div class="d-flex align-center">
-              <v-icon :icon="getUserTypeIcon(item.user_type)" size="22" class="mr-2" />
-              {{ getUserTypeText(item.user_type) }}
-            </div>
-          </template> -->
-
-          <!-- Источник -->
-          <template #item.source="{ item }">
-            <v-chip :color="getSourceColor(item.source)" size="small" variant="tonal">
-              <v-icon start size="16">
-                {{ getSourceIcon(item.source) }}
-              </v-icon>
-              {{ getSourceLabel(item.source) }}
-            </v-chip>
-          </template>
-
-          <!-- Действия -->
-          <template #item.actions="{ item }">
-            <div class="actions-cell">
-              <v-btn :icon="item.is_active ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'" variant="text"
-                size="x-small" :color="item.is_active ? 'warning' : 'success'"
-                @click="toggleUserActivity(item, !item.is_active)"
-                :title="item.is_active ? 'Деактивировать' : 'Активировать'" />
-              <v-menu>
-                <template #activator="{ props }">
-                  <v-btn icon="mdi-dots-vertical" size="x-small" variant="text" v-bind="props"
-                    title="Дополнительные действия" />
-                </template>
-                <v-list density="compact">
-                  <!-- Пункт "Войти в мониторинг" - отображается для всех пользователей -->
-                  <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг"
-                    @click="loginToMonitoring(item)" />
-
-                  <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
-                  <v-list-item
-                    v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Партнёр')"
-                    prepend-icon="mdi-cog-transfer-outline" title="Войти в CMS" @click="loginToCMS(item)" />
-
-                  <v-divider />
-
-                  <v-list-item @click="showUserProperties(item)" prepend-icon="mdi-account-cog-outline">
-                    <v-list-item-title>Свойства пользователя</v-list-item-title>
-                  </v-list-item>
-
-                  <v-list-item @click="resetUserPassword(item)" prepend-icon="mdi-lock-reset">
-                    <v-list-item-title>Сменить пароль</v-list-item-title>
-                  </v-list-item>
-
-                  <v-divider />
-
-                  <v-list-item @click="deleteUser(item)" prepend-icon="mdi-delete-outline" class="text-error">
-                    <v-list-item-title>Удалить пользователя</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
-            </div>
-          </template>
-        </v-data-table>
-
-        <!-- Кастомный футер с пагинацией в стиле Accounts -->
-        <div class="compact-pagination">
-          <v-select v-model="itemsPerPageForSelect" :items="perPageOptions" variant="outlined" density="compact"
-            class="items-select" @update:model-value="handlePerPageChange" hide-details />
-          <span class="range-info">
-            {{ pagination.limit > 0 && pagination.limit < 100000 ? `${(pagination.page - 1) * pagination.limit +
-              1}-${Math.min(pagination.page * pagination.limit, serverItemsLength)} из ${serverItemsLength}` : `Все
-              ${serverItemsLength} записей` }} </span>
-              <div class="nav-controls">
-                <v-btn icon="mdi-page-first" variant="text" size="x-small" :disabled="pagination.page === 1"
-                  @click="handlePageChange(1)" title="Первая" />
-                <v-btn icon="mdi-chevron-left" variant="text" size="x-small" :disabled="pagination.page === 1"
-                  @click="handlePageChange(pagination.page - 1)" title="Предыдущая" />
-                <span class="page-info">{{ pagination.page }} / {{ usersData?.pages || 1 }}</span>
-                <v-btn icon="mdi-chevron-right" variant="text" size="x-small"
-                  :disabled="pagination.page >= (usersData?.pages || 1)" @click="handlePageChange(pagination.page + 1)"
-                  title="Следующая" />
-                <v-btn icon="mdi-page-last" variant="text" size="x-small"
-                  :disabled="pagination.page >= (usersData?.pages || 1)"
-                  @click="handlePageChange(usersData?.pages || 1)" title="Последняя" />
-              </div>
-        </div>
-      </div>
-    </AppleCard>
-
-    <!-- Диалоги -->
-    <UserDialog v-model="userDialog.show" :user="userDialog.user" :role-options="roleOptionsForForm"
-      :template-options="templateOptions" :loading-roles="loadingRoles" :loading-templates="loadingTemplates"
-      @saved="onUserSaved" @error="showSnackbar($event, 'error')" />
-
-    <UserViewDialog v-model="viewDialog.show" :user="viewDialog.user" @edit="editUser" @delete="deleteUser" />
-
-    <PasswordResetDialog v-model="passwordDialog.show" :user="passwordDialog.user"
-      @success="showSnackbar($event, 'success')" @error="showSnackbar($event, 'error')" />
-
-    <InactiveUsersDialog v-model="inactiveUsersDialog.show" @success="onInactiveUsersSuccess"
-      @error="showSnackbar($event, 'error')" />
-
-    <!-- Snackbar для уведомлений -->
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
+    <v-snackbar
+      v-model="snackbar.show"
+      :color="snackbar.color"
+      :timeout="snackbar.timeout"
+      location="bottom right"
+    >
       {{ snackbar.text }}
       <template #actions>
-        <v-btn variant="text" @click="snackbar.show = false">
-          Закрыть
-        </v-btn>
+        <v-btn variant="text" @click="snackbar.show = false">Закрыть</v-btn>
       </template>
     </v-snackbar>
 
-    <!-- Красивые уведомления об успехе -->
-    <SuccessNotification v-model="successNotification.show" :title="successNotification.title"
-      :message="successNotification.message" :details="successNotification.details" :icon="successNotification.icon" />
+    <SuccessNotification
+      v-model="successNotification.show"
+      :title="successNotification.title"
+      :message="successNotification.message"
+      :details="successNotification.details"
+      :icon="successNotification.icon"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import AppleCard from '@/components/Apple/AppleCard.vue';
-import AppleInput from '@/components/Apple/AppleInput.vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { debounce } from 'lodash-es';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
-import accountsService from '@/services/accountsService';
-import settingsService from '@/services/settingsService';
+import UsersFilters from '@/components/Users/UsersFilters.vue';
+import UsersStats from '@/components/Users/UsersStats.vue';
+import UsersTable from '@/components/Users/UsersTable.vue';
+import { useUserActions } from '@/composables/useUserActions';
+import { useUsersList, type UsersListFilters } from '@/composables/useUsersList';
 import usersService from '@/services/usersService';
-import type {
-  UserFilters,
-  UserWithRelations
-} from '@/types/users';
-import { debounce } from 'lodash-es';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import type { UserWithRelations } from '@/types/users';
 
-// Reactive data
-const router = useRouter();
-const loading = ref(false);
-// removed unused refs: saving, resetting
-// removed unused: exporting
-const users = ref<UserWithRelations[]>([]);
-const usersData = ref<any>(null);
-
-// Pagination
-const pagination = ref({
-  page: 1,
-  limit: 10,
-});
-
-// Filters
-const filters = ref<UserFilters & { source?: string | null }>({
+const filters = ref<UsersListFilters>({
   search: '',
   role: undefined,
   user_type: undefined,
   active: undefined,
-  source: null, // Фильтр по системе: axenta, wialon, или null (все)
-  ordering: '-creation_datetime', // По умолчанию сортируем по дате создания в порядке убывания
+  source: null,
+  ordering: '-creation_datetime',
 });
 
-// Options for selects
+const {
+  users,
+  usersData,
+  loading,
+  pagination,
+  wialonStats,
+  axentaStats,
+  loadUsers,
+  handlePageChange,
+  handlePerPageChange,
+} = useUsersList({ filters });
+
 const roleOptions = ref<Array<{ title: string; value: string }>>([]);
 const roleOptionsForForm = ref<Array<{ title: string; value: number }>>([]);
 const templateOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
 const loadingTemplates = ref(false);
 
-// Statistics
 const stats = ref([
   { key: 'total', label: 'Всего пользователей', value: 0, icon: 'mdi-account-group-outline', color: 'primary' },
   { key: 'active', label: 'Активные', value: 0, icon: 'mdi-account-check-outline', color: 'success' },
@@ -361,436 +142,96 @@ const stats = ref([
   { key: 'recent', label: 'Недавние входы', value: 0, icon: 'mdi-history', color: 'info' },
 ]);
 
-// User dialog
-const userDialog = ref({
-  show: false,
-  isEdit: false,
-  user: null as UserWithRelations | null,
-});
+const statsCards = computed(() => stats.value);
 
-// removed unused form state: userForm, formErrors, userFormRef
-
-// Password reset dialog
-const passwordDialog = ref({
-  show: false,
-  user: null as UserWithRelations | null,
-});
-
-// removed unused password form state: passwordForm, passwordErrors
-
-// View dialog
-const viewDialog = ref({
-  show: false,
-  user: null as UserWithRelations | null,
-});
-
-// Inactive users dialog
-const inactiveUsersDialog = ref({
-  show: false,
-});
-
-// Snackbar
-const snackbar = ref({
-  show: false,
-  text: '',
-  color: 'info',
-  timeout: 5000,
-});
-
-// Красивые уведомления об успехе
+const userDialog = ref({ show: false, isEdit: false, user: null as UserWithRelations | null });
+const passwordDialog = ref({ show: false, user: null as UserWithRelations | null });
+const viewDialog = ref({ show: false, user: null as UserWithRelations | null });
+const inactiveUsersDialog = ref({ show: false });
+const snackbar = ref({ show: false, text: '', color: 'info', timeout: 5000 });
 const successNotification = reactive({
   show: false,
   title: '',
   message: '',
   details: '',
-  icon: 'mdi-check-circle'
+  icon: 'mdi-check-circle',
 });
 
-// Computed
-const hasActiveFilters = computed(() => {
-  // Проверяем только реальные фильтры (исключаем сортировку)
-  const realFilters = { ...filters.value };
-  // Убираем параметр ordering из проверки, так как это не фильтр, а сортировка
-  delete realFilters.ordering;
+const serverItemsLength = computed(() => usersData.value?.total ?? 0);
 
-  return Object.values(realFilters).some(value =>
-    value !== undefined && value !== null && value !== ''
-  );
-});
-
-const activeFiltersCount = computed(() => {
-  // Подсчитываем только реальные фильтры (исключаем сортировку)
-  const realFilters = { ...filters.value };
-  // Убираем параметр ordering из подсчета, так как это не фильтр, а сортировка
-  delete realFilters.ordering;
-
-  return Object.values(realFilters).filter(value =>
-    value !== undefined && value !== null && value !== ''
-  ).length;
-});
-
-// Computed properties для пагинации
-const serverItemsLength = computed(() => {
-  const total = usersData.value?.total ?? 0;
-  console.log('🔍 Computed serverItemsLength:', total);
-  return total;
-});
-
-const itemsPerPageForSelect = computed({
-  get: () => pagination.value.limit === 100000 ? -1 : pagination.value.limit,
-  set: (value) => handlePerPageChange(value)
-});
-
-// Computed properties для множественного поиска пользователей
-const isMultipleUserSearch = computed(() => {
-  if (!filters.value.search) return false;
-  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
-  return searchTerms.length > 1;
-});
-
-const userSearchTermsArray = computed(() => {
-  if (!filters.value.search) return [];
-  return filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
-});
-
-/* const userSearchHint = computed(() => {
-  if (!filters.value.search) {
-    return 'Введите имя, email или логин (поиск по создателю исключен). Для поиска нескольких пользователей разделите запятой';
-  }
-
-  const searchTerms = filters.value.search.split(',').map(term => term.trim()).filter(term => term.length > 0);
-  if (searchTerms.length > 1) {
-    return `Точный поиск по ${searchTerms.length} пользователям: ${searchTerms.join(', ')}`;
-  }
-
-  return 'Поиск по частичному совпадению или добавьте запятую для точного поиска';
-}); */
-
-// Options
-/* const userTypeOptions = [
-  { title: 'Пользователь', value: 'user' },
-  { title: 'Клиент', value: 'client' },
-  { title: 'Монтажник', value: 'installer' },
-  { title: 'Менеджер', value: 'manager' },
-  { title: 'Администратор', value: 'admin' },
-]; */
-
-// Опции для фильтра по системе
-const sourceOptions = [
-  { title: 'Все системы', value: null },
-  { title: 'Axenta', value: 'axenta' },
-  { title: 'Wialon (все)', value: 'wialon' },
-  { title: 'WH (Hosting)', value: 'wh' },
-  { title: 'WL (Local)', value: 'wl' },
-];
-
-// Функции для правильной сортировки
-/* const sortByNumber = (a: any, b: any, key: string) => {
-  const numA = parseInt(a[key]) || 0;
-  const numB = parseInt(b[key]) || 0;
-  return numA - numB;
+const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
+  snackbar.value = { show: true, text, color, timeout };
 };
 
-const sortByString = (a: any, b: any, key: string) => {
-  const strA = (a[key] || '').toString().toLowerCase();
-  const strB = (b[key] || '').toString().toLowerCase();
-  return strA.localeCompare(strB, 'ru');
-};
-
-const sortByDate = (a: any, b: any) => {
-  const dateA = new Date(a.creation_datetime || 0).getTime();
-  const dateB = new Date(b.creation_datetime || 0).getTime();
-  return dateA - dateB;
-};
-
-const sortByRole = (a: any, b: any) => {
-  const roleA = a.role?.display_name || '';
-  const roleB = b.role?.display_name || '';
-  return roleA.localeCompare(roleB, 'ru');
-}; */
-
-
-
-
-// Table headers
-const tableHeaders = computed(() => [
-  { title: '№', value: 'rowNumber', sortable: false, width: 60 },
-  // { title: 'Активность', value: 'is_active', sortable: false, width: 100 }, // Отключено, но функционал сохранен
-  {
-    title: 'ID',
-    value: 'id',
-    sortable: true,
-    width: 80
-  },
-  {
-    title: 'Пользователь',
-    value: 'username',
-    sortable: true,
-    width: 180
-  },
-  {
-    title: 'Email',
-    value: 'email',
-    sortable: true
-  },
-  {
-    title: 'Полное имя',
-    value: 'name',
-    sortable: true
-  },
-  {
-    title: 'Создатель',
-    value: 'creator_name',
-    sortable: true
-  },
-  {
-    title: 'Дата создания',
-    value: 'creation_datetime',
-    sortable: true
-  },
-  { title: 'Роль', value: 'role', sortable: false },
-  { title: 'Источник', value: 'source', sortable: true },
-  // { title: 'Тип', value: 'user_type', sortable: true }, // Отключено, но функционал сохранен
-  { title: 'Действия', value: 'actions', sortable: false, width: 160 },
-]);
-
-// Доступные значения для количества элементов на странице
-const perPageOptions = [
-  { title: '5', value: 5 },
-  { title: '10', value: 10 },
-  { title: '25', value: 25 },
-  { title: '50', value: 50 },
-  { title: '75', value: 75 },
-  { title: '100', value: 100 },
-  { title: '150', value: 150 },
-];
-
-// Methods
-const loadUsers = async () => {
-  try {
-    loading.value = true;
-    console.log('🔄 Loading unified users...', { page: pagination.value.page, limit: pagination.value.limit, filters: filters.value });
-
-    // Используем унифицированный API для загрузки из обоих источников
-    const response = await usersService.getUnifiedUsers(
-      pagination.value.page,
-      pagination.value.limit,
-      {
-        ...filters.value,
-        source: filters.value.source || 'all', // Передаём фильтр по источнику
-      }
-    );
-
-    console.log('📡 Unified Users API response:', response);
-
-    if (response.status === 'success') {
-      // Обрабатываем данные пользователей
-      const processedUsers = response.data.items.map((user: any) => {
-        // Добавляем поле для правильной сортировки дат
-        if (user.creation_datetime) {
-          user._creation_datetime_sort = new Date(user.creation_datetime).getTime();
-        }
-        return user;
-      });
-
-      users.value = processedUsers;
-      usersData.value = {
-        total: response.data.total,
-        page: response.data.page,
-        limit: response.data.per_page,
-        pages: response.data.total_pages,
-        items: response.data.items,
-      };
-
-      // Обновляем статистику из ответа
-      if (response.data.stats) {
-        axentaStats.value = {
-          total: response.data.stats.axenta_total,
-          active: response.data.stats.axenta_active,
-          inactive: response.data.stats.axenta_total - response.data.stats.axenta_active,
-        };
-        wialonStats.value = {
-          total: response.data.stats.wialon_total,
-          active: response.data.stats.wialon_active,
-          inactive: response.data.stats.wialon_total - response.data.stats.wialon_active,
-        };
-        updateTotalStats();
-      }
-
-      console.log('✅ Unified users loaded:', users.value.length, 'users');
-    } else {
-      console.error('❌ Unified Users API error:', response.error);
-      showSnackbar(response.error || 'Ошибка загрузки пользователей', 'error');
-    }
-  } catch (error: any) {
-    console.error('❌ Exception loading unified users:', error);
-    showSnackbar('Ошибка загрузки пользователей', 'error');
-  } finally {
-    loading.value = false;
-  }
-};
-
-const loadStats = async (forceRefresh: boolean = false) => {
-  try {
-    // Используем оптимизированный метод с кешированием
-    const statsData = await usersService.getUsersStats(forceRefresh);
-    if (statsData && typeof statsData === 'object') {
-      // Сохраняем статистику Axenta
-      axentaStats.value.total = statsData.total || 0;
-      axentaStats.value.active = statsData.active_users || statsData.active || 0;
-      axentaStats.value.inactive = statsData.inactive_users || statsData.inactive || 0;
-
-      // Обновляем общую статистику
-      updateTotalStats();
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки статистики:', error);
-    // Устанавливаем значения по умолчанию при ошибке
-    stats.value.forEach(stat => {
-      stat.value = 0;
-    });
-  }
-};
-
-// Статистика по системам
-const wialonStats = ref({
-  total: 0,
-  active: 0,
-  inactive: 0,
-});
-
-const axentaStats = ref({
-  total: 0,
-  active: 0,
-  inactive: 0,
-});
-
-// Wialon пользователи (хранятся отдельно для объединения)
-const wialonUsers = ref<Array<UserWithRelations & { source: string }>>([]);
-
-// Обновление общей статистики
 const updateTotalStats = () => {
   stats.value[0].value = axentaStats.value.total + wialonStats.value.total;
   stats.value[1].value = axentaStats.value.active + wialonStats.value.active;
   stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive;
 };
 
-// Загрузка пользователей из Wialon
-const loadWialonUsers = async () => {
+watch([axentaStats, wialonStats], updateTotalStats, { deep: true });
+
+const loadStats = async (forceRefresh = false) => {
   try {
-    const wialonData = await settingsService.getWialonAccounts();
-
-    if (wialonData && wialonData.items) {
-      // Преобразуем Wialon аккаунты в формат для таблицы
-      wialonUsers.value = wialonData.items.map(item => {
-        // Извлекаем имя создателя из иерархии (родительский элемент)
-        let creatorName = '';
-        if (item.hierarchy) {
-          const parts = item.hierarchy.split(' > ');
-          if (parts.length >= 2) {
-            // Родитель - предпоследний элемент в иерархии
-            creatorName = parts[parts.length - 2];
-          }
-        }
-
-        // Определяем источник: используем source_label или source если доступны
-        const sourceValue = item.source_label || item.source || 'wialon';
-
-        return {
-          id: item.id,
-          username: item.name,
-          name: item.name,
-          email: '',
-          is_active: item.is_active,
-          source: sourceValue,
-          connection_id: item.connection_id, // ID подключения Wialon
-          // Определяем роль на основе dealer_rights
-          role: {
-            id: item.dealer_rights ? 1 : 2,
-            display_name: item.dealer_rights ? 'Партнёр' : 'Клиент',
-            color: item.dealer_rights ? 'primary' : 'info',
-          },
-          creator_name: creatorName,
-          creation_datetime: item.created_at || new Date().toISOString(),
-        } as unknown as UserWithRelations & { source: string; connection_id?: number };
-      });
-
-      // Обновляем статистику Wialon
-      wialonStats.value = {
-        total: wialonData.stats?.total || 0,
-        active: wialonData.stats?.active || 0,
-        inactive: wialonData.stats?.blocked || 0,
-      };
-
-      // Обновляем общую статистику
+    const data = await usersService.getUsersStats(forceRefresh);
+    if (data && typeof data === 'object') {
+      axentaStats.value.total = data.total || 0;
+      axentaStats.value.active = data.active_users || data.active || 0;
+      axentaStats.value.inactive = data.inactive_users || data.inactive || 0;
+      stats.value[3].value = data.recent_logins || data.recent_users || 0;
       updateTotalStats();
-
-      console.log(`📡 Загружено ${wialonUsers.value.length} пользователей Wialon`);
-      // Отладка: показать роли первых 3 WL пользователей
-      console.log('📊 Примеры WL пользователей:', wialonUsers.value.slice(0, 3).map(u => ({
-        name: u.username,
-        source: (u as any).source,
-        role: u.role?.display_name,
-        connection_id: (u as any).connection_id,
-      })));
     }
-  } catch (error) {
-    console.error('Ошибка загрузки пользователей Wialon:', error);
-    wialonUsers.value = [];
+  } catch (e) {
+    console.error('Ошибка загрузки статистики:', e);
   }
 };
 
-// Computed для объединённого списка пользователей
-// Теперь данные уже приходят объединёнными и отфильтрованными с бэкенда
-const combinedUsers = computed(() => {
-  return users.value;
-});
-
-const loadRoles = async (forceRefresh: boolean = false) => {
+const loadRoles = async (forceRefresh = false) => {
+  loadingRoles.value = true;
   try {
-    loadingRoles.value = true;
-    // Используем оптимизированный метод с кешированием
     const response = await usersService.getRoles(1, 100, { active_only: true }, forceRefresh);
     if (response.status === 'success') {
-      roleOptions.value = response.data.items.map(role => ({
-        title: role.display_name,
-        value: role.display_name,  // Используем display_name для фильтрации
-      }));
-      roleOptionsForForm.value = response.data.items.map(role => ({
-        title: role.display_name,
-        value: role.id,
-      }));
+      roleOptions.value = response.data.items.map((r) => ({ title: r.display_name, value: r.display_name }));
+      roleOptionsForForm.value = response.data.items.map((r) => ({ title: r.display_name, value: r.id }));
     }
-  } catch (error) {
-    console.error('Ошибка загрузки ролей:', error);
+  } catch (e) {
+    console.error('Ошибка загрузки ролей:', e);
   } finally {
     loadingRoles.value = false;
   }
 };
 
-const loadTemplates = async (forceRefresh: boolean = false) => {
+const loadTemplates = async (forceRefresh = false) => {
+  loadingTemplates.value = true;
   try {
-    loadingTemplates.value = true;
-    // Используем оптимизированный метод с кешированием
     const response = await usersService.getUserTemplates(1, 100, { active_only: true }, forceRefresh);
     if (response.status === 'success') {
-      templateOptions.value = response.data.items.map(template => ({
-        title: template.name,
-        value: template.id,
-      }));
+      templateOptions.value = response.data.items.map((t) => ({ title: t.name, value: t.id }));
     }
-  } catch (error) {
-    console.error('Ошибка загрузки шаблонов:', error);
+  } catch (e) {
+    console.error('Ошибка загрузки шаблонов:', e);
   } finally {
     loadingTemplates.value = false;
   }
 };
 
-// Debounced search
 const debouncedSearch = debounce(() => {
   pagination.value.page = 1;
   loadUsers();
 }, 500);
+
+const onFiltersUpdate = (next: UsersListFilters) => {
+  filters.value = next;
+};
+
+watch(
+  filters,
+  () => {
+    pagination.value.page = 1;
+    loadUsers();
+  },
+  { deep: true }
+);
 
 const clearFilters = () => {
   filters.value = {
@@ -798,493 +239,92 @@ const clearFilters = () => {
     role: undefined,
     user_type: undefined,
     active: undefined,
-    ordering: '-creation_datetime', // Сохраняем сортировку по умолчанию
+    source: null,
+    ordering: '-creation_datetime',
   };
   pagination.value.page = 1;
   loadUsers();
 };
 
-// Dialog methods
-const openCreateDialog = () => {
-  // Переходим на страницу создания пользователя
-  router.push('/users/create');
+const actions = useUserActions(showSnackbar);
+
+const onPageChange = (page: number) => {
+  handlePageChange(page);
+};
+const onPerPageChange = (limit: number) => {
+  handlePerPageChange(limit);
 };
 
-const editUser = (user: UserWithRelations) => {
-  userDialog.value = {
-    show: true,
-    isEdit: true,
-    user,
-  };
+const onSortChange = (sortBy: any[]) => {
+  if (!sortBy || sortBy.length === 0) {
+    filters.value.ordering = '-creation_datetime';
+  } else {
+    const { key, order } = sortBy[0];
+    const fieldMap: Record<string, string> = {
+      id: 'id',
+      username: 'username',
+      email: 'email',
+      name: 'name',
+      creator_name: 'creator_name',
+      creation_datetime: 'creation_datetime',
+    };
+    const field = fieldMap[key];
+    if (field) {
+      filters.value.ordering = order === 'desc' ? `-${field}` : field;
+    }
+  }
+  pagination.value.page = 1;
+  loadUsers();
 };
 
-const viewUser = (user: UserWithRelations) => {
-  viewDialog.value = {
-    show: true,
-    user,
-  };
+const onToggleActivity = async (user: UserWithRelations, isActive: boolean) => {
+  if (await actions.toggleActivity(user, isActive)) {
+    await Promise.all([loadUsers(), loadStats()]);
+  }
+};
+
+const onView = (user: UserWithRelations) => {
+  viewDialog.value = { show: true, user };
+};
+
+const onEdit = (user: UserWithRelations) => {
+  userDialog.value = { show: true, isEdit: true, user };
+};
+
+const onResetPassword = (user: UserWithRelations) => {
+  passwordDialog.value = { show: true, user };
+};
+
+const onDelete = async (user: UserWithRelations) => {
+  if (await actions.deleteUser(user)) {
+    await Promise.all([loadUsers(), loadStats()]);
+  }
 };
 
 const onUserSaved = async () => {
   showSnackbar(
-    userDialog.value.isEdit ? 'Пользователь успешно обновлен' : 'Пользователь успешно создан',
+    userDialog.value.isEdit ? 'Пользователь успешно обновлён' : 'Пользователь успешно создан',
     'success'
   );
-  await loadUsers();
-  await loadStats();
+  await Promise.all([loadUsers(), loadStats()]);
 };
-
-const deleteUser = async (user: UserWithRelations) => {
-  if (!confirm(`Вы уверены, что хотите удалить пользователя "${user.username}"?`)) {
-    return;
-  }
-
-  try {
-    const response = await usersService.deleteUser(user.id);
-    if (response.status === 'success') {
-      showSnackbar('Пользователь успешно удален', 'success');
-      await loadUsers();
-      await loadStats();
-    } else {
-      showSnackbar(response.error || 'Ошибка удаления пользователя', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка удаления пользователя:', error);
-    showSnackbar('Ошибка удаления пользователя', 'error');
-  }
-};
-
-// Password reset methods
-const resetUserPassword = (user: UserWithRelations) => {
-  passwordDialog.value = {
-    show: true,
-    user,
-  };
-};
-
-// Login to monitoring
-const loginToMonitoring = async (user: UserWithRelations) => {
-  try {
-    console.log('📊 Вход в мониторинг для пользователя:', user.username);
-
-    if (!user.id) {
-      showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
-      return;
-    }
-
-    // Проверяем источник пользователя (Wialon или Axenta)
-    const userWithSource = user as UserWithRelations & { source?: string; connection_id?: number };
-    const source = (userWithSource.source || '').toLowerCase();
-    const isWialon = source.startsWith('wh') || source.startsWith('wl');
-
-    if (isWialon) {
-      // Для Wialon пользователей используем Wialon API
-      const connectionId = userWithSource.connection_id;
-      if (!connectionId) {
-        showSnackbar(`У пользователя "${user.username}" не указан ID подключения Wialon`, 'error');
-        return;
-      }
-
-      const result = await settingsService.loginToWialonMonitoring(connectionId, user.username, undefined, user.id);
-
-      if (!result.success) {
-        showSnackbar(`Ошибка входа в мониторинг: ${result.message}`, 'error');
-        return;
-      }
-
-      console.log('✅ Получен URL для входа в мониторинг Wialon:', result.redirectUrl);
-      window.open(result.redirectUrl, '_blank');
-    } else {
-      // Для Axenta пользователей используем стандартный API
-      const result = await accountsService.loginAs(user.id, 'monitoring');
-
-      console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
-      window.open(result.redirectUrl, '_blank');
-    }
-
-  } catch (error: any) {
-    console.error('❌ Ошибка входа в мониторинг:', error);
-    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
-    showSnackbar(`Ошибка входа в мониторинг: ${errorMessage}`, 'error');
-  }
-};
-
-// Login to CMS
-const loginToCMS = async (user: UserWithRelations) => {
-  try {
-    console.log('🔗 Вход в CMS для пользователя:', user.username);
-
-    if (!user.id) {
-      showSnackbar(`У пользователя "${user.username}" не указан ID`, 'error');
-      return;
-    }
-
-    // Проверяем источник пользователя (Wialon или Axenta)
-    const userWithSource = user as UserWithRelations & { source?: string; connection_id?: number };
-    const source = (userWithSource.source || '').toLowerCase();
-    const isWialon = source.startsWith('wh') || source.startsWith('wl');
-
-    if (isWialon) {
-      // Для Wialon пользователей используем Wialon API
-      const connectionId = userWithSource.connection_id;
-      if (!connectionId) {
-        showSnackbar(`У пользователя "${user.username}" не указан ID подключения Wialon`, 'error');
-        return;
-      }
-
-      const result = await settingsService.loginToWialonCms(connectionId, user.username, undefined, user.id);
-
-      if (!result.success) {
-        showSnackbar(`Ошибка входа в CMS: ${result.message}`, 'error');
-        return;
-      }
-
-      console.log('✅ Получен URL для входа в CMS Wialon:', result.redirectUrl);
-      window.open(result.redirectUrl, '_blank');
-    } else {
-      // Для Axenta пользователей используем стандартный API
-      const result = await accountsService.loginAs(user.id, 'cms');
-
-      console.log('✅ Получен URL для входа в CMS:', result.redirectUrl);
-      window.open(result.redirectUrl, '_blank');
-    }
-
-  } catch (error: any) {
-    console.error('❌ Ошибка входа в CMS:', error);
-    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
-    showSnackbar(`Ошибка входа в CMS: ${errorMessage}`, 'error');
-  }
-};
-
-// Show user properties
-const showUserProperties = (user: UserWithRelations) => {
-  viewUser(user);
-};
-
-// removed unused: openInactiveUsersDialog
 
 const onInactiveUsersSuccess = async (message: string) => {
   showSnackbar(message, 'success');
-  await loadUsers();
-  await loadStats();
+  await Promise.all([loadUsers(), loadStats()]);
 };
 
-// removed unused: exportUsers
-
-// Pagination handlers
-const handlePageChange = (page: number) => {
-  pagination.value.page = page;
-  loadUsers();
-};
-
-const handlePerPageChange = (limit: number) => {
-  // Обрабатываем значение -1 как "Все"
-  if (limit === -1) {
-    // Устанавливаем очень большое значение для загрузки всех записей
-    pagination.value.limit = 100000; // Без ограничений для вывода всех
-  } else {
-    pagination.value.limit = limit;
-  }
-  pagination.value.page = 1;
-  loadUsers();
-};
-
-// Sort handler
-const handleSortChange = (sortBy: any[]) => {
-  console.log('🔀 Sorting changed:', sortBy);
-
-  if (!sortBy || sortBy.length === 0) {
-    // Если сортировка сброшена, возвращаем сортировку по дате создания
-    filters.value.ordering = '-creation_datetime';
-  } else {
-    const sortItem = sortBy[0];
-    const key = sortItem.key;
-    const order = sortItem.order;
-
-    // Маппинг полей для серверной сортировки
-    const fieldMapping: Record<string, string> = {
-      'id': 'id',
-      'username': 'username',
-      'email': 'email',
-      'name': 'name',  // Сервер использует поле name
-      'creator_name': 'creator_name',
-      'creation_datetime': 'creation_datetime'
-    };
-
-    const serverField = fieldMapping[key];
-    if (serverField) {
-      // Формируем параметр ordering для сервера
-      if (order === 'desc') {
-        filters.value.ordering = `-${serverField}`;
-      } else {
-        filters.value.ordering = serverField;
-      }
-    }
-  }
-
-  pagination.value.page = 1;
-  loadUsers();
-};
-
-// Utility methods
-/* const getUserFullName = (user: UserWithRelations): string => {
-  return `${user.first_name} ${user.last_name}`.trim() || user.username;
-}; */
-
-const getUserInitials = (user: UserWithRelations): string => {
-  const firstName = user.first_name?.charAt(0) || '';
-  const lastName = user.last_name?.charAt(0) || '';
-  return (firstName + lastName).toUpperCase() || user.username.charAt(0).toUpperCase();
-};
-
-// Функция для определения цвета аватара пользователя
-const getUserAvatarColor = (user: UserWithRelations): string => {
-  // Определяем активность пользователя
-  let isActive = true; // По умолчанию считаем активным
-
-  if (user.is_active !== undefined && user.is_active !== null) {
-    if (typeof user.is_active === 'string') {
-      // Если строка, проверяем на "false", "0", "no", "off"
-      isActive = !['false', '0', 'no', 'off', ''].includes((user.is_active as unknown as string).toLowerCase());
-    } else if (typeof user.is_active === 'boolean') {
-      // Если boolean, используем как есть
-      isActive = user.is_active;
-    } else if (typeof user.is_active === 'number') {
-      // Если число, 0 = неактивен, остальное = активен
-      isActive = user.is_active !== 0;
-    }
-  }
-
-  // Возвращаем цвет в зависимости от активности
-  return isActive ? 'primary' : 'error';
-};
-
-// Удалены неиспользуемые функции getUserTypeText и getUserTypeIcon
-
-// Функция для получения иконки роли
-const getRoleIcon = (roleName: string): string => {
-  const roleIconMap: Record<string, string> = {
-    'Партнер': 'mdi-handshake-outline',
-    'Партнёр': 'mdi-handshake-outline',
-    'Клиент': 'mdi-account-group-outline',
-    'Администратор': 'mdi-shield-account-outline',
-    'Менеджер': 'mdi-account-tie-outline',
-    'Техник': 'mdi-hard-hat',
-    'Бухгалтер': 'mdi-calculator-variant-outline',
-    'Пользователь': 'mdi-account-outline',
-  };
-  return roleIconMap[roleName] || 'mdi-account-outline';
-};
-
-// Функция форматирования даты (только дата)
-const formatDateOnly = (dateString: string): string => {
-  // Логи отключены для уменьшения количества сообщений в консоли
-  // console.log('📅 Форматирование даты:', dateString, 'тип:', typeof dateString);
-  const date = new Date(dateString);
-  // console.log('📅 Парсированная дата:', date, 'валидна:', !isNaN(date.getTime()));
-
-  const formatted = date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-
-  // console.log('📅 Отформатированная дата:', formatted);
-  return formatted;
-};
-
-// Функция форматирования времени (для подсказки)
-const formatTimeOnly = (dateString: string): string => {
-  const date = new Date(dateString);
-
-  const formatted = date.toLocaleTimeString('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  return formatted;
-};
-
-// Функция форматирования полной даты и времени (для обратной совместимости)
-
-
-// Функция для определения CSS класса строки
-// Функция форматирования даты (только дата)
-/* const formatDate = (dateString: string): string => {
-  if (!dateString) return '—';
-  return new Date(dateString).toLocaleDateString('ru-RU');
-}; */
-
-// Функция для определения CSS класса строки
-/* const getRowClass = (item: UserWithRelations): string => {
-  // Логи отключены для уменьшения количества сообщений в консоли
-  // console.log('🔍 Проверяем пользователя:', item.username, 'is_active:', item.is_active);
-  const className = item.is_active ? '' : 'inactive-user';
-  // Логи отключены для уменьшения количества сообщений в консоли
-  // if (!item.is_active) {
-  //   console.log('🔴 Неактивный пользователь:', item.username, 'класс:', className);
-  // }
-  return className;
-}; */
-
-// Функция для определения свойств строки
-const getRowProps = (item: UserWithRelations) => {
-  // Надежная проверка активности
-  let isActive = true; // По умолчанию считаем активным
-
-  if (item.is_active !== undefined && item.is_active !== null) {
-    if (typeof item.is_active === 'string') {
-      // Если строка, проверяем на "false", "0", "no", "off"
-      isActive = !['false', '0', 'no', 'off', ''].includes((item.is_active as unknown as string).toLowerCase());
-    } else if (typeof item.is_active === 'boolean') {
-      // Если boolean, используем как есть
-      isActive = item.is_active;
-    } else if (typeof item.is_active === 'number') {
-      // Если число, 0 = неактивен, остальное = активен
-      isActive = item.is_active !== 0;
-    }
-  }
-
-  const props = {
-    class: isActive ? '' : 'inactive-user',
-    style: isActive ? {} : {
-      backgroundColor: 'rgba(244, 67, 54, 0.08) !important',
-      borderLeft: '4px solid #f44336 !important'
-    }
-  };
-
-  return props;
-};
-
-const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
-  snackbar.value = { show: true, text, color, timeout };
-};
-
-/* const showSuccessNotification = (title: string, message: string, details?: string, icon?: string) => {
-  successNotification.title = title;
-  successNotification.message = message;
-  successNotification.details = details || '';
-  successNotification.icon = icon || 'mdi-account-check-outline';
-  successNotification.show = true;
-}; */
-
-
-
-// Функции для работы с активностью пользователей
-const toggleUserActivity = async (user: UserWithRelations, isActive: boolean) => {
-  const action = isActive ? 'активации' : 'деактивации';
-
-  try {
-    console.log(`🔄 ${action} пользователя:`, user.username);
-
-    // Вызываем API для изменения статуса
-    await usersService.toggleUserStatus(user.id, isActive);
-
-    // Обновляем локальное состояние
-    user.is_active = isActive;
-
-    console.log(`✅ Пользователь ${user.username} ${isActive ? 'активирован' : 'деактивирован'}`);
-
-    // Показываем уведомление об успехе
-    showSnackbar(
-      `Пользователь "${user.username}" успешно ${isActive ? 'активирован' : 'деактивирован'}`,
-      'success'
-    );
-
-    // Обновляем данные
-    await loadUsers();
-    await loadStats();
-
-  } catch (error) {
-    console.error('❌ Ошибка изменения статуса пользователя:', error);
-
-    // Показываем уведомление об ошибке
-    const errorMessage = error instanceof Error ? error.message : 'Неизвестная ошибка';
-    showSnackbar(
-      `Ошибка ${action} пользователя "${user.username}": ${errorMessage}`,
-      'error'
-    );
-  }
-};
-
-// Удаление отдельного поискового термина для пользователей
-const removeUserSearchTerm = (index: number) => {
-  const currentSearch = filters.value.search ?? '';
-  const searchTerms = currentSearch.split(',').map(term => term.trim()).filter(term => term.length > 0);
-  searchTerms.splice(index, 1);
-  filters.value.search = searchTerms.join(', ');
-  debouncedSearch();
-};
-
-// Получение цвета для источника
-const getSourceColor = (source: string | null | undefined): string => {
-  if (!source) return 'grey';
-  const s = source.toLowerCase();
-  if (s === 'axenta') return 'primary';
-  if (s.startsWith('wh')) return 'orange';
-  if (s.startsWith('wl')) return 'blue';
-  return 'orange';
-};
-
-// Получение иконки для источника
-const getSourceIcon = (source: string | null | undefined): string => {
-  if (!source) return 'mdi-help-circle-outline';
-  const s = source.toLowerCase();
-  if (s === 'axenta') return 'mdi-server';
-  if (s.startsWith('wh')) return 'mdi-cloud-outline';
-  if (s.startsWith('wl')) return 'mdi-server-network';
-  return 'mdi-satellite-variant';
-};
-
-// Получение метки для источника
-const getSourceLabel = (source: string | null | undefined): string => {
-  if (!source) return '—';
-  const s = source.toLowerCase();
-  if (s === 'axenta') return 'Axenta';
-  if (s.startsWith('wh')) return source.toUpperCase();
-  if (s.startsWith('wl')) return source.toUpperCase();
-  return 'Wialon';
-};
-
-// Watchers
-watch([filters], () => {
-  pagination.value.page = 1;
-  loadUsers();
-}, { deep: true });
-
-// Lifecycle
 onMounted(async () => {
-  console.log('🔧 Users component mounted - loading data...');
-
-  // Проверяем авторизацию
   const token = localStorage.getItem('axenta_token');
-  const user = localStorage.getItem('axenta_user');
-  const company = localStorage.getItem('axenta_company');
-
-  console.log('🔐 Auth check:', {
-    token: token ? `EXISTS (${token.length} chars)` : 'MISSING',
-    user: user ? 'EXISTS' : 'MISSING',
-    company: company ? 'EXISTS' : 'MISSING'
-  });
-
   if (!token) {
-    console.error('❌ No auth token found! Users will not load.');
     showSnackbar('Не найден токен авторизации. Пожалуйста, авторизуйтесь.', 'error');
     return;
   }
 
   try {
-    await Promise.all([
-      loadUsers(), // Унифицированный API загружает Axenta + Wialon
-      loadStats(),
-      loadRoles(),
-      loadTemplates(),
-    ]);
-    console.log('✅ Users data loaded, users count:', users.value.length);
-    console.log('📊 Users data:', users.value);
-    console.log('📈 Stats data:', usersData.value);
-  } catch (error) {
-    console.error('❌ Error loading users data:', error);
+    await Promise.all([loadUsers(), loadStats(), loadRoles(), loadTemplates()]);
+  } catch (e) {
+    console.error('Ошибка загрузки данных:', e);
     showSnackbar('Ошибка загрузки данных пользователей', 'error');
   }
 });
@@ -1297,25 +337,17 @@ onMounted(async () => {
   gap: 20px;
   padding: 0;
 }
-
-/* Заголовок страницы */
 .page-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0;
 }
-
 .page-title-section {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-
-.page-icon {
-  color: var(--apple-blue);
-}
-
+.page-icon { color: var(--apple-blue); }
 .page-title {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
   font-size: 2rem;
@@ -1324,746 +356,11 @@ onMounted(async () => {
   margin: 0;
   line-height: 1.2;
 }
-
 .page-subtitle {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
   font-size: 1rem;
   color: var(--text-secondary);
   margin: 4px 0 0 0;
   line-height: 1.4;
-}
-
-
-/* Демо режим */
-.demo-alert {
-  margin: 0 0 20px 0;
-}
-
-.alert-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.alert-title {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text-primary);
-}
-
-.alert-text {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-[data-theme="dark"] .alert-title {
-  color: var(--apple-text-primary-dark);
-}
-
-[data-theme="dark"] .alert-text {
-  color: var(--apple-text-secondary-dark);
-}
-
-/* Статистика */
-.stats-section {
-  margin: 0;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  text-align: center;
-}
-
-
-/* Фильтры */
-.filters-card {
-  margin: 0;
-}
-
-.filters-header {
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.filters-content {
-  padding: 0;
-}
-
-.filters-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  /* небольшой отступ между элементами */
-  flex-wrap: nowrap;
-  width: 100%;
-}
-
-/* Единая высота и вертикальное выравнивание всех полей фильтров */
-.filters-row :deep(.v-input) {
-  margin-top: 0;
-  margin-bottom: 0;
-}
-
-.filters-row :deep(.v-field--variant-outlined) {
-  height: 44px;
-}
-
-.filters-row :deep(.v-field__input) {
-  min-height: 44px;
-  padding-top: 0;
-  padding-bottom: 0;
-  display: flex;
-  align-items: center;
-}
-
-/* Единый радиус скругления и стиль для всех элементов фильтра */
-.filters-row :deep(.v-field--variant-outlined),
-.filters-row :deep(.apple-input-wrapper-base),
-.filter-clear :deep(.v-btn),
-.filters-row :deep(.v-field),
-.filters-row :deep(.v-field__outline) {
-  border-radius: 10px !important;
-}
-
-/* Дополнительные правила для обеспечения одинакового скругления */
-.filters-row :deep(.v-select .v-field),
-.filters-row :deep(.v-select .v-field__outline),
-.filters-row :deep(.v-select .v-field__input),
-.filters-row :deep(.v-input .v-field),
-.filters-row :deep(.v-input .v-field__outline) {
-  border-radius: 10px !important;
-}
-
-/* Единый цвет границы/outline и поведение при hover/focus */
-.filters-row :deep(.v-field--variant-outlined .v-field__outline) {
-  /* совпадает по ощущению с Vuetify, но делаем чуть выразительнее */
-  border-color: rgba(var(--v-theme-on-surface), 0.24);
-}
-
-.filters-row :deep(.v-field--variant-outlined:hover .v-field__outline) {
-  border-color: rgba(var(--v-theme-primary), 0.40);
-}
-
-.filters-row :deep(.v-field--focused .v-field__outline) {
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.12);
-}
-
-.filters-row :deep(.v-field__outline) {
-  height: 44px;
-}
-
-.filter-item {
-  flex: 1 1 0;
-  /* динамическая ширина, равномерное распределение */
-  min-width: 0;
-  display: flex;
-  /* выравниваем содержимое по вертикали как у v-select */
-  align-items: center;
-  /* чтобы верхний край совпадал между инпутом и селектами */
-}
-
-.filter-search {
-  flex: 3 1 0;
-  /* заметно шире остальных */
-  min-width: 420px;
-  margin-top: -20px;
-  /* поднимаем поле поиска еще выше */
-}
-
-.filter-create {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  margin-top: -26px;
-  /* поднимаем кнопку создания на 2px */
-}
-
-.filter-clear {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-  /* иконка сброса в конце строки */
-  margin-top: -26px;
-  /* поднимаем кнопку сброса фильтров на 2px */
-}
-
-/* Выравнивание AppleInput под высоту 44px */
-.filters-row :deep(.apple-input-group) {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  /* убрать возможные внешние отступы */
-  padding: 0;
-  gap: 0;
-  /* не добавлять вертикальный зазор внутри группы */
-  width: 100%;
-}
-
-.filters-row :deep(.apple-input-container) {
-  height: 44px;
-  width: 100%;
-}
-
-.filters-row :deep(.apple-input-wrapper-base) {
-  height: 44px;
-  min-height: 44px;
-  width: 100%;
-  border-radius: 10px;
-  /* выравниваем с v-select */
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
-  background: rgb(var(--v-theme-surface));
-}
-
-/* Убираем смещение AppleInput при фокусе для ровной линии */
-.filters-row :deep(.apple-input-focused) {
-  transform: none;
-}
-
-/* Единое состояние при hover/focus для AppleInput */
-.filters-row :deep(.apple-input-container:hover .apple-input-wrapper-base) {
-  border-color: rgba(var(--v-theme-primary), 0.40);
-}
-
-.filters-row :deep(.apple-input-focused .apple-input-wrapper-base) {
-  border-color: rgb(var(--v-theme-primary));
-  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.12);
-}
-
-/* Приводим кнопки к высоте инпутов/селектов и центрируем */
-.filter-create :deep(.v-btn),
-.filter-clear :deep(.v-btn) {
-  height: 44px !important;
-  /* соответствует density="comfortable" */
-  width: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  border-radius: 10px !important;
-}
-
-/* Дополнительные стили для обеспечения одинакового размера */
-.filter-create :deep(.v-btn .v-icon),
-.filter-clear :deep(.v-btn .v-icon) {
-  font-size: 20px !important;
-}
-
-.filter-create :deep(.v-btn .v-btn__content),
-.filter-clear :deep(.v-btn .v-btn__content) {
-  width: 100% !important;
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-/* Адаптивность для мобильных устройств */
-@media (max-width: 768px) {
-  .filters-row {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .filter-item,
-  .filter-search {
-    flex: none;
-    width: 100%;
-    min-width: auto;
-  }
-
-  .filter-create,
-  .filter-clear {
-    align-self: flex-end;
-    padding-top: 0;
-  }
-}
-
-/* Стили для активной кнопки очистки фильтров */
-.filter-clear-active {
-  position: relative;
-  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3) !important;
-  animation: pulse-filter 2s infinite;
-}
-
-@keyframes pulse-filter {
-  0% {
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-  }
-
-  50% {
-    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.5);
-  }
-
-  100% {
-    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-  }
-}
-
-/* Таблица */
-.users-table-card {
-  margin: 0;
-}
-
-.table-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  gap: 16px;
-}
-
-.table-title-section {
-  display: flex;
-  align-items: center;
-  flex: 1;
-}
-
-.bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.bulk-actions-panel {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  background: rgba(var(--v-theme-primary), 0.04);
-}
-
-.bulk-actions-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 500;
-  color: rgb(var(--v-theme-primary));
-}
-
-.bulk-actions-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.search-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.table-container {
-  padding: 0;
-}
-
-.users-table {
-  background: transparent;
-}
-
-.actions-cell {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
-.actions-cell .v-btn {
-  transition: all 0.2s ease;
-}
-
-.actions-cell .v-btn:hover {
-  transform: scale(1.1);
-}
-
-/* Пользовательская ячейка */
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.user-avatar {
-  flex-shrink: 0;
-}
-
-.user-info {
-  flex: 1;
-}
-
-.user-name {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.user-username {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.email-link {
-  color: var(--apple-blue);
-  text-decoration: none;
-}
-
-.email-link:hover {
-  text-decoration: underline;
-}
-
-.font-mono {
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
-  font-size: 0.875rem;
-}
-
-/* Темная тема */
-[data-theme="dark"] .page-icon {
-  color: var(--apple-blue-light);
-}
-
-[data-theme="dark"] .page-title {
-  color: var(--apple-text-primary-dark);
-}
-
-[data-theme="dark"] .page-subtitle {
-  color: var(--apple-text-secondary-dark);
-}
-
-[data-theme="dark"] .user-name {
-  color: var(--apple-text-primary-dark);
-}
-
-[data-theme="dark"] .user-username {
-  color: var(--apple-text-primary-dark);
-}
-
-[data-theme="dark"] .email-link {
-  color: var(--apple-blue-light);
-}
-
-/* Адаптивность */
-@media (max-width: 960px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
-
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .table-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .bulk-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  .bulk-actions-panel {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-
-  .bulk-actions-buttons {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-  }
-}
-
-@media (max-width: 600px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-
-
-  .filters-content .v-row {
-    margin: 0;
-  }
-
-  .filters-content .v-col {
-    padding: 4px;
-  }
-}
-
-/* Улучшения для таблицы */
-.users-table :deep(.v-data-table__wrapper) {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.users-table :deep(.v-data-table-header__content) {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.users-table :deep(.v-data-table__td) {
-  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
-}
-
-[data-theme="dark"] .users-table :deep(.v-data-table__td) {
-  border-bottom-color: rgba(84, 84, 136, 0.16);
-}
-
-/* Подсветка неактивных пользователей */
-.users-table :deep(.v-data-table__tr.inactive-user),
-.users-table :deep(.v-data-table__tr[class*="inactive-user"]) {
-  background-color: rgba(244, 67, 54, 0.08) !important;
-  border-left: 4px solid #f44336 !important;
-}
-
-.users-table :deep(.v-data-table__tr.inactive-user:hover),
-.users-table :deep(.v-data-table__tr[class*="inactive-user"]:hover) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-}
-
-.users-table :deep(.v-data-table__tr.inactive-user .v-data-table__td),
-.users-table :deep(.v-data-table__tr[class*="inactive-user"] .v-data-table__td) {
-  border-bottom-color: rgba(244, 67, 54, 0.16) !important;
-}
-
-/* Альтернативный подход через item-class */
-.users-table :deep(.inactive-user) {
-  background-color: rgba(244, 67, 54, 0.08) !important;
-  border-left: 4px solid #f44336 !important;
-}
-
-.users-table :deep(.inactive-user:hover) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-}
-
-.users-table :deep(.inactive-user td) {
-  border-bottom-color: rgba(244, 67, 54, 0.16) !important;
-}
-
-/* Темная тема для неактивных пользователей */
-[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user),
-[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"]) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-  border-left-color: #ff5252 !important;
-}
-
-[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user:hover),
-[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"]:hover) {
-  background-color: rgba(244, 67, 54, 0.16) !important;
-}
-
-[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user .v-data-table__td),
-[data-theme="dark"] .users-table :deep(.v-data-table__tr[class*="inactive-user"] .v-data-table__td) {
-  border-bottom-color: rgba(244, 67, 54, 0.24) !important;
-}
-
-[data-theme="dark"] .users-table :deep(.inactive-user) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-  border-left-color: #ff5252 !important;
-}
-
-[data-theme="dark"] .users-table :deep(.inactive-user:hover) {
-  background-color: rgba(244, 67, 54, 0.16) !important;
-}
-
-[data-theme="dark"] .users-table :deep(.inactive-user td) {
-  border-bottom-color: rgba(244, 67, 54, 0.24) !important;
-}
-
-/* Дополнительные селекторы для Vuetify 3 */
-.users-table :deep(.v-data-table__tr.inactive-user),
-.users-table :deep(tr.inactive-user),
-.users-table :deep(.inactive-user) {
-  background-color: rgba(244, 67, 54, 0.08) !important;
-  border-left: 4px solid #f44336 !important;
-}
-
-.users-table :deep(.v-data-table__tr.inactive-user:hover),
-.users-table :deep(tr.inactive-user:hover),
-.users-table :deep(.inactive-user:hover) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-}
-
-[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user),
-[data-theme="dark"] .users-table :deep(tr.inactive-user),
-[data-theme="dark"] .users-table :deep(.inactive-user) {
-  background-color: rgba(244, 67, 54, 0.12) !important;
-  border-left-color: #ff5252 !important;
-}
-
-[data-theme="dark"] .users-table :deep(.v-data-table__tr.inactive-user:hover),
-[data-theme="dark"] .users-table :deep(tr.inactive-user:hover),
-[data-theme="dark"] .users-table :deep(.inactive-user:hover) {
-  background-color: rgba(244, 67, 54, 0.16) !important;
-}
-
-/* Максимально специфичный селектор для принудительного применения стилей */
-.users-table :deep(.inactive-user),
-.users-table :deep(.inactive-user tr),
-.users-table :deep(.inactive-user td),
-.users-table :deep(.inactive-user th),
-.users-table :deep(.v-data-table__tr.inactive-user),
-.users-table :deep(.v-data-table__tr.inactive-user td),
-.users-table :deep(.v-data-table__tr.inactive-user th),
-.users-table :deep(tr.inactive-user),
-.users-table :deep(tr.inactive-user td),
-.users-table :deep(tr.inactive-user th) {
-  background-color: rgba(244, 67, 54, 0.08) !important;
-  border-left: 4px solid #f44336 !important;
-}
-
-/* Принудительные стили для неактивных пользователей - ВРЕМЕННО ОТКЛЮЧЕНО */
-/* .inactive-user,
-.inactive-user * {
-  background-color: rgba(244, 67, 54, 0.08) !important;
-  border-left: 4px solid #f44336 !important;
-} */
-
-/* Компактная пагинация в стиле Accounts */
-.compact-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  padding: 20px 24px;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  min-height: 40px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  margin: 0 16px;
-}
-
-.items-select {
-  min-width: 60px !important;
-  width: fit-content !important;
-  max-width: 120px !important;
-  flex-shrink: 0;
-  height: 40px;
-}
-
-.items-select :deep(.v-field) {
-  min-width: 50px !important;
-  width: auto !important;
-}
-
-.items-select :deep(.v-field__input) {
-  min-width: 0 !important;
-  width: auto !important;
-  padding-left: 8px !important;
-  padding-right: 8px !important;
-}
-
-.items-select :deep(.v-field__append-inner) {
-  padding-left: 4px !important;
-}
-
-.items-select :deep(.v-select__selection) {
-  max-width: none !important;
-  min-width: 0 !important;
-}
-
-.range-info {
-  font-size: 0.9rem;
-  color: #555;
-  flex-shrink: 0;
-  min-width: 120px;
-  text-align: center;
-  font-weight: 600;
-  padding: 8px 12px;
-  background-color: #f0f0f0;
-  border-radius: 6px;
-}
-
-.page-info {
-  font-size: 0.9rem;
-  color: #555;
-  font-weight: 700;
-  padding: 4px 8px;
-  min-width: 50px;
-  text-align: center;
-}
-
-.nav-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  padding: 4px;
-  background-color: #f0f0f0;
-  border-radius: 6px;
-}
-
-.nav-controls .v-btn {
-  min-width: 32px;
-  height: 32px;
-}
-
-/* Темная тема */
-[data-theme="dark"] .compact-pagination {
-  background-color: #2c2c2e;
-  border: 1px solid #3a3a3c;
-}
-
-[data-theme="dark"] .range-info {
-  color: #8e8e93;
-  background-color: #3a3a3c;
-}
-
-[data-theme="dark"] .page-info {
-  color: #ffffff;
-  background-color: #3a3a3c;
-}
-
-[data-theme="dark"] .nav-controls {
-  background-color: #3a3a3c;
-}
-
-[data-theme="dark"] .nav-controls .v-btn {
-  background-color: #2c2c2e;
-  border-color: #3a3a3c;
-  color: #ffffff;
-}
-
-[data-theme="dark"] .nav-controls .v-btn:hover {
-  background-color: #3a3a3c;
-  border-color: #007AFF;
-}
-
-/* Стили для иконок ролей */
-.role-icon-only {
-  cursor: pointer;
-  transition: transform 0.2s ease;
-}
-
-.role-icon-only:hover {
-  transform: scale(1.1);
-}
-
-.role-icon {
-  margin-right: 8px;
-  transition: transform 0.2s ease;
-}
-
-.role-icon:hover {
-  transform: scale(1.1);
-}
-
-.role-name {
-  font-size: 0.875rem;
-  font-weight: 500;
 }
 </style>
