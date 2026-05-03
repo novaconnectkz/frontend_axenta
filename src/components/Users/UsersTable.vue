@@ -254,7 +254,6 @@ const {
 
 const tableHeaders = [
   { title: '№', value: 'rowNumber', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
-  { title: 'ID', value: 'id', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Email', value: 'email', sortable: true, cellProps: { class: 'col-grow' }, headerProps: { class: 'col-grow' } },
   { title: 'Полное имя', value: 'name', sortable: true },
