@@ -118,13 +118,15 @@
           @update:model-value="onTooltipOpen"
         >
           <template #activator="{ props: tooltipProps }">
-            <div class="objects-compact" v-bind="tooltipProps">
+            <span
+              v-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted && item.objectsTotal !== -1"
+              class="no-objects-dash"
+              v-bind="tooltipProps"
+            >—</span>
+            <div v-else class="objects-compact" v-bind="tooltipProps">
               <div v-if="item.objectsTotal === -1" class="objects-loading">
                 <v-progress-circular indeterminate size="16" width="2" color="primary" />
               </div>
-              <span v-else-if="!item.objectsTotal && !item.objectsActive && !item.objectsDeleted" class="no-objects">
-                Нет объектов
-              </span>
               <div v-else class="objects-display">
                 <span class="objects-active">{{ item.objectsActive || 0 }}</span>
                 <span class="objects-separator">/</span>
@@ -320,14 +322,14 @@ const emit = defineEmits<{
 }>();
 
 const headers = computed(() => [
-  { title: '№', key: 'rowNumber', sortable: false, width: '60px' },
-  { title: 'Компания', key: 'name', sortable: true, width: '30%' },
-  { title: 'Тип', key: 'type', sortable: true },
-  { title: 'Объекты', key: 'objectsTotal', sortable: true },
-  { title: 'Статус', key: 'isActive', sortable: true },
+  { title: '№', key: 'rowNumber', sortable: false },
+  { title: 'Компания', key: 'name', sortable: true, cellProps: { class: 'cell-company' } },
+  { title: 'Тип', key: 'type', sortable: true, align: 'center' as const },
+  { title: 'Объекты', key: 'objectsTotal', sortable: true, align: 'center' as const },
+  { title: 'Статус', key: 'isActive', sortable: true, align: 'center' as const },
   { title: 'Источник', key: 'source', sortable: true },
   { title: 'Создан', key: 'creationDatetime', sortable: true },
-  { title: 'Действия', key: 'actions', sortable: false },
+  { title: 'Действия', key: 'actions', sortable: false, align: 'end' as const },
 ]);
 
 const formatDateShort = (dateString: string) => {
@@ -505,6 +507,11 @@ onUnmounted(() => {
   background: transparent;
 }
 
+.accounts-table :deep(table) {
+  table-layout: auto;
+  width: 100%;
+}
+
 .accounts-table :deep(.v-data-table__wrapper) {
   border-radius: 12px;
   overflow: hidden;
@@ -531,74 +538,44 @@ onUnmounted(() => {
   vertical-align: middle;
 }
 
-/* Колонка № - фиксированная ширина */
-.accounts-table :deep(.v-data-table__th:first-child),
-.accounts-table :deep(.v-data-table__td:first-child) {
-  width: 60px !important;
-  min-width: 60px;
-  max-width: 60px;
+/* Auto-width по содержимому. Колонкам только min-width гарантирующий что заголовок не обрежется. Компания тянется на остаток как text-align:left + width:100% от .company-name-compact. */
+
+/* Колонка № */
+.accounts-table :deep(.v-data-table__th:nth-child(1)),
+.accounts-table :deep(.v-data-table__td:nth-child(1)) {
+  min-width: 56px;
   text-align: center;
 }
 
-/* Колонка ID - минимальная ширина */
+/* Колонка Компания — left-align, перенос длинных имён */
 .accounts-table :deep(.v-data-table__th:nth-child(2)),
 .accounts-table :deep(.v-data-table__td:nth-child(2)) {
-  width: auto;
-  min-width: 60px;
-  max-width: 100px;
-}
-
-/* Колонка Компания - фиксированная ширина 30% */
-.accounts-table :deep(.v-data-table__th:nth-child(3)),
-.accounts-table :deep(.v-data-table__td:nth-child(3)) {
-  width: 30% !important;
   min-width: 200px;
-  white-space: normal;
-  word-wrap: break-word;
+  width: 100%;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
+  text-align: left !important;
 }
 
-/* Колонка Тип - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(4)),
-.accounts-table :deep(.v-data-table__td:nth-child(4)) {
-  width: auto;
-  min-width: 80px;
-  max-width: 120px;
+.accounts-table :deep(.v-data-table__th:nth-child(2)) .v-data-table-header__content {
+  justify-content: flex-start !important;
+  text-align: left !important;
 }
 
-/* Колонка Объекты - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(5)),
-.accounts-table :deep(.v-data-table__td:nth-child(5)) {
-  width: auto;
-  min-width: 100px;
-  max-width: 140px;
+.accounts-table :deep(.v-data-table__td:nth-child(2)) > *,
+.accounts-table :deep(.v-data-table__td:nth-child(2)) span,
+.accounts-table :deep(.v-data-table__td:nth-child(2)) div {
+  text-align: left !important;
+  justify-content: flex-start !important;
 }
 
-/* Колонка Статус - компактная ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(6)),
-.accounts-table :deep(.v-data-table__td:nth-child(6)) {
-  width: auto;
-  min-width: 80px;
-  max-width: 120px;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  text-align: center !important;
-}
-
-/* Колонка Создан - средняя ширина */
-.accounts-table :deep(.v-data-table__th:nth-child(7)),
-.accounts-table :deep(.v-data-table__td:nth-child(7)) {
-  width: auto;
-  min-width: 100px;
-  max-width: 150px;
-}
-
-/* Колонка Действия - фиксированная ширина */
-.accounts-table :deep(.v-data-table__th:last-child),
-.accounts-table :deep(.v-data-table__td:last-child) {
-  width: auto;
-  min-width: 120px;
-  max-width: 180px;
+/* Тип/Объекты/Статус/Источник/Создан/Действия — auto, без обрезаний */
+.accounts-table :deep(.v-data-table__th:nth-child(n+3)),
+.accounts-table :deep(.v-data-table__td:nth-child(n+3)) {
+  white-space: nowrap !important;
+  width: 1%;
 }
 
 /* Стили для номера строки */
@@ -1017,16 +994,26 @@ onUnmounted(() => {
 }
 
 
-/* Компактное отображение названия компании */
+/* Компактное отображение названия компании — left-align, занимает всю свободную ширину */
 .company-name-compact {
   font-weight: 500;
   color: #333;
   padding: 4px 8px;
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
+  width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  text-align: left;
+}
+
+/* Колонка Компания — растягивается на остаток, не обрезает текст */
+.accounts-table :deep(.cell-company) {
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  min-width: 220px;
 }
 
 /* Стили для легенды компании */
@@ -1126,6 +1113,15 @@ onUnmounted(() => {
   font-size: 0.75rem;
   color: #9e9e9e;
   font-style: italic;
+}
+
+/* Тире для пустого счётчика объектов — не загромождает таблицу бейджем */
+.no-objects-dash {
+  color: #c4c4c4;
+  font-size: 1.1rem;
+  font-weight: 400;
+  cursor: help;
+  user-select: none;
 }
 
 .objects-display {

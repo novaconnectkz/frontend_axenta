@@ -60,12 +60,12 @@ const filterWialonByCommon = (
 
   if (selectedParent && selectedParent.trim() !== '') {
     result = result.filter(account => {
-      if (account.hierarchy?.includes(selectedParent)) {
-        const parts = account.hierarchy.split(' > ');
-        const parents = parts.slice(0, -1);
-        return parents.some(p => p === selectedParent || p.includes(selectedParent));
-      }
-      return false;
+      if (!account.hierarchy) return false;
+      const parts = account.hierarchy.split(' > ');
+      if (parts.length < 2) return false;
+      // Только прямой родитель (предпоследний элемент иерархии), не предки выше
+      const directParent = parts[parts.length - 2];
+      return directParent === selectedParent;
     });
   }
 

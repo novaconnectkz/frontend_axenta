@@ -221,11 +221,12 @@ export function useAccountsList(ctx: UseAccountsListContext) {
         if (ctx.selectedParent.value && ctx.selectedParent.value.trim() !== '') {
           const parent = ctx.selectedParent.value;
           allFilteredResults = allFilteredResults.filter(account => {
-            if (account.parentAccountName?.includes(parent)) return true;
-            if (account.hierarchy?.includes(parent)) {
+            // Прямой parent через parentAccountName (точное совпадение, не includes)
+            if (account.parentAccountName === parent) return true;
+            // Fallback: разбираем hierarchy, берём только direct parent (предпоследний элемент)
+            if (account.hierarchy) {
               const parts = account.hierarchy.split(' > ');
-              const parents = parts.slice(0, -1);
-              return parents.some(p => p === parent || p.includes(parent));
+              if (parts.length >= 2 && parts[parts.length - 2] === parent) return true;
             }
             return false;
           });
