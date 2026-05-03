@@ -206,6 +206,11 @@ export default defineConfig(({ mode }) => {
 
     // Настройки для предотвращения parser-blocking скриптов
     esbuild: {
+      // В prod-сборке делаем console.log/debug/info side-effect-free → esbuild minify их выкинет.
+      // console.error и console.warn остаются для диагностики.
+      // Чистит ~700+ debug-сообщений из usersService/accountsService/настройки.
+      pure: mode === "production" ? ["console.log", "console.debug", "console.info"] : [],
+      drop: mode === "production" ? ["debugger"] : [],
       // Мягкая блокировка document.write только для внешних скриптов
       banner: `
         // Мягкая блокировка document.write только для внешних скриптов
