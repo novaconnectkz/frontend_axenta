@@ -212,11 +212,11 @@ const {
 
 const tableHeaders = [
   { title: '№', value: 'rowNumber', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
-  { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
-  { title: 'Email', value: 'email', sortable: true, cellProps: { class: 'col-grow' }, headerProps: { class: 'col-grow' } },
-  { title: 'Полное имя', value: 'name', sortable: true },
-  { title: 'Создатель', value: 'creator_name', sortable: true },
-  { title: 'Дата создания', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
+  { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
+  { title: 'Email', value: 'email', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
+  { title: 'Полное имя', value: 'name', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
+  { title: 'Создатель', value: 'creator_name', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
+  { title: 'Дата', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Роль', value: 'role', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Источник', value: 'source', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Действия', value: 'actions', sortable: false, cellProps: { class: 'col-fit actions-col' }, headerProps: { class: 'col-fit actions-col' } },
@@ -267,12 +267,14 @@ const formatTimeOnly = (dateString: string): string => {
 }
 .table-container {
   padding: 0 16px 16px;
-  overflow-x: auto;
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
+:deep(.users-table) { width: 100%; max-width: 100%; }
+:deep(.users-table .v-table__wrapper) { overflow-x: auto; max-width: 100%; }
 :deep(.users-table-card .v-card__content),
 :deep(.users-table-card .apple-card-content) {
   overflow-x: auto;
@@ -281,9 +283,14 @@ const formatTimeOnly = (dateString: string): string => {
 .users-table {
   background: transparent !important;
 }
-:deep(.users-table table) { table-layout: auto; }
+:deep(.users-table table) { table-layout: auto; width: 100%; }
 :deep(.users-table .col-fit) { width: 1%; white-space: nowrap; }
-:deep(.users-table .col-grow) { width: 100%; }
+:deep(.users-table .col-wrap) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  min-width: 100px;
+}
 :deep(.users-table .col-fit.actions-col) { padding-left: 8px; padding-right: 8px; }
 .user-cell {
   display: flex;
