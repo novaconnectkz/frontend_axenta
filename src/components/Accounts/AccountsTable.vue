@@ -203,17 +203,18 @@
 
       <template #item.actions="{ item }">
         <div class="actions-row">
-          <!-- Кнопка обновления stats — только для Wialon, видна на hover строки. Дёрнет /refresh-account, обновит objectsTotal без перезагрузки списка -->
+          <!-- Кнопка обновления stats — реально активна для Wialon, для Axenta рендерится-плейсхолдером для выравнивания -->
           <v-btn
-            v-if="item.source && item.source !== 'axenta'"
             :loading="!!refreshingIds[item.id]"
             class="row-refresh-btn"
+            :class="{ 'row-refresh-btn--placeholder': !item.source || item.source === 'axenta' }"
             icon="mdi-refresh"
             variant="text"
             size="x-small"
             color="primary"
-            title="Обновить количество объектов"
-            @click="$emit('refreshStats', item)"
+            :title="(!item.source || item.source === 'axenta') ? '' : 'Обновить количество объектов'"
+            :disabled="!item.source || item.source === 'axenta'"
+            @click="(!item.source || item.source === 'axenta') ? null : $emit('refreshStats', item)"
           />
           <v-btn
             :icon="item.isActive ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"
@@ -1260,6 +1261,16 @@ onUnmounted(() => {
 }
 .row-refresh-btn:hover {
   opacity: 1 !important;
+}
+
+/* Placeholder для axenta — кнопка занимает место, но не интерактивна и невидима всегда */
+.row-refresh-btn--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+.row-refresh-btn--placeholder,
+:deep(tr:hover) .row-refresh-btn--placeholder {
+  opacity: 0 !important;
 }
 
 /* Стили для меню дополнительных действий */
