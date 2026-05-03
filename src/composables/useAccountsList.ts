@@ -168,20 +168,31 @@ export function useAccountsList(ctx: UseAccountsListContext) {
         if (isCacheValid) {
           allRecordsResponse = { results: [...allAccountsCache.value] };
         } else {
-          let allResults: Account[] = [];
-          let currentPageNum = 1;
-          let hasMore = true;
+          // Загружаем page=1 чтобы узнать count, потом остальные страницы параллельно через Promise.all.
+          // Раньше было sequential while-loop — каждая страница ждала предыдущую (3 страницы × 1с = 3с).
+          // Теперь page=1 (~1с) + max(page2..N) ≈ ~1.5с total.
+          const firstPage = await accountsService.getAccounts({
+            ...allRecordsParams,
+            page: 1,
+          });
 
-          while (hasMore) {
-            const pageResponse = await accountsService.getAccounts({
-              ...allRecordsParams,
-              page: currentPageNum,
-            });
-            allResults = [...allResults, ...pageResponse.results];
-            hasMore = pageResponse.results.length === allRecordsParams.per_page &&
-              allResults.length < pageResponse.count;
-            currentPageNum++;
-            if (currentPageNum > 10) break;
+          const total = firstPage.count || 0;
+          const perPage = allRecordsParams.per_page;
+          const totalPages = Math.min(Math.ceil(total / perPage), 10); // safety cap = 10K records max
+
+          let allResults: Account[] = [...firstPage.results];
+
+          if (totalPages > 1 && firstPage.results.length === perPage) {
+            const remainingRequests: Promise<{ results: Account[] }>[] = [];
+            for (let p = 2; p <= totalPages; p++) {
+              remainingRequests.push(
+                accountsService.getAccounts({ ...allRecordsParams, page: p })
+              );
+            }
+            const restResponses = await Promise.all(remainingRequests);
+            for (const resp of restResponses) {
+              allResults = [...allResults, ...resp.results];
+            }
           }
 
           allRecordsResponse = { results: allResults };

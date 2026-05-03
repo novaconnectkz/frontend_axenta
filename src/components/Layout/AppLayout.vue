@@ -408,7 +408,8 @@ const router = useRouter();
 const { mobile } = useDisplay();
 const theme = useTheme();
 const auth = useAuth();
-const { checkIntegrationStatus } = useAxentaIntegrationNotifications();
+// composable сам в onMounted дёргает checkIntegrationStatus, дополнительный вызов не нужен
+useAxentaIntegrationNotifications();
 // const { getConnectionState } = useWebSocket(); // Отключаем до исправления auth context
 
 // Интерфейсы
@@ -863,8 +864,8 @@ onMounted(() => {
     currentTime.value = new Date();
   }, 1000);
 
-  // Проверяем статус Axenta интеграции
-  checkIntegrationStatus();
+  // Axenta integration status проверяется автоматически в useAxentaIntegrationNotifications.onMounted —
+  // явный вызов отсюда дублирует запрос /api/axenta/status и тормозит F5.
 
   // Загружаем статус Wialon интеграции
   loadWialonIntegration();
