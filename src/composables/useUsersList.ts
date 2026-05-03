@@ -74,7 +74,9 @@ export function useUsersList(ctx: UseUsersListContext) {
   };
 
   const handlePerPageChange = (limit: number) => {
-    pagination.value.limit = limit === -1 ? 100000 : limit;
+    const next = limit === -1 ? 100000 : limit;
+    if (next === pagination.value.limit) return Promise.resolve();
+    pagination.value.limit = next;
     pagination.value.page = 1;
     return loadUsers();
   };

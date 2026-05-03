@@ -5,13 +5,8 @@
         :headers="tableHeaders"
         :items="users"
         :loading="loading"
-        :items-per-page="pagination.limit"
-        :page="pagination.page"
-        :server-items-length="serverItemsLength"
-        :items-per-page-options="perPageOptions"
+        :items-per-page="-1"
         :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
-        @update:page="(p) => $emit('page-change', p)"
-        @update:items-per-page="(l) => $emit('per-page-change', l)"
         @update:sort-by="(s) => $emit('sort-change', s)"
         item-value="id"
         class="users-table"
@@ -158,58 +153,21 @@
 
       <div class="compact-pagination">
         <v-select
-          v-model="itemsPerPageForSelect"
+          :model-value="pagination.limit"
           :items="perPageOptions"
           variant="outlined"
           density="compact"
           class="items-select"
-          @update:model-value="(l) => $emit('per-page-change', l)"
           hide-details
+          @update:model-value="(v: number) => $emit('per-page-change', v)"
         />
-        <span class="range-info">
-          {{
-            pagination.limit > 0 && pagination.limit < 100000
-              ? `${(pagination.page - 1) * pagination.limit + 1}-${Math.min(
-                  pagination.page * pagination.limit,
-                  serverItemsLength
-                )} из ${serverItemsLength}`
-              : `Все ${serverItemsLength} записей`
-          }}
-        </span>
+        <span class="range-info">{{ displayRange }} из {{ serverItemsLength }}</span>
         <div class="nav-controls">
-          <v-btn
-            icon="mdi-page-first"
-            variant="text"
-            size="x-small"
-            :disabled="pagination.page === 1"
-            @click="$emit('page-change', 1)"
-            title="Первая"
-          />
-          <v-btn
-            icon="mdi-chevron-left"
-            variant="text"
-            size="x-small"
-            :disabled="pagination.page === 1"
-            @click="$emit('page-change', pagination.page - 1)"
-            title="Предыдущая"
-          />
+          <v-btn icon="mdi-page-first" variant="text" size="x-small" :disabled="pagination.page === 1" title="Первая" @click="$emit('page-change', 1)" />
+          <v-btn icon="mdi-chevron-left" variant="text" size="x-small" :disabled="pagination.page === 1" title="Предыдущая" @click="$emit('page-change', pagination.page - 1)" />
           <span class="page-info">{{ pagination.page }} / {{ totalPages || 1 }}</span>
-          <v-btn
-            icon="mdi-chevron-right"
-            variant="text"
-            size="x-small"
-            :disabled="pagination.page >= (totalPages || 1)"
-            @click="$emit('page-change', pagination.page + 1)"
-            title="Следующая"
-          />
-          <v-btn
-            icon="mdi-page-last"
-            variant="text"
-            size="x-small"
-            :disabled="pagination.page >= (totalPages || 1)"
-            @click="$emit('page-change', totalPages || 1)"
-            title="Последняя"
-          />
+          <v-btn icon="mdi-chevron-right" variant="text" size="x-small" :disabled="pagination.page >= (totalPages || 1)" title="Следующая" @click="$emit('page-change', pagination.page + 1)" />
+          <v-btn icon="mdi-page-last" variant="text" size="x-small" :disabled="pagination.page >= (totalPages || 1)" title="Последняя" @click="$emit('page-change', totalPages || 1)" />
         </div>
       </div>
     </div>
@@ -265,20 +223,21 @@ const tableHeaders = [
 ];
 
 const perPageOptions = [
-  { title: '5', value: 5 },
-  { title: '10', value: 10 },
-  { title: '25', value: 25 },
-  { title: '50', value: 50 },
-  { title: '75', value: 75 },
-  { title: '100', value: 100 },
-  { title: '150', value: 150 },
+  { value: 5, title: '5' },
+  { value: 10, title: '10' },
+  { value: 25, title: '25' },
+  { value: 50, title: '50' },
+  { value: 75, title: '75' },
+  { value: 100, title: '100' },
+  { value: 150, title: '150' },
 ];
 
-const itemsPerPageForSelect = computed({
-  get: () => (props.pagination.limit === 100000 ? -1 : props.pagination.limit),
-  set: () => {
-    /* setter в parent через emit */
-  },
+const displayRange = computed(() => {
+  const total = props.serverItemsLength || 0;
+  if (total === 0) return '0';
+  const from = (props.pagination.page - 1) * props.pagination.limit + 1;
+  const to = Math.min(props.pagination.page * props.pagination.limit, total);
+  return `${from}-${to}`;
 });
 
 const formatDateOnly = (dateString: string): string => {
@@ -298,8 +257,21 @@ const formatTimeOnly = (dateString: string): string => {
 </script>
 
 <style scoped>
-.users-table-card { padding: 0; }
-.table-container { padding: 0 16px 16px; }
+.users-table-card {
+  padding: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+.table-container {
+  padding: 0 16px 16px;
+  overflow-x: auto;
+  max-width: 100%;
+}
+:deep(.users-table-card .v-card__content),
+:deep(.users-table-card .apple-card-content) {
+  overflow-x: auto;
+  max-width: 100%;
+}
 .users-table {
   background: transparent !important;
 }
@@ -336,26 +308,120 @@ const formatTimeOnly = (dateString: string): string => {
 .compact-pagination {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 16px;
-  padding: 12px 16px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  padding: 20px 24px;
+  flex-wrap: wrap;
+  white-space: nowrap;
+  min-height: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 0 16px;
+  box-sizing: border-box;
+  max-width: calc(100% - 32px);
 }
-.items-select { max-width: 100px; }
+.items-select {
+  min-width: 60px !important;
+  width: fit-content !important;
+  max-width: 120px !important;
+  flex-shrink: 0;
+  height: 40px;
+}
+.items-select :deep(.v-field) {
+  min-width: 50px !important;
+  width: auto !important;
+}
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+.items-select :deep(.v-field__append-inner) { padding-left: 4px !important; }
+.items-select :deep(.v-select__selection) {
+  max-width: none !important;
+  min-width: 0 !important;
+}
 .range-info {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  font-size: 0.9rem;
+  color: #555;
+  flex-shrink: 0;
+  min-width: 120px;
+  text-align: center;
+  font-weight: 600;
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
 }
 .nav-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-left: auto;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
 }
 .page-info {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  min-width: 60px;
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 700;
+  min-width: 50px;
   text-align: center;
+  padding: 8px 12px;
+  background-color: #e8e8e8;
+  border-radius: 6px;
+}
+.nav-controls .v-btn {
+  min-width: 32px !important;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: white;
+  border: 1px solid #ddd;
+}
+[data-theme="dark"] .compact-pagination {
+  background-color: #2c2c2e;
+  border: 1px solid #3a3a3c;
+}
+[data-theme="dark"] .range-info {
+  color: #8e8e93;
+  background-color: #3a3a3c;
+}
+[data-theme="dark"] .page-info {
+  color: #ffffff;
+  background-color: #3a3a3c;
+}
+[data-theme="dark"] .nav-controls { background-color: #3a3a3c; }
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2c2c2e;
+  border-color: #3a3a3c;
+  color: #ffffff;
+}
+[data-theme="dark"] .nav-controls .v-btn:hover {
+  background-color: #3a3a3c;
+  border-color: #007AFF;
+}
+[data-theme="dark"] .items-select :deep(.v-field) {
+  background-color: #2c2c2e !important;
+  border-color: #3a3a3c !important;
+  color: #ffffff !important;
+}
+[data-theme="dark"] .items-select :deep(.v-field__input) { color: #ffffff !important; }
+[data-theme="dark"] .items-select :deep(.v-label) { color: #8e8e93 !important; }
+
+@media (max-width: 768px) {
+  .compact-pagination {
+    padding: 12px;
+    gap: 8px;
+    margin: 0 8px;
+    justify-content: center;
+  }
+  .range-info { min-width: auto; padding: 6px 10px; font-size: 0.85rem; }
+  .nav-controls { padding: 2px; gap: 2px; }
+  .nav-controls .v-btn { min-width: 28px !important; width: 28px; height: 28px; }
+  .page-info { min-width: 40px; padding: 6px 8px; font-size: 0.85rem; }
+  .table-container { padding: 0 8px 8px; }
 }
 :deep(.inactive-user) {
   background-color: rgba(244, 67, 54, 0.08) !important;

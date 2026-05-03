@@ -221,17 +221,21 @@ const debouncedSearch = debounce(() => {
 }, 500);
 
 const onFiltersUpdate = (next: UsersListFilters) => {
+  // Сравнение по содержимому — игнорируем повторные emit с теми же значениями (UsersFilters
+  // computed.set создаёт новый объект каждый раз, deep-watch ловил это и сбрасывал page=1).
+  const prev = filters.value;
+  const same =
+    prev.search === next.search &&
+    prev.role === next.role &&
+    prev.active === next.active &&
+    prev.source === next.source &&
+    prev.user_type === next.user_type &&
+    prev.ordering === next.ordering;
+  if (same) return;
   filters.value = next;
+  pagination.value.page = 1;
+  loadUsers();
 };
-
-watch(
-  filters,
-  () => {
-    pagination.value.page = 1;
-    loadUsers();
-  },
-  { deep: true }
-);
 
 const clearFilters = () => {
   filters.value = {
@@ -362,5 +366,16 @@ onMounted(async () => {
   color: var(--text-secondary);
   margin: 4px 0 0 0;
   line-height: 1.4;
+}
+
+@media (max-width: 768px) {
+  .users-page { gap: 12px; }
+  .page-title { font-size: 1.25rem; line-height: 1.3; }
+  .page-subtitle { font-size: 0.85rem; }
+  .page-title-section { gap: 12px; }
+  .page-icon { font-size: 24px !important; width: 24px; height: 24px; }
+}
+@media (max-width: 480px) {
+  .page-title { font-size: 1.1rem; }
 }
 </style>

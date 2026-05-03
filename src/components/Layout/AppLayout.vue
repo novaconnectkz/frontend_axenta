@@ -428,7 +428,10 @@ interface Breadcrumb {
 }
 
 // Reactive data
-const drawer = ref(!mobile.value);
+// drawer initial=false; watch ниже с immediate:true сразу установит !mobile значение.
+// Это надёжнее чем `ref(!mobile.value)` — Vuetify useDisplay иногда выдаёт mobile=false при первичном рендере
+// до завершения reactivity setup, и initial value ловит wrong frame.
+const drawer = ref(false);
 const rail = ref(false);
 const isDarkTheme = ref(theme.current.value.dark);
 const notifications = ref<Notification[]>([]);
@@ -828,16 +831,22 @@ const handleNavClick = (path: string, title: string) => {
 };
 
 // Watchers
+// immediate=true гарантирует что при первичной инициализации с mobile=true drawer стартует закрытым
+// (initial ref(!mobile.value) ловится Vue setup до того как Vuetify useDisplay рассчитает breakpoint).
 watch(mobile, (newValue) => {
   drawer.value = !newValue;
   rail.value = newValue;
-});
+}, { immediate: true });
 
 // Provide функцию обновления для использования в дочерних компонентах
 provide('updateLastRefresh', updateLastRefresh);
 
 // Lifecycle
 onMounted(() => {
+  // На mobile drawer всегда стартует закрытым (temporary). Initial ref(!mobile.value) ловится
+  // в Vue setup до того как useDisplay устанавливает mobile=true → drawer оставался открытым.
+  if (mobile.value) drawer.value = false;
+
   // Восстанавливаем тему из localStorage
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
