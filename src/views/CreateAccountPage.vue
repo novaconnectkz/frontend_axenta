@@ -32,41 +32,20 @@
       
       <v-form ref="formRef" @submit.prevent="createAccount">
         <div class="form-content">
-          <!-- Выбор системы мониторинга. Скрываем если активна только Axenta (нет wialon connections) -->
-          <div v-if="systemOptions.length > 1" class="form-section">
-            <h4 class="form-section-title">Система мониторинга</h4>
-            <div class="form-row full-width">
+          <!-- Система + Тип в одной строке -->
+          <div class="form-section">
+            <div class="form-row">
               <v-select
+                v-if="systemOptions.length > 1"
                 v-model="form.system"
                 :items="systemOptions"
-                label="Где создать учётную запись"
+                label="Система мониторинга"
                 variant="outlined"
                 density="compact"
                 required
                 :loading="loadingConnections"
                 @update:model-value="onSystemChange"
               />
-            </div>
-          </div>
-
-          <!-- Основная информация -->
-          <div class="form-section">
-            <h4 class="form-section-title">Основная информация</h4>
-
-            <div class="form-row full-width">
-              <AppleInput
-                v-model="form.name"
-                label="Название учетной записи"
-                placeholder="Введите название"
-                required
-                :error-message="errors.name"
-                :error="!!errors.name"
-                clearable
-                density="compact"
-              />
-            </div>
-
-            <div class="form-row">
               <v-select
                 v-model="form.type"
                 :items="typeOptions"
@@ -76,8 +55,26 @@
                 required
                 :error-messages="errors.type"
               />
+            </div>
+          </div>
 
-              <!-- Тарифный план — только для Wialon Hosting (на Wialon Local билинга нет вообще) -->
+          <!-- Основная информация -->
+          <div class="form-section">
+            <div class="form-row full-width">
+              <v-text-field
+                v-model="form.name"
+                label="Название учетной записи"
+                placeholder="Введите название"
+                variant="outlined"
+                density="compact"
+                required
+                :error-messages="errors.name"
+                clearable
+              />
+            </div>
+
+            <div class="form-row">
+              <!-- Тарифный план + Email в одной строке для Wialon -->
               <div v-if="isWialon && showBillingPlanField" class="billing-plan-wrap">
                 <v-select
                   v-model="form.billingPlan"
@@ -88,6 +85,8 @@
                   :loading="loadingPlans"
                   :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
                   required
+                  append-inner-icon="mdi-refresh"
+                  @click:append-inner.stop="forceRefreshPlans"
                 />
                 <v-checkbox
                   v-model="setAsDefaultPlan"
@@ -98,6 +97,19 @@
                   :label="defaultPlanLabel"
                 />
               </div>
+
+              <v-text-field
+                v-if="isWialon"
+                v-model="form.admin.email"
+                label="Email администратора"
+                type="email"
+                placeholder="admin@example.com"
+                variant="outlined"
+                density="compact"
+                required
+                :error-messages="errors['admin.email']"
+                clearable
+              />
 
               <!-- Видимые вкладки — только для Axenta -->
               <v-select
@@ -116,94 +128,117 @@
 
             <!-- Axenta-only поля: комментарий + дата блокировки -->
             <div v-if="!isWialon" class="form-row">
-              <AppleInput
+              <v-text-field
                 v-model="form.comment"
                 label="Комментарий"
                 placeholder="Введите комментарий"
-                clearable
+                variant="outlined"
                 density="compact"
+                clearable
               />
 
-              <AppleInput
+              <v-text-field
                 v-model="form.blockingDatetime"
                 label="Дата блокировки"
                 type="datetime-local"
                 placeholder="Выберите дату блокировки"
-                clearable
+                variant="outlined"
                 density="compact"
+                clearable
               />
             </div>
           </div>
           
           <!-- Секция администратора -->
           <div class="form-section">
-            <h4 class="form-section-title">Данные администратора</h4>
-
-            <div class="form-row">
-              <AppleInput
-                v-if="!isWialon"
+            <!-- Axenta: имя + логин в одной строке -->
+            <div v-if="!isWialon" class="form-row">
+              <v-text-field
                 v-model="form.admin.name"
                 label="Имя администратора"
                 placeholder="Введите имя"
-                required
-                :error-message="errors['admin.name']"
-                :error="!!errors['admin.name']"
-                clearable
+                variant="outlined"
                 density="compact"
+                required
+                :error-messages="errors['admin.name']"
+                clearable
               />
 
-              <AppleInput
+              <v-text-field
                 v-model="form.admin.username"
                 label="Логин администратора"
                 placeholder="Введите логин"
-                required
-                :error-message="errors['admin.username']"
-                :error="!!errors['admin.username']"
-                clearable
+                variant="outlined"
                 density="compact"
+                required
+                :error-messages="errors['admin.username']"
+                clearable
               />
             </div>
 
-            <div class="form-row">
-              <AppleInput
+            <!-- Axenta: email + ID -->
+            <div v-if="!isWialon" class="form-row">
+              <v-text-field
                 v-model="form.admin.email"
                 label="Email администратора"
                 type="email"
                 placeholder="admin@example.com"
-                required
-                :error-message="errors['admin.email']"
-                :error="!!errors['admin.email']"
-                clearable
+                variant="outlined"
                 density="compact"
+                required
+                :error-messages="errors['admin.email']"
+                clearable
               />
 
-              <AppleInput
-                v-if="!isWialon"
+              <v-text-field
                 v-model="form.adminId"
                 label="ID администратора"
                 type="number"
                 placeholder="Введите ID администратора"
-                clearable
+                variant="outlined"
                 density="compact"
+                clearable
               />
             </div>
 
+            <!-- Логин + Пароль в одной строке (для wialon — основные поля админа) -->
             <div class="form-row">
+              <v-text-field
+                v-if="isWialon"
+                v-model="form.admin.username"
+                label="Логин администратора"
+                placeholder="Введите логин"
+                variant="outlined"
+                density="compact"
+                required
+                :error-messages="errors['admin.username']"
+                clearable
+              />
+
               <div class="password-field-wrap">
-                <AppleInput
+                <v-text-field
                   v-model="form.admin.password"
                   label="Пароль администратора"
-                  type="password"
+                  :type="showPassword ? 'text' : 'password'"
                   placeholder="Введите пароль"
-                  required
-                  :error-message="errors['admin.password']"
-                  :error="!!errors['admin.password']"
-                  clearable
+                  variant="outlined"
                   density="compact"
-                  :action-icon="isWialon ? 'mdi-refresh' : undefined"
-                  action-title="Сгенерировать новый пароль"
-                  @action="regenerateWialonPassword"
-                />
+                  required
+                  :error-messages="errors['admin.password']"
+                  clearable
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showPassword = !showPassword"
+                >
+                  <template v-if="isWialon" #prepend-inner>
+                    <v-icon
+                      size="20"
+                      color="primary"
+                      style="cursor:pointer"
+                      title="Сгенерировать новый пароль"
+                      @click="regenerateWialonPassword"
+                    >mdi-refresh</v-icon>
+                  </template>
+                </v-text-field>
                 <!-- Live-валидация требований Wialon -->
                 <div v-if="isWialon && form.admin.password" class="password-rules">
                   <div v-for="rule in wialonPasswordRules" :key="rule.label" class="rule" :class="{ ok: rule.ok }">
@@ -213,17 +248,17 @@
                 </div>
               </div>
 
-              <AppleInput
+              <v-text-field
                 v-if="!isWialon"
                 v-model="form.admin.confirmPassword"
                 label="Подтверждение пароля"
                 type="password"
                 placeholder="Подтвердите пароль"
-                required
-                :error-message="errors['admin.confirmPassword']"
-                :error="!!errors['admin.confirmPassword']"
-                clearable
+                variant="outlined"
                 density="compact"
+                required
+                :error-messages="errors['admin.confirmPassword']"
+                clearable
               />
             </div>
 
@@ -292,6 +327,7 @@ const saving = ref(false);
 const formRef = ref();
 const loadingConnections = ref(false);
 const loadingPlans = ref(false);
+const showPassword = ref(false);
 
 // Список wialon-подключений (загружается на mount). Используется в селекторе "Система мониторинга".
 type WialonConnection = { id: number; name: string; user_name: string; connection_type: 'hosting' | 'local'; is_active: boolean; source_label: string };
@@ -419,6 +455,23 @@ const regenerateWialonPassword = () => {
   form.value.admin.password = generateWialonPassword();
   form.value.admin.confirmPassword = form.value.admin.password;
   delete errors.value['admin.password'];
+};
+
+// Принудительное обновление списка тарифов (force_refresh=true → backend дёргает Wialon синхронно)
+const forceRefreshPlans = async () => {
+  const conn = selectedConnection.value;
+  if (!conn) return;
+  const before = billingPlans.value.length;
+  loadingPlans.value = true;
+  try {
+    const plans = await settingsService.getWialonBillingPlans(conn.id, true);
+    billingPlans.value = plans;
+    showSnackbar(`Тарифы обновлены: ${plans.length} (было ${before})`, 'success');
+  } catch (e) {
+    showSnackbar('Ошибка обновления тарифов', 'error');
+  } finally {
+    loadingPlans.value = false;
+  }
 };
 
 // Default billing plan per connection — храним в localStorage чтобы не дёргать backend.
@@ -820,6 +873,7 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 8px;
+  align-items: start;
 }
 
 .form-row:last-child {

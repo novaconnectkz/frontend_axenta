@@ -137,13 +137,12 @@ export async function getWialonConnections(): Promise<Array<{
   }
 }
 
-// Список тарифных планов для wialon-подключения (для UI селектора при создании аккаунта)
-export async function getWialonBillingPlans(connectionId: number): Promise<Array<{ name: string }>> {
+// Список тарифных планов для wialon-подключения (для UI селектора при создании аккаунта).
+// При forceRefresh=true дёргает Wialon API синхронно и обновляет БД-кэш.
+export async function getWialonBillingPlans(connectionId: number, forceRefresh = false): Promise<Array<{ name: string }>> {
   try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/wialon/connections/${connectionId}/billing-plans`,
-      { method: 'GET', headers: createHeaders() }
-    );
+    const url = `${API_BASE_URL}/api/wialon/connections/${connectionId}/billing-plans${forceRefresh ? '?force_refresh=true' : ''}`;
+    const response = await fetch(url, { method: 'GET', headers: createHeaders() });
     if (!response.ok) {
       console.warn(`Тарифы недоступны для connection=${connectionId}`);
       return [];

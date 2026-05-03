@@ -733,7 +733,7 @@ class SettingsService {
   async getWialonConnectionObjectsStats(connectionId: number) { return wialon.getWialonConnectionObjectsStats(connectionId); }
   async toggleWialonAccountStatus(accountId: number, connectionId: number, enable: boolean) { return wialon.toggleWialonAccountStatus(accountId, connectionId, enable); }
   async refreshWialonAccount(connectionId: number, userId: number) { return wialon.refreshWialonAccount(connectionId, userId); }
-  async getWialonBillingPlans(connectionId: number) { return wialon.getWialonBillingPlans(connectionId); }
+  async getWialonBillingPlans(connectionId: number, forceRefresh = false) { return wialon.getWialonBillingPlans(connectionId, forceRefresh); }
   async getWialonConnections() { return wialon.getWialonConnections(); }
   async createWialonAccount(connectionId: number, payload: { name: string; username: string; password: string; email: string; type: 'client' | 'partner'; billingPlan?: string }) { return wialon.createWialonAccount(connectionId, payload); }
   async loginToWialonMonitoring(connectionId: number, userName?: string, accountId?: number, userId?: number) { return wialon.loginToWialonMonitoring(connectionId, userName, accountId, userId); }
