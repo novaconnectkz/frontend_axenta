@@ -677,8 +677,11 @@ const confirmDelete = async () => {
 
       console.log(`✅ Wialon аккаунт ${account.name} успешно удален`);
 
-      // Обновляем данные Wialon
-      await loadWialonAccounts();
+      // Удаляем из локального wialonAccounts. loadWialonAccounts() НЕ зовём — Wialon API
+      // имеет задержку propagation, refresh может вернуть только что удалённую запись и она
+      // снова появится в списке. Локальное удаление + следующий natural refresh достаточно.
+      const idx = wialonAccounts.value.findIndex(a => a.id === account.id);
+      if (idx >= 0) wialonAccounts.value.splice(idx, 1);
     } else {
       // Для Axenta используем стандартный метод
       await accountsService.deleteAccount(account.id);

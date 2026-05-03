@@ -74,29 +74,47 @@
             </div>
 
             <div class="form-row">
-              <!-- Тарифный план + Email в одной строке для Wialon -->
-              <div v-if="isWialon && showBillingPlanField" class="billing-plan-wrap">
-                <v-select
-                  v-model="form.billingPlan"
-                  :items="billingPlanOptions"
-                  label="Тарифный план"
-                  variant="outlined"
-                  density="compact"
-                  :loading="loadingPlans"
-                  :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
-                  required
-                  append-inner-icon="mdi-refresh"
-                  @click:append-inner.stop="forceRefreshPlans"
-                />
-                <v-checkbox
-                  v-model="setAsDefaultPlan"
-                  density="compact"
-                  hide-details
-                  class="default-plan-checkbox"
-                  :disabled="!form.billingPlan"
-                  :label="defaultPlanLabel"
-                />
-              </div>
+              <!-- Тарифный план для Wialon. Звёздочка ★ внутри dropdown отмечает default-план -->
+              <v-select
+                v-if="isWialon && showBillingPlanField"
+                v-model="form.billingPlan"
+                :items="billingPlanOptions"
+                label="Тарифный план"
+                variant="outlined"
+                density="compact"
+                :loading="loadingPlans"
+                :no-data-text="loadingPlans ? 'Загрузка...' : 'Тарифы не найдены'"
+                required
+                append-inner-icon="mdi-refresh"
+                @click:append-inner.stop="forceRefreshPlans"
+              >
+                <template #item="{ item, props: itemProps }">
+                  <v-list-item v-bind="itemProps">
+                    <template #append>
+                      <v-btn
+                        :icon="currentDefaultPlan === item.value ? 'mdi-star' : 'mdi-star-outline'"
+                        :color="currentDefaultPlan === item.value ? 'amber-darken-2' : 'grey'"
+                        size="small"
+                        variant="text"
+                        :title="currentDefaultPlan === item.value ? 'Тариф по умолчанию' : 'Сделать тарифом по умолчанию'"
+                        @click.stop="toggleDefaultPlan(item.value)"
+                      />
+                    </template>
+                  </v-list-item>
+                </template>
+                <template #selection="{ item }">
+                  <span class="d-flex align-center" style="gap:6px">
+                    <v-icon
+                      v-if="currentDefaultPlan === item.value"
+                      icon="mdi-star"
+                      size="16"
+                      color="amber-darken-2"
+                      title="Тариф по умолчанию"
+                    />
+                    {{ item.title }}
+                  </span>
+                </template>
+              </v-select>
 
               <v-text-field
                 v-if="isWialon"
@@ -310,7 +328,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
@@ -411,8 +429,10 @@ const systemOptions = computed(() => {
 });
 
 const billingPlanOptions = computed(() => billingPlans.value.map(p => ({ value: p.name, title: p.name })));
-// Селектор тарифа показываем только если: Wialon Hosting + есть тарифы. На WL/при отсутствии — скрываем (поле опциональное).
-const showBillingPlanField = computed(() => isWialon.value && !isWialonLocal.value && billingPlans.value.length > 0);
+// Селектор тарифа показываем для любого Wialon-подключения, если backend вернул планы.
+// Раньше скрывали для WL — но cms-app.gpsnetwork.ru тоже отдаёт subPlans через
+// core/get_account_data type=1, см. concepts/wialon-billing-plans.
+const showBillingPlanField = computed(() => isWialon.value && billingPlans.value.length > 0);
 
 // Wialon password requirements (по общеизвестной практике Wialon Hosting Strong policy):
 // 8+ символов, заглавная, строчная, цифра, спецсимвол. Не должно совпадать с username.
@@ -474,23 +494,40 @@ const forceRefreshPlans = async () => {
   }
 };
 
-// Default billing plan per connection — храним в localStorage чтобы не дёргать backend.
+// Default billing plan per connection — храним в localStorage. Reactive map для Vue-реактивности.
 // Ключ: wialon_default_plan_<connectionId>. Значение: имя плана.
-const setAsDefaultPlan = ref(false);
+const defaultPlanByConn = ref<Record<number, string>>({});
 const defaultPlanKey = (connId: number) => `wialon_default_plan_${connId}`;
-const getDefaultPlan = (connId: number): string => {
-  try { return localStorage.getItem(defaultPlanKey(connId)) || ''; } catch { return ''; }
+
+const loadDefaultForConn = (connId: number) => {
+  try {
+    const v = localStorage.getItem(defaultPlanKey(connId)) || '';
+    defaultPlanByConn.value = { ...defaultPlanByConn.value, [connId]: v };
+  } catch {}
 };
-const saveDefaultPlan = (connId: number, plan: string) => {
-  try { localStorage.setItem(defaultPlanKey(connId), plan); } catch {}
-};
-const defaultPlanLabel = computed(() => {
+
+// Текущий default-план для выбранного connection (реактивен)
+const currentDefaultPlan = computed(() => {
   const conn = selectedConnection.value;
-  if (!conn) return 'Сделать тарифом по умолчанию';
-  const current = getDefaultPlan(conn.id);
-  if (current && current === form.value.billingPlan) return `Тариф по умолчанию: ${current}`;
-  return current ? `Заменить тариф по умолчанию (${current})` : 'Сделать тарифом по умолчанию';
+  if (!conn) return '';
+  return defaultPlanByConn.value[conn.id] || '';
 });
+
+// Toggle: клик на ★ у плана делает его default (или снимает если уже был)
+const toggleDefaultPlan = (planName: string) => {
+  const conn = selectedConnection.value;
+  if (!conn) return;
+  const current = defaultPlanByConn.value[conn.id] || '';
+  if (current === planName) {
+    // Снять default
+    try { localStorage.removeItem(defaultPlanKey(conn.id)); } catch {}
+    defaultPlanByConn.value = { ...defaultPlanByConn.value, [conn.id]: '' };
+  } else {
+    // Поставить новый default (автоматом снимает предыдущий — он один на connection)
+    try { localStorage.setItem(defaultPlanKey(conn.id), planName); } catch {}
+    defaultPlanByConn.value = { ...defaultPlanByConn.value, [conn.id]: planName };
+  }
+};
 
 const isFormValid = computed(() => {
   if (!form.value.name.trim() || !form.value.type) return false;
@@ -566,14 +603,15 @@ const onSystemChange = async () => {
   try {
     const plans = await settingsService.getWialonBillingPlans(conn.id);
     billingPlans.value = plans;
-    // Приоритет: default из localStorage → единственный план → ничего
-    const def = getDefaultPlan(conn.id);
+    // Перечитываем default из localStorage для выбранного connection (реактивно)
+    loadDefaultForConn(conn.id);
+    // Приоритет автовыбора: default → единственный план → ничего
+    const def = defaultPlanByConn.value[conn.id] || '';
     if (def && plans.some(p => p.name === def)) {
       form.value.billingPlan = def;
     } else if (plans.length === 1) {
       form.value.billingPlan = plans[0].name;
     }
-    setAsDefaultPlan.value = false;
   } finally {
     loadingPlans.value = false;
   }
@@ -661,10 +699,7 @@ const createAccount = async () => {
         showSnackbar(result.error || 'Ошибка создания Wialon-аккаунта', 'error');
         return;
       }
-      // Сохраняем тариф по умолчанию если юзер поставил галочку
-      if (setAsDefaultPlan.value && form.value.billingPlan) {
-        saveDefaultPlan(conn.id, form.value.billingPlan);
-      }
+      // default-план сохраняется при клике на ★ в dropdown (см. toggleDefaultPlan), не при submit
       successNotification.value = {
         show: true,
         title: 'Wialon-аккаунт создан',
@@ -730,8 +765,6 @@ const showSnackbar = (text: string, color: string = 'info') => {
 };
 
 // Следим за изменением паролей для валидации
-import { watch } from 'vue';
-
 watch([() => form.value.admin.password, () => form.value.admin.confirmPassword], () => {
   if (form.value.admin.password && form.value.admin.confirmPassword) {
     if (form.value.admin.password !== form.value.admin.confirmPassword) {
@@ -764,22 +797,6 @@ watch([() => form.value.admin.password, () => form.value.admin.confirmPassword],
 .password-rules .rule.ok {
   color: #34c759; /* выполненные — зелёным */
 }
-.billing-plan-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.default-plan-checkbox {
-  margin-top: -8px;
-  font-size: 12px;
-}
-.default-plan-checkbox :deep(label) {
-  font-size: 12px;
-  color: #666;
-}
-
-
 .create-account-page {
   padding: 8px 24px 24px 24px;
   max-width: 1400px;
