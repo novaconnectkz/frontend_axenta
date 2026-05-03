@@ -223,7 +223,11 @@ const show = computed({
 
 // Methods
 const getUserFullName = (user: UserWithRelations): string => {
-  return `${user.first_name} ${user.last_name}`.trim() || user.username;
+  if (!user) return '';
+  const fn = user.first_name || '';
+  const ln = user.last_name || '';
+  const full = `${fn} ${ln}`.trim();
+  return full || (user as any).name || user.username || '';
 };
 
 const getUserInitials = (user: UserWithRelations): string => {

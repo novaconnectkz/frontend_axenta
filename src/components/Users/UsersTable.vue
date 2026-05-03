@@ -6,7 +6,7 @@
         :items="users"
         :loading="loading"
         :items-per-page="-1"
-        :sort-by="[{ key: 'creation_datetime', order: 'desc' }]"
+        :sort-by="sortByModel"
         @update:sort-by="(s) => $emit('sort-change', s)"
         item-value="id"
         class="users-table"
@@ -32,18 +32,9 @@
               </v-avatar>
             </div>
             <div class="user-info">
-              <div class="user-username">@{{ item.username }}</div>
+              <div class="user-username">{{ item.username }}</div>
             </div>
           </div>
-        </template>
-
-        <template #item.email="{ item }">
-          <a :href="`mailto:${item.email}`" class="email-link">{{ item.email }}</a>
-        </template>
-
-        <template #item.name="{ item }">
-          <span v-if="item.name" class="text-body-2">{{ item.name }}</span>
-          <span v-else class="text-medium-emphasis">—</span>
         </template>
 
         <template #item.creator_name="{ item }">
@@ -186,7 +177,14 @@ const props = defineProps<{
   pagination: { page: number; limit: number };
   serverItemsLength: number;
   totalPages: number;
+  ordering?: string;
 }>();
+
+const sortByModel = computed(() => {
+  const ord = props.ordering || '-creation_datetime';
+  const desc = ord.startsWith('-');
+  return [{ key: desc ? ord.slice(1) : ord, order: desc ? 'desc' : 'asc' }] as Array<{ key: string; order: 'asc' | 'desc' }>;
+});
 
 defineEmits<{
   (e: 'page-change', page: number): void;
@@ -213,8 +211,6 @@ const {
 const tableHeaders = [
   { title: '№', value: 'rowNumber', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Пользователь', value: 'username', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
-  { title: 'Email', value: 'email', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
-  { title: 'Полное имя', value: 'name', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
   { title: 'Создатель', value: 'creator_name', sortable: true, cellProps: { class: 'col-wrap' }, headerProps: { class: 'col-wrap' } },
   { title: 'Дата', value: 'creation_datetime', sortable: true, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },
   { title: 'Роль', value: 'role', sortable: false, cellProps: { class: 'col-fit' }, headerProps: { class: 'col-fit' } },

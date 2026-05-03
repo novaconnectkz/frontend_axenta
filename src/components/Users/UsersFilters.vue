@@ -61,18 +61,6 @@
           />
         </div>
 
-        <div class="filter-item filter-create">
-          <v-btn
-            icon="mdi-plus"
-            variant="flat"
-            color="primary"
-            size="small"
-            @click="$emit('create')"
-            title="Создать пользователя"
-            data-testid="create-button"
-          />
-        </div>
-
         <div class="filter-item filter-clear">
           <v-btn
             v-show="hasActive"
@@ -131,7 +119,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:filters', v: FiltersValue): void;
   (e: 'search'): void;
-  (e: 'create'): void;
   (e: 'clear'): void;
 }>();
 

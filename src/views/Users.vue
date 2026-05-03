@@ -1,15 +1,5 @@
 <template>
   <div class="users-page">
-    <div class="page-header">
-      <div class="page-title-section">
-        <v-icon icon="mdi-account-group-outline" size="32" class="page-icon" />
-        <div>
-          <h1 class="page-title">Управление пользователями</h1>
-          <p class="page-subtitle">Пользователи, роли и права доступа</p>
-        </div>
-      </div>
-    </div>
-
     <UsersStats :stats="statsCards" />
 
     <UsersFilters
@@ -18,7 +8,6 @@
       :loading-roles="loadingRoles"
       @update:filters="onFiltersUpdate"
       @search="debouncedSearch"
-      @create="actions.openCreate"
       @clear="clearFilters"
     />
 
@@ -28,6 +17,7 @@
       :pagination="pagination"
       :server-items-length="serverItemsLength"
       :total-pages="usersData?.pages || 0"
+      :ordering="filters.ordering"
       @page-change="onPageChange"
       @per-page-change="onPerPageChange"
       @sort-change="onSortChange"
@@ -89,12 +79,15 @@
       :details="successNotification.details"
       :icon="successNotification.icon"
     />
+
+    <AppleFAB icon="mdi-plus" :items="fabMenuItems" @item-click="handleFabAction" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { debounce } from 'lodash-es';
+import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
@@ -251,6 +244,20 @@ const clearFilters = () => {
 };
 
 const actions = useUserActions(showSnackbar);
+
+const fabMenuItems = [
+  {
+    id: 'create',
+    label: 'Создать пользователя',
+    icon: 'mdi-account-plus-outline',
+    color: 'success' as const,
+    action: () => actions.openCreate(),
+  },
+];
+
+const handleFabAction = (item: { id?: string }) => {
+  console.log('FAB action:', item.id);
+};
 
 const onPageChange = (page: number) => {
   handlePageChange(page);
