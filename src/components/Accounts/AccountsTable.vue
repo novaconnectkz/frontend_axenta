@@ -7,7 +7,7 @@
       :items="items"
       :loading="loading"
       :sort-by="[{ key: sortBy, order: sortOrder }]"
-      :must-sort="false"
+      :must-sort="true"
       :multi-sort="false"
       class="accounts-table"
       :class="{ 'updating': backgroundLoading }"

@@ -368,6 +368,8 @@ const { accountsWithNumbers, effectiveTotalItems, totalPages, getDisplayRange } 
   currentPage,
   itemsPerPage,
   totalItems,
+  sortBy,
+  sortOrder,
 });
 
 

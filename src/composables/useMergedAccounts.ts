@@ -16,7 +16,40 @@ interface UseMergedAccountsContext {
   currentPage: Ref<number>;
   itemsPerPage: Ref<number>;
   totalItems: Ref<number>;
+  sortBy: Ref<string>;
+  sortOrder: Ref<'asc' | 'desc'>;
 }
+
+const sortAccounts = <T extends Account & { source?: string }>(
+  list: T[],
+  sortBy: string,
+  sortOrder: 'asc' | 'desc',
+): T[] => {
+  if (!sortBy) return list;
+  const dir = sortOrder === 'desc' ? -1 : 1;
+  const getValue = (a: any): number | string => {
+    switch (sortBy) {
+      case 'id': return Number(a.id) || 0;
+      case 'name': return (a.name || '').toLowerCase();
+      case 'type': return (a.type || '').toLowerCase();
+      case 'objectsTotal': return Number(a.objectsTotal ?? a.objects_total ?? 0);
+      case 'isActive': return a.isActive ? 1 : 0;
+      case 'source': return (a.source || '').toLowerCase();
+      case 'creationDatetime': {
+        const d = a.creationDatetime || a.creation_datetime;
+        return d ? new Date(d).getTime() : 0;
+      }
+      default: return (a[sortBy] ?? '') as any;
+    }
+  };
+  return [...list].sort((a, b) => {
+    const va = getValue(a);
+    const vb = getValue(b);
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+};
 
 const filterWialonByCommon = (
   list: Array<Account & { source: string }>,
@@ -110,6 +143,8 @@ export function useMergedAccounts(ctx: UseMergedAccountsContext): {
     } else {
       allAccounts = [...filteredAxenta, ...filteredWialon];
     }
+
+    allAccounts = sortAccounts(allAccounts, ctx.sortBy.value, ctx.sortOrder.value);
 
     let paginatedAccounts: typeof allAccounts;
     if (ctx.filters.value.source === 'axenta') {
