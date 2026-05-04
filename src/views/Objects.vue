@@ -1,18 +1,6 @@
 <template>
   <div class="objects-page">
 
-    <!-- Заголовок страницы -->
-    <div class="page-header">
-      <div class="page-title-section">
-        <v-icon icon="mdi-office-building" size="32" class="page-icon" />
-        <div>
-          <h1 class="page-title">Управление объектами</h1>
-          <p class="page-subtitle">Мониторинг и управление объектами системы</p>
-        </div>
-      </div>
-
-    </div>
-
     <!-- Уведомление о демо режиме -->
     <v-alert v-if="objectsService.isMockDataEnabled && objectsService.isMockDataEnabled()" type="info" variant="tonal"
       prominent border="start" class="demo-alert">
@@ -2266,43 +2254,6 @@ onUnmounted(() => {
   padding: 0;
 }
 
-/* Заголовок страницы */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
-}
-
-.page-title-section {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.page-icon {
-  color: var(--apple-blue);
-}
-
-.page-title {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  margin: 4px 0 0 0;
-  line-height: 1.4;
-}
-
 .page-actions {
   display: flex;
   gap: 12px;
@@ -2622,18 +2573,6 @@ onUnmounted(() => {
 }
 
 /* Темная тема */
-[data-theme="dark"] .page-icon {
-  color: var(--apple-blue-light);
-}
-
-[data-theme="dark"] .page-title {
-  color: var(--text-primary-dark);
-}
-
-[data-theme="dark"] .page-subtitle {
-  color: var(--text-secondary-dark);
-}
-
 [data-theme="dark"] .section-title {
   color: var(--text-primary-dark);
 }
@@ -2821,12 +2760,6 @@ onUnmounted(() => {
 
 /* Адаптивность */
 @media (max-width: 960px) {
-  .page-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-
   .page-actions {
     width: 100%;
     justify-content: flex-end;
@@ -2857,10 +2790,6 @@ onUnmounted(() => {
 }
 
 @media (max-width: 600px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
   }
