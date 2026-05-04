@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="show" max-width="560">
+  <v-dialog v-model="show" width="640" max-width="92vw" persistent>
     <AppleCard v-if="account">
       <template #header>
         <div class="hd">

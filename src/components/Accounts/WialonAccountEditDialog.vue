@@ -1,6 +1,6 @@
 <template>
-  <v-dialog v-model="show" max-width="780">
-    <AppleCard v-if="account">
+  <v-dialog v-model="show" width="1200" max-width="95vw" persistent scrollable>
+    <AppleCard v-if="account" class="dlg">
       <template #header>
         <div class="hd">
           <h3>Свойства Wialon-аккаунта</h3>
@@ -20,7 +20,6 @@
         <v-tab value="access">Доступ</v-tab>
         <v-tab value="custom">Произвольные поля</v-tab>
         <v-tab value="extra">Дополнительно</v-tab>
-        <v-tab value="payment">Платёж</v-tab>
         <v-tab value="history">Статистика</v-tab>
       </v-tabs>
 
@@ -32,6 +31,21 @@
           <div class="meta">
             <span><b>Дата создания:</b> {{ details?.created_at ? formatDate(details.created_at) : '—' }}</span>
             <span><b>Родитель:</b> {{ details?.parent_account_name || '—' }}</span>
+            <span><b>Баланс:</b> {{ details?.balance || details?.balance_value || '—' }}</span>
+            <span><b>Дней:</b> {{ details?.days_counter ?? '—' }}</span>
+          </div>
+
+          <v-divider class="my-2" />
+
+          <div class="payment-section">
+            <h5 class="sec-title">Платёж</h5>
+            <div class="hint">Сумма и дни могут быть отрицательными (списание).</div>
+            <div class="row2">
+              <v-text-field v-model.number="payment.balance_update" label="Сумма" type="number" step="0.01" variant="outlined" density="comfortable" hide-details="auto" />
+              <v-text-field v-model.number="payment.days_update" label="Добавить дней" type="number" variant="outlined" density="comfortable" hide-details="auto" />
+            </div>
+            <v-text-field v-model="payment.description" label="Комментарий к платежу" variant="outlined" density="comfortable" hide-details="auto" />
+            <v-btn color="success" size="small" :loading="paying" :disabled="!canPay" @click="doPayment">Провести платёж</v-btn>
           </div>
         </v-window-item>
 
@@ -101,16 +115,6 @@
           <HistoryTab :connection-id="connId!" :user-id="account!.id" :visible="tab === 'history'" @snack="(p) => emit('snack', p)" />
         </v-window-item>
 
-        <!-- ПЛАТЁЖ -->
-        <v-window-item value="payment">
-          <div class="hint">Сумма и дни могут быть отрицательными (списание).</div>
-          <div class="row2">
-            <v-text-field v-model.number="payment.balance_update" label="Сумма" type="number" step="0.01" variant="outlined" density="comfortable" hide-details="auto" />
-            <v-text-field v-model.number="payment.days_update" label="Добавить дней" type="number" variant="outlined" density="comfortable" hide-details="auto" />
-          </div>
-          <v-text-field v-model="payment.description" label="Комментарий к платежу" variant="outlined" density="comfortable" hide-details="auto" />
-          <v-btn color="success" :loading="paying" :disabled="!canPay" @click="doPayment">Провести платёж</v-btn>
-        </v-window-item>
       </v-window>
 
       <template #footer>
@@ -120,7 +124,7 @@
           <v-btn
             color="primary"
             :loading="saving"
-            :disabled="!hasChanges || ['services','access','custom','extra','payment','history'].includes(tab)"
+            :disabled="!hasChanges || ['services','access','custom','extra','history'].includes(tab)"
             @click="save"
           >Сохранить</v-btn>
         </div>
@@ -186,7 +190,7 @@ const show = computed({
   set: (v) => emit('update:modelValue', v),
 });
 
-const tab = ref<'main' | 'services' | 'billing' | 'rights' | 'access' | 'custom' | 'extra' | 'payment' | 'history'>('main');
+const tab = ref<'main' | 'services' | 'billing' | 'rights' | 'access' | 'custom' | 'extra' | 'history'>('main');
 const details = ref<Details | null>(null);
 const planOptions = ref<string[]>([]);
 const loadingPlans = ref(false);
@@ -329,11 +333,17 @@ const doPayment = async () => {
 </script>
 
 <style scoped>
+.dlg { display: flex; flex-direction: column; height: 85vh; max-height: 900px; }
+.dlg :deep(.apple-card-content) { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .hd { display: flex; align-items: center; gap: 8px; }
 .sub { font-size: 12px; color: rgba(0, 0, 0, 0.6); padding-left: 4px; }
-.body { padding: 16px 4px 4px; display: flex; flex-direction: column; gap: 14px; }
+.body { padding: 16px 4px 4px; display: flex; flex-direction: column; gap: 14px; flex: 1; min-height: 0; overflow-y: auto; }
+.body :deep(.v-window) { flex: 1; min-height: 0; }
+.body :deep(.v-window__container) { height: 100%; }
 .body :deep(.v-window-item) { display: flex; flex-direction: column; gap: 14px; padding: 8px 0; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.payment-section { display: flex; flex-direction: column; gap: 10px; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 8px; }
+.sec-title { margin: 0; font-size: 13px; font-weight: 600; }
 .meta { font-size: 12px; color: rgba(0, 0, 0, 0.6); display: flex; gap: 16px; flex-wrap: wrap; }
 .hint { font-size: 12px; color: rgba(0, 0, 0, 0.6); padding: 4px 0; }
 .ft { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
