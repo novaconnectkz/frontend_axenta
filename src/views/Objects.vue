@@ -522,82 +522,27 @@
     </v-dialog>
 
     <!-- Диалог планового удаления -->
-    <v-dialog v-model="scheduleDeleteDialog.show" max-width="500">
-      <AppleCard>
-        <template #header>
-          <v-icon icon="mdi-clock-alert" class="mr-2" color="warning" />
-          Плановое удаление объекта
-        </template>
+    <ScheduleDeleteDialog
+      v-model="scheduleDeleteDialog.show"
+      :object="scheduleDeleteDialog.object"
+      :form="scheduleDeleteForm"
+      :errors="scheduleDeleteErrors"
+      :min-date="minDeleteDate"
+      :loading="scheduling"
+      @update:form="scheduleDeleteForm = $event"
+      @close="closeScheduleDeleteDialog"
+      @confirm="confirmScheduleDelete" />
 
-        <div class="dialog-content">
-          <p class="mb-4">
-            Объект <strong>{{ scheduleDeleteDialog.object?.name }}</strong>
-            будет автоматически удален в указанную дату.
-          </p>
-
-          <AppleInput v-model="scheduleDeleteForm.scheduled_delete_at" label="Дата удаления" type="date" required
-            :min="minDeleteDate" :error-message="scheduleDeleteErrors.scheduled_delete_at" />
-        </div>
-
-        <template #footer>
-          <div class="dialog-actions">
-            <AppleButton variant="secondary" @click="closeScheduleDeleteDialog">
-              Отмена
-            </AppleButton>
-            <AppleButton variant="danger" @click="confirmScheduleDelete" :loading="scheduling">
-              Запланировать
-            </AppleButton>
-          </div>
-        </template>
-      </AppleCard>
-    </v-dialog>
-
-    <!-- Диалог создания шаблона -->
-    <v-dialog v-model="createTemplateDialog.show" max-width="600">
-      <AppleCard>
-        <template #header>
-          <v-icon icon="mdi-file-document-plus" class="mr-2" color="primary" />
-          Создание шаблона на основе объекта
-        </template>
-
-        <div class="dialog-content">
-          <p class="mb-4">
-            Создание шаблона на основе объекта <strong>{{ createTemplateDialog.object?.name }}</strong>
-          </p>
-
-          <div class="form-grid">
-            <AppleInput v-model="createTemplateForm.name" label="Название шаблона" required
-              :error-message="createTemplateErrors.name" placeholder="Введите название шаблона" />
-
-            <AppleInput v-model="createTemplateForm.category" label="Категория" required
-              :error-message="createTemplateErrors.category" placeholder="Например: Транспорт, Оборудование" />
-
-            <AppleInput v-model="createTemplateForm.description" label="Описание" type="textarea"
-              :error-message="createTemplateErrors.description" placeholder="Описание шаблона (необязательно)"
-              rows="3" />
-
-            <div class="form-row">
-              <AppleInput v-model="createTemplateForm.icon" label="Иконка" placeholder="mdi-office-building"
-                :error-message="createTemplateErrors.icon" />
-
-              <AppleInput v-model="createTemplateForm.color" label="Цвет" type="color"
-                :error-message="createTemplateErrors.color" />
-            </div>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="dialog-actions">
-            <AppleButton variant="secondary" @click="closeCreateTemplateDialog">
-              Отмена
-            </AppleButton>
-            <AppleButton @click="confirmCreateTemplate" :loading="saving">
-              Создать шаблон
-            </AppleButton>
-          </div>
-        </template>
-      </AppleCard>
-    </v-dialog>
+    <!-- Диалог создания шаблона из объекта -->
+    <CreateTemplateDialog
+      v-model="createTemplateDialog.show"
+      :object="createTemplateDialog.object"
+      :form="createTemplateForm"
+      :errors="createTemplateErrors"
+      :loading="saving"
+      @update:form="createTemplateForm = $event"
+      @close="closeCreateTemplateDialog"
+      @confirm="confirmCreateTemplate" />
 
     <!-- Диалог просмотра объекта -->
     <v-dialog v-model="viewDialog.show" max-width="900">
@@ -748,7 +693,9 @@ import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
+import CreateTemplateDialog from '@/components/Objects/CreateTemplateDialog.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
+import ScheduleDeleteDialog from '@/components/Objects/ScheduleDeleteDialog.vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 import getObjectsService from '@/services/objectsService';
 import type {
