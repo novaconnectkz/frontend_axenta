@@ -54,13 +54,13 @@
       <div class="kpi-block">
         <div class="kpi highlight" @click="$router.push('/objects')">
           <div class="kpi-head">Активные объекты <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
-          <div class="kpi-value">{{ formatNum(objectsStats.active) }}</div>
-          <span class="kpi-delta">{{ objectsActivityPct }}% активных</span>
+          <div class="kpi-value">{{ formatNum(combinedActiveObjects) }}</div>
+          <span class="kpi-delta">{{ combinedObjectsActivityPct }}% активных</span>
         </div>
         <div class="kpi" @click="$router.push('/accounts')">
           <div class="kpi-head">Учётные записи <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
-          <div class="kpi-value">{{ formatNum(accountsStats.total) }}</div>
-          <span class="kpi-delta">{{ formatNum(accountsStats.clients) }} клиентов</span>
+          <div class="kpi-value">{{ formatNum(combinedAccountsTotal) }}</div>
+          <span class="kpi-delta">{{ formatNum(combinedAccountsClients) }} клиентов</span>
         </div>
         <div class="kpi" @click="$router.push('/billing')">
           <div class="kpi-head">Выручка месяц <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
@@ -151,10 +151,10 @@
         </table>
       </div>
 
-      <div class="donut-card">
+      <div class="donut-card clickable" @click="cycleDonutSource" :title="`Клик — следующий источник (${donutSourceLabel})`">
         <h2>
-          Статус объектов
-          <v-icon size="18" class="arrow" @click="$router.push('/objects')">mdi-arrow-right</v-icon>
+          Статус объектов · <span class="src-label">{{ donutSourceLabel }}</span>
+          <v-icon size="18" class="arrow" @click.stop="$router.push('/objects')">mdi-arrow-right</v-icon>
         </h2>
         <div class="donut-area">
           <svg class="donut-svg" viewBox="0 0 100 100">
@@ -168,7 +168,7 @@
                     :stroke-dasharray="`${inactiveArc} 251.3`"
                     :stroke-dashoffset="`-${activeArc}`"
                     transform="rotate(-90 50 50)"/>
-            <circle v-if="arcTotal > 0"
+            <circle v-if="arcTotal > 0 && trashArc > 0"
                     cx="50" cy="50" r="40" fill="none" stroke="#ff3b30" stroke-width="14"
                     :stroke-dasharray="`${trashArc} 251.3`"
                     :stroke-dashoffset="`-${activeArc + inactiveArc}`"
@@ -180,9 +180,13 @@
           </div>
         </div>
         <div class="donut-legend">
-          <span><span class="dot" style="background:#34c759"></span>Активные · {{ formatNum(objectsStats.active) }}</span>
-          <span><span class="dot" style="background:#ff9500"></span>Неактивные · {{ formatNum(objectsStats.inactive) }}</span>
-          <span><span class="dot" style="background:#ff3b30"></span>Корзина · {{ formatNum(objectsStats.deleted + objectsStats.scheduled_for_delete) }}</span>
+          <span><span class="dot" style="background:#34c759"></span>Активные · {{ formatNum(donutStats.active) }}</span>
+          <span><span class="dot" style="background:#ff9500"></span>Неактивные · {{ formatNum(donutStats.inactive) }}</span>
+          <span v-if="donutStats.deleted > 0"><span class="dot" style="background:#ff3b30"></span>Корзина · {{ formatNum(donutStats.deleted) }}</span>
+        </div>
+        <div class="donut-pager">
+          <span v-for="(s, i) in donutSources" :key="s.key"
+                class="dot-pager" :class="{active: i === donutIdx}"></span>
         </div>
       </div>
     </div>
@@ -195,7 +199,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ObjectsService } from "@/services/objectsService";
 import { accountsService } from "@/services/accountsService";
-import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem } from "@/services/dashboardKpiService";
+import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse } from "@/services/dashboardKpiService";
 
 const router = useRouter();
 
@@ -204,6 +208,15 @@ const objectsStats = reactive({
   scheduled_for_delete: 0, deleted: 0,
 });
 const accountsStats = reactive({ total: 0, active: 0, blocked: 0, clients: 0, partners: 0 });
+
+// Multi-source: Axenta + WH + WL. Sources массив + total — combined.
+// donutIdx 0 = "Все" (total), 1..N = sources[i-1]. Клик по карточке → следующий по кругу.
+const sourcesStats = ref<SourcesStatsResponse>({
+  sources: [],
+  total: { key: "all", label: "Все", objects: { total: 0, active: 0, inactive: 0, deleted: 0 }, accounts: { total: 0, active: 0, blocked: 0, clients: 0, partners: 0 } },
+});
+const donutIdx = ref(0);
+
 const kpiMetrics = ref<KPIMetric[]>([]);
 const alerts = ref<DashboardAlert[]>([]);
 const loadingContracts = ref(false);
@@ -213,6 +226,42 @@ const objectsActivityPct = computed(() => {
   if (!objectsStats.total) return 0;
   return Math.round((objectsStats.active / objectsStats.total) * 100);
 });
+
+// Combined-метрики для KPI (Axenta + WH + WL)
+const combinedActiveObjects = computed(() => sourcesStats.value.total.objects.active);
+const combinedTotalObjects = computed(() =>
+  sourcesStats.value.total.objects.active + sourcesStats.value.total.objects.inactive
+);
+const combinedObjectsActivityPct = computed(() => {
+  const total = combinedTotalObjects.value;
+  if (!total) return 0;
+  return Math.round((combinedActiveObjects.value / total) * 100);
+});
+const combinedAccountsTotal = computed(() => sourcesStats.value.total.accounts.total);
+const combinedAccountsClients = computed(() => sourcesStats.value.total.accounts.clients);
+
+// Карусель донат-источников: [Все, Axenta, WH, WL] (только непустые)
+const donutSources = computed<SourceStats[]>(() => {
+  const out: SourceStats[] = [sourcesStats.value.total];
+  for (const s of sourcesStats.value.sources) {
+    // Скрываем системы у которых нет ни одного объекта — нечего показывать
+    if (s.objects.active + s.objects.inactive + s.objects.deleted > 0) {
+      out.push(s);
+    }
+  }
+  return out;
+});
+const currentDonutSource = computed<SourceStats>(() => {
+  const list = donutSources.value;
+  if (!list.length) return sourcesStats.value.total;
+  return list[Math.min(donutIdx.value, list.length - 1)];
+});
+const donutSourceLabel = computed(() => currentDonutSource.value.label);
+const donutStats = computed(() => currentDonutSource.value.objects);
+function cycleDonutSource() {
+  const len = donutSources.value.length || 1;
+  donutIdx.value = (donutIdx.value + 1) % len;
+}
 
 const monthlyRevenueText = computed(() => {
   const m = kpiMetrics.value.find(m => m.id === "monthly_revenue");
@@ -246,14 +295,12 @@ const overdueText = computed(() => {
 });
 
 const CIRC = 251.3;
-// Total из бэка не всегда = active + inactive + trash (корзина может не входить в total).
-// Иначе получали overflow: trash-арка стартует с offset = full circle и красное торчит поверх зелёного.
-// Нормализуем по фактической сумме частей.
-const trashCount = computed(() => objectsStats.deleted + objectsStats.scheduled_for_delete);
-const arcTotal = computed(() => objectsStats.active + objectsStats.inactive + trashCount.value);
-const activeArc = computed(() => arcTotal.value ? (objectsStats.active / arcTotal.value) * CIRC : 0);
-const inactiveArc = computed(() => arcTotal.value ? (objectsStats.inactive / arcTotal.value) * CIRC : 0);
-const trashArc = computed(() => arcTotal.value ? (trashCount.value / arcTotal.value) * CIRC : 0);
+// Donut использует выбранный источник (карусель). Корзина у WH/WL = 0,
+// тогда легенда сама скрывает строку «Корзина».
+const arcTotal = computed(() => donutStats.value.active + donutStats.value.inactive + donutStats.value.deleted);
+const activeArc = computed(() => arcTotal.value ? (donutStats.value.active / arcTotal.value) * CIRC : 0);
+const inactiveArc = computed(() => arcTotal.value ? (donutStats.value.inactive / arcTotal.value) * CIRC : 0);
+const trashArc = computed(() => arcTotal.value ? (donutStats.value.deleted / arcTotal.value) * CIRC : 0);
 
 function formatNum(n: number): string {
   return new Intl.NumberFormat("ru-RU").format(n);
@@ -299,6 +346,9 @@ async function load() {
   const cachedAccounts = readCache<typeof accountsStats>("accounts");
   if (cachedAccounts) Object.assign(accountsStats, cachedAccounts);
 
+  const cachedSources = readCache<SourcesStatsResponse>("sources_stats");
+  if (cachedSources) sourcesStats.value = cachedSources;
+
   // 2. Фоновый refresh — обновляет UI и кеш когда данные пришли
   const objSvc = new ObjectsService();
   await Promise.all([
@@ -309,6 +359,10 @@ async function load() {
     accountsService.getAccountsStats().then(s => {
       Object.assign(accountsStats, s);
       writeCache("accounts", s);
+    }).catch(() => {}),
+    dashboardKpiService.getSourcesStats().then(r => {
+      sourcesStats.value = r;
+      writeCache("sources_stats", r);
     }).catch(() => {}),
     dashboardKpiService.getKPI().then(r => {
       kpiMetrics.value = r.metrics;
@@ -715,6 +769,31 @@ td.value.danger { color: #ff3b30; }
   gap: 6px;
 }
 .donut-legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+.donut-card.clickable { cursor: pointer; transition: transform 0.15s ease; }
+.donut-card.clickable:hover { transform: translateY(-2px); }
+.donut-card h2 .src-label {
+  color: #007aff;
+  font-weight: 600;
+  margin-left: 4px;
+}
+.donut-pager {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.donut-pager .dot-pager {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d8d8de;
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.donut-pager .dot-pager.active {
+  background: #007aff;
+  width: 18px;
+  border-radius: 3px;
+}
 
 /* =====================================================================
    Tablet (< 1100px) — top-grid в одну колонку, KPI блок шире.

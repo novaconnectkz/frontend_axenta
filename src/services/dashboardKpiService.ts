@@ -49,6 +49,40 @@ export interface SearchResponse {
   query: string;
 }
 
+export interface SourceObjectStats {
+  total: number;
+  active: number;
+  inactive: number;
+  deleted: number;
+}
+
+export interface SourceAccountStats {
+  total: number;
+  active: number;
+  blocked: number;
+  clients: number;
+  partners: number;
+}
+
+export interface SourceStats {
+  key: "axenta" | "wh" | "wl" | "all" | string;
+  label: string;
+  objects: SourceObjectStats;
+  accounts: SourceAccountStats;
+}
+
+export interface SourcesStatsResponse {
+  sources: SourceStats[];
+  total: SourceStats;
+}
+
+const EMPTY_SOURCE = (key: string, label: string): SourceStats => ({
+  key,
+  label,
+  objects: { total: 0, active: 0, inactive: 0, deleted: 0 },
+  accounts: { total: 0, active: 0, blocked: 0, clients: 0, partners: 0 },
+});
+
 export const dashboardKpiService = {
   async getAlerts(): Promise<DashboardAlert[]> {
     const res = await apiClient.get(`${BASE}/alerts`);
@@ -63,5 +97,21 @@ export const dashboardKpiService = {
   async search(query: string, limit = 10): Promise<SearchResponse> {
     const res = await apiClient.get(`/auth/search`, { params: { q: query, limit } });
     return res.data?.data || { objects: [], clients: [], query };
+  },
+
+  async getSourcesStats(): Promise<SourcesStatsResponse> {
+    const res = await apiClient.get(`${BASE}/sources-stats`);
+    const data = res.data?.data;
+    if (!data) {
+      return {
+        sources: [
+          EMPTY_SOURCE("axenta", "Axenta"),
+          EMPTY_SOURCE("wh", "Wialon Hosting"),
+          EMPTY_SOURCE("wl", "Wialon Local"),
+        ],
+        total: EMPTY_SOURCE("all", "Все"),
+      };
+    }
+    return data;
   },
 };
