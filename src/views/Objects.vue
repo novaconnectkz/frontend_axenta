@@ -744,11 +744,8 @@ const fabMenuItems = [
   }
 ];
 
-// Обработчик клика на элементе FAB меню
-const handleFabAction = (item: { id?: string; action?: () => void }) => {
-  // Действие выполняется автоматически через свойство action элемента
-  console.log('FAB action:', item.id);
-};
+// Обработчик клика на элементе FAB меню (действие выполняется через item.action)
+const handleFabAction = (_item: { id?: string; action?: () => void }) => {};
 const objects = ref<ObjectWithRelations[]>([]);
 const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
@@ -766,12 +763,6 @@ const showFilters = ref(false);
 const loadingSuggestions = ref(false);
 const searchSuggestions = ref<Array<{ title: string; subtitle: string; icon: string; value: string }>>([]);
 const searchHistory = ref<string[]>([]);
-
-console.log('🔍 Search states initialized:', {
-  showSearchHistory: showSearchHistory.value,
-  showAdvancedSearch: showAdvancedSearch.value,
-  loadingSuggestions: loadingSuggestions.value
-});
 
 // Расширенные фильтры
 const advancedFilters = ref({
@@ -1099,35 +1090,14 @@ const loadCompanies = async () => {
   }
 };
 
+// loadContracts/loadLocations — фильтры в UI отключены, реальный API не реализован.
+// Возвращаем пустые массивы (селекты filters.contract_id/location_id скрыты при пустом списке).
 const loadContracts = async () => {
-  try {
-    // Убираем loadingContracts.value = true; чтобы не было loading индикаторов
-    // TODO: Реализовать загрузку договоров из API
-    contractOptions.value = [
-      { title: 'Договор №1 - ООО "Тест"', value: 1 },
-      { title: 'Договор №2 - ИП Иванов', value: 2 },
-    ];
-  } catch (error) {
-    console.error('Ошибка загрузки договоров:', error);
-    showSnackbar('Ошибка загрузки договоров', 'error');
-  }
-  // Убираем finally блок
+  contractOptions.value = [];
 };
 
 const loadLocations = async () => {
-  try {
-    // Убираем loadingLocations.value = true; чтобы не было loading индикаторов
-    // TODO: Реализовать загрузку локаций из API
-    locationOptions.value = [
-      { title: 'Москва', value: 1 },
-      { title: 'Санкт-Петербург', value: 2 },
-      { title: 'Саратов', value: 3 },
-    ];
-  } catch (error) {
-    console.error('Ошибка загрузки локаций:', error);
-    showSnackbar('Ошибка загрузки локаций', 'error');
-  }
-  // Убираем finally блок
+  locationOptions.value = [];
 };
 
 // Load templates
