@@ -45,6 +45,15 @@
       :user="viewDialog.user"
       @edit="onEdit"
       @delete="onDelete"
+      @refreshed="onUserRefreshed"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => showSnackbar(p.text, p.color)"
+    />
+
+    <WialonUserEditDialog
+      v-model="wialonEditDialog.show"
+      :user="wialonEditDialog.user"
+      @saved="onUserRefreshed"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => showSnackbar(p.text, p.color)"
     />
 
     <PasswordResetDialog
@@ -92,6 +101,7 @@ import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
+import WialonUserEditDialog from '@/components/Users/WialonUserEditDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import UsersFilters from '@/components/Users/UsersFilters.vue';
 import UsersStats from '@/components/Users/UsersStats.vue';
@@ -197,6 +207,7 @@ const stats = ref<StatItem[]>([
 const statsCards = computed(() => stats.value);
 
 const userDialog = ref({ show: false, isEdit: false, user: null as UserWithRelations | null });
+const wialonEditDialog = ref({ show: false, user: null as any });
 const passwordDialog = ref({ show: false, user: null as UserWithRelations | null });
 const viewDialog = ref({ show: false, user: null as UserWithRelations | null });
 const inactiveUsersDialog = ref({ show: false });
@@ -374,12 +385,74 @@ const onToggleActivity = async (user: UserWithRelations, isActive: boolean) => {
   }
 };
 
+// adaptUserForView — приводит UnifiedUser/AxentaUser/WialonUser к shape UserWithRelations,
+// который ожидает UserViewDialog. Без этого wialon-юзеры (и sub-users) показывают пустые
+// Email/Роль/Тип и Invalid Date в карточке детали.
+const adaptUserForView = (u: any): UserWithRelations => {
+  const created = u.created_at || u.creation_datetime || '';
+  const updated = u.updated_at || u.creation_datetime || created;
+  const accountType = u.account_type || u.role || '';
+  const roleDisplay = u.role && typeof u.role === 'object'
+    ? u.role
+    : (typeof u.role === 'string' && u.role
+        ? { display_name: roleDisplayName(u.role), color: roleColor(u.role) }
+        : (accountType
+            ? { display_name: roleDisplayName(accountType), color: roleColor(accountType) }
+            : undefined));
+  return {
+    ...u,
+    email: u.email || '',
+    name: u.name || u.username || '',
+    user_type: u.user_type || accountType || '',
+    created_at: created,
+    updated_at: updated,
+    last_login: u.last_login || '',
+    login_count: u.login_count ?? 0,
+    role: roleDisplay,
+    external_source: u.external_source || u.source_label || u.source,
+    external_id: u.external_id || (u.id != null ? String(u.id) : undefined),
+  } as UserWithRelations;
+};
+
+const roleDisplayName = (r: string): string => {
+  switch (r) {
+    case 'partner': return 'Партнёр';
+    case 'client': return 'Клиент';
+    case 'staff': return 'Сотрудник';
+    case 'admin': return 'Администратор';
+    default: return r;
+  }
+};
+
+const roleColor = (r: string): string => {
+  switch (r) {
+    case 'partner': return 'purple';
+    case 'client': return 'primary';
+    case 'staff': return 'orange';
+    case 'admin': return 'red';
+    default: return 'primary';
+  }
+};
+
 const onView = (user: UserWithRelations) => {
-  viewDialog.value = { show: true, user };
+  viewDialog.value = { show: true, user: adaptUserForView(user) };
+};
+
+const onUserRefreshed = async () => {
+  await Promise.all([loadUsers(), loadGlobalStats()]);
 };
 
 const onEdit = (user: UserWithRelations) => {
-  userDialog.value = { show: true, isEdit: true, user };
+  const u: any = user;
+  const isWialon =
+    u?.source === 'wialon' ||
+    String(u?.external_source || u?.source_label || '').startsWith('WH(') ||
+    String(u?.external_source || u?.source_label || '').startsWith('WL(');
+  if (isWialon) {
+    wialonEditDialog.value = { show: true, user: u };
+  } else {
+    userDialog.value = { show: true, isEdit: true, user };
+  }
 };
 
 const onResetPassword = (user: UserWithRelations) => {

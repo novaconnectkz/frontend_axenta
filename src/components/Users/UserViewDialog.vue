@@ -17,10 +17,21 @@
           <v-spacer />
           <div class="header-actions">
             <v-btn
+              v-if="isWialonUser"
+              :loading="refreshing"
+              icon="mdi-refresh"
+              variant="text"
+              size="small"
+              color="info"
+              :title="'Обновить данные из Wialon'"
+              @click="refreshFromSource"
+            />
+            <v-btn
               icon="mdi-pencil"
               variant="text"
               size="small"
               color="primary"
+              :title="isWialonUser ? 'Редактировать (Wialon)' : 'Редактировать'"
               @click="editUser"
             />
             <v-btn
@@ -123,7 +134,7 @@
                     {{ user.last_login ? formatDate(user.last_login) : 'Никогда' }}
                   </span>
                 </div>
-                <div class="detail-item">
+                <div v-if="!isWialonUser" class="detail-item">
                   <span class="detail-label">Всего входов:</span>
                   <span class="detail-value">{{ user.login_count }}</span>
                 </div>
@@ -193,7 +204,8 @@
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import type { UserWithRelations } from '@/types/users';
-import { computed } from 'vue';
+import { apiClient } from '@/services/api';
+import { computed, ref } from 'vue';
 
 // Props
 interface Props {
@@ -211,6 +223,8 @@ interface Emits {
   (e: 'update:modelValue', value: boolean): void;
   (e: 'edit', user: UserWithRelations): void;
   (e: 'delete', user: UserWithRelations): void;
+  (e: 'refreshed', user: UserWithRelations): void;
+  (e: 'snack', payload: { text: string; color: 'success' | 'error' | 'info' }): void;
 }
 
 const emit = defineEmits<Emits>();
@@ -219,6 +233,15 @@ const emit = defineEmits<Emits>();
 const show = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value),
+});
+
+// Wialon-юзеры: API не отдаёт login_count, поле "Всего входов" скрываем.
+const isWialonUser = computed(() => {
+  const u: any = props.user;
+  if (!u) return false;
+  if (u.source === 'wialon') return true;
+  const lbl = String(u.external_source || u.source_label || '');
+  return lbl.startsWith('WH(') || lbl.startsWith('WL(');
 });
 
 // Methods
@@ -284,6 +307,31 @@ const deleteUser = () => {
   if (props.user) {
     emit('delete', props.user);
     closeDialog();
+  }
+};
+
+// Принудительное обновление одного wialon-юзера: дёргает refresh-account на backend,
+// который инвалидирует cache и пересобирает данные конкретного аккаунта.
+const refreshing = ref(false);
+const refreshFromSource = async () => {
+  const u: any = props.user;
+  if (!u) return;
+  const connId = u.connection_id;
+  const userId = u.id ?? u.external_id;
+  if (!connId || !userId) {
+    emit('snack', { text: 'Нет connection_id/userId для обновления', color: 'error' });
+    return;
+  }
+  refreshing.value = true;
+  try {
+    await apiClient.post(`/wialon/connections/${connId}/refresh-account/${userId}`);
+    emit('snack', { text: 'Данные обновлены из Wialon', color: 'success' });
+    emit('refreshed', props.user as UserWithRelations);
+  } catch (e: any) {
+    console.error('refresh-account error', e);
+    emit('snack', { text: 'Ошибка обновления: ' + (e?.message || 'unknown'), color: 'error' });
+  } finally {
+    refreshing.value = false;
   }
 };
 </script>
