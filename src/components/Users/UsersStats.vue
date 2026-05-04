@@ -1,16 +1,35 @@
 <template>
   <div class="stats-section">
     <div class="stats-grid">
-      <AppleCard
-        v-for="stat in stats"
-        :key="stat.key"
-        :title="(stat.value || 0).toString()"
-        :subtitle="stat.label"
-        :icon="stat.icon"
-        :icon-color="stat.color"
-        variant="outlined"
-        class="stat-card"
-      />
+      <template v-for="stat in stats" :key="stat.key">
+        <v-tooltip v-if="stat.breakdown" location="bottom">
+          <template #activator="{ props: tooltipProps }">
+            <AppleCard
+              v-bind="tooltipProps"
+              :title="(stat.value || 0).toString()"
+              :subtitle="stat.label"
+              :icon="stat.icon"
+              :icon-color="stat.color"
+              variant="outlined"
+              class="stat-card"
+            />
+          </template>
+          <div class="stats-tooltip">
+            <div><strong>Axenta:</strong> {{ stat.breakdown.axenta }}</div>
+            <div v-if="stat.breakdown.wl > 0"><strong>WL:</strong> {{ stat.breakdown.wl }}</div>
+            <div v-if="stat.breakdown.wh > 0"><strong>WH:</strong> {{ stat.breakdown.wh }}</div>
+          </div>
+        </v-tooltip>
+        <AppleCard
+          v-else
+          :title="(stat.value || 0).toString()"
+          :subtitle="stat.label"
+          :icon="stat.icon"
+          :icon-color="stat.color"
+          variant="outlined"
+          class="stat-card"
+        />
+      </template>
     </div>
   </div>
 </template>
@@ -24,6 +43,7 @@ interface Stat {
   value: number;
   icon: string;
   color: string;
+  breakdown?: { axenta: number; wl: number; wh: number };
 }
 
 defineProps<{ stats: Stat[] }>();
@@ -40,5 +60,11 @@ defineProps<{ stats: Stat[] }>();
 }
 .stat-card {
   text-align: center;
+}
+.stats-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
 }
 </style>

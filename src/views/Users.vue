@@ -101,7 +101,9 @@ import { useUsersList, type UsersListFilters } from '@/composables/useUsersList'
 import usersService from '@/services/usersService';
 import type { UserWithRelations } from '@/types/users';
 
-const filters = ref<UsersListFilters>({
+const FILTERS_STORAGE_KEY = 'users_page_filters';
+
+const defaultFilters = (): UsersListFilters => ({
   search: '',
   role: undefined,
   user_type: undefined,
@@ -109,6 +111,8 @@ const filters = ref<UsersListFilters>({
   source: null,
   ordering: '-creation_datetime',
 });
+
+const filters = ref<UsersListFilters>(defaultFilters());
 
 const {
   users,
@@ -118,9 +122,54 @@ const {
   wialonStats,
   axentaStats,
   loadUsers,
+  loadGlobalStats,
   handlePageChange,
   handlePerPageChange,
 } = useUsersList({ filters });
+
+const loadFiltersFromStorage = (): boolean => {
+  try {
+    const saved = localStorage.getItem(FILTERS_STORAGE_KEY);
+    if (!saved) return false;
+    const data = JSON.parse(saved);
+    filters.value = {
+      search: data.search ?? '',
+      role: data.role ?? undefined,
+      user_type: data.user_type ?? undefined,
+      active: data.active ?? undefined,
+      source: data.source ?? null,
+      ordering: data.ordering ?? '-creation_datetime',
+    };
+    if (typeof data.page === 'number' && data.page > 0) pagination.value.page = data.page;
+    if (typeof data.limit === 'number' && data.limit > 0) pagination.value.limit = data.limit;
+    return true;
+  } catch (e) {
+    console.error('Ошибка загрузки фильтров users:', e);
+    return false;
+  }
+};
+
+const saveFiltersToStorage = () => {
+  try {
+    localStorage.setItem(
+      FILTERS_STORAGE_KEY,
+      JSON.stringify({
+        search: filters.value.search,
+        role: filters.value.role,
+        user_type: filters.value.user_type,
+        active: filters.value.active,
+        source: filters.value.source,
+        ordering: filters.value.ordering,
+        page: pagination.value.page,
+        limit: pagination.value.limit,
+      }),
+    );
+  } catch (e) {
+    console.error('Ошибка сохранения фильтров users:', e);
+  }
+};
+
+watch([filters, pagination], saveFiltersToStorage, { deep: true });
 
 const roleOptions = ref<Array<{ title: string; value: string }>>([]);
 const roleOptionsForForm = ref<Array<{ title: string; value: number }>>([]);
@@ -128,7 +177,17 @@ const templateOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
 const loadingTemplates = ref(false);
 
-const stats = ref([
+interface StatBreakdown { axenta: number; wl: number; wh: number }
+interface StatItem {
+  key: string;
+  label: string;
+  value: number;
+  icon: string;
+  color: string;
+  breakdown?: StatBreakdown;
+}
+
+const stats = ref<StatItem[]>([
   { key: 'total', label: 'Всего пользователей', value: 0, icon: 'mdi-account-group-outline', color: 'primary' },
   { key: 'active', label: 'Активные', value: 0, icon: 'mdi-account-check-outline', color: 'success' },
   { key: 'inactive', label: 'Неактивные', value: 0, icon: 'mdi-account-off-outline', color: 'warning' },
@@ -160,6 +219,21 @@ const updateTotalStats = () => {
   stats.value[0].value = axentaStats.value.total + wialonStats.value.total;
   stats.value[1].value = axentaStats.value.active + wialonStats.value.active;
   stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive;
+  stats.value[0].breakdown = {
+    axenta: axentaStats.value.total,
+    wl: wialonStats.value.wl.total,
+    wh: wialonStats.value.wh.total,
+  };
+  stats.value[1].breakdown = {
+    axenta: axentaStats.value.active,
+    wl: wialonStats.value.wl.active,
+    wh: wialonStats.value.wh.active,
+  };
+  stats.value[2].breakdown = {
+    axenta: axentaStats.value.inactive,
+    wl: wialonStats.value.wl.inactive,
+    wh: wialonStats.value.wh.inactive,
+  };
 };
 
 watch([axentaStats, wialonStats], updateTotalStats, { deep: true });
@@ -238,15 +312,13 @@ const onFiltersUpdate = (next: UsersListFilters) => {
 };
 
 const clearFilters = () => {
-  filters.value = {
-    search: '',
-    role: undefined,
-    user_type: undefined,
-    active: undefined,
-    source: null,
-    ordering: '-creation_datetime',
-  };
+  filters.value = defaultFilters();
   pagination.value.page = 1;
+  try {
+    localStorage.removeItem(FILTERS_STORAGE_KEY);
+  } catch (e) {
+    console.error('Ошибка очистки фильтров users:', e);
+  }
   loadUsers();
 };
 
@@ -298,7 +370,7 @@ const onSortChange = (sortBy: any[]) => {
 
 const onToggleActivity = async (user: UserWithRelations, isActive: boolean) => {
   if (await actions.toggleActivity(user, isActive)) {
-    await Promise.all([loadUsers(), loadStats()]);
+    await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
   }
 };
 
@@ -316,7 +388,7 @@ const onResetPassword = (user: UserWithRelations) => {
 
 const onDelete = async (user: UserWithRelations) => {
   if (await actions.deleteUser(user)) {
-    await Promise.all([loadUsers(), loadStats()]);
+    await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
   }
 };
 
@@ -325,12 +397,12 @@ const onUserSaved = async () => {
     userDialog.value.isEdit ? 'Пользователь успешно обновлён' : 'Пользователь успешно создан',
     'success'
   );
-  await Promise.all([loadUsers(), loadStats()]);
+  await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
 };
 
 const onInactiveUsersSuccess = async (message: string) => {
   showSnackbar(message, 'success');
-  await Promise.all([loadUsers(), loadStats()]);
+  await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
 };
 
 onMounted(async () => {
@@ -340,8 +412,10 @@ onMounted(async () => {
     return;
   }
 
+  loadFiltersFromStorage();
+
   try {
-    await Promise.all([loadUsers(), loadStats(), loadRoles(), loadTemplates()]);
+    await Promise.all([loadUsers(), loadStats(), loadGlobalStats(), loadRoles(), loadTemplates()]);
   } catch (e) {
     console.error('Ошибка загрузки данных:', e);
     showSnackbar('Ошибка загрузки данных пользователей', 'error');

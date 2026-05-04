@@ -17,8 +17,47 @@ export function useUsersList(ctx: UseUsersListContext) {
 
   const pagination = ref({ page: 1, limit: 10 });
 
-  const wialonStats = ref({ total: 0, active: 0, inactive: 0 });
+  const wialonStats = ref({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    wh: { total: 0, active: 0, inactive: 0 },
+    wl: { total: 0, active: 0, inactive: 0 },
+  });
   const axentaStats = ref({ total: 0, active: 0, inactive: 0 });
+
+  const applyStatsFromResponse = (resp: any) => {
+    if (!resp?.data?.stats) return;
+    axentaStats.value = {
+      total: resp.data.stats.axenta_total,
+      active: resp.data.stats.axenta_active,
+      inactive: resp.data.stats.axenta_total - resp.data.stats.axenta_active,
+    };
+    const whT = resp.data.stats.wialon_wh_total ?? 0;
+    const whA = resp.data.stats.wialon_wh_active ?? 0;
+    const wlT = resp.data.stats.wialon_wl_total ?? 0;
+    const wlA = resp.data.stats.wialon_wl_active ?? 0;
+    wialonStats.value = {
+      total: resp.data.stats.wialon_total,
+      active: resp.data.stats.wialon_active,
+      inactive: resp.data.stats.wialon_total - resp.data.stats.wialon_active,
+      wh: { total: whT, active: whA, inactive: whT - whA },
+      wl: { total: wlT, active: wlA, inactive: wlT - wlA },
+    };
+  };
+
+  // hasActiveFilters — true если применён search/role/active/user_type/source != all.
+  // KPI-плашки сверху страницы должны отражать ВСЮ выборку, не отфильтрованную, поэтому при
+  // активном фильтре stats из ответа /unified/users игнорируем.
+  const hasActiveFilters = (): boolean => {
+    const f = ctx.filters.value;
+    if (f.search && f.search.trim() !== '') return true;
+    if (f.role) return true;
+    if (f.active !== undefined && f.active !== null) return true;
+    if (f.user_type) return true;
+    if (f.source && f.source !== 'all' && f.source !== null) return true;
+    return false;
+  };
 
   const loadUsers = async () => {
     loading.value = true;
@@ -49,22 +88,25 @@ export function useUsersList(ctx: UseUsersListContext) {
           items: response.data.items,
         };
 
-        if (response.data.stats) {
-          axentaStats.value = {
-            total: response.data.stats.axenta_total,
-            active: response.data.stats.axenta_active,
-            inactive: response.data.stats.axenta_total - response.data.stats.axenta_active,
-          };
-          wialonStats.value = {
-            total: response.data.stats.wialon_total,
-            active: response.data.stats.wialon_active,
-            inactive: response.data.stats.wialon_total - response.data.stats.wialon_active,
-          };
+        if (!hasActiveFilters()) {
+          applyStatsFromResponse(response);
         }
       }
       return response;
     } finally {
       loading.value = false;
+    }
+  };
+
+  // loadGlobalStats — дёргает /unified/users?limit=1 без фильтров для актуализации KPI.
+  // Используется при init и после мутаций (create/delete/toggle), когда фильтр активен и
+  // обычный loadUsers не обновляет stats.
+  const loadGlobalStats = async () => {
+    try {
+      const response = await usersService.getUnifiedUsers(1, 1, { source: 'all' } as any);
+      if (response.status === 'success') applyStatsFromResponse(response);
+    } catch (e) {
+      console.error('Ошибка загрузки глобальной статистики users:', e);
     }
   };
 
@@ -89,6 +131,7 @@ export function useUsersList(ctx: UseUsersListContext) {
     wialonStats,
     axentaStats,
     loadUsers,
+    loadGlobalStats,
     handlePageChange,
     handlePerPageChange,
   };
