@@ -25,6 +25,7 @@
         <v-tooltip
           location="top"
           class="id-tooltip"
+          :open-delay="600"
           :close-on-content-click="false"
           :close-on-back="false"
           :close-on-click="false"
@@ -93,7 +94,7 @@
       </template>
 
       <template #item.type="{ item }">
-        <v-tooltip location="top" :text="item.type === 'partner' ? 'Партнёр' : 'Клиент'">
+        <v-tooltip location="top" :open-delay="400" :text="item.type === 'partner' ? 'Партнёр' : 'Клиент'">
           <template #activator="{ props: tipProps }">
             <v-icon
               v-bind="tipProps"
@@ -109,6 +110,7 @@
         <v-tooltip
           location="top"
           class="objects-tooltip"
+          :open-delay="600"
           :close-on-content-click="false"
           :close-on-back="false"
           :close-on-click="false"
@@ -167,7 +169,7 @@
       </template>
 
       <template #item.isActive="{ item }">
-        <v-tooltip location="top" :text="item.isActive ? 'Активен' : 'Заблокирован'">
+        <v-tooltip location="top" :open-delay="400" :text="item.isActive ? 'Активен' : 'Заблокирован'">
           <template #activator="{ props: tooltipProps }">
             <v-icon
               v-bind="tooltipProps"
@@ -234,6 +236,7 @@
               <v-btn icon="mdi-dots-vertical" variant="text" size="x-small" v-bind="menuProps" title="Дополнительные действия" />
             </template>
             <v-list density="compact">
+              <v-list-item prepend-icon="mdi-cog-outline" title="Свойства" @click="$emit('properties', item)" />
               <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг" @click="$emit('loginMonitoring', item)" />
               <v-list-item
                 v-if="item.type === 'partner' || item.dealer_rights"
@@ -315,6 +318,7 @@ const emit = defineEmits<{
   (e: 'loginMonitoring', item: any): void;
   (e: 'loginCms', item: any): void;
   (e: 'move', item: any): void;
+  (e: 'properties', item: any): void;
   (e: 'delete', item: any): void;
   (e: 'toggleStatus', item: any): void;
   (e: 'refreshStats', item: any): void;

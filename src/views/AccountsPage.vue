@@ -51,6 +51,7 @@
       @login-monitoring="loginToMonitoring"
       @login-cms="loginToCms"
       @move="moveAccount"
+      @properties="onProperties"
       @delete="deleteAccount"
       @toggle-status="toggleAccountStatus"
       @refresh-stats="refreshSingleWialonAccount"
@@ -61,6 +62,22 @@
 
     <!-- Диалог просмотра аккаунта -->
     <ViewAccountDialog v-model="viewDialog" :account="selectedAccount" />
+
+    <!-- Свойства Wialon-аккаунта -->
+    <WialonAccountEditDialog
+      v-model="wialonPropsDialog.show"
+      :account="wialonPropsDialog.account"
+      @saved="onAccountSaved"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => snackbar = { show: true, text: p.text, color: p.color, timeout: 4000 }"
+    />
+
+    <!-- Свойства Axenta-аккаунта -->
+    <AxentaAccountEditDialog
+      v-model="axentaPropsDialog.show"
+      :account="axentaPropsDialog.account"
+      @saved="onAccountSaved"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => snackbar = { show: true, text: p.text, color: p.color, timeout: 4000 }"
+    />
 
 
     <!-- Snackbar для уведомлений -->
@@ -112,6 +129,8 @@ import DeleteAccountDialog from '@/components/Accounts/DeleteAccountDialog.vue';
 import MoveAccountDialog from '@/components/Accounts/MoveAccountDialog.vue';
 import AccountsFilters from '@/components/Accounts/AccountsFilters.vue';
 import AccountsTable from '@/components/Accounts/AccountsTable.vue';
+import WialonAccountEditDialog from '@/components/Accounts/WialonAccountEditDialog.vue';
+import AxentaAccountEditDialog from '@/components/Accounts/AxentaAccountEditDialog.vue';
 import accountsService, { type Account, type AccountsFilters as AccountsFiltersType } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import { wialonCacheService } from '@/services/wialonCacheService';
@@ -250,6 +269,22 @@ const wialonDeleteReasons = [
 // Диалог перемещения учетной записи
 const moveDialog = ref(false);
 const accountToMove = ref<Account | null>(null);
+const wialonPropsDialog = ref({ show: false, account: null as any });
+const axentaPropsDialog = ref({ show: false, account: null as any });
+
+const onProperties = (item: any) => {
+  const src = String(item?.source || item?.sourceLabel || item?.source_label || '');
+  const isWialon = src === 'wialon' || src.startsWith('WH(') || src.startsWith('WL(') || src.startsWith('wh') || src.startsWith('wl');
+  if (isWialon) {
+    wialonPropsDialog.value = { show: true, account: item };
+  } else {
+    axentaPropsDialog.value = { show: true, account: item };
+  }
+};
+
+const onAccountSaved = async () => {
+  await loadAccounts(true);
+};
 const selectedTargetPartner = ref<number | null>(null);
 const moveConfirmationId = ref('');
 const isMoving = ref(false);
