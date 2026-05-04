@@ -125,11 +125,11 @@ watch(() => [props.visible, props.userId], () => { if (props.visible) load(); },
 
 const hasBit = (bit: number): boolean => {
   if (!selected.value) return false;
-  return (BigInt(selected.value.access_mask) & BigInt(bit)) !== 0n;
+  return (BigInt(selected.value.access_mask) & BigInt(bit)) !== BigInt(0);
 };
 const hasBitStr = (bitHex: string): boolean => {
   if (!selected.value) return false;
-  return (BigInt(selected.value.access_mask) & BigInt(bitHex)) !== 0n;
+  return (BigInt(selected.value.access_mask) & BigInt(bitHex)) !== BigInt(0);
 };
 const setBit = (bit: number, v: boolean) => {
   if (!selected.value) return;
