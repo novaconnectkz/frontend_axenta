@@ -751,7 +751,6 @@ import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 import getObjectsService from '@/services/objectsService';
-import settingsService from '@/services/settingsService';
 import type {
   ObjectFilters,
   ObjectForm,
@@ -809,78 +808,9 @@ const viewMode = ref<'table' | 'grid'>('table');
 const showDeletedObjects = ref(false);
 const showTrashDialog = ref(false);
 
-// Wialon объекты (хранятся отдельно для объединения)
-const wialonObjects = ref<Array<ObjectWithRelations & { source: string }>>([]);
-
-// Загрузка объектов из Wialon
-const loadWialonObjects = async () => {
-  try {
-    const wialonData = await settingsService.getWialonUnits();
-
-    if (wialonData && wialonData.items) {
-      // Преобразуем Wialon units в формат ObjectWithRelations
-      wialonObjects.value = wialonData.items.map((item: {
-        id: number;
-        nm?: string;
-        name?: string;
-        uid?: string;
-        hw?: number;
-        hw_name?: string;  // Название типа оборудования
-        ph?: string;
-        ph2?: string;
-        last_message?: number;
-        ct?: number;       // Время создания объекта (UTC timestamp)
-      }) => {
-        // Собираем номера телефонов
-        const phones: string[] = [];
-        if (item.ph) phones.push(item.ph);
-        if (item.ph2) phones.push(item.ph2);
-
-        return {
-          id: item.id,
-          name: item.nm || item.name || '',
-          imei: item.uid || '',
-          uniqueId: item.uid || '',
-          is_active: true,
-          source: 'wialon',
-          // Заполняем остальные поля
-          accountName: '',
-          creatorName: '',
-          // Используем название типа оборудования, если есть
-          deviceTypeName: item.hw_name || (item.hw ? `Wialon HW #${item.hw}` : 'Не указан'),
-          phoneNumbers: phones,
-          // Используем дату создания из Wialon (ct)
-          createdAt: item.ct ? new Date(item.ct * 1000).toISOString() : null,
-          lastMessageDatetime: item.last_message ? new Date(item.last_message * 1000).toISOString() : null,
-        } as unknown as ObjectWithRelations & { source: string };
-      });
-
-      console.log(`📡 Загружено ${wialonObjects.value.length} объектов Wialon`);
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки объектов Wialon:', error);
-    wialonObjects.value = [];
-  }
-};
-
-// Computed для объединённого списка объектов с учётом фильтра
-const combinedObjects = computed(() => {
-  // Добавляем source='axenta' к объектам Axenta
-  const axentaObjectsWithSource = objects.value.map(obj => ({
-    ...obj,
-    source: 'axenta',
-  }));
-
-  // Объединяем объекты
-  let allObjects = [...axentaObjectsWithSource, ...wialonObjects.value];
-
-  // Фильтруем по системе если выбран фильтр
-  if (filters.value.source) {
-    allObjects = allObjects.filter(obj => obj.source === filters.value.source);
-  }
-
-  return allObjects;
-});
+// combinedObjects читает из objects.value, который теперь приходит из /unified/objects
+// (объединённый Axenta+WH+WL endpoint, см. loadObjects). Каждый item уже имеет поле source.
+const combinedObjects = computed(() => objects.value);
 
 // Поисковые состояния
 const showSearchHistory = ref(false);
@@ -1128,125 +1058,79 @@ const perPageOptions = [
 // Methods
 const loadObjects = async () => {
   try {
-    console.log('🔄 Starting loadObjects...');
-    console.log('📊 Current pagination:', pagination.value);
-    console.log('🔍 Current filters:', filters.value);
-    console.log('🗑️ Show deleted objects:', showDeletedObjects.value);
-
-    // Убираем loading.value = true; чтобы не было размытия экрана
-
-    const response = showDeletedObjects.value
-      ? await objectsService.getDeletedObjects(
+    // Корзина — отдельный path (там нужны soft-deleted объекты Axenta)
+    if (showDeletedObjects.value) {
+      const response = await objectsService.getDeletedObjects(
         pagination.value.page,
         pagination.value.per_page,
-        filters.value.search
-      )
-      : await objectsService.getObjects(
-        pagination.value.page,
-        pagination.value.per_page,
-        filters.value
+        filters.value.search,
       );
+      if (response.status === 'success') {
+        objects.value = response.data.items || [];
+        objectsData.value = response.data;
+      } else {
+        showSnackbar(response.error || 'Ошибка загрузки объектов', 'error');
+        objects.value = [];
+      }
+      return;
+    }
 
-    console.log('📋 ObjectsService response:', response);
+    // Основной путь — единый /unified/objects (Axenta + WH + WL)
+    const response = await objectsService.getUnifiedObjects(
+      pagination.value.page,
+      pagination.value.per_page,
+      filters.value,
+    );
 
     if (response.status === 'success') {
-      objects.value = response.data.items || [];
+      objects.value = (response.data.items || []) as any[];
       objectsData.value = response.data;
-      console.log('✅ Objects loaded successfully:', {
-        count: objects.value.length,
-        total: response.data.total,
-        page: response.data.page,
-        per_page: response.data.per_page
-      });
 
-      // Обновляем статистику после загрузки объектов
-      await loadStats();
+      // KPI — из stats endpoint'а в том же ответе (без дополнительного RTT)
+      const st = response.data.stats;
+      if (st) {
+        stats.value[0].value = st.axenta_total + st.wialon_total;
+        stats.value[1].value = st.axenta_active + st.wialon_active;
+        stats.value[2].value = st.axenta_inactive;
+        // [3] Корзина и [4] К удалению — только Axenta
+        stats.value[4].value = st.axenta_scheduled_delete;
+        // Корзина считается отдельным запросом ниже (live-проксирование Axenta /trash)
+      }
+
+      // Корзина — отдельным запросом (Axenta /trash, не покрыто snapshot)
+      try {
+        const trashStats = await objectsService.getTrashStats();
+        stats.value[3].value = trashStats.count;
+      } catch {
+        stats.value[3].value = 0;
+      }
     } else {
-      console.error('❌ ObjectsService returned error:', response.error);
-      showSnackbar(response.error || 'Ошибка загрузки объектов', 'error');
-      objects.value = []; // Устанавливаем пустой массив в случае ошибки
+      showSnackbar((response as any).error || 'Ошибка загрузки объектов', 'error');
+      objects.value = [];
     }
   } catch (error: any) {
-    console.error('💥 Exception in loadObjects:', error);
-    console.error('Error details:', {
-      message: error.message,
-      status: error.response?.status,
-      data: error.response?.data
-    });
+    console.error('Ошибка загрузки объектов:', error);
     showSnackbar('Ошибка загрузки объектов: ' + (error.message || 'Неизвестная ошибка'), 'error');
-    objects.value = []; // Устанавливаем пустой массив в случае исключения
+    objects.value = [];
   }
-  // Убираем finally блок с loading.value = false;
 };
 
+// loadStats оставлен как fallback при изоляции (не вызывается — KPI идут из /unified/objects).
 const loadStats = async () => {
   try {
-    // Загружаем основную статистику с forceRefresh для обхода кеша
     const statsData = await objectsService.getObjectsStats(true);
     stats.value[0].value = statsData.total;
     stats.value[1].value = statsData.active;
     stats.value[2].value = statsData.inactive;
-
-    // Загружаем статистику корзины
-    console.log('🔄 Загружаем статистику корзины (основной блок)...');
-    console.log('🔐 Проверяем авторизацию в localStorage (основной блок):', {
-      hasToken: !!localStorage.getItem('axenta_token'),
-      hasCompany: !!localStorage.getItem('axenta_company')
-    });
-
-    const trashStats = await objectsService.getTrashStats();
-    stats.value[3].value = trashStats.count;
     stats.value[4].value = statsData.scheduled_for_delete;
-    console.log('📊 Статистика корзины получена (основной блок):', trashStats.count);
-
-    console.log('📊 Статистика загружена:', {
-      total: stats.value[0].value,
-      active: stats.value[1].value,
-      inactive: stats.value[2].value,
-      trash: stats.value[3].value,
-      scheduled: stats.value[4].value
-    });
-  } catch (error) {
-    console.warn('⚠️ API статистики недоступен, вычисляем из загруженных данных:', error);
-
-    // Вычисляем статистику из objectsData если API недоступен
-    if (objectsData.value) {
-      stats.value[0].value = objectsData.value.total || 0;
-
-      // Вычисляем активные/неактивные из загруженных объектов
-      const activeCount = objects.value.filter(obj => obj.is_active).length;
-      const inactiveCount = objects.value.filter(obj => !obj.is_active).length;
-
-      stats.value[1].value = activeCount;
-      stats.value[2].value = inactiveCount;
-      stats.value[3].value = 0; // Корзина - пока 0
-      stats.value[4].value = 0; // Запланированные к удалению - пока 0
-
-      console.log('📊 Статистика вычислена из данных:', {
-        total: stats.value[0].value,
-        active: stats.value[1].value,
-        inactive: stats.value[2].value,
-        trash: stats.value[3].value
-      });
-    }
-
-    // Пытаемся загрузить только статистику корзины
     try {
-      console.log('🔄 Загружаем статистику корзины (fallback блок)...');
-      console.log('🔐 Проверяем авторизацию в localStorage:', {
-        hasToken: !!localStorage.getItem('axenta_token'),
-        hasCompany: !!localStorage.getItem('axenta_company')
-      });
-
       const trashStats = await objectsService.getTrashStats();
       stats.value[3].value = trashStats.count;
-      console.log('📊 Статистика корзины загружена (fallback):', trashStats.count);
-      console.log('📊 Обновленное значение виджета корзины (fallback):', stats.value[3].value);
-    } catch (trashError) {
-      console.warn('⚠️ Не удалось загрузить статистику корзины (fallback):', trashError);
+    } catch {
       stats.value[3].value = 0;
-      console.log('📊 Установлено значение корзины по умолчанию (fallback): 0');
     }
+  } catch (error) {
+    console.warn('Stats API недоступен:', error);
   }
 };
 
@@ -2192,16 +2076,14 @@ onMounted(async () => {
 
     // Остальные данные загружаем опционально (не критично если не загрузятся)
     Promise.allSettled([
-      loadStats(),
       loadCompanies(),
       loadContracts(),
       loadLocations(),
       loadTemplates(),
-      loadWialonObjects(), // Загружаем объекты Wialon
     ]).then(results => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const names = ['статистика', 'компании', 'договоры', 'локации', 'шаблоны'];
+          const names = ['компании', 'договоры', 'локации', 'шаблоны'];
           console.warn(`⚠️ Не удалось загрузить ${names[index]}:`, result.reason);
         }
       });

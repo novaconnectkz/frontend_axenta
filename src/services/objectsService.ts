@@ -204,6 +204,49 @@ export class ObjectsService {
     return "vehicle"; // По умолчанию
   }
 
+  // Получение единого списка объектов из всех источников (Axenta + WH + WL).
+  // Использует /api/auth/unified/objects (read-path: snapshot Axenta + Redis cache Wialon).
+  async getUnifiedObjects(
+    page = 1,
+    per_page = 50,
+    filters: ObjectFilters & { source?: string | null } = {}
+  ): Promise<{
+    status: "success" | "error";
+    data: {
+      items: any[];
+      total: number;
+      page: number;
+      per_page: number;
+      total_pages: number;
+      stats: {
+        axenta_total: number;
+        axenta_active: number;
+        axenta_inactive: number;
+        axenta_deleted: number;
+        axenta_scheduled_delete: number;
+        wialon_total: number;
+        wialon_active: number;
+        wialon_wh_total: number;
+        wialon_wh_active: number;
+        wialon_wl_total: number;
+        wialon_wl_active: number;
+      };
+    };
+    error?: string;
+  }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: per_page.toString(),
+    });
+    if (filters.search) params.append("search", filters.search);
+    if (filters.is_active !== undefined) params.append("active", filters.is_active.toString());
+    if (filters.source) params.append("source", filters.source);
+    if (filters.ordering) params.append("ordering", filters.ordering);
+
+    const response = await this.apiClient.get(`/auth/unified/objects?${params.toString()}`);
+    return response.data;
+  }
+
   // Получение списка объектов с фильтрацией
   async getObjects(
     page = 1,
