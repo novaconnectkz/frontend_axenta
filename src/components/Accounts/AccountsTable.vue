@@ -222,14 +222,12 @@
           <v-btn
             :loading="!!refreshingIds[item.id]"
             class="row-refresh-btn"
-            :class="{ 'row-refresh-btn--placeholder': !item.source || item.source === 'axenta' }"
             icon="mdi-refresh"
             variant="text"
             size="x-small"
             color="primary"
-            :title="(!item.source || item.source === 'axenta') ? '' : 'Обновить количество объектов'"
-            :disabled="!item.source || item.source === 'axenta'"
-            @click="(!item.source || item.source === 'axenta') ? null : $emit('refreshStats', item)"
+            title="Обновить запись из источника"
+            @click="$emit('refreshStats', item)"
           />
           <v-btn
             :icon="item.isActive ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"

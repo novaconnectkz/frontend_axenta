@@ -511,6 +511,24 @@ class AccountsService {
   }
 
   /**
+   * Точечный re-fetch axenta-аккаунта из Axenta Cloud в наш snapshot.
+   * Используется когда юзер изменил статус снаружи (cms.axenta.cloud) и хочет
+   * увидеть актуальные данные в ACRM не дожидаясь cron (10 мин).
+   *
+   * Backend: POST /api/auth/accounts/:id/refresh → дёргает GET /cms/accounts/:id
+   * + UPDATE axenta_account_snapshots. ~200ms.
+   *
+   * Returns обновлённую запись { id, name, isActive }.
+   */
+  async refreshAxentaAccount(id: number): Promise<{ id: number; name: string; isActive: boolean }> {
+    const response = await this.apiClient.post<any>(`/api/auth/accounts/${id}/refresh`);
+    if (response.status >= 400) {
+      throw new Error(response.data?.error || 'Ошибка обновления аккаунта');
+    }
+    return response.data?.data || { id, name: '', isActive: false };
+  }
+
+  /**
    * Поиск учетных записей
    */
   async searchAccounts(query: string, filters: AccountsFilters = {}): Promise<AccountsResponse> {

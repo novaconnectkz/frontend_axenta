@@ -873,7 +873,30 @@ const refreshingIds = ref<Record<number, boolean>>({});
 
 const refreshSingleWialonAccount = async (account: Account) => {
   const acc = account as Account & { source?: string; connection_id?: number };
-  if (!acc.source || acc.source.toLowerCase() === 'axenta') return;
+
+  // Axenta-route: точечный re-fetch через наш backend → snapshot UPDATE.
+  // Используется когда юзер изменил статус снаружи (cms.axenta.cloud).
+  if (!acc.source || acc.source.toLowerCase() === 'axenta') {
+    if (refreshingIds.value[account.id]) return;
+    refreshingIds.value = { ...refreshingIds.value, [account.id]: true };
+    try {
+      const result = await accountsService.refreshAxentaAccount(account.id);
+      // Обновляем строку in-place
+      account.isActive = result.isActive;
+      invalidateCache();
+      void loadAccounts(true);
+      showSnackbar(`"${account.name}" обновлено (${result.isActive ? 'активен' : 'неактивен'})`, 'success');
+    } catch (e) {
+      console.error('refreshSingleAxentaAccount:', e);
+      showSnackbar(`Ошибка обновления "${account.name}"`, 'error');
+    } finally {
+      const next = { ...refreshingIds.value };
+      delete next[account.id];
+      refreshingIds.value = next;
+    }
+    return;
+  }
+
   if (refreshingIds.value[account.id]) return;
 
   const connectionId = acc.connection_id || 0;
