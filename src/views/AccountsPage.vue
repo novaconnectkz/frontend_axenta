@@ -953,12 +953,14 @@ const toggleAccountStatus = async (account: Account) => {
       }
     }
 
-    // Инвалидируем in-memory cache useAccountsList — иначе следующий loadAccounts
-    // (auto-refresh / merge-mode reload) перезапишет account из устаревшего
-    // allAccountsCache и UI откатит status обратно. Backend snapshot обновится
-    // через SnapshotInvalidator (~5-10s), до этого момента доверяем локальному
-    // оптимистичному обновлению.
+    // Инвалидируем in-memory cache + перезагружаем из backend.
+    // Backend синхронно делает RefreshAccount → snapshot уже свежий к моменту
+    // как мы получили 201. loadAccounts вернёт актуальный isActive.
     invalidateCache();
+    if (!isWialon) {
+      // Wialon refresh асинхронно делается ниже через refreshSingleWialonAccount
+      void loadAccounts(true);
+    }
 
     // Уведомляем Dashboard инвалидировать KPI cache (active_count изменился)
     emitCrossSection('accounts:mutated', {
