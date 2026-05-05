@@ -139,7 +139,6 @@ import { useWialonAccounts } from '@/composables/useWialonAccounts';
 import { useAccountsList } from '@/composables/useAccountsList';
 import { useFiltersStorage } from '@/composables/useFiltersStorage';
 import { useAutoRefresh } from '@/composables/useAutoRefresh';
-import { useMergedAccounts } from '@/composables/useMergedAccounts';
 import { emitCrossSection } from '@/utils/crossSectionBus';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -172,6 +171,7 @@ const parentAccountOptions = ref<Array<{ title: string; value: string }>>([
 const {
   accounts,
   stats,
+  unifiedStats,
   isLoading,
   isBackgroundLoading,
   isAxentaLoading,
@@ -192,18 +192,17 @@ const {
   filters,
   searchQuery,
   selectedParent,
-  isMultipleCompanySearch: () => isMultipleCompanySearch.value,
-  companySearchTermsArray: () => companySearchTermsArray.value,
   getTotalPages: () => totalPages.value,
   onPageChange: () => saveFiltersToStorage(),
 });
 
+// useWialonAccounts оставлен ради loadParentAccounts + loadVisibleObjectsStats
+// (точечный refresh objectsTotal по wialon-строкам). wialonStats/wialonAccounts
+// заменены данными из unified API.
 const {
   wialonAccounts,
-  wialonStats,
   isWialonLoading,
   isWialonRefreshing,
-  wialonLoadError,
   loadWialonAccounts,
   loadVisibleObjectsStats,
   loadParentAccounts,
@@ -211,6 +210,29 @@ const {
   parentAccountOptions,
   getVisibleAccounts: () => accountsWithNumbers.value as any,
 });
+
+// Wialon-разбивка для AccountsStats строится из unifiedStats (axenta+wialon приходят вместе)
+const wialonStats = computed(() => ({
+  total: unifiedStats.value.wialon_total,
+  active: unifiedStats.value.wialon_active,
+  blocked: unifiedStats.value.wialon_total - unifiedStats.value.wialon_active,
+  objects: 0,
+  // clients/dealers разбивка по WL/WH backend пока не отдаёт — оставляем 0 (tooltip скрывается через v-if)
+  clients: 0,
+  dealers: 0,
+  wl: {
+    total: unifiedStats.value.wialon_wl_total,
+    active: unifiedStats.value.wialon_wl_active,
+    clients: 0,
+    dealers: 0,
+  },
+  wh: {
+    total: unifiedStats.value.wialon_wh_total,
+    active: unifiedStats.value.wialon_wh_active,
+    clients: 0,
+    dealers: 0,
+  },
+}));
 
 // Объединённая статистика (Axenta + Wialon)
 const totalStats = computed(() => ({
@@ -396,18 +418,32 @@ const companySearchTermsArray = computed(() => {
 });
 
 
-const { accountsWithNumbers, effectiveTotalItems, totalPages, getDisplayRange } = useMergedAccounts({
-  accounts,
-  wialonAccounts,
-  filters,
-  searchQuery,
-  selectedParent,
-  currentPage,
-  itemsPerPage,
-  totalItems,
-  sortBy,
-  sortOrder,
+// Серверная пагинация: просто нумеруем строки текущей страницы.
+const accountsWithNumbers = computed(() => {
+  const startNumber = (currentPage.value - 1) * itemsPerPage.value + 1;
+  return accounts.value.map((account, index) => ({
+    ...account,
+    source: account.source || 'axenta',
+    rowNumber: startNumber + index,
+  }));
 });
+
+const effectiveTotalItems = computed(() => totalItems.value);
+
+const totalPages = computed(() => {
+  if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) return 1;
+  return Math.ceil(totalItems.value / itemsPerPage.value);
+});
+
+const getDisplayRange = (): string => {
+  if (totalItems.value === 0) return '0-0';
+  if (itemsPerPage.value === -1 || itemsPerPage.value >= totalItems.value) {
+    return `1-${totalItems.value}`;
+  }
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1;
+  const end = Math.min(currentPage.value * itemsPerPage.value, totalItems.value);
+  return `${start}-${end}`;
+};
 
 
 
@@ -716,11 +752,13 @@ const confirmDelete = async () => {
 
       console.log(`✅ Wialon аккаунт ${account.name} успешно удален`);
 
-      // Удаляем из локального wialonAccounts. loadWialonAccounts() НЕ зовём — Wialon API
-      // имеет задержку propagation, refresh может вернуть только что удалённую запись и она
-      // снова появится в списке. Локальное удаление + следующий natural refresh достаточно.
-      const idx = wialonAccounts.value.findIndex(a => a.id === account.id);
-      if (idx >= 0) wialonAccounts.value.splice(idx, 1);
+      // Локальное удаление в unified accounts + wialonAccounts (последний нужен для
+      // loadVisibleObjectsStats). Wialon API имеет задержку propagation, full refresh
+      // не зовём — иначе только что удалённая запись может вернуться.
+      const aIdx = accounts.value.findIndex(a => a.id === account.id);
+      if (aIdx >= 0) accounts.value.splice(aIdx, 1);
+      const wIdx = wialonAccounts.value.findIndex(a => a.id === account.id);
+      if (wIdx >= 0) wialonAccounts.value.splice(wIdx, 1);
 
       // Инвалидируем Dexie-кэш — иначе F5 покажет удалённый аккаунт из IndexedDB
       await wialonCacheService.removeAccount(account.id);
@@ -892,13 +930,20 @@ const refreshSingleWialonAccount = async (account: Account) => {
       showSnackbar(`Не удалось обновить "${account.name}"`, 'warning');
       return;
     }
-    // Обновляем строку in-place: и в локальном accounts (axenta), и в wialonAccounts
+    // Обновляем строку in-place в unified accounts + дублируем в wialonAccounts
+    const aIdx = accounts.value.findIndex(a => a.id === account.id);
+    if (aIdx >= 0) {
+      accounts.value.splice(aIdx, 1, {
+        ...accounts.value[aIdx],
+        objectsTotal: result.objectsTotal,
+        objectsActive: result.objectsActive,
+      });
+    }
     const wAcc = wialonAccounts.value.find(a => a.id === account.id);
     if (wAcc) {
       wAcc.objectsTotal = result.objectsTotal;
       wAcc.objectsActive = result.objectsActive;
     }
-    // accountsWithNumbers — computed, обновится автоматически после изменения wialonAccounts
     showSnackbar(`Обновлено: ${result.objectsActive}/${result.objectsTotal} объектов`, 'success');
   } catch (e) {
     console.error('refreshSingleWialonAccount:', e);
@@ -951,17 +996,15 @@ const toggleAccountStatus = async (account: Account) => {
     // 2) invalidateCache + loadAccounts (свежие данные с бэка)
     invalidateCache();
 
+    // Прямой splice — гарантированно триггерит Vue reactivity для строки
+    const idx = accounts.value.findIndex(a => a.id === account.id);
+    if (idx >= 0) {
+      accounts.value.splice(idx, 1, { ...accounts.value[idx], isActive: newStatus });
+    }
     if (isWialon) {
       const wialonAccount = wialonAccounts.value.find(acc => acc.id === account.id);
-      if (wialonAccount) {
-        wialonAccount.isActive = newStatus;
-      }
+      if (wialonAccount) wialonAccount.isActive = newStatus;
     } else {
-      // Прямой splice — гарантированно триггерит Vue reactivity для строки
-      const idx = accounts.value.findIndex(a => a.id === account.id);
-      if (idx >= 0) {
-        accounts.value.splice(idx, 1, { ...accounts.value[idx], isActive: newStatus });
-      }
       await loadAccounts(false);
     }
 

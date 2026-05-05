@@ -57,6 +57,46 @@ export interface AccountsFilters {
   is_active?: boolean | null;
 }
 
+export interface UnifiedAccount extends Account {
+  source: string;
+  sourceLabel?: string;
+  connectionId?: number;
+  dealerRights?: boolean;
+}
+
+export interface UnifiedAccountsStats {
+  axenta_total: number;
+  axenta_active: number;
+  axenta_clients: number;
+  axenta_partners: number;
+  wialon_total: number;
+  wialon_active: number;
+  wialon_wh_total: number;
+  wialon_wh_active: number;
+  wialon_wl_total: number;
+  wialon_wl_active: number;
+}
+
+export interface UnifiedAccountsResponse {
+  items: UnifiedAccount[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  stats: UnifiedAccountsStats;
+}
+
+export interface UnifiedAccountsFilters {
+  page?: number;
+  per_page?: number;
+  ordering?: string;
+  search?: string;
+  source?: "all" | "axenta" | "wialon" | "wh" | "wl" | null;
+  type?: "client" | "partner" | null;
+  is_active?: boolean | null;
+  parent?: string | null;
+}
+
 class AccountsService {
   private static instance: AccountsService;
   private apiClient = axios.create({
@@ -972,6 +1012,29 @@ class AccountsService {
       console.error(`❌ Ошибка входа в ${type} для пользователя ${userId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Единая выдача учёток (Axenta + Wialon) с серверной пагинацией.
+   * Заменяет двойную пагинацию client-side merge → useMergedAccounts.
+   */
+  async getUnifiedAccounts(filters: UnifiedAccountsFilters = {}): Promise<UnifiedAccountsResponse> {
+    const params: Record<string, any> = {
+      page: filters.page || 1,
+      per_page: filters.per_page || 20,
+      ordering: filters.ordering || "-creationDatetime",
+    };
+    if (filters.search) params.search = filters.search;
+    if (filters.source && filters.source !== "all") params.source = filters.source;
+    if (filters.type) params.type = filters.type;
+    if (filters.is_active !== undefined && filters.is_active !== null) {
+      params.is_active = filters.is_active;
+    }
+    if (filters.parent) params.parent = filters.parent;
+
+    const response = await this.apiClient.get<any>("/api/auth/unified/accounts", { params });
+    const data = response.data?.data ?? response.data;
+    return data as UnifiedAccountsResponse;
   }
 
   /**
