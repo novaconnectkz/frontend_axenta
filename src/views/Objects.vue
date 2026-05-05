@@ -150,11 +150,6 @@
               hide-details density="compact" />
           </template>
 
-          <!-- ID -->
-          <template #item.id="{ item }">
-            <span class="font-mono">{{ item.id }}</span>
-          </template>
-
           <!-- Название учетной записи -->
           <template #item.accountName="{ item }">
             <span>{{ item.accountName || 'Не указано' }}</span>
@@ -968,7 +963,6 @@ const quickFilters = ref([
 // Table headers
 const tableHeaders = computed(() => [
   { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
-  { title: 'ID', value: 'id', sortable: true },
   { title: 'Название', value: 'name', sortable: true },
   { title: 'Название учетной записи', value: 'accountName', sortable: true },
   { title: 'Создатель (ФИО)', value: 'creatorName', sortable: true },
