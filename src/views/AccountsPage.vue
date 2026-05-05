@@ -1003,9 +1003,19 @@ onMounted(() => {
   // Восстанавливаем фильтры из localStorage перед загрузкой данных
   loadFiltersFromStorage(); // Результат не используется — важен сам факт вызова
 
-  // Подхватываем ?search=... из URL (например, из глобального поиска на дашборде)
-  if (route.query.search && typeof route.query.search === 'string') {
+  // Подхватываем фильтры из URL (KPI Dashboard, глобальный поиск).
+  // ?search=&type=&source=&is_active= — целевые ссылки сохраняют контекст.
+  if (typeof route.query.search === 'string') {
     searchQuery.value = route.query.search;
+  }
+  if (typeof route.query.type === 'string' && (route.query.type === 'client' || route.query.type === 'partner')) {
+    filters.value.type = route.query.type;
+  }
+  if (typeof route.query.source === 'string') {
+    filters.value.source = route.query.source;
+  }
+  if (typeof route.query.is_active === 'string') {
+    filters.value.is_active = route.query.is_active === 'true';
   }
 
   // Немедленная загрузка данных при первой загрузке страницы

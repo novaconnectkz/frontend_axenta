@@ -52,12 +52,12 @@
     <!-- TOP: 4 KPI + chart -->
     <div class="top-grid">
       <div class="kpi-block">
-        <div class="kpi highlight" @click="$router.push('/objects')">
+        <div class="kpi highlight" @click="goObjects({ status: 'active' })">
           <div class="kpi-head">Активные объекты <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
           <div class="kpi-value">{{ formatNum(combinedActiveObjects) }}</div>
           <span class="kpi-delta">{{ combinedObjectsActivityPct }}% активных</span>
         </div>
-        <div class="kpi" @click="$router.push('/accounts')">
+        <div class="kpi" @click="goAccounts({ type: 'client' })">
           <div class="kpi-head">Учётные записи <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
           <div class="kpi-value">{{ formatNum(combinedAccountsTotal) }}</div>
           <span class="kpi-delta">{{ formatNum(combinedAccountsClients) }} клиентов</span>
@@ -154,7 +154,7 @@
       <div class="donut-card clickable" @click="cycleDonutSource" :title="`Клик — следующий источник (${donutSourceLabel})`">
         <h2>
           Статус объектов · <span class="src-label">{{ donutSourceLabel }}</span>
-          <v-icon size="18" class="arrow" @click.stop="$router.push('/objects')">mdi-arrow-right</v-icon>
+          <v-icon size="18" class="arrow" @click.stop="goObjects({ source: currentDonutSource.key })">mdi-arrow-right</v-icon>
         </h2>
         <div class="donut-area">
           <svg class="donut-svg" viewBox="0 0 100 100">
@@ -261,6 +261,24 @@ const donutStats = computed(() => currentDonutSource.value.objects);
 function cycleDonutSource() {
   const len = donutSources.value.length || 1;
   donutIdx.value = (donutIdx.value + 1) % len;
+}
+
+// Cross-section navigation: KPI клики и donut-arrow ведут на /objects, /accounts
+// с предзаполненными фильтрами через query-params. Целевая страница читает
+// route.query на mounted и применяет фильтры. "all" / пустые значения не передаём.
+function goObjects(filters: Record<string, string | undefined>) {
+  const query: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) {
+    if (v && v !== "all") query[k] = v;
+  }
+  router.push({ path: "/objects", query });
+}
+function goAccounts(filters: Record<string, string | undefined>) {
+  const query: Record<string, string> = {};
+  for (const [k, v] of Object.entries(filters)) {
+    if (v && v !== "all") query[k] = v;
+  }
+  router.push({ path: "/accounts", query });
 }
 
 const monthlyRevenueText = computed(() => {

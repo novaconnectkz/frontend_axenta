@@ -2089,9 +2089,19 @@ onMounted(async () => {
   viewDialog.value.show = false;
   console.log('🎯 Все диалоги принудительно закрыты');
 
-  // Подхватываем ?search=... из URL (например, из глобального поиска на дашборде)
-  if (route.query.search && typeof route.query.search === 'string') {
+  // Подхватываем фильтры из URL (например, из KPI Dashboard или глобального поиска).
+  // ?search=&source=&status=&type=&accountId= — целевые ссылки сохраняют контекст.
+  if (typeof route.query.search === 'string') {
     filters.value.search = route.query.search;
+  }
+  if (typeof route.query.source === 'string') {
+    filters.value.source = route.query.source;
+  }
+  if (typeof route.query.status === 'string') {
+    filters.value.status = route.query.status;
+  }
+  if (typeof route.query.type === 'string') {
+    filters.value.type = route.query.type;
   }
 
   // Загружаем историю поиска
