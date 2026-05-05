@@ -138,8 +138,8 @@
 
       <!-- Таблица объектов -->
       <div v-if="viewMode === 'table'" class="table-container">
-        <v-data-table :headers="tableHeaders" :items="combinedObjects" :loading="false"
-          :items-per-page="pagination.per_page" :page="pagination.page" :server-items-length="objectsData?.total || 0"
+        <v-data-table-server :headers="tableHeaders" :items="combinedObjects" :loading="false"
+          :items-per-page="pagination.per_page" :page="pagination.page" :items-length="objectsData?.total || 0"
           :items-per-page-options="perPageOptions" :model-value="selectedObjects"
           @update:model-value="selectedObjects = $event" @update:page="handlePageChange"
           @update:items-per-page="handlePerPageChange" @update:sort-by="handleSortChange" item-value="id" show-select
@@ -310,7 +310,7 @@
               </template>
             </div>
           </template>
-        </v-data-table>
+        </v-data-table-server>
       </div>
 
       <!-- Сетка объектов -->
