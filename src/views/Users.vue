@@ -109,6 +109,7 @@ import UsersTable from '@/components/Users/UsersTable.vue';
 import { useUserActions } from '@/composables/useUserActions';
 import { useUsersList, type UsersListFilters } from '@/composables/useUsersList';
 import usersService from '@/services/usersService';
+import { emitCrossSection } from '@/utils/crossSectionBus';
 import type { UserWithRelations } from '@/types/users';
 
 const FILTERS_STORAGE_KEY = 'users_page_filters';
@@ -462,6 +463,7 @@ const onResetPassword = (user: UserWithRelations) => {
 const onDelete = async (user: UserWithRelations) => {
   if (await actions.deleteUser(user)) {
     await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
+    emitCrossSection('users:mutated', { action: 'delete', id: user.id });
   }
 };
 
@@ -471,6 +473,9 @@ const onUserSaved = async () => {
     'success'
   );
   await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
+  emitCrossSection('users:mutated', {
+    action: userDialog.value.isEdit ? 'update' : 'create'
+  });
 };
 
 const onInactiveUsersSuccess = async (message: string) => {

@@ -140,6 +140,7 @@ import { useAccountsList } from '@/composables/useAccountsList';
 import { useFiltersStorage } from '@/composables/useFiltersStorage';
 import { useAutoRefresh } from '@/composables/useAutoRefresh';
 import { useMergedAccounts } from '@/composables/useMergedAccounts';
+import { emitCrossSection } from '@/utils/crossSectionBus';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -746,6 +747,9 @@ const confirmDelete = async () => {
 
     // Обновляем статистику
     await loadStats();
+
+    // Уведомляем другие разделы (Dashboard инвалидирует кэш, перезагрузит KPI)
+    emitCrossSection('accounts:mutated', { action: 'delete', id: account.id });
 
   } catch (error) {
     console.error('❌ Ошибка удаления аккаунта:', error);

@@ -195,11 +195,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ObjectsService } from "@/services/objectsService";
 import { accountsService } from "@/services/accountsService";
 import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse } from "@/services/dashboardKpiService";
+import { onCrossSection } from "@/utils/crossSectionBus";
 
 const router = useRouter();
 
@@ -456,7 +457,30 @@ function goToResult(item: SearchResultItem) {
   closeSearch();
 }
 
+// Слушаем cross-section события: когда другой раздел изменил данные —
+// инвалидируем localStorage cache и перезагружаем KPI/donut. Дебаунс 1.5с
+// чтобы 5 быстрых мутаций не вызвали 5 запросов.
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleReload() {
+  if (reloadTimer) clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    for (const k of ["objects", "accounts", "sources_stats", "kpi", "alerts"]) {
+      try { localStorage.removeItem(CACHE_PREFIX + k); } catch {}
+    }
+    load();
+  }, 1500);
+}
+const unsubAccounts = onCrossSection("accounts:mutated", scheduleReload);
+const unsubUsers = onCrossSection("users:mutated", scheduleReload);
+const unsubObjects = onCrossSection("objects:mutated", scheduleReload);
+
 onMounted(load);
+onUnmounted(() => {
+  unsubAccounts();
+  unsubUsers();
+  unsubObjects();
+  if (reloadTimer) clearTimeout(reloadTimer);
+});
 </script>
 
 <style scoped>

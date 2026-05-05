@@ -740,6 +740,7 @@ import type {
   ObjectWithRelations,
   ScheduleDeleteForm,
 } from '@/types/objects';
+import { emitCrossSection } from '@/utils/crossSectionBus';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -1545,6 +1546,10 @@ const saveObject = async () => {
       closeObjectDialog();
       await loadObjects();
       await loadStats();
+      // Уведомляем Dashboard/Accounts что счётчики устарели
+      emitCrossSection('objects:mutated', {
+        action: objectDialog.value.isEdit ? 'update' : 'create'
+      });
     } else {
       showSnackbar(response.error || 'Ошибка сохранения объекта', 'error');
     }
@@ -1594,6 +1599,7 @@ const deleteObject = async (object: ObjectWithRelations) => {
       showSnackbar('Объект успешно удален', 'success');
       await loadObjects();
       await loadStats();
+      emitCrossSection('objects:mutated', { action: 'delete', id: object.id });
     } else {
       showSnackbar(response.error || 'Ошибка удаления объекта', 'error');
     }
