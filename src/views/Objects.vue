@@ -730,242 +730,29 @@ import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import CreateTemplateDialog from '@/components/Objects/CreateTemplateDialog.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import ScheduleDeleteDialog from '@/components/Objects/ScheduleDeleteDialog.vue';
-import { useAxentaAutoRefresh } from '@/services/axentaAutoRefreshService';
 import getObjectsService from '@/services/objectsService';
-import type {
-  ObjectFilters,
-  ObjectForm,
-  ObjectStatus,
-  ObjectType,
-  ObjectWithRelations,
-  ScheduleDeleteForm,
-} from '@/types/objects';
-import { emitCrossSection } from '@/utils/crossSectionBus';
-import { debounce } from 'lodash-es';
+import {
+  formatDate,
+  getConnectionColor,
+  getSnackbarIcon,
+  getStatusColor,
+  getStatusText,
+  getTypeIcon,
+  getTypeText,
+} from '@/utils/objectsHelpers';
+import { useObjectsCRUD } from '@/composables/useObjectsCRUD';
+import { useObjectsExport } from '@/composables/useObjectsExport';
+import { useObjectsFilters } from '@/composables/useObjectsFilters';
+import { useObjectsList } from '@/composables/useObjectsList';
+import { useObjectsLookups } from '@/composables/useObjectsLookups';
+import { useObjectsSelection } from '@/composables/useObjectsSelection';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 
-// Получаем экземпляр сервиса
 const objectsService = getObjectsService();
-
-// Получаем текущий маршрут и роутер
 const route = useRoute();
-const router = useRouter();
 
-// Автоматическое обновление данных
-const autoRefresh = useAxentaAutoRefresh();
-
-// Reactive data
-const loading = ref(false);
-const saving = ref(false);
-const scheduling = ref(false);
-const exporting = ref(false);
-
-// FAB Menu Items - элементы плавающего меню действий
-const fabMenuItems = [
-  {
-    id: 'create',
-    label: 'Создать объект',
-    icon: 'mdi-plus',
-    color: 'success' as const,
-    action: () => openCreateDialog()
-  },
-  {
-    id: 'export',
-    label: 'Экспорт',
-    icon: 'mdi-export',
-    color: 'primary' as const,
-    action: () => exportObjects()
-  }
-];
-
-// Обработчик клика на элементе FAB меню (действие выполняется через item.action)
-const handleFabAction = (_item: { id?: string; action?: () => void }) => {};
-const objects = ref<ObjectWithRelations[]>([]);
-const objectsData = ref<any>(null);
-const viewMode = ref<'table' | 'grid'>('table');
-const showDeletedObjects = ref<boolean>(false);
-// Восстанавливаем из persisted после объявления (см. ниже applyPersisted)
-const showTrashDialog = ref(false);
-
-// combinedObjects читает из objects.value, который теперь приходит из /unified/objects
-// (объединённый Axenta+WH+WL endpoint, см. loadObjects). Каждый item уже имеет поле source.
-const combinedObjects = computed(() => objects.value);
-
-// Поисковые состояния
-const showSearchHistory = ref(false);
-const showAdvancedSearch = ref(false);
-const showFilters = ref(false);
-const loadingSuggestions = ref(false);
-const searchSuggestions = ref<Array<{ title: string; subtitle: string; icon: string; value: string }>>([]);
-const searchHistory = ref<string[]>([]);
-
-// Расширенные фильтры
-const advancedFilters = ref({
-  accountName: '',
-  creatorName: '',
-  deviceTypeName: '',
-  uniqueId: '',
-  imei: '',
-  phoneNumber: '',
-});
-
-// Состояние для массового выбора объектов
-const selectedObjects = ref<number[]>([]);
-const selectAll = ref(false);
-
-// Persist фильтров/пагинации в localStorage между сессиями.
-// v2: дефолт сортировки -createdAt (новые сверху). Старые v1-ключи игнорируются.
-const OBJECTS_PERSIST_KEY = 'objects_page_state_v2';
-
-const loadPersistedState = () => {
-  try {
-    const raw = localStorage.getItem(OBJECTS_PERSIST_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-};
-
-const savePersistedState = () => {
-  try {
-    localStorage.setItem(OBJECTS_PERSIST_KEY, JSON.stringify({
-      search: filters.value.search,
-      source: filters.value.source ?? null,
-      status: filters.value.status ?? null,
-      type: filters.value.type ?? null,
-      contract_id: filters.value.contract_id ?? null,
-      location_id: filters.value.location_id ?? null,
-      template_id: filters.value.template_id ?? null,
-      ordering: filters.value.ordering,
-      showDeleted: showDeletedObjects.value,
-      page: pagination.value.page,
-      per_page: pagination.value.per_page,
-    }));
-  } catch {/* ignore */}
-};
-
-const persisted = loadPersistedState();
-
-if (persisted?.showDeleted) {
-  showDeletedObjects.value = true;
-}
-
-// Pagination
-const pagination = ref({
-  page: persisted?.page ?? 1,
-  per_page: persisted?.per_page ?? 10,
-});
-
-// Filters
-const filters = ref<ObjectFilters & { source?: string | null }>({
-  search: persisted?.search ?? '',
-  status: persisted?.status ?? undefined,
-  type: persisted?.type ?? undefined,
-  contract_id: persisted?.contract_id ?? undefined,
-  location_id: persisted?.location_id ?? undefined,
-  template_id: persisted?.template_id ?? undefined,
-  source: persisted?.source ?? null,
-  ordering: persisted?.ordering ?? '-createdAt', // По умолчанию: новые сверху
-});
-
-// Options for selects
-const companyOptions = ref<Array<{ id: number; name: string }>>([]);
-const contractOptions = ref<Array<{ title: string; value: number }>>([]);
-const locationOptions = ref<Array<{ title: string; value: number }>>([]);
-const templateOptions = ref<Array<{ title: string; value: number }>>([]);
-const loadingCompanies = ref(false);
-const loadingContracts = ref(false);
-const loadingLocations = ref(false);
-const loadingTemplates = ref(false);
-
-// Template selection
-const selectedTemplate = ref(null);
-
-// Statistics
-const stats = ref([
-  { key: 'total', label: 'Всего объектов', value: 0, icon: 'mdi-office-building', color: 'primary' },
-  { key: 'active', label: 'Активные', value: 0, icon: 'mdi-check-circle', color: 'success' },
-  { key: 'inactive', label: 'Неактивные', value: 0, icon: 'mdi-pause-circle', color: 'warning' },
-  { key: 'trash', label: 'В корзине', value: 0, icon: 'mdi-delete', color: 'error' },
-  { key: 'scheduled', label: 'К удалению', value: 0, icon: 'mdi-clock-alert', color: 'error' },
-]);
-
-// Object dialog
-const objectDialog = ref({
-  show: false,
-  isEdit: false,
-  object: null as ObjectWithRelations | null,
-});
-
-const objectForm = ref<ObjectForm>({
-  name: '',
-  type: '',
-  description: '',
-
-  // Новые поля
-  accountName: '',
-  creatorName: '',
-  deviceTypeName: '',
-  phoneNumbers: [],
-  uniqueId: '',
-  is_active: true,
-
-  latitude: undefined,
-  longitude: undefined,
-  address: '',
-  imei: '',
-  phone_number: '',
-  serial_number: '',
-  company_id: 0, // ID компании
-  contract_id: 0,
-  template_id: undefined,
-  location_id: 0,
-  settings: '{}',
-  tags: [],
-  notes: '',
-  external_id: '',
-});
-
-const formErrors = ref<Record<string, string>>({});
-const objectFormRef = ref();
-
-// Schedule delete dialog
-const scheduleDeleteDialog = ref({
-  show: false,
-  object: null as ObjectWithRelations | null,
-});
-
-const scheduleDeleteForm = ref<ScheduleDeleteForm>({
-  scheduled_delete_at: '',
-});
-
-const scheduleDeleteErrors = ref<Record<string, string>>({});
-
-// View dialog
-const viewDialog = ref({
-  show: false,
-  object: null as ObjectWithRelations | null,
-});
-
-// Create template dialog
-const createTemplateDialog = ref({
-  show: false,
-  object: null as ObjectWithRelations | null,
-});
-
-const createTemplateForm = ref({
-  name: '',
-  description: '',
-  category: '',
-  icon: '',
-  color: '',
-});
-
-const createTemplateErrors = ref<Record<string, string>>({});
-
-// Snackbar
+// === Snackbar / SuccessNotification (общий UI-state) ===
 const snackbar = ref({
   show: false,
   text: '',
@@ -973,7 +760,6 @@ const snackbar = ref({
   timeout: 5000,
 });
 
-// Success notification
 const successNotification = ref({
   show: false,
   title: '',
@@ -982,20 +768,220 @@ const successNotification = ref({
   showTimer: false,
 });
 
-// Computed
-const hasActiveFilters = computed(() => {
-  return !!(filters.value.search || filters.value.source) || showDeletedObjects.value;
+const showSnackbar = (text: string, color = 'info', timeout?: number) => {
+  const defaultTimeouts = { error: 6000, warning: 5000, success: 4000, info: 4000 };
+  const finalTimeout = timeout || defaultTimeouts[color as keyof typeof defaultTimeouts] || 5000;
+  snackbar.value = { show: true, text, color, timeout: finalTimeout };
+};
+
+const showSuccessNotification = (title: string, message: string, details?: string, showTimer = false) => {
+  successNotification.value = { show: true, title, message, details: details || '', showTimer };
+};
+
+const onNotificationTimerComplete = () => {};
+
+// === Composables ===
+// filters инициализируем первым, list использует filters.filters/showDeletedObjects.
+// Циклическая зависимость "filters.loadObjects ↔ list.loadObjects" — обходим через
+// поздний binding в filtersCtx.
+const filtersCtx = {
+  loadObjects: () => Promise.resolve(),
+  pagination: ref({ page: 1, per_page: 10 }),
+};
+
+const _filters = useObjectsFilters(filtersCtx as any);
+
+const list = useObjectsList({
+  filters: _filters.filters,
+  showDeletedObjects: _filters.showDeletedObjects,
+  showSnackbar,
 });
 
-const activeFiltersCount = computed(() => {
-  let count = 0;
-  if (filters.value.search) count++;
-  if (filters.value.source) count++;
-  if (showDeletedObjects.value) count++;
-  return count;
+// Закрываем циклическую зависимость
+filtersCtx.loadObjects = () => list.loadObjects();
+filtersCtx.pagination = list.pagination;
+// _filters внутри уже использует свой ctx.pagination ref → синхронизируем с реальной
+// list.pagination через watch (filters сохраняет state в localStorage из своей copy).
+// Решение: переинициализировать persist-функцию чтобы читала list.pagination.
+const persistedInit = () => {
+  try {
+    localStorage.setItem('objects_page_state_v2', JSON.stringify({
+      search: _filters.filters.value.search,
+      source: _filters.filters.value.source ?? null,
+      status: _filters.filters.value.status ?? null,
+      type: _filters.filters.value.type ?? null,
+      contract_id: _filters.filters.value.contract_id ?? null,
+      location_id: _filters.filters.value.location_id ?? null,
+      template_id: _filters.filters.value.template_id ?? null,
+      ordering: _filters.filters.value.ordering,
+      showDeleted: _filters.showDeletedObjects.value,
+      page: list.pagination.value.page,
+      per_page: list.pagination.value.per_page,
+    }));
+  } catch {/* ignore */}
+};
+
+// При первой загрузке восстанавливаем page/per_page в list.pagination из persist.
+const _persisted = (() => {
+  try {
+    const raw = localStorage.getItem('objects_page_state_v2');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+})();
+if (_persisted?.page) list.pagination.value.page = _persisted.page;
+if (_persisted?.per_page) list.pagination.value.per_page = _persisted.per_page;
+
+const lookups = useObjectsLookups({ showSnackbar });
+
+const selection = useObjectsSelection({ objects: list.objects });
+
+const crud = useObjectsCRUD({
+  objects: list.objects,
+  selectedObjects: selection.selectedObjects,
+  selectAll: selection.selectAll,
+  loadObjects: () => list.loadObjects(),
+  loadStats: () => list.loadStats(),
+  loadCompanies: () => lookups.loadCompanies(),
+  loadTemplates: () => lookups.loadTemplates(),
+  showSnackbar,
+  showSuccessNotification,
+  selectedTemplate: lookups.selectedTemplate,
 });
 
-// Пагинация (компактный footer в стиле /accounts)
+const applyTemplate = (templateId: number | null) => {
+  if (!templateId) return;
+  const template = lookups.templateOptions.value.find((t: any) => t.value === templateId);
+  if (!template) return;
+  crud.objectForm.value.template_id = templateId;
+  crud.objectForm.value.type = template.category || crud.objectForm.value.type;
+  if (template.default_settings) {
+    try {
+      const settings = JSON.parse(template.default_settings);
+      crud.objectForm.value.settings = JSON.stringify(settings);
+    } catch (error) {
+      console.warn('Ошибка парсинга настроек шаблона:', error);
+    }
+  }
+  showSnackbar(`Шаблон "${template.name}" применен`, 'success');
+};
+
+const exporter = useObjectsExport({
+  filters: _filters.filters,
+  showSnackbar,
+});
+
+// === Деструктурирующий спред — template ожидает плоские имена ===
+const filters = _filters.filters;
+const advancedFilters = _filters.advancedFilters;
+const showDeletedObjects = _filters.showDeletedObjects;
+const showSearchHistory = _filters.showSearchHistory;
+const showAdvancedSearch = _filters.showAdvancedSearch;
+const showFilters = _filters.showFilters;
+const loadingSuggestions = _filters.loadingSuggestions;
+const searchSuggestions = _filters.searchSuggestions;
+const searchHistory = _filters.searchHistory;
+const quickFilters = _filters.quickFilters;
+const hasActiveFilters = _filters.hasActiveFilters;
+const activeFiltersCount = _filters.activeFiltersCount;
+const debouncedSearch = _filters.debouncedSearch;
+const debouncedAdvancedSearch = _filters.debouncedAdvancedSearch;
+const clearFilters = _filters.clearFilters;
+const handleSearchInput = _filters.handleSearchInput;
+const loadSearchHistory = _filters.loadSearchHistory;
+const clearSearchHistory = _filters.clearSearchHistory;
+const removeFromHistory = _filters.removeFromHistory;
+const applyHistorySearch = _filters.applyHistorySearch;
+const isQuickFilterActive = _filters.isQuickFilterActive;
+const toggleQuickFilter = _filters.toggleQuickFilter;
+
+const objects = list.objects;
+const objectsData = list.objectsData;
+const loading = list.loading;
+const pagination = list.pagination;
+const stats = list.stats;
+const loadObjects = list.loadObjects;
+const loadStats = list.loadStats;
+const handlePageChange = list.handlePageChange;
+const handlePerPageChange = list.handlePerPageChange;
+const handleSortChange = list.handleSortChange;
+
+const companyOptions = lookups.companyOptions;
+const contractOptions = lookups.contractOptions;
+const locationOptions = lookups.locationOptions;
+const templateOptions = lookups.templateOptions;
+const loadingCompanies = lookups.loadingCompanies;
+const loadingContracts = lookups.loadingContracts;
+const loadingLocations = lookups.loadingLocations;
+const loadingTemplates = lookups.loadingTemplates;
+const selectedTemplate = lookups.selectedTemplate;
+const loadCompanies = lookups.loadCompanies;
+const loadContracts = lookups.loadContracts;
+const loadLocations = lookups.loadLocations;
+const loadTemplates = lookups.loadTemplates;
+
+const selectedObjects = selection.selectedObjects;
+const selectAll = selection.selectAll;
+const toggleObjectSelection = selection.toggleObjectSelection;
+const toggleSelectAll = selection.toggleSelectAll;
+const updateSelectAllState = selection.updateSelectAllState;
+
+const saving = crud.saving;
+const scheduling = crud.scheduling;
+const objectDialog = crud.objectDialog;
+const objectForm = crud.objectForm;
+const objectFormRef = crud.objectFormRef;
+const formErrors = crud.formErrors;
+const scheduleDeleteDialog = crud.scheduleDeleteDialog;
+const scheduleDeleteForm = crud.scheduleDeleteForm;
+const scheduleDeleteErrors = crud.scheduleDeleteErrors;
+const viewDialog = crud.viewDialog;
+const createTemplateDialog = crud.createTemplateDialog;
+const createTemplateForm = crud.createTemplateForm;
+const createTemplateErrors = crud.createTemplateErrors;
+const openCreateDialog = crud.openCreateDialog;
+const editObject = crud.editObject;
+const closeObjectDialog = crud.closeObjectDialog;
+const saveObject = crud.saveObject;
+const viewObject = crud.viewObject;
+const closeViewDialog = crud.closeViewDialog;
+const editObjectFromView = crud.editObjectFromView;
+const deleteObjectFromView = crud.deleteObjectFromView;
+const deleteObject = crud.deleteObject;
+const scheduleDelete = crud.scheduleDelete;
+const closeScheduleDeleteDialog = crud.closeScheduleDeleteDialog;
+const confirmScheduleDelete = crud.confirmScheduleDelete;
+const cancelScheduledDelete = crud.cancelScheduledDelete;
+const createTemplateFromObject = crud.createTemplateFromObject;
+const closeCreateTemplateDialog = crud.closeCreateTemplateDialog;
+const confirmCreateTemplate = crud.confirmCreateTemplate;
+const restoreObject = crud.restoreObject;
+const permanentDeleteObject = crud.permanentDeleteObject;
+const toggleObjectActivity = crud.toggleObjectActivity;
+const toggleAllObjectsActivity = crud.toggleAllObjectsActivity;
+const addPhoneNumber = crud.addPhoneNumber;
+const removePhoneNumber = crud.removePhoneNumber;
+
+const exporting = exporter.exporting;
+const exportObjects = exporter.exportObjects;
+
+// === Local UI state ===
+const viewMode = ref<'table' | 'grid'>('table');
+const showTrashDialog = ref(false);
+
+const combinedObjects = computed(() => objects.value);
+
+const fabMenuItems = [
+  { id: 'create', label: 'Создать объект', icon: 'mdi-plus', color: 'success' as const, action: () => openCreateDialog() },
+  { id: 'export', label: 'Экспорт', icon: 'mdi-export', color: 'primary' as const, action: () => exportObjects() },
+];
+
+const handleFabAction = (_item: { id?: string; action?: () => void }) => {};
+
+const openTrashDialog = () => {
+  showTrashDialog.value = true;
+};
+
+// === Computed ===
 const paginationTotalPages = computed(() => {
   const total = objectsData.value?.total || 0;
   return Math.max(1, Math.ceil(total / pagination.value.per_page));
@@ -1009,8 +995,6 @@ const paginationRange = computed(() => {
   return `${from}-${to}`;
 });
 
-// Колонка "Плановое удаление" видна только если в snapshot есть хоть один объект
-// с scheduled_delete_at (счётчик берём из stats.axenta_scheduled_delete).
 const hasScheduledDeletes = computed(() => {
   const st: any = objectsData.value?.stats;
   if (st && typeof st.axenta_scheduled_delete === 'number') {
@@ -1025,7 +1009,7 @@ const minDeleteDate = computed(() => {
   return tomorrow.toISOString().split('T')[0];
 });
 
-// Options
+// === Options ===
 const statusOptions = [
   { title: 'Активный', value: 'active' },
   { title: 'Неактивный', value: 'inactive' },
@@ -1041,24 +1025,12 @@ const typeOptions = [
   { title: 'Контейнер', value: 'container' },
 ];
 
-// Опции для фильтра по системе
 const sourceOptions = [
   { title: 'Все системы', value: null },
   { title: 'Axenta', value: 'axenta' },
   { title: 'Wialon', value: 'wialon' },
 ];
 
-// Быстрые фильтры
-const quickFilters = ref([
-  { key: 'active', label: 'Активные', icon: 'mdi-check-circle', filter: { is_active: true } },
-  { key: 'inactive', label: 'Неактивные', icon: 'mdi-pause-circle', filter: { is_active: false } },
-  { key: 'vehicles', label: 'Транспорт', icon: 'mdi-car', filter: { type: 'vehicle' } },
-  { key: 'equipment', label: 'Оборудование', icon: 'mdi-tools', filter: { type: 'equipment' } },
-  { key: 'scheduled_delete', label: 'К удалению', icon: 'mdi-clock-alert', filter: { status: 'scheduled_delete' } },
-  { key: 'recent', label: 'Недавние', icon: 'mdi-clock-outline', filter: { ordering: '-created_at' } },
-]);
-
-// Table headers
 const tableHeaders = computed(() => [
   { title: '', value: 'is_active', sortable: false, width: 60, headerProps: { class: 'header-status-icon' } },
   { title: 'Наименование', value: 'name', sortable: true },
@@ -1079,1050 +1051,44 @@ const tableHeaders = computed(() => [
   { title: '', value: 'actions', sortable: false, width: 56 },
 ]);
 
-// Доступные значения для количества элементов на странице
 const perPageOptions = [
-  { title: '5', value: 5 },
-  { title: '10', value: 10 },
-  { title: '25', value: 25 },
-  { title: '50', value: 50 },
-  { title: '100', value: 100 },
-  { title: '150', value: 150 },
-  { title: '300', value: 300 },
-  { title: '500', value: 500 },
-  { title: '1000', value: 1000 },
+  { title: '5', value: 5 }, { title: '10', value: 10 }, { title: '25', value: 25 },
+  { title: '50', value: 50 }, { title: '100', value: 100 }, { title: '150', value: 150 },
+  { title: '300', value: 300 }, { title: '500', value: 500 }, { title: '1000', value: 1000 },
 ];
 
-// Methods
-const loadObjects = async () => {
-  try {
-    // Корзина — отдельный path (там нужны soft-deleted объекты Axenta)
-    if (showDeletedObjects.value) {
-      const response = await objectsService.getDeletedObjects(
-        pagination.value.page,
-        pagination.value.per_page,
-        filters.value.search,
-      );
-      if (response.status === 'success') {
-        objects.value = response.data.items || [];
-        objectsData.value = response.data;
-      } else {
-        showSnackbar(response.error || 'Ошибка загрузки объектов', 'error');
-        objects.value = [];
-      }
-      return;
-    }
-
-    // Основной путь — единый /unified/objects (Axenta + WH + WL)
-    const response = await objectsService.getUnifiedObjects(
-      pagination.value.page,
-      pagination.value.per_page,
-      filters.value,
-    );
-
-    if (response.status === 'success') {
-      objects.value = (response.data.items || []) as any[];
-      objectsData.value = response.data;
-
-      // KPI — из stats endpoint'а в том же ответе (без дополнительного RTT)
-      const st = response.data.stats;
-      if (st) {
-        stats.value[0].value = st.axenta_total + st.wialon_total;
-        stats.value[1].value = st.axenta_active + st.wialon_active;
-        stats.value[2].value = st.axenta_inactive;
-        // [3] Корзина и [4] К удалению — только Axenta
-        stats.value[4].value = st.axenta_scheduled_delete;
-        // Корзина считается отдельным запросом ниже (live-проксирование Axenta /trash)
-      }
-
-      // Корзина — отдельным запросом (Axenta /trash, не покрыто snapshot)
-      try {
-        const trashStats = await objectsService.getTrashStats();
-        stats.value[3].value = trashStats.count;
-      } catch {
-        stats.value[3].value = 0;
-      }
-    } else {
-      showSnackbar((response as any).error || 'Ошибка загрузки объектов', 'error');
-      objects.value = [];
-    }
-  } catch (error: any) {
-    console.error('Ошибка загрузки объектов:', error);
-    showSnackbar('Ошибка загрузки объектов: ' + (error.message || 'Неизвестная ошибка'), 'error');
-    objects.value = [];
-  }
-};
-
-// loadStats оставлен как fallback при изоляции (не вызывается — KPI идут из /unified/objects).
-const loadStats = async () => {
-  try {
-    const statsData = await objectsService.getObjectsStats(true);
-    stats.value[0].value = statsData.total;
-    stats.value[1].value = statsData.active;
-    stats.value[2].value = statsData.inactive;
-    stats.value[4].value = statsData.scheduled_for_delete;
-    try {
-      const trashStats = await objectsService.getTrashStats();
-      stats.value[3].value = trashStats.count;
-    } catch {
-      stats.value[3].value = 0;
-    }
-  } catch (error) {
-    console.warn('Stats API недоступен:', error);
-  }
-};
-
-const loadCompanies = async () => {
-  try {
-    loadingCompanies.value = true;
-    const response = await objectsService.getCompanies();
-
-    if (response.status === 'success') {
-      companyOptions.value = response.data;
-    } else {
-      showSnackbar(response.error || 'Ошибка загрузки компаний', 'error');
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки компаний:', error);
-    showSnackbar('Ошибка загрузки компаний', 'error');
-  } finally {
-    loadingCompanies.value = false;
-  }
-};
-
-// loadContracts/loadLocations — фильтры в UI отключены, реальный API не реализован.
-// Возвращаем пустые массивы (селекты filters.contract_id/location_id скрыты при пустом списке).
-const loadContracts = async () => {
-  contractOptions.value = [];
-};
-
-const loadLocations = async () => {
-  locationOptions.value = [];
-};
-
-// Load templates
-const loadTemplates = async () => {
-  try {
-    // Убираем loadingTemplates.value = true; чтобы не было loading индикаторов
-    const response = await objectsService.getObjectTemplates();
-
-    if (response.status === 'success') {
-      templateOptions.value = response.data.items.map((template: any) => ({
-        title: template.name,
-        value: template.id,
-        name: template.name,
-        description: template.description,
-        icon: template.icon,
-        config: template.config,
-        default_settings: template.default_settings,
-        category: template.category
-      }));
-    }
-  } catch (error: any) {
-    console.error('Ошибка загрузки шаблонов:', error);
-    showSnackbar('Ошибка загрузки шаблонов', 'error');
-  }
-  // Убираем finally блок
-};
-
-// Apply template to form
-const applyTemplate = (templateId: number | null) => {
-  if (!templateId) return;
-
-  const template = templateOptions.value.find(t => t.value === templateId);
-  if (!template) return;
-
-  // Применяем настройки шаблона к форме
-  objectForm.value.template_id = templateId;
-  objectForm.value.type = template.category || objectForm.value.type;
-
-  // Применяем настройки по умолчанию из шаблона
-  if (template.default_settings) {
-    try {
-      const settings = JSON.parse(template.default_settings);
-      objectForm.value.settings = JSON.stringify(settings);
-    } catch (error) {
-      console.warn('Ошибка парсинга настроек шаблона:', error);
-    }
-  }
-
-  showSnackbar(`Шаблон "${template.name}" применен`, 'success');
-};
-
-
-// Debounced search
-const debouncedSearch = debounce(() => {
-  // Добавляем в историю поиска
-  if (filters.value.search && filters.value.search.trim() && !searchHistory.value.includes(filters.value.search.trim())) {
-    searchHistory.value.unshift(filters.value.search.trim());
-    // Ограничиваем историю 10 элементами
-    if (searchHistory.value.length > 10) {
-      searchHistory.value = searchHistory.value.slice(0, 10);
-    }
-    // Сохраняем в localStorage
-    localStorage.setItem('objects_search_history', JSON.stringify(searchHistory.value));
-  }
-
+// === Watchers ===
+watch(filters, () => {
   pagination.value.page = 1;
   loadObjects();
-}, 500);
-
-// Debounced advanced search
-const debouncedAdvancedSearch = debounce(() => {
-  // Применяем расширенные фильтры к основным фильтрам
-  Object.assign(filters.value, advancedFilters.value);
-  pagination.value.page = 1;
-  loadObjects();
-}, 500);
-
-const clearFilters = () => {
-  filters.value = {
-    search: '',
-    status: undefined,
-    type: undefined,
-    contract_id: undefined,
-    location_id: undefined,
-    template_id: undefined,
-    source: null,
-  };
-  advancedFilters.value = {
-    accountName: '',
-    creatorName: '',
-    deviceTypeName: '',
-    uniqueId: '',
-    imei: '',
-    phoneNumber: '',
-  };
-  showDeletedObjects.value = false;
-  pagination.value.page = 1;
-  loadObjects();
-};
-
-// Методы для работы с поиском
-const handleSearchInput = async (value: string) => {
-  if (!value || value.length < 2) {
-    searchSuggestions.value = [];
-    return;
-  }
-
-  loadingSuggestions.value = true;
-
-  try {
-    // Получаем предложения на основе существующих объектов
-    const suggestions = [];
-
-    // Добавляем предложения из истории поиска
-    searchHistory.value
-      .filter(item => item.toLowerCase().includes(value.toLowerCase()))
-      .forEach(item => {
-        suggestions.push({
-          title: item,
-          subtitle: 'Из истории поиска',
-          icon: 'mdi-history',
-          value: item
-        });
-      });
-
-    // Добавляем предложения по типам поиска
-    if (value.match(/^\d+$/)) {
-      suggestions.push({
-        title: `Поиск по ID: ${value}`,
-        subtitle: 'Поиск объекта по идентификатору',
-        icon: 'mdi-identifier',
-        value: value
-      });
-    }
-
-    if (value.match(/^\d{15}$/)) {
-      suggestions.push({
-        title: `Поиск по IMEI: ${value}`,
-        subtitle: 'Поиск объекта по IMEI',
-        icon: 'mdi-barcode',
-        value: value
-      });
-    }
-
-    if (value.match(/^\+?\d[\d\s\-\(\)]+$/)) {
-      suggestions.push({
-        title: `Поиск по номеру: ${value}`,
-        subtitle: 'Поиск объекта по номеру телефона',
-        icon: 'mdi-phone',
-        value: value
-      });
-    }
-
-    searchSuggestions.value = suggestions.slice(0, 8);
-  } catch (error) {
-    console.error('Ошибка получения предложений поиска:', error);
-  } finally {
-    loadingSuggestions.value = false;
-  }
-};
-
-// Методы для работы с историей поиска
-const loadSearchHistory = () => {
-  try {
-    const saved = localStorage.getItem('objects_search_history');
-    if (saved) {
-      searchHistory.value = JSON.parse(saved);
-    }
-  } catch (error) {
-    console.error('Ошибка загрузки истории поиска:', error);
-  }
-};
-
-const clearSearchHistory = () => {
-  searchHistory.value = [];
-  localStorage.removeItem('objects_search_history');
-};
-
-const removeFromHistory = (index: number) => {
-  searchHistory.value.splice(index, 1);
-  localStorage.setItem('objects_search_history', JSON.stringify(searchHistory.value));
-};
-
-const applyHistorySearch = (searchTerm: string) => {
-  filters.value.search = searchTerm;
-  debouncedSearch();
-};
-
-// Методы для работы с быстрыми фильтрами
-const isQuickFilterActive = (filter: any) => {
-  return Object.entries(filter.filter).every(([key, value]) => {
-    return filters.value[key as keyof typeof filters.value] === value;
-  });
-};
-
-const toggleQuickFilter = (filter: any) => {
-  if (isQuickFilterActive(filter)) {
-    // Отключаем фильтр
-    Object.keys(filter.filter).forEach(key => {
-      if (key === 'ordering') {
-        filters.value.ordering = 'name'; // Возвращаем к сортировке по умолчанию
-      } else {
-        (filters.value as any)[key] = undefined;
-      }
-    });
-  } else {
-    // Включаем фильтр
-    Object.assign(filters.value, filter.filter);
-  }
-
-  pagination.value.page = 1;
-  loadObjects();
-};
-
-// Dialog methods
-const openCreateDialog = () => {
-  console.log('🎯 openCreateDialog вызван');
-  objectDialog.value = {
-    show: true,
-    isEdit: false,
-    object: null,
-  };
-  console.log('🎯 Диалог установлен в show: true');
-  resetObjectForm();
-  loadCompanies(); // Загружаем компании при открытии диалога
-  loadTemplates(); // Загружаем шаблоны при открытии диалога
-  console.log('🎯 openCreateDialog завершен, состояние:', objectDialog.value);
-};
-
-const editObject = (object: ObjectWithRelations) => {
-  objectDialog.value = {
-    show: true,
-    isEdit: true,
-    object,
-  };
-  fillObjectForm(object);
-};
-
-const closeObjectDialog = () => {
-  console.log('🎯 closeObjectDialog вызван');
-  objectDialog.value.show = false;
-  console.log('🎯 Диалог установлен в show: false');
-  resetObjectForm();
-  formErrors.value = {};
-  selectedTemplate.value = null;
-
-  // Очищаем параметр action из URL, если он есть
-  if (route.query.action === 'create') {
-    console.log('🎯 Очищаем параметр action из URL');
-    router.replace({ path: route.path });
-  }
-  console.log('🎯 closeObjectDialog завершен, состояние:', objectDialog.value);
-};
-
-const resetObjectForm = () => {
-  objectForm.value = {
-    name: '',
-    type: '',
-    description: '',
-
-    // Новые поля
-    accountName: '',
-    creatorName: '',
-    deviceTypeName: '',
-    phoneNumbers: [],
-    uniqueId: '',
-    is_active: true,
-
-    latitude: undefined,
-    longitude: undefined,
-    address: '',
-    imei: '',
-    phone_number: '',
-    serial_number: '',
-    company_id: 0, // ID компании
-    contract_id: 0,
-    template_id: undefined,
-    location_id: 0,
-    settings: '{}',
-    tags: [],
-    notes: '',
-    external_id: '',
-  };
-};
-
-const fillObjectForm = (object: ObjectWithRelations) => {
-  objectForm.value = {
-    name: object.name,
-    type: object.type,
-    description: object.description,
-
-    // Новые поля
-    accountName: object.accountName || '',
-    creatorName: object.creatorName || '',
-    deviceTypeName: object.deviceTypeName || '',
-    phoneNumbers: object.phoneNumbers || [],
-    uniqueId: object.uniqueId || object.external_id || '',
-    is_active: object.is_active,
-
-    latitude: object.latitude,
-    longitude: object.longitude,
-    address: object.address,
-    imei: object.imei,
-    phone_number: object.phone_number,
-    serial_number: object.serial_number,
-    company_id: object.company_id,
-    contract_id: object.contract_id,
-    template_id: object.template_id,
-    location_id: object.location_id,
-    settings: object.settings,
-    tags: object.tags,
-    notes: object.notes,
-    external_id: object.external_id,
-  };
-};
-
-const saveObject = async () => {
-  try {
-    formErrors.value = {};
-
-    // Валидация
-    if (!objectForm.value.name.trim()) {
-      formErrors.value.name = 'Название объекта обязательно';
-      return;
-    }
-    if (!objectForm.value.type) {
-      formErrors.value.type = 'Тип объекта обязателен';
-      return;
-    }
-    if (!objectForm.value.contract_id) {
-      formErrors.value.contract_id = 'Договор обязателен';
-      return;
-    }
-
-    saving.value = true;
-
-    const response = objectDialog.value.isEdit
-      ? await objectsService.updateObject(objectDialog.value.object!.id, objectForm.value)
-      : await objectsService.createObject(objectForm.value);
-
-    if (response.status === 'success') {
-      if (objectDialog.value.isEdit) {
-        showSnackbar('Объект успешно обновлен', 'success');
-      } else {
-        showSuccessNotification(
-          'Объект успешно создан',
-          'Новый объект мониторинга добавлен в систему',
-          `Создан объект: ${objectForm.value.name}`,
-          true
-        );
-      }
-      closeObjectDialog();
-      await loadObjects();
-      await loadStats();
-      // Уведомляем Dashboard/Accounts что счётчики устарели
-      emitCrossSection('objects:mutated', {
-        action: objectDialog.value.isEdit ? 'update' : 'create'
-      });
-    } else {
-      showSnackbar(response.error || 'Ошибка сохранения объекта', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка сохранения объекта:', error);
-    showSnackbar('Ошибка сохранения объекта', 'error');
-  } finally {
-    saving.value = false;
-  }
-};
-
-const viewObject = (object: ObjectWithRelations) => {
-  viewDialog.value = {
-    show: true,
-    object,
-  };
-};
-
-const closeViewDialog = () => {
-  viewDialog.value.show = false;
-  viewDialog.value.object = null;
-};
-
-const editObjectFromView = () => {
-  if (viewDialog.value.object) {
-    closeViewDialog();
-    editObject(viewDialog.value.object);
-  }
-};
-
-const deleteObjectFromView = () => {
-  if (viewDialog.value.object) {
-    const object = viewDialog.value.object;
-    closeViewDialog();
-    deleteObject(object);
-  }
-};
-
-const deleteObject = async (object: ObjectWithRelations) => {
-  if (!confirm(`Вы уверены, что хотите удалить объект "${object.name}"?`)) {
-    return;
-  }
-
-  try {
-    const response = await objectsService.deleteObject(object.id);
-    if (response.status === 'success') {
-      showSnackbar('Объект успешно удален', 'success');
-      await loadObjects();
-      await loadStats();
-      emitCrossSection('objects:mutated', { action: 'delete', id: object.id });
-    } else {
-      showSnackbar(response.error || 'Ошибка удаления объекта', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка удаления объекта:', error);
-    showSnackbar('Ошибка удаления объекта', 'error');
-  }
-};
-
-const scheduleDelete = (object: ObjectWithRelations) => {
-  scheduleDeleteDialog.value = {
-    show: true,
-    object,
-  };
-  scheduleDeleteForm.value.scheduled_delete_at = '';
-};
-
-const closeScheduleDeleteDialog = () => {
-  scheduleDeleteDialog.value.show = false;
-  scheduleDeleteDialog.value.object = null;
-  scheduleDeleteForm.value.scheduled_delete_at = '';
-  scheduleDeleteErrors.value = {};
-};
-
-const closeCreateTemplateDialog = () => {
-  createTemplateDialog.value.show = false;
-  createTemplateDialog.value.object = null;
-  createTemplateForm.value = {
-    name: '',
-    description: '',
-    category: '',
-    icon: '',
-    color: '',
-  };
-  createTemplateErrors.value = {};
-};
-
-// Trash dialog methods
-const openTrashDialog = () => {
-  console.log('🗑️ Opening trash dialog...');
-  showTrashDialog.value = true;
-  console.log('🗑️ showTrashDialog set to:', showTrashDialog.value);
-};
-
-const confirmScheduleDelete = async () => {
-  try {
-    scheduleDeleteErrors.value = {};
-
-    if (!scheduleDeleteForm.value.scheduled_delete_at) {
-      scheduleDeleteErrors.value.scheduled_delete_at = 'Дата удаления обязательна';
-      return;
-    }
-
-    scheduling.value = true;
-
-    const response = await objectsService.scheduleObjectDelete(
-      scheduleDeleteDialog.value.object!.id,
-      scheduleDeleteForm.value
-    );
-
-    if (response.status === 'success') {
-      showSnackbar('Плановое удаление запланировано', 'success');
-      closeScheduleDeleteDialog();
-      await loadObjects();
-      await loadStats();
-    } else {
-      showSnackbar(response.error || 'Ошибка планирования удаления', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка планирования удаления:', error);
-    showSnackbar('Ошибка планирования удаления', 'error');
-  } finally {
-    scheduling.value = false;
-  }
-};
-
-const confirmCreateTemplate = async () => {
-  try {
-    createTemplateErrors.value = {};
-
-    // Валидация
-    if (!createTemplateForm.value.name.trim()) {
-      createTemplateErrors.value.name = 'Название шаблона обязательно';
-      return;
-    }
-    if (!createTemplateForm.value.category.trim()) {
-      createTemplateErrors.value.category = 'Категория шаблона обязательна';
-      return;
-    }
-
-    saving.value = true;
-
-    const response = await objectsService.createTemplateFromObject(
-      createTemplateDialog.value.object!.id,
-      createTemplateForm.value
-    );
-
-    if (response.status === 'success') {
-      showSnackbar('Шаблон успешно создан на основе объекта', 'success');
-      closeCreateTemplateDialog();
-      // Можно добавить перезагрузку шаблонов если нужно
-    } else {
-      showSnackbar(response.error || 'Ошибка создания шаблона', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка создания шаблона:', error);
-    showSnackbar('Ошибка создания шаблона', 'error');
-  } finally {
-    saving.value = false;
-  }
-};
-
-const cancelScheduledDelete = async (object: ObjectWithRelations) => {
-  if (!confirm(`Отменить плановое удаление объекта "${object.name}"?`)) {
-    return;
-  }
-
-  try {
-    const response = await objectsService.cancelScheduledDelete(object.id);
-    if (response.status === 'success') {
-      showSnackbar('Плановое удаление отменено', 'success');
-      await loadObjects();
-      await loadStats();
-    } else {
-      showSnackbar(response.error || 'Ошибка отмены планового удаления', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка отмены планового удаления:', error);
-    showSnackbar('Ошибка отмены планового удаления', 'error');
-  }
-};
-
-const createTemplateFromObject = (object: ObjectWithRelations) => {
-  createTemplateDialog.value = {
-    show: true,
-    object,
-  };
-  createTemplateForm.value = {
-    name: `Шаблон на основе "${object.name}"`,
-    description: `Шаблон создан на основе объекта "${object.name}"`,
-    category: object.type || 'Стандартные',
-    icon: 'mdi-office-building',
-    color: '#1976D2',
-  };
-  createTemplateErrors.value = {};
-};
-
-const restoreObject = async (object: ObjectWithRelations) => {
-  if (!confirm(`Восстановить объект "${object.name}"?`)) {
-    return;
-  }
-
-  try {
-    const response = await objectsService.restoreObject(object.id);
-    if (response.status === 'success') {
-      showSnackbar('Объект успешно восстановлен', 'success');
-      await loadObjects();
-      await loadStats();
-    } else {
-      showSnackbar(response.error || 'Ошибка восстановления объекта', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка восстановления объекта:', error);
-    showSnackbar('Ошибка восстановления объекта', 'error');
-  }
-};
-
-const permanentDeleteObject = async (object: ObjectWithRelations) => {
-  if (!confirm(`ВНИМАНИЕ! Объект "${object.name}" будет удален навсегда. Это действие нельзя отменить. Продолжить?`)) {
-    return;
-  }
-
-  try {
-    const response = await objectsService.permanentDeleteObject(object.id);
-    if (response.status === 'success') {
-      showSnackbar('Объект окончательно удален', 'success');
-      await loadObjects();
-      await loadStats();
-    } else {
-      showSnackbar(response.error || 'Ошибка окончательного удаления', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка окончательного удаления:', error);
-    showSnackbar('Ошибка окончательного удаления', 'error');
-  }
-};
-
-const exportObjects = async () => {
-  try {
-    exporting.value = true;
-    const blob = await objectsService.exportObjects('excel', filters.value);
-
-    // Создаем ссылку для скачивания
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `objects_${new Date().toISOString().split('T')[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    showSnackbar('Экспорт завершен', 'success');
-  } catch (error: any) {
-    console.error('Ошибка экспорта:', error);
-    showSnackbar('Ошибка экспорта объектов', 'error');
-  } finally {
-    exporting.value = false;
-  }
-};
-
-
-// Pagination handlers
-const handlePageChange = (page: number) => {
-  pagination.value.page = page;
-  loadObjects();
-};
-
-const handlePerPageChange = (per_page: number) => {
-  pagination.value.per_page = per_page;
-  pagination.value.page = 1;
-  loadObjects();
-};
-
-const handleSortChange = (sortBy: any[]) => {
-  if (sortBy.length > 0) {
-    const sort = sortBy[0];
-    const field = sort.key;
-    const order = sort.order === 'desc' ? '-' : '';
-    filters.value.ordering = `${order}${field}`;
-  } else {
-    filters.value.ordering = 'name';
-  }
-  pagination.value.page = 1;
-  loadObjects();
-};
-
-// Utility methods
-// Палитра цветов для wialon-подключений. При добавлении нового connection_id
-// он автоматически получает цвет по индексу (циклически). axenta использует свой
-// фирменный синий через color="primary".
-const CONNECTION_PALETTE = [
-  'orange', 'purple', 'teal', 'pink', 'indigo', 'cyan',
-  'amber', 'lime', 'deep-orange', 'green', 'blue-grey', 'red',
-];
-
-const getConnectionColor = (connectionId?: number | string | null): string => {
-  if (connectionId === undefined || connectionId === null) return 'grey';
-  const id = typeof connectionId === 'string' ? parseInt(connectionId, 10) || 0 : connectionId;
-  return CONNECTION_PALETTE[Math.abs(id) % CONNECTION_PALETTE.length];
-};
-
-const getStatusText = (status: ObjectStatus): string => {
-  const statusMap = {
-    active: 'Активный',
-    inactive: 'Неактивный',
-    maintenance: 'Обслуживание',
-    scheduled_delete: 'К удалению',
-  };
-  return statusMap[status] || status;
-};
-
-const getStatusColor = (status: ObjectStatus): string => {
-  const colorMap = {
-    active: 'success',
-    inactive: 'warning',
-    maintenance: 'info',
-    scheduled_delete: 'error',
-  };
-  return colorMap[status] || 'default';
-};
-
-const getTypeText = (type: ObjectType): string => {
-  const typeMap = {
-    vehicle: 'Транспорт',
-    equipment: 'Оборудование',
-    asset: 'Актив',
-    building: 'Здание',
-    container: 'Контейнер',
-  };
-  return typeMap[type] || type;
-};
-
-const getTypeIcon = (type: ObjectType): string => {
-  const iconMap = {
-    vehicle: 'mdi-car',
-    equipment: 'mdi-tools',
-    asset: 'mdi-package-variant',
-    building: 'mdi-office-building',
-    container: 'mdi-package',
-  };
-  return iconMap[type] || 'mdi-help-circle';
-};
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
-const showSnackbar = (text: string, color = 'info', timeout?: number) => {
-  // Автоматически устанавливаем время показа в зависимости от типа
-  const defaultTimeouts = {
-    error: 6000,    // Ошибки показываем дольше
-    warning: 5000,  // Предупреждения - стандартное время
-    success: 4000,  // Успех - чуть меньше
-    info: 4000,     // Информация - стандартное время
-  };
-
-  const finalTimeout = timeout || defaultTimeouts[color as keyof typeof defaultTimeouts] || 5000;
-
-  snackbar.value = {
-    show: true,
-    text,
-    color,
-    timeout: finalTimeout
-  };
-
-  // Логируем для отладки
-  console.log(`📢 Snackbar: ${text} (${color}, ${finalTimeout}ms)`);
-};
-
-const getSnackbarIcon = (color: string): string => {
-  const iconMap = {
-    success: 'mdi-check-circle',
-    error: 'mdi-alert-circle',
-    warning: 'mdi-alert',
-    info: 'mdi-information',
-  };
-  return iconMap[color as keyof typeof iconMap] || 'mdi-information';
-};
-
-// Функция для принудительного закрытия всех диалогов (для отладки)
-const forceCloseAllDialogs = () => {
-  console.log('🚨 Принудительно закрываем все диалоги');
-  objectDialog.value.show = false;
-  scheduleDeleteDialog.value.show = false;
-  viewDialog.value.show = false;
-  console.log('🎯 Все диалоги закрыты:', {
-    objectDialog: objectDialog.value.show,
-    scheduleDeleteDialog: scheduleDeleteDialog.value.show,
-    viewDialog: viewDialog.value.show
-  });
-};
-
-// Добавляем функцию в window для отладки
-if (typeof window !== 'undefined') {
-  (window as any).forceCloseAllDialogs = forceCloseAllDialogs;
-}
-
-const showSuccessNotification = (title: string, message: string, details?: string, showTimer = false) => {
-  successNotification.value = {
-    show: true,
-    title,
-    message,
-    details: details || '',
-    showTimer,
-  };
-};
-
-const onNotificationTimerComplete = () => {
-  console.log('Таймер уведомления завершен');
-};
-
-// Функции для работы с активностью объектов
-const toggleObjectActivity = async (object: ObjectWithRelations, isActive: boolean) => {
-  try {
-    const response = await objectsService.updateObject(object.id, { is_active: isActive });
-    if (response.status === 'success') {
-      // Обновляем объект в локальном состоянии
-      const index = objects.value.findIndex(obj => obj.id === object.id);
-      if (index !== -1) {
-        objects.value[index].is_active = isActive;
-      }
-      showSnackbar(
-        `Объект "${object.name}" ${isActive ? 'активирован' : 'деактивирован'}`,
-        'success'
-      );
-    } else {
-      showSnackbar(response.error || 'Ошибка изменения активности объекта', 'error');
-    }
-  } catch (error: any) {
-    console.error('Ошибка изменения активности объекта:', error);
-    showSnackbar('Ошибка изменения активности объекта', 'error');
-  }
-};
-
-const toggleAllObjectsActivity = async (isActive: boolean) => {
-  if (selectedObjects.value.length === 0) {
-    showSnackbar('Выберите объекты для изменения активности', 'warning');
-    return;
-  }
-
-  if (!confirm(`${isActive ? 'Активировать' : 'Деактивировать'} выбранные объекты (${selectedObjects.value.length} шт.)?`)) {
-    return;
-  }
-
-  try {
-    const promises = selectedObjects.value.map(objectId =>
-      objectsService.updateObject(objectId, { is_active: isActive })
-    );
-
-    await Promise.all(promises);
-
-    // Обновляем объекты в локальном состоянии
-    objects.value.forEach(obj => {
-      if (selectedObjects.value.includes(obj.id)) {
-        obj.is_active = isActive;
-      }
-    });
-
-    showSnackbar(
-      `${selectedObjects.value.length} объект(ов) ${isActive ? 'активированы' : 'деактивированы'}`,
-      'success'
-    );
-
-    selectedObjects.value = [];
-    selectAll.value = false;
-  } catch (error: any) {
-    console.error('Ошибка массового изменения активности:', error);
-    showSnackbar('Ошибка массового изменения активности объектов', 'error');
-  }
-};
-
-const toggleObjectSelection = (objectId: number) => {
-  const index = selectedObjects.value.indexOf(objectId);
-  if (index > -1) {
-    selectedObjects.value.splice(index, 1);
-  } else {
-    selectedObjects.value.push(objectId);
-  }
-  updateSelectAllState();
-};
-
-const toggleSelectAll = () => {
-  if (selectAll.value) {
-    selectedObjects.value = objects.value.map(obj => obj.id);
-  } else {
-    selectedObjects.value = [];
-  }
-};
-
-const updateSelectAllState = () => {
-  if (selectedObjects.value.length === 0) {
-    selectAll.value = false;
-  } else if (selectedObjects.value.length === objects.value.length) {
-    selectAll.value = true;
-  } else {
-    selectAll.value = false;
-  }
-};
-
-// Функции для работы с номерами телефонов
-const addPhoneNumber = () => {
-  objectForm.value.phoneNumbers?.push('');
-};
-
-const removePhoneNumber = (index: number) => {
-  objectForm.value.phoneNumbers?.splice(index, 1);
-};
-
-// Watchers
-watch([filters], () => {
-  pagination.value.page = 1;
-  loadObjects();
-  savePersistedState();
+  persistedInit();
 }, { deep: true });
 
 watch(showDeletedObjects, () => {
   pagination.value.page = 1;
   loadObjects();
-  savePersistedState();
+  persistedInit();
 });
 
-watch(pagination, () => savePersistedState(), { deep: true });
+watch(pagination, () => persistedInit(), { deep: true });
 
-// Подписка на автообновление
-let unsubscribeFromAutoRefresh: (() => void) | null = null;
-
-// Lifecycle
+// === Lifecycle ===
 onMounted(async () => {
-  console.log('🚀 Objects component mounted');
-
-
   // Принудительно закрываем все диалоги при инициализации
   objectDialog.value.show = false;
   scheduleDeleteDialog.value.show = false;
   viewDialog.value.show = false;
-  console.log('🎯 Все диалоги принудительно закрыты');
 
-  // Подхватываем фильтры из URL (например, из KPI Dashboard или глобального поиска).
-  // ?search=&source=&status=&type=&accountId= — целевые ссылки сохраняют контекст.
-  if (typeof route.query.search === 'string') {
-    filters.value.search = route.query.search;
-  }
-  if (typeof route.query.source === 'string') {
-    filters.value.source = route.query.source;
-  }
-  if (typeof route.query.status === 'string') {
-    filters.value.status = route.query.status;
-  }
-  if (typeof route.query.type === 'string') {
-    filters.value.type = route.query.type;
-  }
+  // Подхватываем фильтры из URL (KPI Dashboard, глобальный поиск).
+  if (typeof route.query.search === 'string') filters.value.search = route.query.search;
+  if (typeof route.query.source === 'string') filters.value.source = route.query.source;
+  if (typeof route.query.status === 'string') filters.value.status = route.query.status as any;
+  if (typeof route.query.type === 'string') filters.value.type = route.query.type as any;
 
-  // Загружаем историю поиска
   loadSearchHistory();
 
   try {
-    // Загружаем основные данные (объекты) в первую очередь
     await loadObjects();
-
-    // Остальные данные загружаем опционально (не критично если не загрузятся)
     Promise.allSettled([
       loadCompanies(),
       loadContracts(),
@@ -2141,39 +1107,13 @@ onMounted(async () => {
     showSnackbar('Ошибка загрузки объектов. Проверьте подключение к серверу.', 'error', 8000);
   }
 
-  // Временно отключаем автообновление из-за проблем с auth context
-  // autoRefresh.setInterval(10);
-  // autoRefresh.start();
-
-  // Подписываемся на изменения автообновления
-  // unsubscribeFromAutoRefresh = autoRefresh.subscribe(() => {
-  //   loadObjects();
-  // });
-
-  console.log('⚠️ Автообновление временно отключено для стабильности');
-
-  // Проверяем, нужно ли открыть диалог создания объекта
+  // Авто-открытие диалога создания (?action=create из глобального FAB)
   if (route.query.action === 'create') {
-    console.log('🎯 Автоматически открываем диалог создания объекта');
-    // Добавляем небольшую задержку, чтобы компонент полностью загрузился
-    setTimeout(() => {
-      console.log('🎯 Открываем диалог создания объекта с задержкой');
-      openCreateDialog();
-      console.log('🎯 Состояние диалога:', objectDialog.value);
-    }, 500);
+    setTimeout(() => openCreateDialog(), 500);
   }
-
-  console.log('✅ Objects component fully loaded');
 });
 
-onUnmounted(() => {
-  // Отписываемся от автообновления (если было включено)
-  if (unsubscribeFromAutoRefresh) {
-    unsubscribeFromAutoRefresh();
-  }
-
-  console.log('🔄 Objects component unmounted');
-});
+onUnmounted(() => {});
 </script>
 
 <style scoped>
