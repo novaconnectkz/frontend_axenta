@@ -447,7 +447,11 @@ class AccountsService {
   }
 
   /**
-   * Активировать учетную запись
+   * Активировать учетную запись.
+   * Идём через наш backend-proxy /api/cms/accounts/:id/activate (см. main.go +
+   * api/accounts.go:ToggleAccountStatus). Backend проксирует в Axenta + триггерит
+   * SnapshotInvalidator → snapshot обновляется через 5-10s, /accounts UI видит новый is_active.
+   * Раньше шли напрямую в axenta.cloud → snapshot оставался устаревшим до cron (10 мин).
    */
   async activateAccount(id: number): Promise<void> {
     try {
@@ -456,15 +460,14 @@ class AccountsService {
       // Сначала очищаем дату блокировки, если она есть
       await this.clearBlockingDatetime(id);
 
-      // Затем активируем аккаунт через POST метод к /activate/ эндпоинту
-      const response = await this.axentaCloudClient.post<any>(
-        `/api/cms/accounts/${id}/activate/`,
+      const response = await this.apiClient.post<any>(
+        `/api/cms/accounts/${id}/activate`,
         { state: true }
       );
 
       console.log(`✅ Учетная запись ${id} активирована:`, response.data);
 
-      if (response.status !== 201) {
+      if (response.status >= 400) {
         throw new Error('Ошибка активации учетной записи');
       }
     } catch (error) {
@@ -474,21 +477,20 @@ class AccountsService {
   }
 
   /**
-   * Деактивировать учетную запись
+   * Деактивировать учетную запись (через наш backend-proxy, см. activateAccount).
    */
   async deactivateAccount(id: number): Promise<void> {
     try {
       console.log(`🔄 Деактивация учетной записи ${id}`);
 
-      // Используем правильный POST метод к /activate/ эндпоинту
-      const response = await this.axentaCloudClient.post<any>(
-        `/api/cms/accounts/${id}/activate/`,
+      const response = await this.apiClient.post<any>(
+        `/api/cms/accounts/${id}/activate`,
         { state: false }
       );
 
       console.log(`✅ Учетная запись ${id} деактивирована:`, response.data);
 
-      if (response.status !== 201) {
+      if (response.status >= 400) {
         throw new Error('Ошибка деактивации учетной записи');
       }
     } catch (error) {

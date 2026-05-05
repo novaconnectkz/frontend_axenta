@@ -953,6 +953,13 @@ const toggleAccountStatus = async (account: Account) => {
       }
     }
 
+    // Уведомляем Dashboard инвалидировать KPI cache (active_count изменился)
+    emitCrossSection('accounts:mutated', {
+      action: 'update',
+      id: account.id,
+      source: isWialon ? (accountWithSource.source?.toLowerCase().startsWith('wh') ? 'wialon-hosting' : 'wialon-local') : 'axenta',
+    });
+
     console.log(`✅ Аккаунт ${account.name} ${newStatus ? 'активирован' : 'деактивирован'}`);
 
     // Показываем уведомление об успехе
