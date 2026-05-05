@@ -10,6 +10,7 @@ import type {
   ObjectsResponse,
   ScheduleDeleteForm,
 } from "@/types/objects";
+import { logger } from "@/utils/logger";
 import axios from "axios";
 
 export class ObjectsService {
@@ -50,14 +51,14 @@ export class ObjectsService {
   }> | null = null;
 
   constructor() {
-    console.log("🔧 ObjectsService constructor called");
+    logger.debug("🔧 ObjectsService constructor called");
     
     // Настраиваем interceptors для токена
     this.apiClient.interceptors.request.use((config) => {
       const token = localStorage.getItem("axenta_token");
       const company = localStorage.getItem("axenta_company");
 
-      console.log("📡 ObjectsService request:", {
+      logger.debug("📡 ObjectsService request:", {
         url: config.url,
         method: config.method,
         hasToken: !!token,
@@ -72,7 +73,7 @@ export class ObjectsService {
       } else {
         config.headers["authorization"] = `Token ${token}`;
         config.headers["Authorization"] = `Token ${token}`;
-        console.log("✅ Токен добавлен в заголовки запроса");
+        logger.debug("✅ Токен добавлен в заголовки запроса");
       }
 
       if (company) {
@@ -80,7 +81,7 @@ export class ObjectsService {
           const companyData = JSON.parse(company);
           config.headers["X-Tenant-ID"] = companyData.id;
         } catch (e) {
-          console.warn("Invalid company data in localStorage");
+          logger.warn("Invalid company data in localStorage");
         }
       }
 
@@ -91,7 +92,7 @@ export class ObjectsService {
     this.apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.log("ObjectsService API error:", {
+        logger.debug("ObjectsService API error:", {
           status: error.response?.status,
           url: error.config?.url,
           message: error.message,
@@ -109,7 +110,7 @@ export class ObjectsService {
           }
           
           // Очищаем все данные авторизации
-          console.log("🧹 Очистка данных авторизации из-за ошибки 401");
+          logger.debug("🧹 Очистка данных авторизации из-за ошибки 401");
           localStorage.removeItem("axenta_token");
           localStorage.removeItem("axenta_user");
           localStorage.removeItem("axenta_company");
@@ -117,7 +118,7 @@ export class ObjectsService {
           
           // Перенаправляем на страницу входа
           if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            console.log("🔄 Перенаправление на страницу входа из ObjectsService...");
+            logger.debug("🔄 Перенаправление на страницу входа из ObjectsService...");
             
             // Сохраняем текущий путь для редиректа после входа
             const currentPath = window.location.pathname;
@@ -288,14 +289,14 @@ export class ObjectsService {
     if (filters.uniqueId) params.append("uniqueId", filters.uniqueId);
 
     try {
-      console.log("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
-      console.log("📡 Request URL params:", params.toString());
+      logger.debug("🚀 ObjectsService.getObjects called with:", { page, per_page, filters });
+      logger.debug("📡 Request URL params:", params.toString());
       const requestUrl = `/auth/cms/objects/?${params.toString()}`;
-      console.log("🔗 Full request URL:", requestUrl);
+      logger.debug("🔗 Full request URL:", requestUrl);
       
       // Используем аутентифицированный CMS API endpoint
       const response = await this.apiClient.get(requestUrl);
-      console.log("✅ Backend objects API response:", {
+      logger.debug("✅ Backend objects API response:", {
         status: response.status,
         itemsCount: response.data?.data?.items?.length || response.data?.results?.length || 0,
         total: response.data?.data?.total || response.data?.count || 0
@@ -303,9 +304,9 @@ export class ObjectsService {
       
       // Проверяем структуру ответа
       if (response.data.count !== undefined && response.data.results) {
-        console.log("🔄 Converting Axenta Cloud data to local format...");
+        logger.debug("🔄 Converting Axenta Cloud data to local format...");
         const convertedItems = this.convertAxentaObjectsToLocal(response.data.results);
-        console.log("📊 Converted items:", convertedItems.length, "objects");
+        logger.debug("📊 Converted items:", convertedItems.length, "objects");
         
         const adaptedResponse = {
           status: "success" as const,
@@ -318,18 +319,18 @@ export class ObjectsService {
           }
         };
         
-        console.log("📋 Final adapted response:", adaptedResponse);
+        logger.debug("📋 Final adapted response:", adaptedResponse);
         return adaptedResponse;
       } else {
-        console.log("📋 Using backend response as-is");
+        logger.debug("📋 Using backend response as-is");
         return response.data;
       }
     } catch (error: any) {
-      console.log("🔍 Error in getObjects (backend auth):", error.response?.status, error.message);
+      logger.debug("🔍 Error in getObjects (backend auth):", error.response?.status, error.message);
       
       // Если аутентифицированный endpoint недоступен, пробуем fallback endpoints
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
-        console.warn("🔄 Fallback to direct Axenta Cloud API");
+        logger.warn("🔄 Fallback to direct Axenta Cloud API");
         try {
           // Получаем токен текущего пользователя
           const userToken = localStorage.getItem("axenta_token");
@@ -352,7 +353,7 @@ export class ObjectsService {
               }
             }
           );
-          console.log("✅ Direct Axenta Cloud API successful");
+          logger.debug("✅ Direct Axenta Cloud API successful");
           
           // Проверяем структуру ответа от Axenta Cloud
           if (response.data.count !== undefined && response.data.results) {
@@ -370,12 +371,12 @@ export class ObjectsService {
             return response.data;
           }
         } catch (axentaError: any) {
-          console.warn("🔄 Fallback to backend /objects endpoint");
+          logger.warn("🔄 Fallback to backend /objects endpoint");
           try {
             const response = await this.apiClient.get(
               `/objects?${params.toString()}`
             );
-            console.log("✅ Fallback to backend /objects successful");
+            logger.debug("✅ Fallback to backend /objects successful");
             
             // Проверяем структуру ответа от бэкенда
             if (response.data.status === "success" && response.data.data) {
@@ -415,7 +416,7 @@ export class ObjectsService {
     } catch (error: any) {
       // Если аутентификация не прошла или сервер недоступен, используем публичный эндпоинт
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
-        console.warn("🔄 Fallback to public endpoint for object");
+        logger.warn("🔄 Fallback to public endpoint for object");
         const response = await this.apiClient.get(`/objects/${id}`);
         return response.data;
       }
@@ -493,20 +494,20 @@ export class ObjectsService {
     if (search) params.append("search", search);
 
     try {
-      console.log("🚀 ObjectsService.getDeletedObjects called with:", { page, per_page, search });
+      logger.debug("🚀 ObjectsService.getDeletedObjects called with:", { page, per_page, search });
       
       // Используем API корзины из Axenta Cloud
       const response = await this.apiClient.get(
         `/auth/cms/trash/?${params.toString()}`
       );
-      console.log("✅ Backend trash API response:", response.data);
+      logger.debug("✅ Backend trash API response:", response.data);
       
       // API корзины с авторизацией возвращает структуру {"count": number, "results": [...]}
       // Без авторизации возвращает {"detail": [...]}
       if (response.data.count !== undefined && response.data.results) {
-        console.log("🔄 Converting Axenta Cloud trash data (auth) to local format...");
+        logger.debug("🔄 Converting Axenta Cloud trash data (auth) to local format...");
         const convertedItems = this.convertAxentaObjectsToLocal(response.data.results);
-        console.log("📊 Converted trash items:", convertedItems.length, "objects");
+        logger.debug("📊 Converted trash items:", convertedItems.length, "objects");
         
         const adaptedResponse = {
           status: "success" as const,
@@ -519,12 +520,12 @@ export class ObjectsService {
           }
         };
         
-        console.log("📋 Final adapted trash response:", adaptedResponse);
+        logger.debug("📋 Final adapted trash response:", adaptedResponse);
         return adaptedResponse;
       } else if (response.data.detail !== undefined) {
-        console.log("🔄 Converting Axenta Cloud trash data (no-auth) to local format...");
+        logger.debug("🔄 Converting Axenta Cloud trash data (no-auth) to local format...");
         const convertedItems = this.convertAxentaObjectsToLocal(response.data.detail);
-        console.log("📊 Converted trash items:", convertedItems.length, "objects");
+        logger.debug("📊 Converted trash items:", convertedItems.length, "objects");
         
         const adaptedResponse = {
           status: "success" as const,
@@ -537,20 +538,20 @@ export class ObjectsService {
           }
         };
         
-        console.log("📋 Final adapted trash response:", adaptedResponse);
+        logger.debug("📋 Final adapted trash response:", adaptedResponse);
         return adaptedResponse;
       } else {
-        console.log("📋 Using backend trash response as-is");
+        logger.debug("📋 Using backend trash response as-is");
         return response.data;
       }
     } catch (error: any) {
-      console.log("❌ ObjectsService.getDeletedObjects error:", error);
-      console.log("🔍 Error status:", error.response?.status);
-      console.log("🔍 Error message:", error.message);
+      logger.debug("❌ ObjectsService.getDeletedObjects error:", error);
+      logger.debug("🔍 Error status:", error.response?.status);
+      logger.debug("🔍 Error message:", error.message);
       
       // Если локальный API не работает, пробуем Axenta Cloud API
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500 || error.message?.includes('database')) {
-        console.warn("🔄 Fallback to direct Axenta Cloud API for trash");
+        logger.warn("🔄 Fallback to direct Axenta Cloud API for trash");
         try {
           // Получаем токен текущего пользователя
           const userToken = localStorage.getItem("axenta_token");
@@ -573,7 +574,7 @@ export class ObjectsService {
               }
             }
           );
-          console.log("✅ Direct Axenta Cloud trash API successful");
+          logger.debug("✅ Direct Axenta Cloud trash API successful");
           
           // Проверяем структуру ответа от Axenta Cloud
           if (response.data.count !== undefined && response.data.results) {
@@ -604,7 +605,7 @@ export class ObjectsService {
             return response.data;
           }
         } catch (axentaError: any) {
-          console.warn("❌ Axenta Cloud trash API also failed:", axentaError);
+          logger.warn("❌ Axenta Cloud trash API also failed:", axentaError);
           // Возвращаем пустую корзину вместо ошибки
           return {
             status: "success" as const,
@@ -626,7 +627,7 @@ export class ObjectsService {
         );
         return response.data;
       } catch (fallbackError: any) {
-        console.log("❌ Fallback trash API also failed:", fallbackError);
+        logger.debug("❌ Fallback trash API also failed:", fallbackError);
         // Возвращаем пустую корзину вместо ошибки
         return {
           status: "success" as const,
@@ -645,14 +646,14 @@ export class ObjectsService {
   // Получение статистики корзины
   async getTrashStats(): Promise<{ count: number }> {
     try {
-      console.log("🚀 ObjectsService.getTrashStats called - UPDATED VERSION");
+      logger.debug("🚀 ObjectsService.getTrashStats called - UPDATED VERSION");
       
       // Используем API корзины из Axenta Cloud с большим количеством элементов
       // чтобы получить максимально точное количество
       const response = await this.apiClient.get(
         `/auth/cms/trash/?page=1&per_page=1000`
       );
-      console.log("✅ Backend trash stats API response:", response.data);
+      logger.debug("✅ Backend trash stats API response:", response.data);
       
       // API возвращает {"data": {"total": number, "items": [...]}, "status": "success"}
       let count = 0;
@@ -660,30 +661,30 @@ export class ObjectsService {
       if (response.data.data && response.data.data.total !== undefined) {
         // Наш локальный API
         count = response.data.data.total;
-        console.log("📊 Trash count from local API:", count);
+        logger.debug("📊 Trash count from local API:", count);
       } else if (response.data.count !== undefined) {
         // Axenta Cloud API
         count = response.data.count;
-        console.log("📊 Trash count from Axenta API:", count);
+        logger.debug("📊 Trash count from Axenta API:", count);
       } else if (response.data.detail) {
         // Неавторизованный API
         count = response.data.detail.length;
-        console.log("📊 Trash count from no-auth API:", count);
+        logger.debug("📊 Trash count from no-auth API:", count);
       }
       
-      console.log("📊 Final trash count calculated:", count);
+      logger.debug("📊 Final trash count calculated:", count);
       
       return {
         count: count
       };
     } catch (error: any) {
-      console.log("❌ ObjectsService.getTrashStats error:", error);
-      console.log("🔍 Error status:", error.response?.status);
-      console.log("🔍 Error message:", error.message);
+      logger.debug("❌ ObjectsService.getTrashStats error:", error);
+      logger.debug("🔍 Error status:", error.response?.status);
+      logger.debug("🔍 Error message:", error.message);
       
       // Если локальный API не работает, пробуем Axenta Cloud API
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500 || error.message?.includes('database')) {
-        console.warn("🔄 Fallback to direct Axenta Cloud API for trash stats");
+        logger.warn("🔄 Fallback to direct Axenta Cloud API for trash stats");
         try {
           // Получаем токен текущего пользователя
           const userToken = localStorage.getItem("axenta_token");
@@ -706,7 +707,7 @@ export class ObjectsService {
               }
             }
           );
-          console.log("✅ Direct Axenta Cloud trash stats API successful");
+          logger.debug("✅ Direct Axenta Cloud trash stats API successful");
           
           let count = 0;
           if (response.data.count !== undefined) {
@@ -717,7 +718,7 @@ export class ObjectsService {
           
           return { count: count };
         } catch (axentaError: any) {
-          console.warn("❌ Axenta Cloud trash stats API also failed:", axentaError);
+          logger.warn("❌ Axenta Cloud trash stats API also failed:", axentaError);
           // Возвращаем 0 если все API недоступны
           return { count: 0 };
         }
@@ -855,42 +856,42 @@ export class ObjectsService {
       const age = now - this.statsCache.timestamp;
       
       if (age < this.statsCache.ttl) {
-        console.log(`📦 Используем кешированную статистику объектов (возраст: ${Math.round(age / 1000)}с)`, this.statsCache.data);
+        logger.debug(`📦 Используем кешированную статистику объектов (возраст: ${Math.round(age / 1000)}с)`, this.statsCache.data);
         return this.statsCache.data;
       } else {
-        console.log(`🔄 Кеш устарел (возраст: ${Math.round(age / 1000)}с), запрашиваем новые данные`);
+        logger.debug(`🔄 Кеш устарел (возраст: ${Math.round(age / 1000)}с), запрашиваем новые данные`);
       }
     }
 
     // Если запрос уже выполняется, возвращаем тот же Promise
     if (this.pendingStatsRequest) {
-      console.log("🔄 Запрос статистики объектов уже выполняется, используем существующий Promise");
+      logger.debug("🔄 Запрос статистики объектов уже выполняется, используем существующий Promise");
       return this.pendingStatsRequest;
     }
 
     // Создаем новый Promise для запроса
     this.pendingStatsRequest = (async () => {
       try {
-        console.log("🚀 Выполняем запрос статистики объектов к /auth/cms/objects/stats");
-        console.log("🔐 Токен доступен, длина:", token.length);
+        logger.debug("🚀 Выполняем запрос статистики объектов к /auth/cms/objects/stats");
+        logger.debug("🔐 Токен доступен, длина:", token.length);
         
         // Пробуем аутентифицированный эндпоинт для статистики
         const response = await this.apiClient.get("/auth/cms/objects/stats");
-      console.log("✅ Backend objects stats API response:", response.data);
+      logger.debug("✅ Backend objects stats API response:", response.data);
       
       const stats = response.data.data || response.data;
-      console.log("📊 Полученная статистика объектов:", stats);
-      console.log("🗑️ Количество удаленных объектов из API:", stats.deleted);
+      logger.debug("📊 Полученная статистика объектов:", stats);
+      logger.debug("🗑️ Количество удаленных объектов из API:", stats.deleted);
       
       // Если API не возвращает правильное количество удаленных объектов, получаем его отдельно
       if (stats.deleted === 0 || stats.deleted === undefined) {
-        console.log("🔄 API вернул 0 удаленных объектов, получаем реальную статистику корзины...");
+        logger.debug("🔄 API вернул 0 удаленных объектов, получаем реальную статистику корзины...");
         try {
           const trashStats = await this.getTrashStats();
           stats.deleted = trashStats.count;
-          console.log("🗑️ Обновленное количество удаленных объектов:", stats.deleted);
+          logger.debug("🗑️ Обновленное количество удаленных объектов:", stats.deleted);
         } catch (trashError) {
-          console.warn("Не удалось получить статистику корзины для основного API:", trashError);
+          logger.warn("Не удалось получить статистику корзины для основного API:", trashError);
         }
       }
       
@@ -898,11 +899,11 @@ export class ObjectsService {
       this.updateStatsCache(stats);
       return stats;
     } catch (error: any) {
-      console.log("🔍 Error in getObjectsStats (backend):", error.response?.status, error.message);
+      logger.debug("🔍 Error in getObjectsStats (backend):", error.response?.status, error.message);
       
       // Если бэкенд недоступен, пробуем fallback endpoints
       if (error.response?.status === 401 || error.response?.status === 404 || error.response?.status === 500) {
-        console.warn("🔄 Fallback to direct Axenta Cloud API for stats");
+        logger.warn("🔄 Fallback to direct Axenta Cloud API for stats");
         try {
           // Получаем токен текущего пользователя
           const userToken = localStorage.getItem("axenta_token");
@@ -925,7 +926,7 @@ export class ObjectsService {
               }
             }
           );
-          console.log("✅ Direct Axenta Cloud API successful for stats");
+          logger.debug("✅ Direct Axenta Cloud API successful for stats");
           
           // Возвращаем статистику на основе общего количества объектов
           const total = response.data.count || 0;
@@ -933,12 +934,12 @@ export class ObjectsService {
           // Получаем количество объектов в корзине
           let deletedCount = 0;
           try {
-            console.log("🗑️ Получаем статистику корзины для fallback...");
+            logger.debug("🗑️ Получаем статистику корзины для fallback...");
             const trashStats = await this.getTrashStats();
             deletedCount = trashStats.count;
-            console.log("🗑️ Статистика корзины получена:", deletedCount);
+            logger.debug("🗑️ Статистика корзины получена:", deletedCount);
           } catch (trashError) {
-            console.warn("Не удалось получить статистику корзины:", trashError);
+            logger.warn("Не удалось получить статистику корзины:", trashError);
           }
           
           const fallbackStats = {
@@ -959,10 +960,10 @@ export class ObjectsService {
           this.updateStatsCache(fallbackStats);
           return fallbackStats;
         } catch (axentaError: any) {
-          console.warn("🔄 Fallback to backend /objects/stats endpoint");
+          logger.warn("🔄 Fallback to backend /objects/stats endpoint");
           try {
             const response = await this.apiClient.get("/objects/stats");
-            console.log("✅ Fallback to backend /objects/stats successful");
+            logger.debug("✅ Fallback to backend /objects/stats successful");
             const fallbackStats = response.data.data || response.data;
             this.updateStatsCache(fallbackStats);
             return fallbackStats;
@@ -972,12 +973,12 @@ export class ObjectsService {
             // Получаем количество объектов в корзине даже при ошибке основной статистики
             let deletedCount = 0;
             try {
-              console.log("🗑️ Получаем статистику корзины для основного fallback...");
+              logger.debug("🗑️ Получаем статистику корзины для основного fallback...");
               const trashStats = await this.getTrashStats();
               deletedCount = trashStats.count;
-              console.log("🗑️ Статистика корзины получена в fallback:", deletedCount);
+              logger.debug("🗑️ Статистика корзины получена в fallback:", deletedCount);
             } catch (trashError) {
-              console.warn("Не удалось получить статистику корзины в fallback:", trashError);
+              logger.warn("Не удалось получить статистику корзины в fallback:", trashError);
             }
             
             // Возвращаем пустую статистику вместо ошибки
@@ -1029,13 +1030,13 @@ export class ObjectsService {
       timestamp: 0,
       ttl: this.statsCache.ttl,
     };
-    console.log("🗑️ Кеш статистики объектов очищен");
+    logger.debug("🗑️ Кеш статистики объектов очищен");
   }
 
   // Установка времени жизни кеша статистики
   setStatsCacheTTL(ttlMs: number): void {
     this.statsCache.ttl = ttlMs;
-    console.log(`⏱️ TTL кеша статистики объектов установлен: ${ttlMs}мс`);
+    logger.debug(`⏱️ TTL кеша статистики объектов установлен: ${ttlMs}мс`);
   }
 
   // Экспорт объектов
@@ -1126,7 +1127,7 @@ export class ObjectsService {
 
 // Экспортируем функцию для получения instance (ленивая инициализация)
 export const getObjectsService = () => {
-  console.log("🔧 Creating ObjectsService instance...");
+  logger.debug("🔧 Creating ObjectsService instance...");
   return ObjectsService.getInstance();
 };
 export default getObjectsService;
