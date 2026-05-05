@@ -813,8 +813,9 @@ const advancedFilters = ref({
 const selectedObjects = ref<number[]>([]);
 const selectAll = ref(false);
 
-// Persist фильтров/пагинации в localStorage между сессиями
-const OBJECTS_PERSIST_KEY = 'objects_page_state_v1';
+// Persist фильтров/пагинации в localStorage между сессиями.
+// v2: дефолт сортировки -createdAt (новые сверху). Старые v1-ключи игнорируются.
+const OBJECTS_PERSIST_KEY = 'objects_page_state_v2';
 
 const loadPersistedState = () => {
   try {
