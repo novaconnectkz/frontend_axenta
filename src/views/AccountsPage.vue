@@ -874,29 +874,9 @@ const refreshingIds = ref<Record<number, boolean>>({});
 const refreshSingleWialonAccount = async (account: Account) => {
   const acc = account as Account & { source?: string; connection_id?: number };
 
-  // Axenta-route: точечный re-fetch через наш backend → snapshot UPDATE.
-  // Используется когда юзер изменил статус снаружи (cms.axenta.cloud).
-  if (!acc.source || acc.source.toLowerCase() === 'axenta') {
-    if (refreshingIds.value[account.id]) return;
-    refreshingIds.value = { ...refreshingIds.value, [account.id]: true };
-    try {
-      const result = await accountsService.refreshAxentaAccount(account.id);
-      // Обновляем строку in-place
-      account.isActive = result.isActive;
-      invalidateCache();
-      void loadAccounts(true);
-      showSnackbar(`"${account.name}" обновлено (${result.isActive ? 'активен' : 'неактивен'})`, 'success');
-    } catch (e) {
-      console.error('refreshSingleAxentaAccount:', e);
-      showSnackbar(`Ошибка обновления "${account.name}"`, 'error');
-    } finally {
-      const next = { ...refreshingIds.value };
-      delete next[account.id];
-      refreshingIds.value = next;
-    }
-    return;
-  }
-
+  // Только для Wialon — Axenta refresh не нужен (после toggle backend
+  // RefreshAccount синхронно обновляет snapshot, кнопка убрана из UI).
+  if (!acc.source || acc.source.toLowerCase() === 'axenta') return;
   if (refreshingIds.value[account.id]) return;
 
   const connectionId = acc.connection_id || 0;
@@ -965,24 +945,24 @@ const toggleAccountStatus = async (account: Account) => {
       await accountsService.toggleAccountStatus(account.id, newStatus);
     }
 
-    // Обновляем локальное состояние
-    account.isActive = newStatus;
+    // Backend ToggleAccountStatus синхронно делает RefreshAccount → snapshot
+    // уже актуален к моменту 201. Чтобы UI гарантированно обновился, делаем 2 вещи:
+    // 1) Прямая мутация записи в accounts.value по индексу (Vue reactivity триггерится)
+    // 2) invalidateCache + loadAccounts (свежие данные с бэка)
+    invalidateCache();
 
-    // Для Wialon также обновляем в массиве wialonAccounts
     if (isWialon) {
       const wialonAccount = wialonAccounts.value.find(acc => acc.id === account.id);
       if (wialonAccount) {
         wialonAccount.isActive = newStatus;
       }
-    }
-
-    // Инвалидируем in-memory cache + перезагружаем из backend.
-    // Backend синхронно делает RefreshAccount → snapshot уже свежий к моменту
-    // как мы получили 201. loadAccounts вернёт актуальный isActive.
-    invalidateCache();
-    if (!isWialon) {
-      // Wialon refresh асинхронно делается ниже через refreshSingleWialonAccount
-      void loadAccounts(true);
+    } else {
+      // Прямой splice — гарантированно триггерит Vue reactivity для строки
+      const idx = accounts.value.findIndex(a => a.id === account.id);
+      if (idx >= 0) {
+        accounts.value.splice(idx, 1, { ...accounts.value[idx], isActive: newStatus });
+      }
+      await loadAccounts(false);
     }
 
     // Уведомляем Dashboard инвалидировать KPI cache (active_count изменился)

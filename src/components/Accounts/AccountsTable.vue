@@ -218,15 +218,17 @@
 
       <template #item.actions="{ item }">
         <div class="actions-row">
-          <!-- Кнопка обновления stats — реально активна для Wialon, для Axenta рендерится-плейсхолдером для выравнивания -->
+          <!-- Refresh-кнопка нужна только для Wialon (точечный re-collect 15min stats).
+               Для Axenta после toggle backend сам делает RefreshAccount синхронно — кнопка не нужна. -->
           <v-btn
+            v-if="item.source && item.source.toLowerCase() !== 'axenta'"
             :loading="!!refreshingIds[item.id]"
             class="row-refresh-btn"
             icon="mdi-refresh"
             variant="text"
             size="x-small"
             color="primary"
-            title="Обновить запись из источника"
+            title="Обновить количество объектов"
             @click="$emit('refreshStats', item)"
           />
           <v-btn

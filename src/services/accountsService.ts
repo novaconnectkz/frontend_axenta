@@ -145,17 +145,19 @@ class AccountsService {
         }
       }
 
-      // Временно отключаем X-Tenant-ID из-за CORS ограничений
-      // if (company) {
-      //   try {
-      //     const companyData = JSON.parse(company);
-      //     if (companyData.id) {
-      //       config.headers["X-Tenant-ID"] = companyData.id;
-      //     }
-      //   } catch (e) {
-      //     console.warn("Invalid company data in localStorage:", e);
-      //   }
-      // }
+      // X-Tenant-ID нужен для backend ToggleAccountStatus / RefreshAccount —
+      // без него запись пишется в public, а UI читает из tenant_<id> → расхождение.
+      // CORS уже разрешает X-Tenant-ID (см. middleware/cors.go AllowedHeaders).
+      if (company) {
+        try {
+          const companyData = JSON.parse(company);
+          if (companyData.id) {
+            config.headers["X-Tenant-ID"] = String(companyData.id);
+          }
+        } catch (e) {
+          console.warn("Invalid company data in localStorage:", e);
+        }
+      }
 
       return config;
     });
