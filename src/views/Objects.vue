@@ -321,6 +321,35 @@
             </div>
           </template>
         </v-data-table-server>
+
+        <!-- Кастомная пагинация (как в /accounts) -->
+        <div class="compact-pagination" v-if="(objectsData?.total || 0) > 0">
+          <v-select
+            :model-value="pagination.per_page"
+            :items="perPageOptions"
+            variant="outlined"
+            density="compact"
+            class="items-select"
+            hide-details
+            @update:model-value="(v: number) => handlePerPageChange(v)"
+          />
+          <span class="range-info">{{ paginationRange }} из {{ objectsData?.total || 0 }}</span>
+          <div class="nav-controls">
+            <v-btn icon="mdi-page-first" variant="text" size="x-small"
+              :disabled="pagination.page === 1" title="Первая"
+              @click="handlePageChange(1)" />
+            <v-btn icon="mdi-chevron-left" variant="text" size="x-small"
+              :disabled="pagination.page === 1" title="Предыдущая"
+              @click="handlePageChange(pagination.page - 1)" />
+            <span class="page-info">{{ pagination.page }} / {{ paginationTotalPages }}</span>
+            <v-btn icon="mdi-chevron-right" variant="text" size="x-small"
+              :disabled="pagination.page >= paginationTotalPages" title="Следующая"
+              @click="handlePageChange(pagination.page + 1)" />
+            <v-btn icon="mdi-page-last" variant="text" size="x-small"
+              :disabled="pagination.page >= paginationTotalPages" title="Последняя"
+              @click="handlePageChange(paginationTotalPages)" />
+          </div>
+        </div>
       </div>
 
       <!-- Сетка объектов -->
@@ -754,7 +783,8 @@ const handleFabAction = (_item: { id?: string; action?: () => void }) => {};
 const objects = ref<ObjectWithRelations[]>([]);
 const objectsData = ref<any>(null);
 const viewMode = ref<'table' | 'grid'>('table');
-const showDeletedObjects = ref(false);
+const showDeletedObjects = ref<boolean>(false);
+// Восстанавливаем из persisted после объявления (см. ниже applyPersisted)
 const showTrashDialog = ref(false);
 
 // combinedObjects читает из objects.value, который теперь приходит из /unified/objects
@@ -783,21 +813,54 @@ const advancedFilters = ref({
 const selectedObjects = ref<number[]>([]);
 const selectAll = ref(false);
 
+// Persist фильтров/пагинации в localStorage между сессиями
+const OBJECTS_PERSIST_KEY = 'objects_page_state_v1';
+
+const loadPersistedState = () => {
+  try {
+    const raw = localStorage.getItem(OBJECTS_PERSIST_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+};
+
+const savePersistedState = () => {
+  try {
+    localStorage.setItem(OBJECTS_PERSIST_KEY, JSON.stringify({
+      search: filters.value.search,
+      source: filters.value.source ?? null,
+      ordering: filters.value.ordering,
+      showDeleted: showDeletedObjects.value,
+      page: pagination.value.page,
+      per_page: pagination.value.per_page,
+    }));
+  } catch {/* ignore */}
+};
+
+const persisted = loadPersistedState();
+
+if (persisted?.showDeleted) {
+  showDeletedObjects.value = true;
+}
+
 // Pagination
 const pagination = ref({
-  page: 1,
-  per_page: 50,
+  page: persisted?.page ?? 1,
+  per_page: persisted?.per_page ?? 10,
 });
 
 // Filters
 const filters = ref<ObjectFilters & { source?: string | null }>({
-  search: '',
+  search: persisted?.search ?? '',
   status: undefined,
   type: undefined,
   contract_id: undefined,
   location_id: undefined,
   template_id: undefined,
-  source: null, // Фильтр по системе: axenta, wialon, или null (все)
+  source: persisted?.source ?? null,
+  ordering: persisted?.ordering ?? '-createdAt', // По умолчанию: новые сверху
 });
 
 // Options for selects
@@ -925,6 +988,20 @@ const activeFiltersCount = computed(() => {
   return count;
 });
 
+// Пагинация (компактный footer в стиле /accounts)
+const paginationTotalPages = computed(() => {
+  const total = objectsData.value?.total || 0;
+  return Math.max(1, Math.ceil(total / pagination.value.per_page));
+});
+
+const paginationRange = computed(() => {
+  const total = objectsData.value?.total || 0;
+  if (total === 0) return '0-0';
+  const from = (pagination.value.page - 1) * pagination.value.per_page + 1;
+  const to = Math.min(pagination.value.page * pagination.value.per_page, total);
+  return `${from}-${to}`;
+});
+
 // Колонка "Плановое удаление" видна только если в snapshot есть хоть один объект
 // с scheduled_delete_at (счётчик берём из stats.axenta_scheduled_delete).
 const hasScheduledDeletes = computed(() => {
@@ -998,10 +1075,15 @@ const tableHeaders = computed(() => [
 
 // Доступные значения для количества элементов на странице
 const perPageOptions = [
-  { title: '10 на странице', value: 10 },
-  { title: '50 на странице', value: 50 },
-  { title: '100 на странице', value: 100 },
-  { title: '1000 на странице', value: 1000 },
+  { title: '5', value: 5 },
+  { title: '10', value: 10 },
+  { title: '25', value: 25 },
+  { title: '50', value: 50 },
+  { title: '100', value: 100 },
+  { title: '150', value: 150 },
+  { title: '300', value: 300 },
+  { title: '500', value: 500 },
+  { title: '1000', value: 1000 },
 ];
 
 // Methods
@@ -1982,12 +2064,16 @@ const removePhoneNumber = (index: number) => {
 watch([filters], () => {
   pagination.value.page = 1;
   loadObjects();
+  savePersistedState();
 }, { deep: true });
 
 watch(showDeletedObjects, () => {
   pagination.value.page = 1;
   loadObjects();
+  savePersistedState();
 });
+
+watch(pagination, () => savePersistedState(), { deep: true });
 
 // Подписка на автообновление
 let unsubscribeFromAutoRefresh: (() => void) | null = null;
@@ -2264,6 +2350,70 @@ onUnmounted(() => {
 }
 .actions-dots:hover {
   opacity: 1;
+}
+
+/* Компактная пагинация (как на /accounts) */
+.compact-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 16px 24px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-height: 40px;
+}
+
+.items-select {
+  min-width: 60px !important;
+  width: fit-content !important;
+  max-width: 120px !important;
+  flex-shrink: 0;
+  height: 40px;
+}
+.items-select :deep(.v-field) {
+  min-width: 60px !important;
+  width: auto !important;
+}
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+.range-info {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #555);
+  flex-shrink: 0;
+  font-weight: 500;
+  padding: 6px 10px;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+}
+
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 4px;
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 6px;
+}
+
+.page-info {
+  font-size: 0.875rem;
+  color: var(--text-primary, #555);
+  font-weight: 600;
+  min-width: 50px;
+  text-align: center;
+  padding: 4px 10px;
+}
+
+[data-theme="dark"] .range-info,
+[data-theme="dark"] .nav-controls {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 /* Сетка объектов */
