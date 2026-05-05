@@ -1054,14 +1054,13 @@ const quickFilters = ref([
 // Table headers
 const tableHeaders = computed(() => [
   { title: '', value: 'is_active', sortable: false, width: 60, headerProps: { class: 'header-status-icon' } },
-  { title: 'Название', value: 'name', sortable: true },
+  { title: 'Наименование', value: 'name', sortable: true },
   { title: 'Учетка', value: 'accountName', sortable: true },
-  { title: 'Создатель', value: 'creatorName', sortable: true },
   { title: 'Протокол', value: 'deviceTypeName', sortable: true },
+  { title: 'ID/IMEI', value: 'uniqueId', sortable: true },
   { title: '№ телефонов', value: 'phoneNumbers', sortable: false },
   { title: 'Создан', value: 'createdAt', sortable: true },
   { title: 'Сообщения', value: 'lastMessageDatetime', sortable: true },
-  { title: 'ID/IMEI', value: 'uniqueId', sortable: true },
   { title: '', value: 'source', sortable: true, width: 60 },
   ...(showDeletedObjects.value
     ? [{ title: '', value: 'deleted_at', sortable: true, width: 110, headerProps: { class: 'header-deleted-icon' } }]
