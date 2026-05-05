@@ -141,7 +141,7 @@ import { useFiltersStorage } from '@/composables/useFiltersStorage';
 import { useAutoRefresh } from '@/composables/useAutoRefresh';
 import { emitCrossSection } from '@/utils/crossSectionBus';
 import { debounce } from 'lodash-es';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 // Router
@@ -209,6 +209,7 @@ const {
 } = useWialonAccounts({
   parentAccountOptions,
   getVisibleAccounts: () => accountsWithNumbers.value as any,
+  mirrorAccounts: accounts as any,
 });
 
 // Wialon-разбивка для AccountsStats строится из unifiedStats (axenta+wialon приходят вместе)
@@ -1093,6 +1094,15 @@ onMounted(() => {
   // Запускаем автоматическое обновление каждую минуту (начинается после первой загрузки)
   startAutoRefresh();
 });
+
+// Триггер lazy-load objects-stats для wialon-строк после смены страницы/фильтров.
+// Backend /unified/accounts отдаёт wialon items с objectsTotal=-1 (sentinel "не загружено")
+// — раньше фетчилось через @scroll, но при первой отрисовке скролла нет → spinner навсегда.
+watch(accounts, () => {
+  void nextTick(() => {
+    loadVisibleObjectsStats();
+  });
+}, { deep: false });
 
 onUnmounted(() => {
   stopAutoRefresh();

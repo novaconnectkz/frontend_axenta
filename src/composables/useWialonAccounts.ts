@@ -12,6 +12,7 @@ interface ParentOption {
 interface UseWialonAccountsContext {
   parentAccountOptions: Ref<ParentOption[]>;
   getVisibleAccounts: () => Array<Account & { source?: string }>;
+  mirrorAccounts?: Ref<Array<Account & { source?: string; connectionId?: number; objectsTotal?: number; objectsActive?: number }>>;
 }
 
 export function useWialonAccounts(ctx: UseWialonAccountsContext) {
@@ -308,10 +309,12 @@ export function useWialonAccounts(ctx: UseWialonAccountsContext) {
       const account = visibleAccounts[rowIndex];
 
       if (account && account.source && account.source.startsWith('W') && !objectsStatsLoaded.value.has(account.id)) {
+        // unified items: connectionId (camelCase). legacy wialonAccounts: connection_id.
+        const a = account as any;
         accountsToLoad.push({
           id: account.id,
-          connectionId: (account as any).connection_id || 0,
-          billingAccountId: (account as any).billingAccountId || 0,
+          connectionId: a.connection_id || a.connectionId || 0,
+          billingAccountId: a.billingAccountId || a.id || 0,
         });
       }
     });
@@ -352,6 +355,25 @@ export function useWialonAccounts(ctx: UseWialonAccountsContext) {
             }
             return account;
           });
+
+          // Зеркальный апдейт unified accounts (источник для рендера таблицы).
+          // Без этого spinner в колонке "Объекты" не уходит — UI рендерит accounts,
+          // а fetcher обновлял только legacy wialonAccounts.
+          if (ctx.mirrorAccounts) {
+            const stats = statsData.stats as Record<number, { objectsTotal: number; objectsActive: number; objectsDeactivated?: number }>;
+            ctx.mirrorAccounts.value = ctx.mirrorAccounts.value.map((account: any) => {
+              const requested = accs.find(a => a.id === account.id);
+              if (!requested) return account;
+              const accountStats = stats[requested.billingAccountId] || stats[account.id];
+              if (!accountStats) return account;
+              return {
+                ...account,
+                objectsTotal: accountStats.objectsTotal,
+                objectsActive: accountStats.objectsActive,
+                objectsDeactivated: accountStats.objectsDeactivated || 0,
+              };
+            });
+          }
         }
       } catch (error) {
         console.error(`Lazy loading error (connection ${connectionId}):`, error);
