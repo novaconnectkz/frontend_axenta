@@ -390,9 +390,13 @@ const onToggleActivity = async (user: UserWithRelations, isActive: boolean) => {
 // который ожидает UserViewDialog. Без этого wialon-юзеры (и sub-users) показывают пустые
 // Email/Роль/Тип и Invalid Date в карточке детали.
 const adaptUserForView = (u: any): UserWithRelations => {
-  const created = u.created_at || u.creation_datetime || '';
-  const updated = u.updated_at || u.creation_datetime || created;
-  const accountType = u.account_type || u.role || '';
+  // Поддержка обоих форматов backend: snake_case (legacy) + camelCase (унификация с UnifiedObject).
+  const creationDatetime = u.creation_datetime || u.creationDatetime || '';
+  const created = u.created_at || creationDatetime || '';
+  const updated = u.updated_at || creationDatetime || created;
+  const accountType = u.account_type || u.accountType || u.role || '';
+  const sourceLabel = u.source_label || u.sourceLabel || u.source;
+  const lastLogin = u.last_login || u.lastLogin || '';
   const roleDisplay = u.role && typeof u.role === 'object'
     ? u.role
     : (typeof u.role === 'string' && u.role
@@ -407,10 +411,10 @@ const adaptUserForView = (u: any): UserWithRelations => {
     user_type: u.user_type || accountType || '',
     created_at: created,
     updated_at: updated,
-    last_login: u.last_login || '',
+    last_login: lastLogin,
     login_count: u.login_count ?? 0,
     role: roleDisplay,
-    external_source: u.external_source || u.source_label || u.source,
+    external_source: u.external_source || sourceLabel,
     external_id: u.external_id || (u.id != null ? String(u.id) : undefined),
   } as UserWithRelations;
 };
