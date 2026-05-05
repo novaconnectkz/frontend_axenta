@@ -108,11 +108,48 @@
           :items-per-page-options="perPageOptions" :model-value="selectedObjects"
           @update:model-value="selectedObjects = $event" @update:page="handlePageChange"
           @update:items-per-page="handlePerPageChange" @update:sort-by="handleSortChange" item-value="id" show-select
+          hide-default-footer
           class="objects-table" no-data-text="Объекты не найдены" loading-text="Загрузка объектов...">
-          <!-- Активность -->
+          <!-- Заголовок колонки статуса — иконка вместо текста -->
+          <template #header.is_active>
+            <v-icon icon="mdi-power" size="20" :title="'Статус (вкл/выкл)'" />
+          </template>
+
+          <!-- Заголовок колонки планового удаления / даты удаления — иконка -->
+          <template #header.scheduled_delete_at>
+            <v-icon icon="mdi-clock-alert-outline" size="20" title="Плановое удаление" />
+          </template>
+          <template #header.deleted_at>
+            <v-icon icon="mdi-delete-clock-outline" size="20" title="Дата удаления" />
+          </template>
+
+          <!-- Статус — иконка: зелёная (активный) / жёлтая (деактивирован) / красная (корзина) -->
           <template #item.is_active="{ item }">
-            <v-checkbox :model-value="item.is_active" @update:model-value="toggleObjectActivity(item, $event)"
-              hide-details density="compact" />
+            <v-icon
+              v-if="showDeletedObjects || item.scheduledDelete || item.deleted_at || item.axenta_deleted_at"
+              icon="mdi-delete-circle"
+              color="error"
+              size="22"
+              title="В корзине"
+            />
+            <v-icon
+              v-else-if="item.is_active"
+              icon="mdi-check-circle"
+              color="success"
+              size="22"
+              :title="'Активный (клик — деактивировать)'"
+              style="cursor:pointer"
+              @click="toggleObjectActivity(item, false)"
+            />
+            <v-icon
+              v-else
+              icon="mdi-pause-circle"
+              color="warning"
+              size="22"
+              :title="'Деактивирован (клик — активировать)'"
+              style="cursor:pointer"
+              @click="toggleObjectActivity(item, true)"
+            />
           </template>
 
           <!-- Название учетной записи -->
@@ -159,17 +196,33 @@
 
           <!-- Уникальный ID -->
           <template #item.uniqueId="{ item }">
-            <span class="font-mono">{{ item.uniqueId || item.external_id || 'Не указан' }}</span>
+            <span class="font-mono text-caption">{{ item.uniqueId || item.external_id || 'Не указан' }}</span>
           </template>
 
-          <!-- Источник -->
+          <!-- Заголовок колонки источника — иконка -->
+          <template #header.source>
+            <v-icon icon="mdi-source-branch" size="20" title="Источник" />
+          </template>
+
+          <!-- Источник — иконка с tooltip. axenta — облако, wialon (WH/WL) — спутник.
+               Цвет wialon-иконки берётся по connection_id из палитры — каждое новое
+               подключение автоматически получает свой оттенок. -->
           <template #item.source="{ item }">
-            <v-chip :color="item.source === 'axenta' ? 'primary' : 'orange'" size="small" variant="tonal">
-              <v-icon start size="16">
-                {{ item.source === 'axenta' ? 'mdi-server' : 'mdi-satellite-variant' }}
-              </v-icon>
-              {{ item.source === 'axenta' ? 'Axenta' : 'Wialon' }}
-            </v-chip>
+            <v-icon
+              v-if="item.source === 'axenta'"
+              icon="mdi-cloud-outline"
+              color="primary"
+              size="22"
+              :title="item.sourceLabel || 'Axenta Cloud'"
+            />
+            <v-icon
+              v-else-if="item.source === 'wh' || item.source === 'wl'"
+              icon="mdi-satellite-uplink"
+              :color="getConnectionColor(item.connectionId)"
+              size="22"
+              :title="item.sourceLabel || (item.source === 'wh' ? 'Wialon Hosting' : 'Wialon Local')"
+            />
+            <v-icon v-else icon="mdi-help-circle-outline" color="grey" size="22" :title="item.source || ''" />
           </template>
 
           <!-- Статус -->
@@ -226,24 +279,16 @@
           <template #item.actions="{ item }">
             <div class="actions-cell">
               <template v-if="!showDeletedObjects">
-                <v-tooltip text="Просмотр">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-eye" size="small" variant="text" @click="viewObject(item)" />
-                  </template>
-                </v-tooltip>
-
-                <v-tooltip text="Редактировать">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-pencil" size="small" variant="text" @click="editObject(item)" />
-                  </template>
-                </v-tooltip>
-
                 <v-menu>
                   <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-dots-vertical" size="small" variant="text" />
+                    <v-icon v-bind="props" icon="mdi-dots-vertical" size="20" class="actions-dots" />
                   </template>
 
                   <v-list density="compact">
+                    <v-list-item prepend-icon="mdi-card-account-details-outline" title="Свойства объекта"
+                      @click="viewObject(item)" />
+                    <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="editObject(item)" />
+                    <v-divider />
                     <v-list-item prepend-icon="mdi-file-document-plus" title="Создать шаблон"
                       @click="createTemplateFromObject(item)" />
                     <v-divider />
@@ -880,6 +925,16 @@ const activeFiltersCount = computed(() => {
   return count;
 });
 
+// Колонка "Плановое удаление" видна только если в snapshot есть хоть один объект
+// с scheduled_delete_at (счётчик берём из stats.axenta_scheduled_delete).
+const hasScheduledDeletes = computed(() => {
+  const st: any = objectsData.value?.stats;
+  if (st && typeof st.axenta_scheduled_delete === 'number') {
+    return st.axenta_scheduled_delete > 0;
+  }
+  return objects.value.some((o: any) => o.scheduled_delete_at || o.scheduledDelete);
+});
+
 const minDeleteDate = computed(() => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
@@ -921,21 +976,24 @@ const quickFilters = ref([
 
 // Table headers
 const tableHeaders = computed(() => [
-  { title: 'Активность', value: 'is_active', sortable: false, width: 100 },
+  { title: '', value: 'is_active', sortable: false, width: 60, headerProps: { class: 'header-status-icon' } },
   { title: 'Название', value: 'name', sortable: true },
-  { title: 'Название учетной записи', value: 'accountName', sortable: true },
-  { title: 'Создатель (ФИО)', value: 'creatorName', sortable: true },
-  { title: 'Модель устройства', value: 'deviceTypeName', sortable: true },
-  { title: 'Номера телефонов', value: 'phoneNumbers', sortable: false },
-  { title: 'Дата создания', value: 'createdAt', sortable: true },
-  { title: 'Дата последнего сообщения', value: 'lastMessageDatetime', sortable: true },
-  { title: 'Уникальный ID', value: 'uniqueId', sortable: true },
-  { title: 'Источник', value: 'source', sortable: true },
+  { title: 'Учетка', value: 'accountName', sortable: true },
+  { title: 'Создатель', value: 'creatorName', sortable: true },
+  { title: 'Протокол', value: 'deviceTypeName', sortable: true },
+  { title: '№ телефонов', value: 'phoneNumbers', sortable: false },
+  { title: 'Создан', value: 'createdAt', sortable: true },
+  { title: 'Сообщения', value: 'lastMessageDatetime', sortable: true },
+  { title: 'ID/IMEI', value: 'uniqueId', sortable: true },
+  { title: '', value: 'source', sortable: true, width: 60 },
   ...(showDeletedObjects.value
-    ? [{ title: 'Дата удаления', value: 'deleted_at', sortable: true }]
-    : [{ title: 'Плановое удаление', value: 'scheduled_delete_at', sortable: true }]
+    ? [{ title: '', value: 'deleted_at', sortable: true, width: 110, headerProps: { class: 'header-deleted-icon' } }]
+    : (hasScheduledDeletes.value
+        ? [{ title: '', value: 'scheduled_delete_at', sortable: true, width: 110, headerProps: { class: 'header-scheduled-icon' } }]
+        : []
+      )
   ),
-  { title: 'Действия', value: 'actions', sortable: false, width: 120 },
+  { title: '', value: 'actions', sortable: false, width: 56 },
 ]);
 
 // Доступные значения для количества элементов на странице
@@ -1692,6 +1750,20 @@ const handleSortChange = (sortBy: any[]) => {
 };
 
 // Utility methods
+// Палитра цветов для wialon-подключений. При добавлении нового connection_id
+// он автоматически получает цвет по индексу (циклически). axenta использует свой
+// фирменный синий через color="primary".
+const CONNECTION_PALETTE = [
+  'orange', 'purple', 'teal', 'pink', 'indigo', 'cyan',
+  'amber', 'lime', 'deep-orange', 'green', 'blue-grey', 'red',
+];
+
+const getConnectionColor = (connectionId?: number | string | null): string => {
+  if (connectionId === undefined || connectionId === null) return 'grey';
+  const id = typeof connectionId === 'string' ? parseInt(connectionId, 10) || 0 : connectionId;
+  return CONNECTION_PALETTE[Math.abs(id) % CONNECTION_PALETTE.length];
+};
+
 const getStatusText = (status: ObjectStatus): string => {
   const statusMap = {
     active: 'Активный',
@@ -2185,6 +2257,15 @@ onUnmounted(() => {
   gap: 4px;
 }
 
+.actions-dots {
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+.actions-dots:hover {
+  opacity: 1;
+}
+
 /* Сетка объектов */
 .grid-container {
   padding: 20px;
@@ -2588,6 +2669,21 @@ onUnmounted(() => {
 
 .objects-table :deep(.v-data-table__td) {
   border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+  padding-inline: 8px !important;
+}
+
+.objects-table :deep(th.v-data-table__th) {
+  padding-inline: 8px !important;
+}
+
+.objects-table :deep(.v-data-table__td:first-child),
+.objects-table :deep(th.v-data-table__th:first-child) {
+  padding-inline-start: 12px !important;
+}
+
+.objects-table :deep(.v-data-table__td:last-child),
+.objects-table :deep(th.v-data-table__th:last-child) {
+  padding-inline-end: 12px !important;
 }
 
 [data-theme="dark"] .objects-table :deep(.v-data-table__td) {
