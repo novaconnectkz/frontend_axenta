@@ -219,17 +219,18 @@
       <template #item.actions="{ item }">
         <div class="actions-row">
           <!-- Refresh-кнопка нужна только для Wialon (точечный re-collect 15min stats).
-               Для Axenta после toggle backend сам делает RefreshAccount синхронно — кнопка не нужна. -->
+               Для Axenta после toggle backend сам делает RefreshAccount синхронно. У axenta
+               строк btn рендерится с классом placeholder (visibility:hidden + pointer-events:none),
+               чтобы выравнивание toggle/menu совпадало с wialon-строками. -->
           <v-btn
-            v-if="item.source && item.source.toLowerCase() !== 'axenta'"
             :loading="!!refreshingIds[item.id]"
-            class="row-refresh-btn"
+            :class="['row-refresh-btn', { 'row-refresh-btn--placeholder': !item.source || item.source.toLowerCase() === 'axenta' }]"
             icon="mdi-refresh"
             variant="text"
             size="x-small"
             color="primary"
             title="Обновить количество объектов"
-            @click="$emit('refreshStats', item)"
+            @click="(!item.source || item.source.toLowerCase() === 'axenta') ? null : $emit('refreshStats', item)"
           />
           <v-btn
             :icon="item.isActive ? 'mdi-pause-circle-outline' : 'mdi-play-circle-outline'"
