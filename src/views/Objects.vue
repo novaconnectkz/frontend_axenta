@@ -833,6 +833,11 @@ const savePersistedState = () => {
     localStorage.setItem(OBJECTS_PERSIST_KEY, JSON.stringify({
       search: filters.value.search,
       source: filters.value.source ?? null,
+      status: filters.value.status ?? null,
+      type: filters.value.type ?? null,
+      contract_id: filters.value.contract_id ?? null,
+      location_id: filters.value.location_id ?? null,
+      template_id: filters.value.template_id ?? null,
       ordering: filters.value.ordering,
       showDeleted: showDeletedObjects.value,
       page: pagination.value.page,
@@ -856,11 +861,11 @@ const pagination = ref({
 // Filters
 const filters = ref<ObjectFilters & { source?: string | null }>({
   search: persisted?.search ?? '',
-  status: undefined,
-  type: undefined,
-  contract_id: undefined,
-  location_id: undefined,
-  template_id: undefined,
+  status: persisted?.status ?? undefined,
+  type: persisted?.type ?? undefined,
+  contract_id: persisted?.contract_id ?? undefined,
+  location_id: persisted?.location_id ?? undefined,
+  template_id: persisted?.template_id ?? undefined,
   source: persisted?.source ?? null,
   ordering: persisted?.ordering ?? '-createdAt', // По умолчанию: новые сверху
 });
