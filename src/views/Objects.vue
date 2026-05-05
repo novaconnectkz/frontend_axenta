@@ -26,112 +26,77 @@
       </div>
     </div>
 
-    <!-- Поиск и фильтры в одной строке -->
+    <!-- Поиск + фильтры в одну линию -->
     <v-card class="mb-4" variant="outlined" elevation="2">
       <v-card-text class="py-3">
         <v-row align="center" no-gutters>
-          <!-- Поиск -->
-          <v-col cols="12" md="8" class="pr-3">
+          <v-col cols="12" md="6" class="pr-3">
             <v-text-field v-model="filters.search" placeholder="Поиск по названию, IMEI, номеру телефона..."
               prepend-icon="mdi-magnify" clearable variant="outlined" density="compact" hide-details
               @input="debouncedSearch" />
           </v-col>
 
-          <!-- Компактные фильтры -->
-          <v-col cols="12" md="4">
-            <div class="inline-filters">
-              <div class="filters-toggle-inline" @click="showFilters = !showFilters">
-                <v-icon icon="mdi-filter" size="18" class="mr-2" />
-                <span>Фильтры</span>
-                <v-chip v-if="hasActiveFilters" size="x-small" color="primary" class="ml-2">
-                  {{ activeFiltersCount }}
-                </v-chip>
-                <v-spacer />
-                <v-icon :icon="showFilters ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="18" class="ml-1" />
-              </div>
-            </div>
+          <v-col cols="12" md="3" class="pr-3">
+            <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
+              density="compact" hide-details @update:model-value="loadObjects" />
+          </v-col>
+
+          <v-col cols="auto" class="pr-3">
+            <v-btn
+              :icon="showDeletedObjects ? 'mdi-delete' : 'mdi-delete-outline'"
+              :color="showDeletedObjects ? 'error' : 'default'"
+              variant="flat"
+              density="comfortable"
+              :title="showDeletedObjects ? 'Корзина (включена)' : 'Показать корзину'"
+              @click="showDeletedObjects = !showDeletedObjects"
+            />
+          </v-col>
+
+          <v-col v-if="hasActiveFilters" cols="auto">
+            <v-btn
+              icon="mdi-filter-off-outline"
+              variant="flat"
+              color="warning"
+              density="comfortable"
+              title="Сбросить активные фильтры"
+              data-testid="clear-filters"
+              @click="clearFilters"
+            >
+              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
+            </v-btn>
+          </v-col>
+
+          <v-spacer />
+
+          <v-col cols="auto">
+            <v-btn-toggle v-model="viewMode" mandatory variant="outlined" density="compact">
+              <v-btn value="table" icon="mdi-table" />
+              <v-btn value="grid" icon="mdi-grid" />
+            </v-btn-toggle>
           </v-col>
         </v-row>
-
-        <!-- Развернутые фильтры -->
-        <v-expand-transition>
-          <div v-show="showFilters" class="expanded-filters">
-            <v-divider class="my-3" />
-            <v-row>
-              <v-col cols="12" md="2">
-                <v-select v-model="filters.status" :items="statusOptions" label="Статус" clearable variant="outlined"
-                  density="compact" />
-              </v-col>
-
-              <v-col cols="12" md="2">
-                <v-select v-model="filters.type" :items="typeOptions" label="Тип" clearable variant="outlined"
-                  density="compact" />
-              </v-col>
-
-              <v-col cols="12" md="3">
-                <v-select v-model="filters.contract_id" :items="contractOptions" label="Договор" clearable
-                  variant="outlined" density="compact" :loading="false" />
-              </v-col>
-
-              <v-col cols="12" md="3">
-                <v-select v-model="filters.location_id" :items="locationOptions" label="Локация" clearable
-                  variant="outlined" density="compact" :loading="false" />
-              </v-col>
-
-              <v-col cols="12" md="2">
-                <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
-                  density="compact" />
-              </v-col>
-
-              <v-col cols="12" md="1">
-                <v-switch v-model="showDeletedObjects" label="Корзина" color="error" hide-details density="compact" />
-              </v-col>
-
-              <v-col cols="12" md="1">
-                <AppleButton variant="text" size="small" @click="clearFilters" :disabled="!hasActiveFilters"
-                  data-testid="clear-filters" block>
-                  Очистить
-                </AppleButton>
-              </v-col>
-            </v-row>
-          </div>
-        </v-expand-transition>
       </v-card-text>
     </v-card>
 
     <!-- Список объектов -->
     <AppleCard class="objects-table-card" variant="outlined">
-      <template #header>
-        <div class="table-header">
-          <div class="table-title-section">
-            <v-icon icon="mdi-format-list-bulleted" class="mr-2" />
-            {{ showDeletedObjects ? 'Корзина объектов' : 'Список объектов' }}
-            <v-chip v-if="objectsData" :text="objectsData.total.toString()" size="small" class="ml-2" />
-          </div>
-
-          <div class="table-actions">
-            <!-- Кнопки массовых операций -->
-            <div v-if="selectedObjects.length > 0" class="mass-actions">
-              <v-chip :text="`Выбрано: ${selectedObjects.length}`" color="primary" variant="outlined" size="small"
-                class="mr-2" />
-              <AppleButton variant="secondary" size="small" prepend-icon="mdi-check-circle"
-                @click="toggleAllObjectsActivity(true)" class="mr-2">
-                Активировать
-              </AppleButton>
-              <AppleButton variant="secondary" size="small" prepend-icon="mdi-pause-circle"
-                @click="toggleAllObjectsActivity(false)" class="mr-2">
-                Деактивировать
-              </AppleButton>
-              <AppleButton variant="text" size="small" prepend-icon="mdi-close"
-                @click="selectedObjects = []; selectAll = false">
-                Отменить выбор
-              </AppleButton>
-            </div>
-
-            <v-btn-toggle v-model="viewMode" mandatory variant="outlined" density="compact">
-              <v-btn value="table" icon="mdi-table" />
-              <v-btn value="grid" icon="mdi-grid" />
-            </v-btn-toggle>
+      <template v-if="selectedObjects.length > 0" #header>
+        <div class="table-header table-header--compact">
+          <div class="mass-actions">
+            <v-chip :text="`Выбрано: ${selectedObjects.length}`" color="primary" variant="outlined" size="small"
+              class="mr-2" />
+            <AppleButton variant="secondary" size="small" prepend-icon="mdi-check-circle"
+              @click="toggleAllObjectsActivity(true)" class="mr-2">
+              Активировать
+            </AppleButton>
+            <AppleButton variant="secondary" size="small" prepend-icon="mdi-pause-circle"
+              @click="toggleAllObjectsActivity(false)" class="mr-2">
+              Деактивировать
+            </AppleButton>
+            <AppleButton variant="text" size="small" prepend-icon="mdi-close"
+              @click="selectedObjects = []; selectAll = false">
+              Отменить выбор
+            </AppleButton>
           </div>
         </div>
       </template>
@@ -904,20 +869,14 @@ const successNotification = ref({
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return Object.values(filters.value).some(value =>
-    value !== undefined && value !== null && value !== ''
-  );
+  return !!(filters.value.search || filters.value.source) || showDeletedObjects.value;
 });
 
 const activeFiltersCount = computed(() => {
   let count = 0;
-  if (filters.value.status) count++;
-  if (filters.value.type) count++;
-  if (filters.value.contract_id) count++;
-  if (filters.value.location_id) count++;
-  if (filters.value.template_id) count++;
-  if (filters.value.has_scheduled_delete !== undefined) count++;
-  if (filters.value.is_active !== undefined) count++;
+  if (filters.value.search) count++;
+  if (filters.value.source) count++;
+  if (showDeletedObjects.value) count++;
   return count;
 });
 
@@ -1177,9 +1136,8 @@ const clearFilters = () => {
     contract_id: undefined,
     location_id: undefined,
     template_id: undefined,
+    source: null,
   };
-
-  // Очищаем расширенные фильтры
   advancedFilters.value = {
     accountName: '',
     creatorName: '',
@@ -1188,7 +1146,7 @@ const clearFilters = () => {
     imei: '',
     phoneNumber: '',
   };
-
+  showDeletedObjects.value = false;
   pagination.value.page = 1;
   loadObjects();
 };
