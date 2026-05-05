@@ -953,6 +953,13 @@ const toggleAccountStatus = async (account: Account) => {
       }
     }
 
+    // Инвалидируем in-memory cache useAccountsList — иначе следующий loadAccounts
+    // (auto-refresh / merge-mode reload) перезапишет account из устаревшего
+    // allAccountsCache и UI откатит status обратно. Backend snapshot обновится
+    // через SnapshotInvalidator (~5-10s), до этого момента доверяем локальному
+    // оптимистичному обновлению.
+    invalidateCache();
+
     // Уведомляем Dashboard инвалидировать KPI cache (active_count изменился)
     emitCrossSection('accounts:mutated', {
       action: 'update',
