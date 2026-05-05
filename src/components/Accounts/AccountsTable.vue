@@ -129,7 +129,15 @@
               <div v-if="item.objectsTotal === -1" class="objects-loading">
                 <v-progress-circular indeterminate size="16" width="2" color="primary" />
               </div>
-              <div v-else class="objects-display">
+              <div
+                v-else
+                class="objects-display objects-clickable"
+                role="link"
+                tabindex="0"
+                :title="`Открыть объекты аккаунта «${item.name}»`"
+                @click.stop="goToAccountObjects(item)"
+                @keydown.enter.stop="goToAccountObjects(item)"
+              >
                 <span class="objects-active">{{ item.objectsActive || 0 }}</span>
                 <span class="objects-separator">/</span>
                 <span class="objects-total">{{ item.objectsTotal || 0 }}</span>
@@ -289,6 +297,26 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
+
+// Cross-section navigation: клик по счётчику объектов аккаунта → /objects
+// с предзаполненным поиском по имени учётной записи. Backend ищет совпадение
+// в accountName объекта (search-фильтр /unified/objects).
+function goToAccountObjects(account: any) {
+  const query: Record<string, string> = {};
+  if (account?.name) {
+    query.search = account.name;
+  }
+  if (account?.source) {
+    const lower = String(account.source).toLowerCase();
+    if (lower.startsWith('wh')) query.source = 'wh';
+    else if (lower.startsWith('wl')) query.source = 'wl';
+    else query.source = lower;
+  }
+  router.push({ path: '/objects', query });
+}
 
 defineProps<{
   items: any[];
@@ -1134,6 +1162,26 @@ onUnmounted(() => {
   gap: 2px;
   font-size: 0.875rem;
   font-weight: 500;
+}
+
+.objects-clickable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition: background-color 0.15s, transform 0.1s;
+}
+
+.objects-clickable:hover {
+  background-color: rgba(0, 122, 255, 0.08);
+}
+
+.objects-clickable:active {
+  transform: scale(0.97);
+}
+
+.objects-clickable:focus-visible {
+  outline: 2px solid rgba(0, 122, 255, 0.6);
+  outline-offset: 1px;
 }
 
 .objects-active {
