@@ -27,533 +27,67 @@
     </div>
 
     <!-- Поиск + фильтры в одну линию -->
-    <v-card class="mb-4" variant="outlined" elevation="2">
-      <v-card-text class="py-3">
-        <v-row align="center" no-gutters>
-          <v-col cols="12" md="6" class="pr-3">
-            <v-text-field v-model="filters.search" placeholder="Поиск по названию, IMEI, номеру телефона..."
-              prepend-icon="mdi-magnify" clearable variant="outlined" density="compact" hide-details
-              @input="debouncedSearch" />
-          </v-col>
-
-          <v-col cols="12" md="3" class="pr-3">
-            <v-select v-model="filters.source" :items="sourceOptions" label="Система" clearable variant="outlined"
-              density="compact" hide-details @update:model-value="loadObjects" />
-          </v-col>
-
-          <v-col cols="auto" class="pr-3">
-            <v-btn
-              :icon="showDeletedObjects ? 'mdi-delete' : 'mdi-delete-outline'"
-              :color="showDeletedObjects ? 'error' : 'default'"
-              variant="flat"
-              density="comfortable"
-              :title="showDeletedObjects ? 'Корзина (включена)' : 'Показать корзину'"
-              @click="showDeletedObjects = !showDeletedObjects"
-            />
-          </v-col>
-
-          <v-col v-if="hasActiveFilters" cols="auto">
-            <v-btn
-              icon="mdi-filter-off-outline"
-              variant="flat"
-              color="warning"
-              density="comfortable"
-              title="Сбросить активные фильтры"
-              data-testid="clear-filters"
-              @click="clearFilters"
-            >
-              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
-            </v-btn>
-          </v-col>
-
-          <v-spacer />
-
-          <v-col cols="auto">
-            <v-btn-toggle v-model="viewMode" mandatory variant="outlined" density="compact">
-              <v-btn value="table" icon="mdi-table" />
-              <v-btn value="grid" icon="mdi-grid" />
-            </v-btn-toggle>
-          </v-col>
-        </v-row>
-      </v-card-text>
-    </v-card>
+    <ObjectsFiltersBar
+      :filters="filters"
+      :source-options="sourceOptions"
+      :has-active-filters="hasActiveFilters"
+      :active-filters-count="activeFiltersCount"
+      v-model:show-deleted-objects="showDeletedObjects"
+      v-model:view-mode="viewMode"
+      @search="debouncedSearch"
+      @change="loadObjects"
+      @clear-filters="clearFilters"
+    />
 
     <!-- Список объектов -->
-    <AppleCard class="objects-table-card" variant="outlined">
-      <template v-if="selectedObjects.length > 0" #header>
-        <div class="table-header table-header--compact">
-          <div class="mass-actions">
-            <v-chip :text="`Выбрано: ${selectedObjects.length}`" color="primary" variant="outlined" size="small"
-              class="mr-2" />
-            <AppleButton variant="secondary" size="small" prepend-icon="mdi-check-circle"
-              @click="toggleAllObjectsActivity(true)" class="mr-2">
-              Активировать
-            </AppleButton>
-            <AppleButton variant="secondary" size="small" prepend-icon="mdi-pause-circle"
-              @click="toggleAllObjectsActivity(false)" class="mr-2">
-              Деактивировать
-            </AppleButton>
-            <AppleButton variant="text" size="small" prepend-icon="mdi-close"
-              @click="selectedObjects = []; selectAll = false">
-              Отменить выбор
-            </AppleButton>
-          </div>
-        </div>
-      </template>
-
-      <!-- Таблица объектов -->
-      <div v-if="viewMode === 'table'" class="table-container">
-        <v-data-table-server :headers="tableHeaders" :items="combinedObjects" :loading="false"
-          :items-per-page="pagination.per_page" :page="pagination.page" :items-length="objectsData?.total || 0"
-          :items-per-page-options="perPageOptions" :model-value="selectedObjects"
-          @update:model-value="selectedObjects = $event" @update:page="handlePageChange"
-          @update:items-per-page="handlePerPageChange" @update:sort-by="handleSortChange" item-value="id" show-select
-          hide-default-footer
-          class="objects-table" no-data-text="Объекты не найдены" loading-text="Загрузка объектов...">
-          <!-- Заголовок колонки статуса — иконка вместо текста -->
-          <template #header.is_active>
-            <v-icon icon="mdi-power" size="20" :title="'Статус (вкл/выкл)'" />
-          </template>
-
-          <!-- Заголовок колонки планового удаления / даты удаления — иконка -->
-          <template #header.scheduled_delete_at>
-            <v-icon icon="mdi-clock-alert-outline" size="20" title="Плановое удаление" />
-          </template>
-          <template #header.deleted_at>
-            <v-icon icon="mdi-delete-clock-outline" size="20" title="Дата удаления" />
-          </template>
-
-          <!-- Статус — иконка: зелёная (активный) / жёлтая (деактивирован) / красная (корзина) -->
-          <template #item.is_active="{ item }">
-            <v-icon
-              v-if="showDeletedObjects || item.scheduledDelete || item.deleted_at || item.axenta_deleted_at"
-              icon="mdi-delete-circle"
-              color="error"
-              size="22"
-              title="В корзине"
-            />
-            <v-icon
-              v-else-if="item.is_active"
-              icon="mdi-check-circle"
-              color="success"
-              size="22"
-              :title="'Активный (клик — деактивировать)'"
-              style="cursor:pointer"
-              @click="toggleObjectActivity(item, false)"
-            />
-            <v-icon
-              v-else
-              icon="mdi-pause-circle"
-              color="warning"
-              size="22"
-              :title="'Деактивирован (клик — активировать)'"
-              style="cursor:pointer"
-              @click="toggleObjectActivity(item, true)"
-            />
-          </template>
-
-          <!-- Название учетной записи -->
-          <template #item.accountName="{ item }">
-            <span>{{ item.accountName || 'Не указано' }}</span>
-          </template>
-
-          <!-- Создатель -->
-          <template #item.creatorName="{ item }">
-            <span>{{ item.creatorName || 'Не указан' }}</span>
-          </template>
-
-          <!-- Модель устройства -->
-          <template #item.deviceTypeName="{ item }">
-            <span>{{ item.deviceTypeName || 'Не указана' }}</span>
-          </template>
-
-          <!-- Номера телефонов -->
-          <template #item.phoneNumbers="{ item }">
-            <div v-if="item.phoneNumbers && item.phoneNumbers.length > 0">
-              <div v-for="phone in item.phoneNumbers" :key="phone" class="text-caption">
-                {{ phone }}
-              </div>
-            </div>
-            <span v-else class="text-medium-emphasis">Не указаны</span>
-          </template>
-
-          <!-- Дата создания -->
-          <template #item.createdAt="{ item }">
-            <div class="text-caption">
-              {{ formatDate(item.createdAt || item.created_at) }}
-            </div>
-          </template>
-
-          <!-- Дата последнего сообщения -->
-          <template #item.lastMessageDatetime="{ item }">
-            <div v-if="item.lastMessageDatetime" class="text-caption">
-              {{ formatDate(item.lastMessageDatetime) }}
-            </div>
-            <div v-else class="text-caption text-medium-emphasis">
-              Нет данных
-            </div>
-          </template>
-
-          <!-- Уникальный ID -->
-          <template #item.uniqueId="{ item }">
-            <span class="font-mono text-caption">{{ item.uniqueId || item.external_id || 'Не указан' }}</span>
-          </template>
-
-          <!-- Заголовок колонки источника — иконка -->
-          <template #header.source>
-            <v-icon icon="mdi-source-branch" size="20" title="Источник" />
-          </template>
-
-          <!-- Источник — иконка с tooltip. axenta — облако, wialon (WH/WL) — спутник.
-               Цвет wialon-иконки берётся по connection_id из палитры — каждое новое
-               подключение автоматически получает свой оттенок. -->
-          <template #item.source="{ item }">
-            <v-icon
-              v-if="item.source === 'axenta'"
-              icon="mdi-cloud-outline"
-              color="primary"
-              size="22"
-              :title="item.sourceLabel || 'Axenta Cloud'"
-            />
-            <v-icon
-              v-else-if="item.source === 'wh' || item.source === 'wl'"
-              icon="mdi-satellite-uplink"
-              :color="getConnectionColor(item.connectionId)"
-              size="22"
-              :title="item.sourceLabel || (item.source === 'wh' ? 'Wialon Hosting' : 'Wialon Local')"
-            />
-            <v-icon v-else icon="mdi-help-circle-outline" color="grey" size="22" :title="item.source || ''" />
-          </template>
-
-          <!-- Статус -->
-          <template #item.status="{ item }">
-            <v-chip :text="getStatusText(item.status)" :color="getStatusColor(item.status)" size="small"
-              variant="tonal" />
-          </template>
-
-          <!-- Тип -->
-          <template #item.type="{ item }">
-            <div class="d-flex align-center">
-              <v-icon :icon="getTypeIcon(item.type)" size="20" class="mr-2" />
-              {{ getTypeText(item.type) }}
-            </div>
-          </template>
-
-          <!-- Договор -->
-          <template #item.contract="{ item }">
-            <div v-if="item.contract">
-              <div class="font-weight-medium">{{ item.contract.client_name }}</div>
-              <div class="text-caption text-medium-emphasis">№{{ item.contract.id }}</div>
-            </div>
-          </template>
-
-          <!-- Локация -->
-          <template #item.location="{ item }">
-            <div v-if="item.location">
-              <v-icon icon="mdi-map-marker" size="16" class="mr-1" />
-              {{ item.location.name }}
-            </div>
-          </template>
-
-          <!-- Последняя активность -->
-          <template #item.last_activity_at="{ item }">
-            <div v-if="item.last_activity_at" class="text-caption">
-              {{ formatDate(item.last_activity_at) }}
-            </div>
-            <div v-else class="text-caption text-medium-emphasis">
-              Нет данных
-            </div>
-          </template>
-
-          <!-- Плановое удаление -->
-          <template #item.scheduled_delete_at="{ item }">
-            <div v-if="item.scheduled_delete_at" class="d-flex align-center">
-              <v-icon icon="mdi-clock-alert" size="16" color="warning" class="mr-1" />
-              <span class="text-caption text-warning">
-                {{ formatDate(item.scheduled_delete_at) }}
-              </span>
-            </div>
-          </template>
-
-          <!-- Действия -->
-          <template #item.actions="{ item }">
-            <div class="actions-cell">
-              <template v-if="!showDeletedObjects">
-                <v-menu>
-                  <template #activator="{ props }">
-                    <v-icon v-bind="props" icon="mdi-dots-vertical" size="20" class="actions-dots" />
-                  </template>
-
-                  <v-list density="compact">
-                    <v-list-item prepend-icon="mdi-card-account-details-outline" title="Свойства объекта"
-                      @click="viewObject(item)" />
-                    <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="editObject(item)" />
-                    <v-divider />
-                    <v-list-item prepend-icon="mdi-file-document-plus" title="Создать шаблон"
-                      @click="createTemplateFromObject(item)" />
-                    <v-divider />
-                    <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
-                      @click="cancelScheduledDelete(item)" />
-                    <v-list-item v-else prepend-icon="mdi-clock-alert" title="Запланировать удаление"
-                      @click="scheduleDelete(item)" />
-                    <v-divider />
-                    <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error"
-                      @click="deleteObject(item)" />
-                  </v-list>
-                </v-menu>
-              </template>
-
-              <template v-else>
-                <v-tooltip text="Восстановить">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-restore" size="small" variant="text" color="success"
-                      @click="restoreObject(item)" />
-                  </template>
-                </v-tooltip>
-
-                <v-tooltip text="Удалить навсегда">
-                  <template #activator="{ props }">
-                    <v-btn v-bind="props" icon="mdi-delete-forever" size="small" variant="text" color="error"
-                      @click="permanentDeleteObject(item)" />
-                  </template>
-                </v-tooltip>
-              </template>
-            </div>
-          </template>
-        </v-data-table-server>
-
-        <!-- Кастомная пагинация (как в /accounts) -->
-        <div class="compact-pagination" v-if="(objectsData?.total || 0) > 0">
-          <v-select
-            :model-value="pagination.per_page"
-            :items="perPageOptions"
-            variant="outlined"
-            density="compact"
-            class="items-select"
-            hide-details
-            @update:model-value="(v: number) => handlePerPageChange(v)"
-          />
-          <span class="range-info">{{ paginationRange }} из {{ objectsData?.total || 0 }}</span>
-          <div class="nav-controls">
-            <v-btn icon="mdi-page-first" variant="text" size="x-small"
-              :disabled="pagination.page === 1" title="Первая"
-              @click="handlePageChange(1)" />
-            <v-btn icon="mdi-chevron-left" variant="text" size="x-small"
-              :disabled="pagination.page === 1" title="Предыдущая"
-              @click="handlePageChange(pagination.page - 1)" />
-            <span class="page-info">{{ pagination.page }} / {{ paginationTotalPages }}</span>
-            <v-btn icon="mdi-chevron-right" variant="text" size="x-small"
-              :disabled="pagination.page >= paginationTotalPages" title="Следующая"
-              @click="handlePageChange(pagination.page + 1)" />
-            <v-btn icon="mdi-page-last" variant="text" size="x-small"
-              :disabled="pagination.page >= paginationTotalPages" title="Последняя"
-              @click="handlePageChange(paginationTotalPages)" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Сетка объектов -->
-      <div v-else class="grid-container">
-        <div class="objects-grid">
-          <AppleCard v-for="object in objects" :key="object.id" :title="object.name"
-            :subtitle="getTypeText(object.type)" :icon="getTypeIcon(object.type)" variant="outlined" clickable hover
-            class="object-card" @click="viewObject(object)">
-            <div class="object-card-content">
-              <div class="object-info">
-                <div class="info-row">
-                  <v-icon icon="mdi-identifier" size="16" />
-                  <span>{{ object.imei || 'Не указан' }}</span>
-                </div>
-                <div class="info-row">
-                  <v-icon icon="mdi-phone" size="16" />
-                  <span>{{ object.phone_number || 'Не указан' }}</span>
-                </div>
-                <div class="info-row">
-                  <v-icon icon="mdi-map-marker" size="16" />
-                  <span>{{ object.location?.name || 'Не указана' }}</span>
-                </div>
-              </div>
-
-              <div class="object-status">
-                <v-chip :text="getStatusText(object.status)" :color="getStatusColor(object.status)" size="small"
-                  variant="tonal" />
-              </div>
-            </div>
-
-            <template #footer>
-              <div class="object-card-actions">
-                <AppleButton variant="text" size="small" prepend-icon="mdi-eye" @click.stop="viewObject(object)">
-                  Просмотр
-                </AppleButton>
-                <AppleButton variant="text" size="small" prepend-icon="mdi-pencil" @click.stop="editObject(object)">
-                  Изменить
-                </AppleButton>
-              </div>
-            </template>
-          </AppleCard>
-        </div>
-      </div>
-    </AppleCard>
+    <ObjectsTable
+      :combined-objects="combinedObjects"
+      :objects="objects"
+      :objects-total="objectsData?.total || 0"
+      :headers="tableHeaders"
+      :pagination="pagination"
+      :per-page-options="perPageOptions"
+      :pagination-range="paginationRange"
+      :pagination-total-pages="paginationTotalPages"
+      :view-mode="viewMode"
+      :show-deleted-objects="showDeletedObjects"
+      v-model:selected-objects="selectedObjects"
+      v-model:select-all="selectAll"
+      @page-change="handlePageChange"
+      @per-page-change="handlePerPageChange"
+      @sort-change="handleSortChange"
+      @toggle-activity="toggleObjectActivity"
+      @toggle-all-activity="toggleAllObjectsActivity"
+      @view="viewObject"
+      @edit="editObject"
+      @create-template="createTemplateFromObject"
+      @cancel-scheduled-delete="cancelScheduledDelete"
+      @schedule-delete="scheduleDelete"
+      @delete="deleteObject"
+      @restore="restoreObject"
+      @permanent-delete="permanentDeleteObject"
+    />
 
     <!-- Диалог создания/редактирования объекта -->
-    <v-dialog v-model="objectDialog.show" max-width="800" @click:outside="closeObjectDialog">
-      <AppleCard>
-        <template #header>
-          <div class="dialog-header">
-            <v-icon :icon="objectDialog.isEdit ? 'mdi-pencil' : 'mdi-plus'" class="mr-2" />
-            {{ objectDialog.isEdit ? 'Редактирование объекта' : 'Создание объекта' }}
-            <v-spacer />
-            <v-btn icon="mdi-close" variant="text" size="small" @click="closeObjectDialog" />
-          </div>
-        </template>
-
-        <v-form ref="objectFormRef" @submit.prevent="saveObject">
-          <div class="form-content">
-            <!-- Шаблон объекта -->
-            <v-row v-if="!objectDialog.isEdit">
-              <v-col cols="12">
-                <v-select v-model="selectedTemplate" :items="templateOptions" label="Шаблон объекта (опционально)"
-                  variant="outlined" density="comfortable" clearable prepend-icon="mdi-file-document-outline"
-                  @update:model-value="applyTemplate">
-                  <template #item="{ props, item }">
-                    <v-list-item v-bind="props">
-                      <template #prepend>
-                        <v-icon :icon="item.raw.icon || 'mdi-file-document-outline'" />
-                      </template>
-                      <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
-                      <v-list-item-subtitle>{{ item.raw.description }}</v-list-item-subtitle>
-                    </v-list-item>
-                  </template>
-                </v-select>
-              </v-col>
-            </v-row>
-
-            <!-- Основная информация -->
-            <v-row>
-              <v-col cols="12">
-                <h3 class="form-section-title">Основная информация</h3>
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.name" label="Название объекта *" placeholder="Введите название" required
-                  :error-message="formErrors.name" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <v-select v-model="objectForm.type" :items="typeOptions" label="Тип объекта *" variant="outlined"
-                  density="comfortable" required :error-messages="formErrors.type" />
-              </v-col>
-
-              <!-- Новые поля -->
-              <v-col cols="12" md="6">
-                <v-select v-model="objectForm.company_id" :items="companyOptions"
-                  label="Название учетной записи (компании) *" variant="outlined" density="comfortable" required
-                  :loading="loadingCompanies" :error-messages="formErrors.company_id" prepend-icon="mdi-domain"
-                  item-title="name" item-value="id" placeholder="Выберите компанию" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.creatorName" label="Создатель (ФИО)"
-                  placeholder="Введите ФИО создателя" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.deviceTypeName" label="Модель устройства"
-                  placeholder="Введите модель устройства" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.uniqueId" label="Уникальный ID"
-                  placeholder="Введите уникальный идентификатор" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <v-switch v-model="objectForm.is_active" label="Активный объект" color="success" hide-details />
-              </v-col>
-
-              <v-col cols="12">
-                <AppleInput v-model="objectForm.description" label="Описание" placeholder="Введите описание объекта" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.imei" label="IMEI" placeholder="Введите IMEI устройства"
-                  :error-message="formErrors.imei" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.phone_number" label="Основной номер телефона"
-                  placeholder="+7 (XXX) XXX-XX-XX" />
-              </v-col>
-
-              <!-- Дополнительные номера телефонов -->
-              <v-col cols="12">
-                <div class="phone-numbers-section">
-                  <div class="d-flex align-center mb-2">
-                    <label class="text-subtitle-2">Дополнительные номера телефонов</label>
-                    <v-spacer />
-                    <v-btn icon="mdi-plus" size="small" variant="outlined" @click="addPhoneNumber" />
-                  </div>
-                  <div v-for="(phone, index) in objectForm.phoneNumbers" :key="index" class="d-flex align-center mb-2">
-                    <AppleInput v-model="objectForm.phoneNumbers[index]" placeholder="+7 (XXX) XXX-XX-XX"
-                      density="compact" />
-                    <v-btn icon="mdi-delete" size="small" variant="text" color="error" class="ml-2"
-                      @click="removePhoneNumber(index)" />
-                  </div>
-                </div>
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.serial_number" label="Серийный номер"
-                  placeholder="Введите серийный номер" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <v-select v-model="objectForm.contract_id" :items="contractOptions" label="Договор" variant="outlined"
-                  density="comfortable" :error-messages="formErrors.contract_id" :loading="false" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <v-select v-model="objectForm.location_id" :items="locationOptions" label="Локация" variant="outlined"
-                  density="comfortable" :loading="false" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <v-select v-model="objectForm.template_id" :items="templateOptions" label="Шаблон объекта" clearable
-                  variant="outlined" density="comfortable" :loading="false" />
-              </v-col>
-
-              <v-col cols="12">
-                <AppleInput v-model="objectForm.address" label="Адрес" placeholder="Введите адрес объекта" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.latitude" label="Широта" type="number" placeholder="55.7558" />
-              </v-col>
-
-              <v-col cols="12" md="6">
-                <AppleInput v-model="objectForm.longitude" label="Долгота" type="number" placeholder="37.6176" />
-              </v-col>
-
-              <v-col cols="12">
-                <v-textarea v-model="objectForm.notes" label="Заметки" placeholder="Дополнительная информация"
-                  variant="outlined" rows="3" />
-              </v-col>
-            </v-row>
-          </div>
-        </v-form>
-
-        <template #footer>
-          <div class="dialog-actions">
-            <AppleButton variant="secondary" @click="closeObjectDialog">
-              Отмена
-            </AppleButton>
-            <AppleButton @click="saveObject" :loading="saving">
-              {{ objectDialog.isEdit ? 'Сохранить' : 'Создать' }}
-            </AppleButton>
-          </div>
-        </template>
-      </AppleCard>
-    </v-dialog>
+    <ObjectFormDialog
+      v-model:show="objectDialog.show"
+      v-model:selected-template="selectedTemplate"
+      :is-edit="objectDialog.isEdit"
+      :form="objectForm"
+      :errors="formErrors"
+      :saving="saving"
+      :type-options="typeOptions"
+      :company-options="companyOptions"
+      :contract-options="contractOptions"
+      :location-options="locationOptions"
+      :template-options="templateOptions"
+      :loading-companies="loadingCompanies"
+      @close="closeObjectDialog"
+      @save="saveObject"
+      @apply-template="applyTemplate"
+      @add-phone-number="addPhoneNumber"
+      @remove-phone-number="removePhoneNumber"
+    />
 
     <!-- Диалог планового удаления -->
     <ScheduleDeleteDialog
@@ -579,122 +113,13 @@
       @confirm="confirmCreateTemplate" />
 
     <!-- Диалог просмотра объекта -->
-    <v-dialog v-model="viewDialog.show" max-width="900">
-      <AppleCard v-if="viewDialog.object">
-        <template #header>
-          <div class="view-dialog-header">
-            <div class="object-title-section">
-              <v-icon :icon="getTypeIcon(viewDialog.object.type)" size="24" class="mr-2" />
-              <div>
-                <h3>{{ viewDialog.object.name }}</h3>
-                <p class="text-caption">{{ getTypeText(viewDialog.object.type) }}</p>
-              </div>
-            </div>
-            <div class="object-status-section">
-              <v-chip :text="getStatusText(viewDialog.object.status)" :color="getStatusColor(viewDialog.object.status)"
-                variant="tonal" />
-            </div>
-            <v-spacer />
-            <v-btn icon="mdi-close" variant="text" size="small" @click="closeViewDialog" />
-          </div>
-        </template>
-
-        <div class="object-details">
-          <v-row>
-            <v-col cols="12" md="6">
-              <div class="detail-section">
-                <h4 class="section-title">Основная информация</h4>
-                <div class="detail-grid">
-                  <div class="detail-item">
-                    <span class="detail-label">IMEI:</span>
-                    <span class="detail-value">{{ viewDialog.object.imei || 'Не указан' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Телефон:</span>
-                    <span class="detail-value">{{ viewDialog.object.phone_number || 'Не указан' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Серийный номер:</span>
-                    <span class="detail-value">{{ viewDialog.object.serial_number || 'Не указан' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Внешний ID:</span>
-                    <span class="detail-value">{{ viewDialog.object.external_id || 'Не указан' }}</span>
-                  </div>
-                </div>
-              </div>
-            </v-col>
-
-            <v-col cols="12" md="6">
-              <div class="detail-section">
-                <h4 class="section-title">Связи</h4>
-                <div class="detail-grid">
-                  <div class="detail-item">
-                    <span class="detail-label">Договор:</span>
-                    <span class="detail-value">
-                      {{ viewDialog.object.contract?.client_name || 'Не указан' }}
-                      <span v-if="viewDialog.object.contract" class="text-caption">
-                        (№{{ viewDialog.object.contract.id }})
-                      </span>
-                    </span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Локация:</span>
-                    <span class="detail-value">{{ viewDialog.object.location?.name || 'Не указана' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Шаблон:</span>
-                    <span class="detail-value">{{ viewDialog.object.template?.name || 'Не указан' }}</span>
-                  </div>
-                </div>
-              </div>
-            </v-col>
-
-            <v-col cols="12" v-if="viewDialog.object.address">
-              <div class="detail-section">
-                <h4 class="section-title">Местоположение</h4>
-                <div class="detail-item">
-                  <v-icon icon="mdi-map-marker" size="16" class="mr-2" />
-                  {{ viewDialog.object.address }}
-                </div>
-                <div v-if="viewDialog.object.latitude && viewDialog.object.longitude" class="detail-item mt-2">
-                  <v-icon icon="mdi-crosshairs-gps" size="16" class="mr-2" />
-                  {{ viewDialog.object.latitude }}, {{ viewDialog.object.longitude }}
-                </div>
-              </div>
-            </v-col>
-
-            <v-col cols="12" v-if="viewDialog.object.notes">
-              <div class="detail-section">
-                <h4 class="section-title">Заметки</h4>
-                <p class="detail-notes">{{ viewDialog.object.notes }}</p>
-              </div>
-            </v-col>
-
-            <v-col cols="12" v-if="viewDialog.object.tags && viewDialog.object.tags.length">
-              <div class="detail-section">
-                <h4 class="section-title">Теги</h4>
-                <div class="tags-container">
-                  <v-chip v-for="tag in viewDialog.object.tags" :key="tag" :text="tag" size="small" variant="outlined"
-                    class="mr-2 mb-2" />
-                </div>
-              </div>
-            </v-col>
-          </v-row>
-        </div>
-
-        <template #footer>
-          <div class="dialog-actions">
-            <AppleButton variant="secondary" prepend-icon="mdi-pencil" @click="editObjectFromView">
-              Редактировать
-            </AppleButton>
-            <AppleButton variant="danger" prepend-icon="mdi-delete" @click="deleteObjectFromView">
-              Удалить
-            </AppleButton>
-          </div>
-        </template>
-      </AppleCard>
-    </v-dialog>
+    <ObjectViewDialog
+      v-model:show="viewDialog.show"
+      :object="viewDialog.object"
+      @close="closeViewDialog"
+      @edit="editObjectFromView"
+      @delete="deleteObjectFromView"
+    />
 
     <!-- Snackbar для уведомлений -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="top right"
@@ -728,6 +153,10 @@ import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import CreateTemplateDialog from '@/components/Objects/CreateTemplateDialog.vue';
+import ObjectFormDialog from '@/components/Objects/ObjectFormDialog.vue';
+import ObjectViewDialog from '@/components/Objects/ObjectViewDialog.vue';
+import ObjectsFiltersBar from '@/components/Objects/ObjectsFiltersBar.vue';
+import ObjectsTable from '@/components/Objects/ObjectsTable.vue';
 import ObjectsTrashDialog from '@/components/Objects/ObjectsTrashDialog.vue';
 import ScheduleDeleteDialog from '@/components/Objects/ScheduleDeleteDialog.vue';
 import getObjectsService from '@/services/objectsService';
