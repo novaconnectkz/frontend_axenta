@@ -76,6 +76,28 @@ export interface SourcesStatsResponse {
   total: SourceStats;
 }
 
+export interface CurrencyRevenue {
+  currency: string;
+  raw: number;
+  text: string;
+}
+
+export interface ChartPoint {
+  month: string;
+  month_label: string;
+  objects: number;
+  axenta: number;
+  wh: number;
+  wl: number;
+  revenues: CurrencyRevenue[];
+}
+
+export interface ChartResponse {
+  points: ChartPoint[];
+  currencies: string[];
+  generated_at: string;
+}
+
 const EMPTY_SOURCE = (key: string, label: string): SourceStats => ({
   key,
   label,
@@ -97,6 +119,11 @@ export const dashboardKpiService = {
   async search(query: string, limit = 10): Promise<SearchResponse> {
     const res = await apiClient.get(`/auth/search`, { params: { q: query, limit } });
     return res.data?.data || { objects: [], clients: [], query };
+  },
+
+  async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {
+    const res = await apiClient.get(`${BASE}/chart`, { params: { period } });
+    return res.data?.data || { points: [], currencies: [], generated_at: new Date().toISOString() };
   },
 
   async getSourcesStats(): Promise<SourcesStatsResponse> {

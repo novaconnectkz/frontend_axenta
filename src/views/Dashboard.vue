@@ -77,30 +77,85 @@
       <div class="chart-card">
         <div class="chart-head">
           <div class="chart-title">Объекты и Выручка</div>
+          <div class="chart-period-toggle">
+            <button v-for="opt in chartPeriodOptions" :key="opt.value"
+              :class="['period-btn', { active: chartPeriod === opt.value }]"
+              @click="setChartPeriod(opt.value)">
+              {{ opt.label }}
+            </button>
+          </div>
           <div class="chart-legend">
-            <span><span class="dot lavender"></span>Объекты</span>
-            <span><span class="dot blue"></span>Выручка</span>
+            <span><span class="dot lavender"></span>Axenta</span>
+            <span v-if="hasWH"><span class="dot wh"></span>WH</span>
+            <span v-if="hasWL"><span class="dot wl"></span>WL</span>
+            <span v-if="chartHasRevenue"><span class="dot blue"></span>Выручка</span>
           </div>
         </div>
         <div class="chart-area">
-          <svg viewBox="0 0 600 240" preserveAspectRatio="none">
-            <line x1="0" y1="40" x2="600" y2="40" stroke="#f0f0f0" stroke-dasharray="2,4"/>
-            <line x1="0" y1="100" x2="600" y2="100" stroke="#f0f0f0" stroke-dasharray="2,4"/>
-            <line x1="0" y1="160" x2="600" y2="160" stroke="#f0f0f0" stroke-dasharray="2,4"/>
-            <path d="M 0,160 C 80,150 120,130 200,120 C 280,110 340,90 420,80 C 480,72 540,68 600,60 L 600,220 L 0,220 Z"
-                  fill="rgba(88,86,214,0.12)"/>
-            <path d="M 0,160 C 80,150 120,130 200,120 C 280,110 340,90 420,80 C 480,72 540,68 600,60"
-                  fill="none" stroke="#5856d6" stroke-width="2"/>
-            <path d="M 0,60 C 80,80 140,90 200,110 C 280,130 340,150 420,140 C 480,130 540,110 600,90"
-                  fill="none" stroke="#007aff" stroke-width="2.5"/>
-            <text x="20"  y="234" font-size="11" fill="#999">Дек</text>
-            <text x="120" y="234" font-size="11" fill="#999">Янв</text>
-            <text x="220" y="234" font-size="11" fill="#999">Фев</text>
-            <text x="320" y="234" font-size="11" fill="#999">Мар</text>
-            <text x="420" y="234" font-size="11" fill="#999">Апр</text>
-            <text x="520" y="234" font-size="11" fill="#999">Май</text>
-          </svg>
-          <div class="chart-stub">Mock-данные. Реальный график подключим во второй итерации.</div>
+          <div v-if="!chartHasData" class="chart-stub">Загрузка данных…</div>
+          <div v-else class="small-multiples">
+            <div v-for="s in sparks" :key="s.key" class="spark-card spark-card--clickable"
+              :style="{ '--spark-color': s.color }" @click="openDrilldown(s)" :title="`Открыть детально: ${s.label}`">
+              <div class="spark-head">
+                <span class="spark-dot" :style="{ background: s.color }" />
+                <span class="spark-label">{{ s.label }}</span>
+              </div>
+              <div class="spark-value-row">
+                <span class="spark-value">{{ s.current.toLocaleString('ru-RU') }}</span>
+                <span :class="['spark-delta', 'spark-delta--' + s.deltaDir]">
+                  <v-icon size="14">
+                    {{ s.deltaDir === 'up' ? 'mdi-arrow-up-bold' : s.deltaDir === 'down' ? 'mdi-arrow-down-bold' : 'mdi-minus' }}
+                  </v-icon>
+                  {{ formatDelta(s.deltaPct, s.deltaDir) }}
+                </span>
+              </div>
+              <div v-if="s.hasStatus" class="status-bar-row">
+                <div class="status-bar" :title="`Активные: ${s.active.toLocaleString('ru-RU')} · Неактивные: ${s.inactive.toLocaleString('ru-RU')}`">
+                  <div class="status-bar-fill" :style="{ width: s.activePct + '%' }"></div>
+                </div>
+                <span class="status-bar-text">{{ Math.round(s.activePct) }}% активных</span>
+              </div>
+              <svg :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`" :width="SPARK_W" :height="SPARK_H" class="spark-svg" preserveAspectRatio="none">
+                <path :d="s.areaPath" :fill="s.color" fill-opacity="0.12" />
+                <path :d="s.linePath" :stroke="s.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="spark-foot">
+                <span>min <b>{{ s.min.toLocaleString('ru-RU') }}</b></span>
+                <span>max <b>{{ s.max.toLocaleString('ru-RU') }}</b></span>
+              </div>
+            </div>
+
+            <!-- Revenue card (если есть оплаты) -->
+            <div v-if="chartHasRevenue" class="spark-card" style="--spark-color: #007aff">
+              <div class="spark-head">
+                <span class="spark-dot" style="background: #007aff" />
+                <span class="spark-label">Выручка</span>
+              </div>
+              <div class="spark-value-row">
+                <span class="spark-value spark-value-revenue">{{ revenueTotalText }}</span>
+              </div>
+              <svg :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`" :width="SPARK_W" :height="SPARK_H" class="spark-svg" preserveAspectRatio="none">
+                <path :d="revenueSparkArea" fill="#007aff" fill-opacity="0.12" />
+                <path :d="revenueSparkLine" stroke="#007aff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div class="spark-foot">
+                <span v-for="cur in chartCurrencies" :key="cur">{{ cur }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Прирост по источникам за период (current − first) -->
+        <div v-if="chartHasData" class="chart-bottom-strip">
+          <div v-for="s in sparks" :key="'delta-' + s.key"
+            class="strip-item"
+            :class="{ 'strip-up': s.deltaDir === 'up', 'strip-down': s.deltaDir === 'down', 'strip-flat': s.deltaDir === 'flat' }"
+          >
+            <v-icon size="14" class="mr-1" :style="{ color: s.color }">mdi-circle-medium</v-icon>
+            <span class="strip-label">{{ s.label }}:</span>
+            <b class="ml-1">{{ formatGrowthAbs(s.current - s.first) }}</b>
+            <span class="strip-period">за {{ periodLabel }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -151,46 +206,9 @@
         </table>
       </div>
 
-      <div class="donut-card clickable" @click="cycleDonutSource" :title="`Клик — следующий источник (${donutSourceLabel})`">
-        <h2>
-          Статус объектов · <span class="src-label">{{ donutSourceLabel }}</span>
-          <v-icon size="18" class="arrow" @click.stop="goObjects({ source: currentDonutSource.key })">mdi-arrow-right</v-icon>
-        </h2>
-        <div class="donut-area">
-          <svg class="donut-svg" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="40" fill="none" stroke="#f0f0f0" stroke-width="14"/>
-            <circle v-if="arcTotal > 0"
-                    cx="50" cy="50" r="40" fill="none" stroke="#34c759" stroke-width="14"
-                    :stroke-dasharray="`${activeArc} 251.3`" stroke-dashoffset="0"
-                    transform="rotate(-90 50 50)"/>
-            <circle v-if="arcTotal > 0"
-                    cx="50" cy="50" r="40" fill="none" stroke="#ff9500" stroke-width="14"
-                    :stroke-dasharray="`${inactiveArc} 251.3`"
-                    :stroke-dashoffset="`-${activeArc}`"
-                    transform="rotate(-90 50 50)"/>
-            <circle v-if="arcTotal > 0 && trashArc > 0"
-                    cx="50" cy="50" r="40" fill="none" stroke="#ff3b30" stroke-width="14"
-                    :stroke-dasharray="`${trashArc} 251.3`"
-                    :stroke-dashoffset="`-${activeArc + inactiveArc}`"
-                    transform="rotate(-90 50 50)"/>
-          </svg>
-          <div class="donut-center">
-            <div class="total">{{ formatNum(arcTotal) }}</div>
-            <div class="lbl">всего</div>
-          </div>
-        </div>
-        <div class="donut-legend">
-          <span><span class="dot" style="background:#34c759"></span>Активные · {{ formatNum(donutStats.active) }}</span>
-          <span><span class="dot" style="background:#ff9500"></span>Неактивные · {{ formatNum(donutStats.inactive) }}</span>
-          <span v-if="donutStats.deleted > 0"><span class="dot" style="background:#ff3b30"></span>Корзина · {{ formatNum(donutStats.deleted) }}</span>
-        </div>
-        <div class="donut-pager">
-          <span v-for="(s, i) in donutSources" :key="s.key"
-                class="dot-pager" :class="{active: i === donutIdx}"></span>
-        </div>
-      </div>
     </div>
 
+    <ChartDrilldownDialog v-model="drilldownOpen" :source="drilldownSource" :points="chartPoints" />
   </div>
 </template>
 
@@ -199,8 +217,9 @@ import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ObjectsService } from "@/services/objectsService";
 import { accountsService } from "@/services/accountsService";
-import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse } from "@/services/dashboardKpiService";
+import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse, type ChartPoint } from "@/services/dashboardKpiService";
 import { onCrossSection } from "@/utils/crossSectionBus";
+import ChartDrilldownDialog from "@/components/Dashboard/ChartDrilldownDialog.vue";
 
 const router = useRouter();
 
@@ -220,6 +239,273 @@ const donutIdx = ref(0);
 
 const kpiMetrics = ref<KPIMetric[]>([]);
 const alerts = ref<DashboardAlert[]>([]);
+const chartPoints = ref<ChartPoint[]>([]);
+const chartCurrencies = ref<string[]>([]);
+const chartPrimaryCurrency = computed(() => chartCurrencies.value[0] || "RUB");
+const chartHoverIdx = ref<number | null>(null);
+
+// Drilldown
+const drilldownOpen = ref(false);
+const drilldownSource = ref<any>(null);
+function openDrilldown(spark: any) {
+  drilldownSource.value = spark;
+  drilldownOpen.value = true;
+}
+type ChartPeriod = "7d" | "1m" | "3m" | "6m" | "1y";
+const chartPeriod = ref<ChartPeriod>((localStorage.getItem("dashboard_chart_period") as ChartPeriod) || "7d");
+const chartPeriodOptions: { value: ChartPeriod; label: string }[] = [
+  { value: "7d", label: "7 дней" },
+  { value: "1m", label: "Месяц" },
+  { value: "3m", label: "3 мес." },
+  { value: "6m", label: "6 мес." },
+  { value: "1y", label: "Год" },
+];
+async function reloadChart() {
+  try {
+    const r = await dashboardKpiService.getChart(chartPeriod.value);
+    chartPoints.value = r.points;
+    chartCurrencies.value = r.currencies;
+    writeCache("chart", { points: r.points, currencies: r.currencies, period: chartPeriod.value });
+  } catch (_) {
+    // ignore
+  }
+}
+function setChartPeriod(p: ChartPeriod) {
+  chartPeriod.value = p;
+  localStorage.setItem("dashboard_chart_period", p);
+  reloadChart();
+}
+
+// === SVG chart geometry: 3 линии (Axenta + WH + WL) + revenue (если есть) ===
+const CHART_W = 600;
+const CHART_H = 220;
+const CHART_PAD_T = 20;
+const CHART_PAD_B = 30;
+
+// === Small Multiples: 3 mini-chart с независимой Y-осью на каждый источник ===
+const SPARK_W = 280;
+const SPARK_H = 56;
+const SPARK_PAD = 4;
+
+interface SparkData {
+  key: 'axenta' | 'wh' | 'wl';
+  label: string;
+  color: string;
+  current: number;
+  first: number;
+  min: number;
+  max: number;
+  deltaPct: number;
+  deltaDir: 'up' | 'down' | 'flat';
+  linePath: string;
+  areaPath: string;
+  hasData: boolean;
+  active: number;
+  inactive: number;
+  activePct: number;
+  hasStatus: boolean;
+}
+
+// Процент активных и absolute значения active/inactive из sourcesStats
+function sourceStatusFor(key: 'axenta' | 'wh' | 'wl') {
+  const src = sourcesStats.value.sources.find(s => s.key === key);
+  if (!src) return { active: 0, inactive: 0, total: 0, activePct: 0 };
+  const total = src.objects.active + src.objects.inactive;
+  const activePct = total > 0 ? (src.objects.active / total) * 100 : 0;
+  return { active: src.objects.active, inactive: src.objects.inactive, total, activePct };
+}
+
+function buildSpark(key: 'axenta' | 'wh' | 'wl', label: string, color: string): SparkData {
+  const points = chartPoints.value;
+  const values = points.map(p => p[key]);
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 0;
+  const current = values.length ? values[values.length - 1] : 0;
+  const first = values.length ? values[0] : 0;
+  const deltaAbs = current - first;
+  const deltaPct = first > 0 ? (deltaAbs / first) * 100 : 0;
+  let deltaDir: 'up' | 'down' | 'flat' = 'flat';
+  if (deltaAbs > 0) deltaDir = 'up';
+  else if (deltaAbs < 0) deltaDir = 'down';
+
+  const status = sourceStatusFor(key);
+
+  // Sparkline path. range=0 (все одинаковые) → центрируем линию по середине canvas.
+  const rangeRaw = max - min;
+  const innerH = SPARK_H - SPARK_PAD * 2;
+  const innerW = SPARK_W - SPARK_PAD * 2;
+  const stepX = points.length > 1 ? innerW / (points.length - 1) : 0;
+  const coords = values.map((v, i) => {
+    const x = SPARK_PAD + i * stepX;
+    const y = rangeRaw > 0
+      ? SPARK_PAD + innerH * (1 - (v - min) / rangeRaw)
+      : SPARK_PAD + innerH / 2; // flat-линия по центру
+    return [x, y] as const;
+  });
+  const linePath = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const lastX = coords.length ? coords[coords.length - 1][0] : 0;
+  const firstX = coords.length ? coords[0][0] : 0;
+  const areaPath = linePath ? `${linePath} L ${lastX.toFixed(1)},${SPARK_H - SPARK_PAD} L ${firstX.toFixed(1)},${SPARK_H - SPARK_PAD} Z` : '';
+
+  return {
+    key, label, color,
+    current, first, min, max,
+    deltaPct, deltaDir,
+    linePath, areaPath,
+    hasData: values.some(v => v > 0),
+    active: status.active,
+    inactive: status.inactive,
+    activePct: status.activePct,
+    hasStatus: status.total > 0,
+  };
+}
+
+const sparkAxenta = computed(() => buildSpark('axenta', 'Axenta', '#5856d6'));
+const sparkWH = computed(() => buildSpark('wh', 'Wialon Hosting', '#34c759'));
+const sparkWL = computed(() => buildSpark('wl', 'Wialon Local', '#ff9500'));
+
+const sparks = computed(() => {
+  const out = [sparkAxenta.value];
+  if (sparkWH.value.hasData) out.push(sparkWH.value);
+  if (sparkWL.value.hasData) out.push(sparkWL.value);
+  return out;
+});
+
+function formatDelta(pct: number, dir: string): string {
+  const abs = Math.abs(pct);
+  const sign = dir === 'up' ? '+' : dir === 'down' ? '−' : '';
+  return `${sign}${abs.toFixed(1)}%`;
+}
+
+function formatGrowthAbs(diff: number): string {
+  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+  return `${sign}${Math.abs(diff).toLocaleString('ru-RU')}`;
+}
+
+const periodLabel = computed(() => {
+  const opt = chartPeriodOptions.find(o => o.value === chartPeriod.value);
+  return opt?.label.toLowerCase() || '';
+});
+
+// Старые computed для совместимости (могут понадобиться где-то ниже)
+const objectsMax = computed(() => {
+  let m = 1;
+  for (const p of chartPoints.value) {
+    m = Math.max(m, p.axenta, p.wh, p.wl);
+  }
+  return m;
+});
+
+const innerH = CHART_H - CHART_PAD_T - CHART_PAD_B;
+
+// Геометрия group bars: 3 столбика рядом per день (Axenta, WH, WL)
+function buildBarFor(i: number, p: ChartPoint, total: number) {
+  const n = chartPoints.value.length || 1;
+  const slot = CHART_W / n;
+  const groupWidth = slot * 0.85;
+  const barWidth = groupWidth / 3;
+  const groupX = i * slot + (slot - groupWidth) / 2;
+  const baseY = CHART_PAD_T + innerH;
+
+  const scale = (v: number) => (v / total) * innerH;
+  const axentaH = scale(p.axenta);
+  const whH = scale(p.wh);
+  const wlH = scale(p.wl);
+
+  return {
+    slotCenter: i * slot + slot / 2,
+    barWidth,
+    axentaX: groupX,
+    axentaY: baseY - axentaH,
+    axentaH,
+    whX: groupX + barWidth,
+    whY: baseY - whH,
+    whH,
+    wlX: groupX + 2 * barWidth,
+    wlY: baseY - wlH,
+    wlH,
+    hoverX: groupX - 2,
+    hoverWidth: groupWidth + 4,
+  };
+}
+
+const chartBars = computed(() => {
+  return chartPoints.value.map((p, i) => buildBarFor(i, p, objectsMax.value));
+});
+
+const hasWH = computed(() => chartPoints.value.some(p => p.wh > 0));
+const hasWL = computed(() => chartPoints.value.some(p => p.wl > 0));
+
+const primaryRevenue = (p: ChartPoint): number => {
+  const cur = chartPrimaryCurrency.value;
+  const r = p.revenues.find(rv => rv.currency === cur);
+  return r?.raw || 0;
+};
+const revenueMax = computed(() => {
+  let m = 1;
+  for (const p of chartPoints.value) {
+    m = Math.max(m, primaryRevenue(p));
+  }
+  return m;
+});
+const revenueLinePath = computed(() => {
+  const points = chartPoints.value;
+  if (!points.length) return "";
+  const max = revenueMax.value;
+  const n = points.length;
+  const slot = CHART_W / n;
+  return points.map((p, i) => {
+    const x = i * slot + slot / 2;
+    const y = CHART_PAD_T + innerH * (1 - primaryRevenue(p) / max);
+    return `${i === 0 ? "M" : "L"} ${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+});
+
+// Revenue sparkline + total
+const revenueSparkLine = computed(() => {
+  const points = chartPoints.value;
+  if (!points.length) return "";
+  const max = revenueMax.value;
+  const innerHs = SPARK_H - SPARK_PAD * 2;
+  const innerW = SPARK_W - SPARK_PAD * 2;
+  const stepX = points.length > 1 ? innerW / (points.length - 1) : 0;
+  return points.map((p, i) => {
+    const x = SPARK_PAD + i * stepX;
+    const y = SPARK_PAD + innerHs * (1 - primaryRevenue(p) / max);
+    return `${i === 0 ? "M" : "L"} ${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+});
+const revenueSparkArea = computed(() => {
+  const line = revenueSparkLine.value;
+  if (!line) return "";
+  const n = chartPoints.value.length;
+  const innerW = SPARK_W - SPARK_PAD * 2;
+  const stepX = n > 1 ? innerW / (n - 1) : 0;
+  const lastX = SPARK_PAD + (n - 1) * stepX;
+  return `${line} L ${lastX.toFixed(1)},${SPARK_H - SPARK_PAD} L ${SPARK_PAD},${SPARK_H - SPARK_PAD} Z`;
+});
+const revenueTotalText = computed(() => {
+  let total = 0;
+  for (const p of chartPoints.value) total += primaryRevenue(p);
+  return total.toLocaleString('ru-RU') + ' ' + (chartPrimaryCurrency.value === 'RUB' ? '₽' : chartPrimaryCurrency.value === 'KZT' ? '₸' : chartPrimaryCurrency.value);
+});
+
+const chartHasData = computed(() => chartPoints.value.length > 0);
+const chartHasRevenue = computed(() => chartPoints.value.some(p => p.revenues.length > 0));
+
+function chartLabelX(i: number): number {
+  const n = chartPoints.value.length || 1;
+  const slot = CHART_W / n;
+  return i * slot + slot / 2;
+}
+
+const labelEvery = computed(() => {
+  const n = chartPoints.value.length;
+  if (n <= 8) return 1;
+  if (n <= 14) return 2;
+  if (n <= 30) return 5;
+  return 10;
+});
 const loadingContracts = ref(false);
 const topContracts = ref<Array<{ id: number; client_name: string; contract_number: string; objects: number; active: number; overdue: number; mrr: number }>>([]);
 
@@ -390,6 +676,11 @@ async function load() {
     dashboardKpiService.getAlerts().then(a => {
       alerts.value = a;
       writeCache("alerts", a);
+    }).catch(() => {}),
+    dashboardKpiService.getChart(chartPeriod.value).then(r => {
+      chartPoints.value = r.points;
+      chartCurrencies.value = r.currencies;
+      writeCache("chart", { points: r.points, currencies: r.currencies, period: chartPeriod.value });
     }).catch(() => {}),
   ]);
 }
@@ -667,6 +958,8 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .chart-title { font-size: 16px; font-weight: 700; }
 .chart-legend { display: flex; gap: 16px; font-size: 12px; color: #555; }
@@ -676,9 +969,231 @@ onUnmounted(() => {
   margin-right: 6px; vertical-align: middle;
 }
 .chart-legend .blue { background: #007aff; }
+.chart-legend .wh { background: #34c759; }
+.chart-legend .wl { background: #ff9500; }
+.chart-period-toggle {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 1px;
+  margin-right: 12px;
+}
+.period-btn {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.period-btn:hover { color: #000; }
+.period-btn.active {
+  background: white;
+  color: #007aff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+[data-theme="dark"] .chart-period-toggle { background: rgba(255, 255, 255, 0.06); }
+[data-theme="dark"] .period-btn { color: #aaa; }
+[data-theme="dark"] .period-btn:hover { color: #fff; }
+[data-theme="dark"] .period-btn.active {
+  background: rgba(0, 122, 255, 0.2);
+  color: #5ac8fa;
+  box-shadow: none;
+}
 .chart-legend .lavender { background: #5856d6; }
 .chart-area { flex: 1; position: relative; }
+.chart-area { position: relative; }
 .chart-area svg { width: 100%; height: 220px; display: block; }
+.chart-area svg rect { transition: opacity 0.15s; }
+.chart-area svg rect.bar-hover { opacity: 0.75; }
+
+/* Small Multiples — карточки с sparkline */
+.small-multiples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.spark-card {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.spark-card--clickable {
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.spark-card--clickable:hover {
+  border-color: var(--spark-color, #5856d6);
+  background: rgba(0, 0, 0, 0.04);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.spark-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.spark-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.spark-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.spark-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+.spark-value-revenue { font-size: 20px; }
+.spark-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.spark-delta--up {
+  color: #1a8f3c;
+  background: rgba(52, 199, 89, 0.12);
+}
+.spark-delta--down {
+  color: #c0382b;
+  background: rgba(255, 59, 48, 0.12);
+}
+.spark-delta--flat {
+  color: #888;
+  background: rgba(0, 0, 0, 0.05);
+}
+.spark-svg {
+  width: 100%;
+  height: 56px;
+  display: block;
+}
+.status-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #666;
+}
+.status-bar {
+  flex: 1;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.status-bar-fill {
+  height: 100%;
+  background: var(--spark-color, #34c759);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.status-bar-text {
+  font-size: 11px;
+  color: #888;
+  font-weight: 500;
+  white-space: nowrap;
+}
+[data-theme="dark"] .status-bar { background: rgba(255, 255, 255, 0.08); }
+.spark-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+}
+.spark-foot b {
+  color: #555;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+[data-theme="dark"] .spark-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .spark-value { color: #f5f5f5; }
+[data-theme="dark"] .spark-foot b { color: #ccc; }
+[data-theme="dark"] .spark-delta--flat {
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+}
+.chart-bottom-strip {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  flex-wrap: wrap;
+}
+.strip-item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  color: #555;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+}
+.strip-label { color: #888; margin-right: 2px; }
+.strip-period { color: #aaa; margin-left: 6px; font-size: 11px; }
+.strip-up b { color: #1a8f3c; }
+.strip-down b { color: #c0382b; }
+.strip-flat b { color: #888; }
+[data-theme="dark"] .chart-bottom-strip { border-top-color: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .strip-item { background: rgba(255, 255, 255, 0.04); color: #aaa; }
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  min-width: 160px;
+  pointer-events: none;
+  z-index: 5;
+}
+.chart-tooltip-title { font-weight: 700; margin-bottom: 6px; font-size: 13px; }
+.chart-tooltip-row { display: flex; align-items: center; gap: 6px; line-height: 1.6; }
+.chart-tooltip-row .dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+}
+.chart-tooltip-row .lavender { background: #5856d6; }
+.chart-tooltip-row .wh { background: #34c759; }
+.chart-tooltip-row .wl { background: #ff9500; }
+.chart-tooltip-row .blue { background: #007aff; }
+.chart-tooltip-total { border-top: 1px solid rgba(0,0,0,0.08); margin-top: 4px; padding-top: 4px; }
+.chart-tooltip-row.text-muted { color: #999; font-size: 11px; }
+[data-theme="dark"] .chart-tooltip {
+  background: rgba(28, 28, 30, 0.96);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f0f0f0;
+}
 .chart-stub {
   position: absolute;
   bottom: 30px; left: 50%;
@@ -692,7 +1207,7 @@ onUnmounted(() => {
 
 .bot-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 .table-card, .donut-card {

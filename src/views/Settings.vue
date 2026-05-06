@@ -155,6 +155,11 @@
               <SnapshotJobsHistory />
             </div>
 
+            <!-- История Wialon -->
+            <div v-if="activeTab === 'wialon-history'">
+              <WialonHistorySettings />
+            </div>
+
             <!-- Системные настройки -->
             <div v-if="activeTab === 'system'">
               <SystemSettingsForm />
@@ -333,6 +338,7 @@ import NotificationTemplates from '@/components/Settings/NotificationTemplates.v
 import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
 import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
+import WialonHistorySettings from '@/components/Settings/WialonHistorySettings.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
 import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
 import Trash from '@/components/Settings/Trash.vue';
@@ -473,6 +479,14 @@ const defaultTabs = [
     title: 'История снимков',
     subtitle: 'Автоматическое создание',
     icon: 'mdi-camera-timer',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
+  },
+  {
+    value: 'wialon-history',
+    title: 'История Wialon',
+    subtitle: 'Backfill для графиков',
+    icon: 'mdi-chart-timeline-variant',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
   },
