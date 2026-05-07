@@ -130,6 +130,13 @@
 
       <v-spacer />
 
+      <!-- Глобальный поиск (объекты / клиенты / контракты / счета) -->
+      <div v-if="!mobile" class="header-search-slot">
+        <GlobalSearch />
+      </div>
+
+      <v-spacer />
+
       <!-- Информация о пользователе и времени (справа) -->
       <div v-if="!mobile" class="header-user-info">
         <div class="user-welcome-compact">
@@ -397,6 +404,7 @@ import { useDisplay, useTheme } from 'vuetify';
 import { useAppVersion } from '@/composables/useAppVersion';
 import UserAvatar from '@/components/Common/UserAvatar.vue';
 import HelpDialog from '@/components/Common/HelpDialog.vue';
+import GlobalSearch from '@/components/GlobalSearch.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
 import { accountsService } from '@/services/accountsService';
 import { config } from '@/config/env';
@@ -1664,6 +1672,14 @@ onUnmounted(() => {
 
 [data-theme="dark"] .page-title-text {
   color: var(--apple-text-primary-dark);
+}
+
+/* Слот глобального поиска в header — берёт место между title и user-info */
+.header-search-slot {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: center;
+  margin: 0 12px;
 }
 
 /* Компактная информация о пользователе в header */
