@@ -92,6 +92,16 @@ export interface ChartPoint {
   revenues: CurrencyRevenue[];
 }
 
+export interface TopContractRow {
+  id: number;
+  client_name: string;
+  contract_number: string;
+  objects: number;
+  active: number;
+  overdue: number;
+  mrr: number;
+}
+
 export interface ChartResponse {
   points: ChartPoint[];
   currencies: string[];
@@ -124,6 +134,11 @@ export const dashboardKpiService = {
   async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {
     const res = await apiClient.get(`${BASE}/chart`, { params: { period } });
     return res.data?.data || { points: [], currencies: [], generated_at: new Date().toISOString() };
+  },
+
+  async getTopContracts(period: "month" | "quarter" | "year" = "month", limit = 10): Promise<TopContractRow[]> {
+    const res = await apiClient.get(`${BASE}/top-contracts`, { params: { period, limit } });
+    return res.data?.data || [];
   },
 
   async getSourcesStats(): Promise<SourcesStatsResponse> {

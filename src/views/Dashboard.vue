@@ -165,18 +165,33 @@
       <div class="table-card">
         <div class="table-head">
           <h2>Топ-контракты по выручке</h2>
-          <div class="filter-pill">
-            <v-icon size="14">mdi-magnify</v-icon> Период: <b style="margin-left:4px">Этот месяц</b>
-          </div>
+          <v-menu>
+            <template #activator="{ props: menuProps }">
+              <v-btn v-bind="menuProps" variant="tonal" size="small" class="filter-pill-btn">
+                <v-icon size="14" start>mdi-calendar-range</v-icon>
+                {{ contractsPeriodLabel }}
+                <v-icon size="14" end>mdi-chevron-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                v-for="o in contractsPeriodOptions"
+                :key="o.value"
+                :active="contractsPeriod === o.value"
+                @click="setContractsPeriod(o.value)"
+              >
+                <v-list-item-title>{{ o.label }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
         </div>
 
-        <div v-if="loadingContracts" class="placeholder">
+        <div v-if="loadingContracts && !topContracts.length" class="placeholder">
           <v-skeleton-loader type="list-item-three-line" />
         </div>
         <div v-else-if="!topContracts.length" class="placeholder">
           <v-icon size="32" class="mb-2 text-medium-emphasis">mdi-file-document-outline</v-icon>
-          <div>Топ-контрактов нет в текущем периоде</div>
-          <div class="text-caption text-medium-emphasis mt-1">Endpoint /api/auth/dashboard/top-contracts — следующая итерация</div>
+          <div>Топ-контрактов нет в выбранном периоде</div>
         </div>
         <table v-else>
           <thead>
@@ -217,7 +232,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ObjectsService } from "@/services/objectsService";
 import { accountsService } from "@/services/accountsService";
-import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse, type ChartPoint } from "@/services/dashboardKpiService";
+import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse, type ChartPoint, type TopContractRow } from "@/services/dashboardKpiService";
 import { onCrossSection } from "@/utils/crossSectionBus";
 import ChartDrilldownDialog from "@/components/Dashboard/ChartDrilldownDialog.vue";
 
@@ -507,7 +522,33 @@ const labelEvery = computed(() => {
   return 10;
 });
 const loadingContracts = ref(false);
-const topContracts = ref<Array<{ id: number; client_name: string; contract_number: string; objects: number; active: number; overdue: number; mrr: number }>>([]);
+const topContracts = ref<TopContractRow[]>([]);
+type ContractsPeriod = "month" | "quarter" | "year";
+const contractsPeriod = ref<ContractsPeriod>((localStorage.getItem("dashboard_contracts_period") as ContractsPeriod) || "month");
+const contractsPeriodOptions: { value: ContractsPeriod; label: string }[] = [
+  { value: "month", label: "Этот месяц" },
+  { value: "quarter", label: "Квартал" },
+  { value: "year", label: "Год" },
+];
+const contractsPeriodLabel = computed(() => contractsPeriodOptions.find(o => o.value === contractsPeriod.value)?.label || "Этот месяц");
+
+async function reloadContracts() {
+  loadingContracts.value = true;
+  try {
+    const rows = await dashboardKpiService.getTopContracts(contractsPeriod.value, 10);
+    topContracts.value = rows;
+    writeCache("top_contracts", { rows, period: contractsPeriod.value });
+  } catch {
+    // silent
+  } finally {
+    loadingContracts.value = false;
+  }
+}
+function setContractsPeriod(p: ContractsPeriod) {
+  contractsPeriod.value = p;
+  localStorage.setItem("dashboard_contracts_period", p);
+  reloadContracts();
+}
 
 const objectsActivityPct = computed(() => {
   if (!objectsStats.total) return 0;
@@ -654,6 +695,11 @@ async function load() {
   const cachedSources = readCache<SourcesStatsResponse>("sources_stats");
   if (cachedSources) sourcesStats.value = cachedSources;
 
+  const cachedContracts = readCache<{ rows: TopContractRow[]; period: ContractsPeriod }>("top_contracts");
+  if (cachedContracts && cachedContracts.period === contractsPeriod.value) {
+    topContracts.value = cachedContracts.rows;
+  }
+
   // 2. Фоновый refresh — обновляет UI и кеш когда данные пришли
   const objSvc = new ObjectsService();
   await Promise.all([
@@ -681,6 +727,10 @@ async function load() {
       chartPoints.value = r.points;
       chartCurrencies.value = r.currencies;
       writeCache("chart", { points: r.points, currencies: r.currencies, period: chartPeriod.value });
+    }).catch(() => {}),
+    dashboardKpiService.getTopContracts(contractsPeriod.value, 10).then(rows => {
+      topContracts.value = rows;
+      writeCache("top_contracts", { rows, period: contractsPeriod.value });
     }).catch(() => {}),
   ]);
 }
