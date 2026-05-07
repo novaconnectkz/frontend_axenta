@@ -155,9 +155,10 @@
               <SnapshotJobsHistory />
             </div>
 
-            <!-- История Wialon -->
+            <!-- История данных (Wialon + SKIF backfill) -->
             <div v-if="activeTab === 'wialon-history'">
               <WialonHistorySettings />
+              <SkifHistoryBackfill />
             </div>
 
             <!-- Системные настройки -->
@@ -339,6 +340,7 @@ import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
 import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
 import WialonHistorySettings from '@/components/Settings/WialonHistorySettings.vue';
+import SkifHistoryBackfill from '@/components/Settings/SkifHistoryBackfill.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
 import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
 import Trash from '@/components/Settings/Trash.vue';
@@ -484,8 +486,8 @@ const defaultTabs = [
   },
   {
     value: 'wialon-history',
-    title: 'История Wialon',
-    subtitle: 'Backfill для графиков',
+    title: 'История данных',
+    subtitle: 'Backfill для графиков (Wialon + SKIF)',
     icon: 'mdi-chart-timeline-variant',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
