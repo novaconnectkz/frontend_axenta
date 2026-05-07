@@ -35,17 +35,26 @@
               {{ opt.label }}
             </button>
           </div>
+          <div v-if="sparks.length > 3" class="spark-nav">
+            <button class="spark-nav-btn" :disabled="!canSparkPrev" @click="sparkOffset = Math.max(0, sparkOffset - 1)" title="Предыдущие">
+              <v-icon size="18">mdi-chevron-left</v-icon>
+            </button>
+            <button class="spark-nav-btn" :disabled="!canSparkNext" @click="sparkOffset = Math.min(sparks.length - 3, sparkOffset + 1)" title="Следующие">
+              <v-icon size="18">mdi-chevron-right</v-icon>
+            </button>
+          </div>
           <div class="chart-legend">
             <span><span class="dot lavender"></span>Axenta</span>
             <span v-if="hasWH"><span class="dot wh"></span>WH</span>
             <span v-if="hasWL"><span class="dot wl"></span>WL</span>
+            <span v-if="hasSkif"><span class="dot skif"></span>SKIF</span>
             <span v-if="chartHasRevenue"><span class="dot blue"></span>Выручка</span>
           </div>
         </div>
         <div class="chart-area">
           <div v-if="!chartHasData" class="chart-stub">Загрузка данных…</div>
           <div v-else class="small-multiples">
-            <div v-for="s in sparks" :key="s.key" class="spark-card spark-card--clickable"
+            <div v-for="s in visibleSparks" :key="s.key" class="spark-card spark-card--clickable"
               :style="{ '--spark-color': s.color }" @click="openDrilldown(s)" :title="`Открыть детально: ${s.label}`">
               <div class="spark-head">
                 <span class="spark-dot" :style="{ background: s.color }" />
@@ -94,6 +103,17 @@
               </div>
             </div>
           </div>
+
+          <!-- Dot-индикаторы carousel'а (только если sparks > 3) -->
+          <div v-if="sparks.length > 3" class="spark-dots">
+            <button
+              v-for="i in (sparks.length - 2)"
+              :key="i"
+              :class="['spark-dot-btn', { active: sparkOffset === i - 1 }]"
+              @click="sparkOffset = i - 1"
+              :title="`${sparks[i - 1]?.label} — ${sparks[i]?.label} — ${sparks[i + 1]?.label}`"
+            />
+          </div>
         </div>
 
         <!-- Прирост по источникам за период (current − first) -->
@@ -127,10 +147,18 @@
               {{ o.label }}
             </button>
           </div>
+          <div v-if="lifecycleCards.length > 3" class="spark-nav">
+            <button class="spark-nav-btn" :disabled="!canLifecyclePrev" @click="lifecycleOffset = Math.max(0, lifecycleOffset - 1)" title="Предыдущие">
+              <v-icon size="18">mdi-chevron-left</v-icon>
+            </button>
+            <button class="spark-nav-btn" :disabled="!canLifecycleNext" @click="lifecycleOffset = Math.min(lifecycleCards.length - 3, lifecycleOffset + 1)" title="Следующие">
+              <v-icon size="18">mdi-chevron-right</v-icon>
+            </button>
+          </div>
         </div>
 
         <div class="lc-grid">
-          <div v-for="card in lifecycleCards" :key="card.key" class="lc-card">
+          <div v-for="card in visibleLifecycleCards" :key="card.key" class="lc-card">
             <div class="lc-card-head">
               <span class="lc-label">{{ card.label }}</span>
               <span class="lc-net" :class="{ pos: card.net > 0, neg: card.net < 0 }">
@@ -154,6 +182,16 @@
               <path :d="card.deletedPath" stroke="#ff3b30" stroke-width="1.5" fill="none" />
             </svg>
           </div>
+        </div>
+
+        <!-- Dot-индикаторы lifecycle carousel -->
+        <div v-if="lifecycleCards.length > 3" class="spark-dots">
+          <button
+            v-for="i in (lifecycleCards.length - 2)"
+            :key="i"
+            :class="['spark-dot-btn', { active: lifecycleOffset === i - 1 }]"
+            @click="lifecycleOffset = i - 1"
+          />
         </div>
 
         <div v-if="!lifecycleHasData" class="placeholder">
@@ -210,11 +248,11 @@ function openDrilldown(spark: any) {
 type ChartPeriod = "7d" | "1m" | "3m" | "6m" | "1y";
 const chartPeriod = ref<ChartPeriod>((localStorage.getItem("dashboard_chart_period") as ChartPeriod) || "7d");
 const chartPeriodOptions: { value: ChartPeriod; label: string }[] = [
-  { value: "7d", label: "7 дней" },
-  { value: "1m", label: "Месяц" },
+  { value: "7d", label: "7 дн." },
+  { value: "1m", label: "мес." },
   { value: "3m", label: "3 мес." },
   { value: "6m", label: "6 мес." },
-  { value: "1y", label: "Год" },
+  { value: "1y", label: "год" },
 ];
 async function reloadChart() {
   try {
@@ -244,7 +282,7 @@ const SPARK_H = 56;
 const SPARK_PAD = 4;
 
 interface SparkData {
-  key: 'axenta' | 'wh' | 'wl';
+  key: 'axenta' | 'wh' | 'wl' | 'skif';
   label: string;
   color: string;
   current: number;
@@ -263,7 +301,8 @@ interface SparkData {
 }
 
 // Процент активных и absolute значения active/inactive из sourcesStats
-function sourceStatusFor(key: 'axenta' | 'wh' | 'wl') {
+type SparkKey = 'axenta' | 'wh' | 'wl' | 'skif';
+function sourceStatusFor(key: SparkKey) {
   const src = sourcesStats.value.sources.find(s => s.key === key);
   if (!src) return { active: 0, inactive: 0, total: 0, activePct: 0 };
   const total = src.objects.active + src.objects.inactive;
@@ -271,7 +310,7 @@ function sourceStatusFor(key: 'axenta' | 'wh' | 'wl') {
   return { active: src.objects.active, inactive: src.objects.inactive, total, activePct };
 }
 
-function buildSpark(key: 'axenta' | 'wh' | 'wl', label: string, color: string): SparkData {
+function buildSpark(key: SparkKey, label: string, color: string): SparkData {
   const points = chartPoints.value;
   const values = points.map(p => p[key]);
   const min = values.length ? Math.min(...values) : 0;
@@ -319,13 +358,28 @@ function buildSpark(key: 'axenta' | 'wh' | 'wl', label: string, color: string): 
 const sparkAxenta = computed(() => buildSpark('axenta', 'Axenta', '#5856d6'));
 const sparkWH = computed(() => buildSpark('wh', 'Wialon Hosting', '#34c759'));
 const sparkWL = computed(() => buildSpark('wl', 'Wialon Local', '#ff9500'));
+const sparkSkif = computed(() => buildSpark('skif', 'SKIF', '#0a8a8a'));
 
 const sparks = computed(() => {
   const out = [sparkAxenta.value];
   if (sparkWH.value.hasData) out.push(sparkWH.value);
   if (sparkWL.value.hasData) out.push(sparkWL.value);
+  if (sparkSkif.value.hasData) out.push(sparkSkif.value);
   return out;
 });
+
+// Carousel: window 3 visible. При появлении новых источников offset
+// сбрасывается если выходит за границы.
+const sparkOffset = ref(0);
+const visibleSparks = computed(() => {
+  const all = sparks.value;
+  if (all.length <= 3) return all;
+  const max = Math.max(0, all.length - 3);
+  if (sparkOffset.value > max) sparkOffset.value = max;
+  return all.slice(sparkOffset.value, sparkOffset.value + 3);
+});
+const canSparkPrev = computed(() => sparkOffset.value > 0);
+const canSparkNext = computed(() => sparkOffset.value + 3 < sparks.value.length);
 
 function formatDelta(pct: number, dir: string): string {
   const abs = Math.abs(pct);
@@ -391,6 +445,7 @@ const chartBars = computed(() => {
 
 const hasWH = computed(() => chartPoints.value.some(p => p.wh > 0));
 const hasWL = computed(() => chartPoints.value.some(p => p.wl > 0));
+const hasSkif = computed(() => chartPoints.value.some(p => p.skif > 0));
 
 const primaryRevenue = (p: ChartPoint): number => {
   const cur = chartPrimaryCurrency.value;
@@ -472,11 +527,11 @@ const lifecyclePeriod = ref<LifecyclePeriod>(
   "1m"
 );
 const lifecyclePeriodOptions: { value: LifecyclePeriod; label: string }[] = [
-  { value: "7d", label: "7 дней" },
-  { value: "1m", label: "Месяц" },
+  { value: "7d", label: "7 дн." },
+  { value: "1m", label: "мес." },
   { value: "3m", label: "3 мес." },
   { value: "6m", label: "6 мес." },
-  { value: "1y", label: "Год" },
+  { value: "1y", label: "год" },
 ];
 const lifecycleData = ref<LifecycleResponse | null>(null);
 const LC_SPARK_W = 240;
@@ -526,6 +581,18 @@ const lifecycleCards = computed<LifecycleCard[]>(() => {
   if (!d) return [];
   return [d.total, ...d.sources].map(buildLifecycleCard);
 });
+
+// Carousel для lifecycle cards (window 3, по образцу sparks)
+const lifecycleOffset = ref(0);
+const visibleLifecycleCards = computed(() => {
+  const all = lifecycleCards.value;
+  if (all.length <= 3) return all;
+  const max = Math.max(0, all.length - 3);
+  if (lifecycleOffset.value > max) lifecycleOffset.value = max;
+  return all.slice(lifecycleOffset.value, lifecycleOffset.value + 3);
+});
+const canLifecyclePrev = computed(() => lifecycleOffset.value > 0);
+const canLifecycleNext = computed(() => lifecycleOffset.value + 3 < lifecycleCards.value.length);
 
 const lifecycleHasData = computed(() => {
   const d = lifecycleData.value;
@@ -867,6 +934,7 @@ onUnmounted(() => {
 .chart-legend .blue { background: #007aff; }
 .chart-legend .wh { background: #34c759; }
 .chart-legend .wl { background: #ff9500; }
+.chart-legend .skif { background: #0a8a8a; }
 .chart-period-toggle {
   display: inline-flex;
   background: rgba(0, 0, 0, 0.04);
@@ -892,6 +960,67 @@ onUnmounted(() => {
   color: #007aff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
+
+/* Carousel-навигация source-карточек */
+.spark-nav {
+  display: inline-flex;
+  gap: 4px;
+  margin-right: 12px;
+}
+.spark-nav-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid #e5e5ea;
+  background: white;
+  color: #555;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.spark-nav-btn:hover:not(:disabled) {
+  background: #f5f5f7;
+  color: #000;
+}
+.spark-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.spark-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.spark-dot-btn {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: #d1d1d6;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s;
+}
+.spark-dot-btn:hover { background: #a1a1a6; }
+.spark-dot-btn.active {
+  background: #007aff;
+  width: 18px;
+  border-radius: 4px;
+}
+[data-theme="dark"] .spark-nav-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: #38383a;
+  color: #aaa;
+}
+[data-theme="dark"] .spark-nav-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+[data-theme="dark"] .spark-dot-btn { background: #48484a; }
+[data-theme="dark"] .spark-dot-btn.active { background: #5ac8fa; }
 [data-theme="dark"] .chart-period-toggle { background: rgba(255, 255, 255, 0.06); }
 [data-theme="dark"] .period-btn { color: #aaa; }
 [data-theme="dark"] .period-btn:hover { color: #fff; }

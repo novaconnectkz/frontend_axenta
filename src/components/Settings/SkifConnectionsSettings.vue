@@ -2,7 +2,7 @@
   <div class="skif-connections">
     <div class="d-flex align-center justify-space-between mb-4">
       <div>
-        <div class="text-h6">Подключения SKIF.PRO</div>
+        <div class="text-h6">Подключения SKIF</div>
         <div class="text-caption text-medium-emphasis">
           Cookie-session авторизация ({{ connections.length }} подключений)
         </div>
@@ -22,7 +22,7 @@
 
     <div v-else-if="!connections.length" class="text-center py-8 text-medium-emphasis">
       <v-icon size="48" class="mb-2">mdi-satellite-variant</v-icon>
-      <div>Нет подключений к SKIF.PRO</div>
+      <div>Нет подключений к SKIF</div>
       <div class="text-caption mt-1">Добавьте первое подключение чтобы начать синхронизацию</div>
     </div>
 
@@ -105,7 +105,7 @@
     <v-dialog v-model="dialog" max-width="640">
       <v-card>
         <v-card-title>
-          {{ form.id ? 'Редактирование подключения' : 'Новое подключение SKIF.PRO' }}
+          {{ form.id ? 'Редактирование подключения' : 'Новое подключение SKIF' }}
         </v-card-title>
         <v-card-text>
           <v-text-field

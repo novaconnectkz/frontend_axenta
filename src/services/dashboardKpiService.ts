@@ -89,6 +89,7 @@ export interface ChartPoint {
   axenta: number;
   wh: number;
   wl: number;
+  skif: number;
   revenues: CurrencyRevenue[];
 }
 

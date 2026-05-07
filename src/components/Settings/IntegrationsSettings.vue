@@ -116,7 +116,7 @@
               </v-card-actions>
             </template>
 
-            <!-- Спец-карточка для SKIF.PRO (multi-connection) -->
+            <!-- Спец-карточка для SKIF (multi-connection) -->
             <template v-else-if="integration.type === 'skif'">
               <v-card-title class="d-flex align-center justify-space-between">
                 <div class="d-flex align-center gap-3">
@@ -124,7 +124,7 @@
                     <v-icon>mdi-satellite-variant</v-icon>
                   </v-avatar>
                   <div>
-                    <div class="text-subtitle-1 font-weight-bold">SKIF.PRO GPS</div>
+                    <div class="text-subtitle-1 font-weight-bold">SKIF GPS</div>
                     <div class="text-caption text-medium-emphasis">Multi-account мониторинг</div>
                   </div>
                 </div>
@@ -140,7 +140,7 @@
               <v-card-text class="pt-0">
                 <p class="text-body-2 mb-3">
                   <v-icon size="16" class="mr-1" color="teal-darken-1">mdi-satellite-variant</v-icon>
-                  SKIF.PRO API
+                  SKIF API
                   <span class="text-caption text-medium-emphasis ms-2">
                     Cookie-session, авто-релогин, sync per-connection
                   </span>
@@ -1008,12 +1008,12 @@
       </v-card>
     </v-dialog>
 
-    <!-- Диалог подключений SKIF.PRO -->
+    <!-- Диалог подключений SKIF -->
     <v-dialog v-model="skifDialog.show" max-width="1100" persistent>
       <v-card>
         <v-card-title class="d-flex align-center">
           <v-icon start color="teal-darken-1">mdi-satellite-variant</v-icon>
-          Подключения SKIF.PRO
+          Подключения SKIF
           <v-spacer />
           <v-btn icon variant="text" @click="skifDialog.show = false">
             <v-icon>mdi-close</v-icon>
@@ -1164,7 +1164,7 @@ const getIntegrationTypeLabel = (type: string) => {
     max: 'MAX Messenger',
     email: 'Email SMTP',
     wialon: 'Wialon Hosting',
-    skif: 'SKIF.PRO GPS'
+    skif: 'SKIF GPS'
   } as any;
   return labels[type] || type;
 };
@@ -1572,13 +1572,13 @@ const loadIntegrations = async () => {
         });
       }
     
-    // SKIF.PRO — реальная multi-connection интеграция (как Wialon).
+    // SKIF — реальная multi-connection интеграция (как Wialon).
     // Card ведёт в SkifConnectionsSettings dialog с CRUD + test/sync.
     allIntegrations.push({
       id: 'skif',
       type: 'skif',
-      name: 'SKIF.PRO',
-      description: 'Интеграция с GPS-мониторингом SKIF.PRO для синхронизации объектов, терминалов и команд',
+      name: 'SKIF',
+      description: 'Интеграция с GPS-мониторингом SKIF для синхронизации объектов, терминалов и команд',
       status: 'active',
       enabled: true,
       lastSync: null,
