@@ -43,13 +43,6 @@
               <v-icon size="18">mdi-chevron-right</v-icon>
             </button>
           </div>
-          <div class="chart-legend">
-            <span><span class="dot lavender"></span>Axenta</span>
-            <span v-if="hasWH"><span class="dot wh"></span>WH</span>
-            <span v-if="hasWL"><span class="dot wl"></span>WL</span>
-            <span v-if="hasSkif"><span class="dot skif"></span>SKIF</span>
-            <span v-if="chartHasRevenue"><span class="dot blue"></span>Выручка</span>
-          </div>
         </div>
         <div class="chart-area">
           <div v-if="!chartHasData" class="chart-stub">Загрузка данных…</div>
@@ -116,18 +109,6 @@
           </div>
         </div>
 
-        <!-- Прирост по источникам за период (current − first) -->
-        <div v-if="chartHasData" class="chart-bottom-strip">
-          <div v-for="s in sparks" :key="'delta-' + s.key"
-            class="strip-item"
-            :class="{ 'strip-up': s.deltaDir === 'up', 'strip-down': s.deltaDir === 'down', 'strip-flat': s.deltaDir === 'flat' }"
-          >
-            <v-icon size="14" class="mr-1" :style="{ color: s.color }">mdi-circle-medium</v-icon>
-            <span class="strip-label">{{ s.label }}:</span>
-            <b class="ml-1">{{ formatGrowthAbs(s.current - s.first) }}</b>
-            <span class="strip-period">за {{ periodLabel }}</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -358,6 +339,7 @@ function buildSpark(key: SparkKey, label: string, color: string): SparkData {
 const sparkAxenta = computed(() => buildSpark('axenta', 'Axenta', '#5856d6'));
 const sparkWH = computed(() => buildSpark('wh', 'Wialon Hosting', '#34c759'));
 const sparkWL = computed(() => buildSpark('wl', 'Wialon Local', '#ff9500'));
+
 const sparkSkif = computed(() => buildSpark('skif', 'SKIF', '#0a8a8a'));
 
 const sparks = computed(() => {
@@ -365,7 +347,8 @@ const sparks = computed(() => {
   if (sparkWH.value.hasData) out.push(sparkWH.value);
   if (sparkWL.value.hasData) out.push(sparkWL.value);
   if (sparkSkif.value.hasData) out.push(sparkSkif.value);
-  return out;
+  // Sort по числу объектов DESC: топ-3 в видимом окне carousel.
+  return out.sort((a, b) => b.current - a.current);
 });
 
 // Carousel: window 3 visible. При появлении новых источников offset
@@ -579,7 +562,14 @@ function buildLifecycleCard(s: LifecycleSource): LifecycleCard {
 const lifecycleCards = computed<LifecycleCard[]>(() => {
   const d = lifecycleData.value;
   if (!d) return [];
-  return [d.total, ...d.sources].map(buildLifecycleCard);
+  // «Все» всегда первая, остальные sort по числу объектов DESC из sourcesStats.
+  const total = buildLifecycleCard(d.total);
+  const rest = d.sources.map(buildLifecycleCard).sort((a, b) => {
+    const aObj = sourcesStats.value.sources.find(s => s.key === a.key)?.objects.total || 0;
+    const bObj = sourcesStats.value.sources.find(s => s.key === b.key)?.objects.total || 0;
+    return bObj - aObj;
+  });
+  return [total, ...rest];
 });
 
 // Carousel для lifecycle cards (window 3, по образцу sparks)
@@ -918,14 +908,18 @@ onUnmounted(() => {
 }
 .chart-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
   gap: 12px;
   flex-wrap: wrap;
 }
-.chart-title { font-size: 16px; font-weight: 700; }
-.chart-legend { display: flex; gap: 16px; font-size: 12px; color: #555; }
+.chart-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-right: auto; /* push period+nav к правому краю — одинаковая позиция с table-head */
+}
+.chart-legend { display: flex; gap: 16px; font-size: 12px; color: #555; flex-wrap: wrap; }
+.chart-legend--row { margin-bottom: 12px; }
 .chart-legend .dot {
   display: inline-block;
   width: 8px; height: 8px; border-radius: 50%;
@@ -1304,11 +1298,16 @@ onUnmounted(() => {
 }
 .table-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 14px;
 }
-.table-head h2 { font-size: 18px; font-weight: 700; }
+.table-head h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-right: auto; /* push period+nav к правому краю — одинаковая позиция с chart-head */
+}
 .filter-pill {
   background: #f5f5f5;
   border-radius: 10px;
