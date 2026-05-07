@@ -115,16 +115,6 @@ export interface LifecycleResponse {
   generated_at: string;
 }
 
-export interface TopContractRow {
-  id: number;
-  client_name: string;
-  contract_number: string;
-  objects: number;
-  active: number;
-  overdue: number;
-  mrr: number;
-}
-
 export interface ChartResponse {
   points: ChartPoint[];
   currencies: string[];
@@ -166,11 +156,6 @@ export const dashboardKpiService = {
       total: { key: "all", label: "Все", points: [], total_created: 0, total_deleted: 0 },
       period, from: "", to: "", generated_at: new Date().toISOString(),
     };
-  },
-
-  async getTopContracts(period: "month" | "quarter" | "year" = "month", limit = 10): Promise<TopContractRow[]> {
-    const res = await apiClient.get(`${BASE}/top-contracts`, { params: { period, limit } });
-    return res.data?.data || [];
   },
 
   async getSourcesStats(): Promise<SourcesStatsResponse> {
