@@ -116,6 +116,51 @@
               </v-card-actions>
             </template>
 
+            <!-- Спец-карточка для SKIF.PRO (multi-connection) -->
+            <template v-else-if="integration.type === 'skif'">
+              <v-card-title class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-3">
+                  <v-avatar color="teal-darken-1" size="40">
+                    <v-icon>mdi-satellite-variant</v-icon>
+                  </v-avatar>
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">SKIF.PRO GPS</div>
+                    <div class="text-caption text-medium-emphasis">Multi-account мониторинг</div>
+                  </div>
+                </div>
+                <v-chip
+                  :color="integration.enabled ? 'success' : 'grey'"
+                  :variant="integration.enabled ? 'elevated' : 'outlined'"
+                  size="small"
+                >
+                  {{ integration.enabled ? 'Активно' : 'Неактивна' }}
+                </v-chip>
+              </v-card-title>
+
+              <v-card-text class="pt-0">
+                <p class="text-body-2 mb-3">
+                  <v-icon size="16" class="mr-1" color="teal-darken-1">mdi-satellite-variant</v-icon>
+                  SKIF.PRO API
+                  <span class="text-caption text-medium-emphasis ms-2">
+                    Cookie-session, авто-релогин, sync per-connection
+                  </span>
+                </p>
+              </v-card-text>
+
+              <v-card-actions class="pt-0">
+                <v-spacer />
+                <v-btn
+                  color="primary"
+                  variant="elevated"
+                  size="small"
+                  prepend-icon="mdi-cog"
+                  @click="openSkifConnectionsDialog"
+                >
+                  Настроить
+                </v-btn>
+              </v-card-actions>
+            </template>
+
             <!-- Стандартная карточка для других интеграций -->
             <template v-else>
               <!-- Заголовок карточки -->
@@ -956,9 +1001,26 @@
             <v-icon>mdi-close</v-icon>
           </v-btn>
         </v-card-title>
-        
+
         <v-card-text>
           <WialonConnectionsSettings />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог подключений SKIF.PRO -->
+    <v-dialog v-model="skifDialog.show" max-width="1100" persistent>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon start color="teal-darken-1">mdi-satellite-variant</v-icon>
+          Подключения SKIF.PRO
+          <v-spacer />
+          <v-btn icon variant="text" @click="skifDialog.show = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <SkifConnectionsSettings />
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -989,6 +1051,7 @@ import type {
 } from '@/types/settings';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
+import SkifConnectionsSettings from './SkifConnectionsSettings.vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -1015,6 +1078,11 @@ const multiConnectionsDialog = ref({
 // Открыть диалог мульти-подключений
 const openMultiConnectionsDialog = () => {
   multiConnectionsDialog.value.show = true;
+};
+
+const skifDialog = ref({ show: false });
+const openSkifConnectionsDialog = () => {
+  skifDialog.value.show = true;
 };
 
 const snackbar = ref({
@@ -1504,27 +1572,24 @@ const loadIntegrations = async () => {
         });
       }
     
-    // Демо интеграции (в разработке)
+    // SKIF.PRO — реальная multi-connection интеграция (как Wialon).
+    // Card ведёт в SkifConnectionsSettings dialog с CRUD + test/sync.
     allIntegrations.push({
-      id: 'skif-demo',
+      id: 'skif',
       type: 'skif',
       name: 'SKIF.PRO',
       description: 'Интеграция с GPS-мониторингом SKIF.PRO для синхронизации объектов, терминалов и команд',
-      status: 'inactive',
-      enabled: false,
+      status: 'active',
+      enabled: true,
       lastSync: null,
-      created_at: new Date('2026-05-07T18:00:00'),
-      updated_at: new Date('2026-05-07T18:00:00'),
+      created_at: new Date(),
+      updated_at: new Date(),
       settings: {
         api_url: 'https://app.skif.pro',
-        login: '',
-        password: '',
-        sync_interval: 15,
-        auto_sync_enabled: false,
-        sync_units: true,
-        sync_terminals: true,
       },
     });
+
+    // Демо интеграции (в разработке)
 
     allIntegrations.push({
       id: 'bitrix24-demo',
