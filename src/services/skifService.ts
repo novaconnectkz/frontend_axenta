@@ -48,7 +48,7 @@ export interface SkifConnectionUpdate {
 export interface SkifUnit {
   id: number;
   connection_id: number;
-  skif_unit_id: number;
+  skif_unit_id: string;
   name: string;
   imei: string;
   phone: string;
