@@ -117,25 +117,16 @@
       <div class="table-card lifecycle-card">
         <div class="table-head">
           <h2>Прирост объектов</h2>
-          <v-menu>
-            <template #activator="{ props: menuProps }">
-              <v-btn v-bind="menuProps" variant="tonal" size="small" class="filter-pill-btn">
-                <v-icon size="14" start>mdi-calendar-range</v-icon>
-                {{ lifecyclePeriodLabel }}
-                <v-icon size="14" end>mdi-chevron-down</v-icon>
-              </v-btn>
-            </template>
-            <v-list density="compact">
-              <v-list-item
-                v-for="o in lifecyclePeriodOptions"
-                :key="o.value"
-                :active="lifecyclePeriod === o.value"
-                @click="setLifecyclePeriod(o.value)"
-              >
-                <v-list-item-title>{{ o.label }}</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </v-menu>
+          <div class="chart-period-toggle">
+            <button
+              v-for="o in lifecyclePeriodOptions"
+              :key="o.value"
+              :class="['period-btn', { active: lifecyclePeriod === o.value }]"
+              @click="setLifecyclePeriod(o.value)"
+            >
+              {{ o.label }}
+            </button>
+          </div>
         </div>
 
         <div class="lc-grid">
@@ -472,14 +463,21 @@ const labelEvery = computed(() => {
   return 10;
 });
 // Lifecycle widget (Created/Deleted per source per day)
-type LifecyclePeriod = "7d" | "30d" | "90d";
-const lifecyclePeriod = ref<LifecyclePeriod>((localStorage.getItem("dashboard_lifecycle_period") as LifecyclePeriod) || "30d");
+type LifecyclePeriod = "7d" | "1m" | "3m" | "6m" | "1y";
+const _lcStored = localStorage.getItem("dashboard_lifecycle_period");
+const _lcLegacyMap: Record<string, LifecyclePeriod> = { "30d": "1m", "90d": "3m" };
+const lifecyclePeriod = ref<LifecyclePeriod>(
+  (_lcLegacyMap[_lcStored ?? ""] as LifecyclePeriod | undefined) ||
+  (_lcStored as LifecyclePeriod | null) ||
+  "1m"
+);
 const lifecyclePeriodOptions: { value: LifecyclePeriod; label: string }[] = [
   { value: "7d", label: "7 дней" },
-  { value: "30d", label: "30 дней" },
-  { value: "90d", label: "90 дней" },
+  { value: "1m", label: "Месяц" },
+  { value: "3m", label: "3 мес." },
+  { value: "6m", label: "6 мес." },
+  { value: "1y", label: "Год" },
 ];
-const lifecyclePeriodLabel = computed(() => lifecyclePeriodOptions.find(o => o.value === lifecyclePeriod.value)?.label || "30 дней");
 const lifecycleData = ref<LifecycleResponse | null>(null);
 const LC_SPARK_W = 240;
 const LC_SPARK_H = 36;

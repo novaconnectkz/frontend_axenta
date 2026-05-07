@@ -149,7 +149,7 @@ export const dashboardKpiService = {
     return res.data?.data || { points: [], currencies: [], generated_at: new Date().toISOString() };
   },
 
-  async getLifecycle(period: "7d" | "30d" | "90d" = "30d"): Promise<LifecycleResponse> {
+  async getLifecycle(period: "7d" | "1m" | "3m" | "6m" | "1y" = "1m"): Promise<LifecycleResponse> {
     const res = await apiClient.get(`${BASE}/lifecycle`, { params: { period } });
     return res.data?.data || {
       sources: [],
