@@ -92,6 +92,29 @@ export interface ChartPoint {
   revenues: CurrencyRevenue[];
 }
 
+export interface LifecyclePoint {
+  date: string;
+  created: number;
+  deleted: number;
+}
+
+export interface LifecycleSource {
+  key: string;
+  label: string;
+  points: LifecyclePoint[];
+  total_created: number;
+  total_deleted: number;
+}
+
+export interface LifecycleResponse {
+  sources: LifecycleSource[];
+  total: LifecycleSource;
+  period: string;
+  from: string;
+  to: string;
+  generated_at: string;
+}
+
 export interface TopContractRow {
   id: number;
   client_name: string;
@@ -134,6 +157,15 @@ export const dashboardKpiService = {
   async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {
     const res = await apiClient.get(`${BASE}/chart`, { params: { period } });
     return res.data?.data || { points: [], currencies: [], generated_at: new Date().toISOString() };
+  },
+
+  async getLifecycle(period: "7d" | "30d" | "90d" = "30d"): Promise<LifecycleResponse> {
+    const res = await apiClient.get(`${BASE}/lifecycle`, { params: { period } });
+    return res.data?.data || {
+      sources: [],
+      total: { key: "all", label: "Все", points: [], total_created: 0, total_deleted: 0 },
+      period, from: "", to: "", generated_at: new Date().toISOString(),
+    };
   },
 
   async getTopContracts(period: "month" | "quarter" | "year" = "month", limit = 10): Promise<TopContractRow[]> {

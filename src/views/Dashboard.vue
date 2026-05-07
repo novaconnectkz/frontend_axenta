@@ -221,6 +221,64 @@
         </table>
       </div>
 
+      <!-- Lifecycle widget: created / deleted per day, по источникам -->
+      <div class="table-card lifecycle-card">
+        <div class="table-head">
+          <h2>Прирост объектов</h2>
+          <v-menu>
+            <template #activator="{ props: menuProps }">
+              <v-btn v-bind="menuProps" variant="tonal" size="small" class="filter-pill-btn">
+                <v-icon size="14" start>mdi-calendar-range</v-icon>
+                {{ lifecyclePeriodLabel }}
+                <v-icon size="14" end>mdi-chevron-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-item
+                v-for="o in lifecyclePeriodOptions"
+                :key="o.value"
+                :active="lifecyclePeriod === o.value"
+                @click="setLifecyclePeriod(o.value)"
+              >
+                <v-list-item-title>{{ o.label }}</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </div>
+
+        <div class="lc-grid">
+          <div v-for="card in lifecycleCards" :key="card.key" class="lc-card">
+            <div class="lc-card-head">
+              <span class="lc-label">{{ card.label }}</span>
+              <span class="lc-net" :class="{ pos: card.net > 0, neg: card.net < 0 }">
+                {{ card.net > 0 ? '+' : '' }}{{ formatNum(card.net) }}
+              </span>
+            </div>
+            <div class="lc-numbers">
+              <div class="lc-num created">
+                <v-icon size="14" color="#34c759">mdi-arrow-up-bold</v-icon>
+                {{ formatNum(card.created) }}
+                <small>создано</small>
+              </div>
+              <div class="lc-num deleted">
+                <v-icon size="14" color="#ff3b30">mdi-arrow-down-bold</v-icon>
+                {{ formatNum(card.deleted) }}
+                <small>удалено</small>
+              </div>
+            </div>
+            <svg class="lc-spark" :viewBox="`0 0 ${LC_SPARK_W} ${LC_SPARK_H}`" preserveAspectRatio="none">
+              <path :d="card.createdPath" stroke="#34c759" stroke-width="1.5" fill="none" />
+              <path :d="card.deletedPath" stroke="#ff3b30" stroke-width="1.5" fill="none" />
+            </svg>
+          </div>
+        </div>
+
+        <div v-if="!lifecycleHasData" class="placeholder">
+          <v-icon size="32" class="mb-2 text-medium-emphasis">mdi-chart-line-variant</v-icon>
+          <div>Нет данных по приросту в выбранном периоде</div>
+        </div>
+      </div>
+
     </div>
 
     <ChartDrilldownDialog v-model="drilldownOpen" :source="drilldownSource" :points="chartPoints" />
@@ -232,7 +290,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ObjectsService } from "@/services/objectsService";
 import { accountsService } from "@/services/accountsService";
-import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse, type ChartPoint, type TopContractRow } from "@/services/dashboardKpiService";
+import { dashboardKpiService, type KPIMetric, type DashboardAlert, type SearchResponse, type SearchResultItem, type SourceStats, type SourcesStatsResponse, type ChartPoint, type TopContractRow, type LifecycleResponse, type LifecycleSource } from "@/services/dashboardKpiService";
 import { onCrossSection } from "@/utils/crossSectionBus";
 import ChartDrilldownDialog from "@/components/Dashboard/ChartDrilldownDialog.vue";
 
@@ -521,6 +579,85 @@ const labelEvery = computed(() => {
   if (n <= 30) return 5;
   return 10;
 });
+// Lifecycle widget (Created/Deleted per source per day)
+type LifecyclePeriod = "7d" | "30d" | "90d";
+const lifecyclePeriod = ref<LifecyclePeriod>((localStorage.getItem("dashboard_lifecycle_period") as LifecyclePeriod) || "30d");
+const lifecyclePeriodOptions: { value: LifecyclePeriod; label: string }[] = [
+  { value: "7d", label: "7 дней" },
+  { value: "30d", label: "30 дней" },
+  { value: "90d", label: "90 дней" },
+];
+const lifecyclePeriodLabel = computed(() => lifecyclePeriodOptions.find(o => o.value === lifecyclePeriod.value)?.label || "30 дней");
+const lifecycleData = ref<LifecycleResponse | null>(null);
+const LC_SPARK_W = 240;
+const LC_SPARK_H = 36;
+
+interface LifecycleCard {
+  key: string;
+  label: string;
+  created: number;
+  deleted: number;
+  net: number;
+  createdPath: string;
+  deletedPath: string;
+}
+
+function buildSparkPath(values: number[], maxVal: number): string {
+  if (!values.length || maxVal <= 0) {
+    return `M0,${LC_SPARK_H} L${LC_SPARK_W},${LC_SPARK_H}`;
+  }
+  const stepX = LC_SPARK_W / Math.max(1, values.length - 1);
+  return values
+    .map((v, i) => {
+      const x = i * stepX;
+      const y = LC_SPARK_H - (v / maxVal) * (LC_SPARK_H - 4) - 2;
+      return `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
+function buildLifecycleCard(s: LifecycleSource): LifecycleCard {
+  const created = s.points.map(p => p.created);
+  const deleted = s.points.map(p => p.deleted);
+  const max = Math.max(1, ...created, ...deleted);
+  return {
+    key: s.key,
+    label: s.label,
+    created: s.total_created,
+    deleted: s.total_deleted,
+    net: s.total_created - s.total_deleted,
+    createdPath: buildSparkPath(created, max),
+    deletedPath: buildSparkPath(deleted, max),
+  };
+}
+
+const lifecycleCards = computed<LifecycleCard[]>(() => {
+  const d = lifecycleData.value;
+  if (!d) return [];
+  return [d.total, ...d.sources].map(buildLifecycleCard);
+});
+
+const lifecycleHasData = computed(() => {
+  const d = lifecycleData.value;
+  if (!d) return false;
+  return d.total.total_created > 0 || d.total.total_deleted > 0;
+});
+
+async function reloadLifecycle() {
+  try {
+    const r = await dashboardKpiService.getLifecycle(lifecyclePeriod.value);
+    lifecycleData.value = r;
+    writeCache("lifecycle", { data: r, period: lifecyclePeriod.value });
+  } catch {
+    // silent
+  }
+}
+function setLifecyclePeriod(p: LifecyclePeriod) {
+  lifecyclePeriod.value = p;
+  localStorage.setItem("dashboard_lifecycle_period", p);
+  reloadLifecycle();
+}
+
 const loadingContracts = ref(false);
 const topContracts = ref<TopContractRow[]>([]);
 type ContractsPeriod = "month" | "quarter" | "year";
@@ -700,6 +837,11 @@ async function load() {
     topContracts.value = cachedContracts.rows;
   }
 
+  const cachedLifecycle = readCache<{ data: LifecycleResponse; period: LifecyclePeriod }>("lifecycle");
+  if (cachedLifecycle && cachedLifecycle.period === lifecyclePeriod.value) {
+    lifecycleData.value = cachedLifecycle.data;
+  }
+
   // 2. Фоновый refresh — обновляет UI и кеш когда данные пришли
   const objSvc = new ObjectsService();
   await Promise.all([
@@ -731,6 +873,10 @@ async function load() {
     dashboardKpiService.getTopContracts(contractsPeriod.value, 10).then(rows => {
       topContracts.value = rows;
       writeCache("top_contracts", { rows, period: contractsPeriod.value });
+    }).catch(() => {}),
+    dashboardKpiService.getLifecycle(lifecyclePeriod.value).then(r => {
+      lifecycleData.value = r;
+      writeCache("lifecycle", { data: r, period: lifecyclePeriod.value });
     }).catch(() => {}),
   ]);
 }
@@ -1260,6 +1406,68 @@ onUnmounted(() => {
   grid-template-columns: 1fr;
   gap: 16px;
 }
+.lifecycle-card .lc-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.lc-card {
+  background: #f7f7f9;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lc-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.lc-label {
+  color: #555;
+  font-weight: 600;
+}
+.lc-net {
+  font-size: 13px;
+  font-weight: 700;
+  color: #999;
+}
+.lc-net.pos { color: #34c759; }
+.lc-net.neg { color: #ff3b30; }
+.lc-numbers {
+  display: flex;
+  gap: 14px;
+}
+.lc-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 17px;
+  font-weight: 700;
+}
+.lc-num small {
+  color: #999;
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.lc-spark {
+  width: 100%;
+  height: 36px;
+  margin-top: auto;
+}
+@media (max-width: 768px) {
+  .lifecycle-card .lc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+[data-theme="dark"] .lc-card {
+  background: rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .lc-label { color: #ccc; }
+[data-theme="dark"] .lc-num small { color: #999; }
 .table-card, .donut-card {
   background: white;
   border-radius: 18px;
