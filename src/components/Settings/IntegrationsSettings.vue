@@ -1065,7 +1065,8 @@ const getIntegrationIcon = (type: string) => {
     telegram: 'mdi-telegram',
     max: 'mdi-message-flash',
     email: 'mdi-email',
-    wialon: 'mdi-map-marker-radius'
+    wialon: 'mdi-map-marker-radius',
+    skif: 'mdi-satellite-variant'
   };
   return icons[type as keyof typeof icons] || 'mdi-connection';
 };
@@ -1079,7 +1080,8 @@ const getIntegrationColor = (type: string) => {
     telegram: 'cyan',
     max: 'blue',
     email: 'purple',
-    wialon: 'lime-darken-2'
+    wialon: 'lime-darken-2',
+    skif: 'teal-darken-1'
   };
   return colors[type as keyof typeof colors] || 'primary';
 };
@@ -1093,7 +1095,8 @@ const getIntegrationTypeLabel = (type: string) => {
     telegram: 'Telegram Bot',
     max: 'MAX Messenger',
     email: 'Email SMTP',
-    wialon: 'Wialon Hosting'
+    wialon: 'Wialon Hosting',
+    skif: 'SKIF.PRO GPS'
   } as any;
   return labels[type] || type;
 };
@@ -1502,6 +1505,27 @@ const loadIntegrations = async () => {
       }
     
     // Демо интеграции (в разработке)
+    allIntegrations.push({
+      id: 'skif-demo',
+      type: 'skif',
+      name: 'SKIF.PRO',
+      description: 'Интеграция с GPS-мониторингом SKIF.PRO для синхронизации объектов, терминалов и команд',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date('2026-05-07T18:00:00'),
+      updated_at: new Date('2026-05-07T18:00:00'),
+      settings: {
+        api_url: 'https://app.skif.pro',
+        login: '',
+        password: '',
+        sync_interval: 15,
+        auto_sync_enabled: false,
+        sync_units: true,
+        sync_terminals: true,
+      },
+    });
+
     allIntegrations.push({
       id: 'bitrix24-demo',
       type: 'bitrix24',
