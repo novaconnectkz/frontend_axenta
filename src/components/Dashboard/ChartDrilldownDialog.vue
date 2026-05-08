@@ -112,14 +112,12 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(p, i) in [...points].reverse()" :key="p.month">
-                <td>{{ p.month_label }} <span class="muted">{{ p.month }}</span></td>
-                <td class="num"><b>{{ valueAt(points.length - 1 - i).toLocaleString('ru-RU') }}</b></td>
-                <td class="num" :class="diffClass(points.length - 1 - i)">
-                  {{ points.length - 1 - i > 0 ? formatGrowthAbs(valueAt(points.length - 1 - i) - valueAt(points.length - 2 - i)) : '—' }}
-                </td>
-                <td class="num diff-up">{{ formatCreated(p) }}</td>
-                <td class="num diff-down">{{ formatDeleted(p) }}</td>
+              <tr v-for="(row, i) in dailyRows" :key="row.date">
+                <td>{{ row.label }} <span class="muted">{{ row.date }}</span></td>
+                <td class="num"><b>{{ row.total > 0 ? row.total.toLocaleString('ru-RU') : '—' }}</b></td>
+                <td class="num" :class="dailyDiffClass(i)">{{ dailyDiffText(i) }}</td>
+                <td class="num diff-up">{{ row.created > 0 ? '+' + row.created.toLocaleString('ru-RU') : '—' }}</td>
+                <td class="num diff-down">{{ row.deleted > 0 ? '−' + row.deleted.toLocaleString('ru-RU') : '—' }}</td>
               </tr>
             </tbody>
           </table>
@@ -376,6 +374,71 @@ const connectionLines = computed<ConnLine[]>(() => {
     };
   });
 });
+
+interface DailyRow {
+  date: string;
+  label: string;
+  total: number;
+  created: number;
+  deleted: number;
+}
+
+// dailyRows — агрегированная история по бакетам (newest first для UI).
+// Если connections загружены — sum across connections (aligned to live).
+// Иначе fallback на props.points (chart endpoint, может расходиться с live).
+const dailyRows = computed<DailyRow[]>(() => {
+  const out: DailyRow[] = [];
+  if (connections.value.length > 0 && props.points.length > 0) {
+    for (let i = props.points.length - 1; i >= 0; i--) {
+      const p = props.points[i];
+      let total = 0, created = 0, deleted = 0;
+      for (const c of connections.value) {
+        const h = c.history[i];
+        if (h) {
+          total += h.total;
+          created += h.created;
+          deleted += h.deleted;
+        }
+      }
+      out.push({ date: p.month, label: p.month_label, total, created, deleted });
+    }
+  } else if (props.source) {
+    const k = props.source.key;
+    for (let i = props.points.length - 1; i >= 0; i--) {
+      const p = props.points[i];
+      out.push({
+        date: p.month,
+        label: p.month_label,
+        total: p[k],
+        created: Number((p as any)[`${k}_created`] || 0),
+        deleted: Number((p as any)[`${k}_deleted`] || 0),
+      });
+    }
+  }
+  return out;
+});
+
+// Δ vs предыдущая строка (newest first → next index = более ранний бакет).
+function dailyDiffText(i: number): string {
+  const rows = dailyRows.value;
+  if (i >= rows.length - 1) return '—';
+  const cur = rows[i].total;
+  const prev = rows[i + 1].total;
+  if (cur === 0 || prev === 0) return '—';
+  const d = cur - prev;
+  if (d === 0) return '0';
+  return (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('ru-RU');
+}
+function dailyDiffClass(i: number): string {
+  const rows = dailyRows.value;
+  if (i >= rows.length - 1) return '';
+  const cur = rows[i].total;
+  const prev = rows[i + 1].total;
+  if (cur === 0 || prev === 0) return '';
+  if (cur > prev) return 'diff-up';
+  if (cur < prev) return 'diff-down';
+  return 'diff-flat';
+}
 
 function getCreated(p: ChartPoint): number {
   if (!props.source) return 0;
