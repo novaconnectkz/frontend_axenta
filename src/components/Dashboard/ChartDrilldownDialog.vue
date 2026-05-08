@@ -36,64 +36,57 @@
           </div>
         </div>
 
-        <!-- Большой chart с осями + сеткой + vertical guideline.
-             Multi-line: одна линия на каждое подключение если их > 1, иначе общая. -->
-        <div class="big-chart" @mousemove="onChartMove" @mouseleave="hoverIdx = null">
+        <!-- Single-line chart (1 connection или нет breakdown'а) -->
+        <div v-if="!useSmallMultiples" class="big-chart" @mousemove="onChartMove" @mouseleave="hoverIdx = null">
           <svg :viewBox="`0 0 ${BIG_W} ${BIG_H}`" preserveAspectRatio="none">
             <g v-for="(yTick, i) in yTicks" :key="'y-' + i">
               <line :x1="BIG_PAD_L" :y1="yTick.y" :x2="BIG_W - BIG_PAD_R" :y2="yTick.y" stroke="#eee" stroke-dasharray="2,3"/>
               <text :x="BIG_PAD_L - 6" :y="yTick.y + 3" font-size="11" fill="#888" text-anchor="end">{{ yTick.label }}</text>
             </g>
-
-            <!-- multi-line: per-connection, если больше 1 connection и есть данные -->
-            <template v-if="useMultiLine">
-              <g v-for="line in connectionLines" :key="'cl-' + line.id">
-                <path :d="line.path" :stroke="line.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle v-for="(c, i) in line.points" :key="'lp-' + line.id + '-' + i" :cx="c.x" :cy="c.y" r="2.5" :fill="line.color" :class="{ 'pt-active': hoverIdx === i }"/>
-              </g>
-            </template>
-            <!-- single-line: общая линия источника -->
-            <template v-else>
-              <path :d="bigAreaPath" :fill="source.color" fill-opacity="0.08"/>
-              <path :d="bigLinePath" :stroke="source.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              <circle v-for="(c, i) in bigPoints" :key="'pt-' + i" :cx="c.x" :cy="c.y" r="3" :fill="source.color" :class="{ 'pt-active': hoverIdx === i }"/>
-            </template>
-
-            <!-- vertical guideline на hover -->
+            <path :d="bigAreaPath" :fill="source.color" fill-opacity="0.08"/>
+            <path :d="bigLinePath" :stroke="source.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle v-for="(c, i) in bigPoints" :key="'pt-' + i" :cx="c.x" :cy="c.y" r="3" :fill="source.color" :class="{ 'pt-active': hoverIdx === i }"/>
             <g v-if="hoverIdx !== null && bigPoints[hoverIdx]">
               <line :x1="bigPoints[hoverIdx].x" y1="20" :x2="bigPoints[hoverIdx].x" :y2="BIG_H - BIG_PAD_B" stroke="#999" stroke-dasharray="3,3"/>
             </g>
-
             <g v-for="(p, i) in points" :key="'xl-' + i">
               <text v-if="i % bigLabelEvery === 0 || i === points.length - 1"
                 :x="bigPoints[i].x" :y="BIG_H - 6" font-size="11" fill="#888" text-anchor="middle">{{ p.month_label }}</text>
             </g>
           </svg>
-
-          <!-- Легенда — только в multi-line режиме -->
-          <div v-if="useMultiLine" class="big-legend">
-            <div v-for="line in connectionLines" :key="'lg-' + line.id" class="big-legend-item">
-              <span class="dot" :style="{ background: line.color }"/>
-              <span>{{ line.name }}</span>
-            </div>
-          </div>
-
           <div v-if="hoverIdx !== null && points[hoverIdx]" class="big-tooltip" :style="tooltipStyle">
             <div class="big-tooltip-title">{{ points[hoverIdx].month_label }}</div>
-            <template v-if="useMultiLine">
-              <div v-for="line in connectionLines" :key="'tt-' + line.id" class="big-tooltip-row">
-                <span><span class="dot dot-sm" :style="{ background: line.color }"/>{{ line.name }}:</span>
-                <b>{{ (line.values[hoverIdx] || 0).toLocaleString('ru-RU') }}</b>
-              </div>
-            </template>
-            <template v-else>
-              <div class="big-tooltip-row">
-                <span>Объектов:</span> <b>{{ valueAt(hoverIdx).toLocaleString('ru-RU') }}</b>
-              </div>
-              <div v-if="hoverIdx > 0" class="big-tooltip-row" :class="diffClass(hoverIdx)">
-                <span>Изменение:</span> <b>{{ formatGrowthAbs(valueAt(hoverIdx) - valueAt(hoverIdx - 1)) }}</b>
-              </div>
-            </template>
+            <div class="big-tooltip-row">
+              <span>Объектов:</span> <b>{{ valueAt(hoverIdx).toLocaleString('ru-RU') }}</b>
+            </div>
+            <div v-if="hoverIdx > 0" class="big-tooltip-row" :class="diffClass(hoverIdx)">
+              <span>Изменение:</span> <b>{{ formatGrowthAbs(valueAt(hoverIdx) - valueAt(hoverIdx - 1)) }}</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Small multiples: отдельный mini-chart на каждое подключение со своей Y-осью -->
+        <div v-else class="small-multiples-grid">
+          <div v-for="line in connectionLines" :key="'sm-' + line.id" class="sm-card">
+            <div class="sm-header">
+              <span class="dot" :style="{ background: line.color }"/>
+              <span class="sm-name">{{ line.name }}</span>
+              <span class="sm-current">{{ line.current.toLocaleString('ru-RU') }}</span>
+              <span class="sm-delta" :class="line.deltaClass">{{ line.deltaText }}</span>
+            </div>
+            <svg :viewBox="`0 0 ${SM_W} ${SM_H}`" preserveAspectRatio="none" class="sm-svg">
+              <line v-for="i in 3" :key="'sm-grid-' + line.id + '-' + i" :x1="SM_PAD_L" :y1="SM_PAD_T + ((SM_H - SM_PAD_T - SM_PAD_B) * (i - 1)) / 3" :x2="SM_W - SM_PAD_R" :y2="SM_PAD_T + ((SM_H - SM_PAD_T - SM_PAD_B) * (i - 1)) / 3" stroke="#eee" stroke-dasharray="2,3"/>
+              <text :x="SM_PAD_L - 4" :y="SM_PAD_T + 4" font-size="10" fill="#888" text-anchor="end">{{ line.maxLabel }}</text>
+              <text :x="SM_PAD_L - 4" :y="SM_H - SM_PAD_B + 2" font-size="10" fill="#888" text-anchor="end">{{ line.minLabel }}</text>
+              <path :d="line.areaPath" :fill="line.color" fill-opacity="0.1"/>
+              <path :d="line.path" :stroke="line.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle v-for="(c, i) in line.points" :key="'smp-' + line.id + '-' + i" :cx="c.x" :cy="c.y" r="2" :fill="line.color"/>
+              <g v-for="(p, i) in points" :key="'smx-' + line.id + '-' + i">
+                <text v-if="i === 0 || i === points.length - 1"
+                  :x="line.points[i]?.x" :y="SM_H - 4" font-size="9" fill="#999"
+                  :text-anchor="i === 0 ? 'start' : 'end'">{{ p.month_label }}</text>
+              </g>
+            </svg>
           </div>
         </div>
 
@@ -152,7 +145,10 @@
                   <td>
                     <v-icon size="18">{{ expandedConns.has(conn.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
                   </td>
-                  <td>{{ conn.name }}</td>
+                  <td>
+                    {{ conn.name }}
+                    <span v-if="conn.estimated" class="estimated-mark" title="Wialon API не отдаёт avl_unit_created/deleted для этого подключения. Числа реконструированы из изменения total объектов по дням.">*</span>
+                  </td>
                   <td class="num"><b>{{ conn.total.toLocaleString('ru-RU') }}</b></td>
                   <td class="num diff-up">{{ conn.created > 0 ? '+' + conn.created.toLocaleString('ru-RU') : '—' }}</td>
                   <td class="num diff-down">{{ conn.deleted > 0 ? '−' + conn.deleted.toLocaleString('ru-RU') : '—' }}</td>
@@ -281,61 +277,97 @@ watch(() => [props.modelValue, props.source?.key, props.period], () => {
   }
 }, { immediate: true });
 
-// Палитра для multi-line chart (per connection).
+// Палитра для small-multiples (per connection).
 const CONN_PALETTE = ['#34c759', '#5856d6', '#ff9500', '#0a8a8a', '#ff3b30', '#af52de', '#1a8f3c', '#ff2d55'];
+
+// Геометрия mini-chart (small multiples)
+const SM_W = 320;
+const SM_H = 140;
+const SM_PAD_L = 40;
+const SM_PAD_R = 8;
+const SM_PAD_T = 12;
+const SM_PAD_B = 18;
 
 interface ConnLine {
   id: number;
   name: string;
   color: string;
+  current: number;
+  deltaText: string;
+  deltaClass: string;
   values: number[];
   points: { x: number; y: number }[];
   path: string;
+  areaPath: string;
+  minLabel: string;
+  maxLabel: string;
 }
 
-// Multi-line: показываем per-connection если ≥ 2 connection и хотя бы у одной
-// есть ненулевая history.
-const useMultiLine = computed<boolean>(() => {
+// Small multiples: показываем per-connection mini-charts если ≥ 2 connection
+// и хотя бы у одной есть ненулевая history.
+const useSmallMultiples = computed<boolean>(() => {
   if (connections.value.length < 2) return false;
   return connections.value.some(c => c.history.some(h => h.total > 0));
 });
 
 const connectionLines = computed<ConnLine[]>(() => {
-  if (!useMultiLine.value || !props.points.length) return [];
+  if (!useSmallMultiples.value || !props.points.length) return [];
   const conns = connections.value;
-
-  // Y-scale общий: max по всем connections в их history
-  let allMax = 0, allMin = Infinity;
-  for (const c of conns) {
-    for (const h of c.history) {
-      if (h.total > allMax) allMax = h.total;
-      if (h.total > 0 && h.total < allMin) allMin = h.total;
-    }
-  }
-  if (allMin === Infinity) allMin = 0;
-  const range = allMax - allMin || 1;
-  const innerW = BIG_W - BIG_PAD_L - BIG_PAD_R;
-  const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
+  const innerW = SM_W - SM_PAD_L - SM_PAD_R;
+  const innerH = SM_H - SM_PAD_T - SM_PAD_B;
   const stepX = props.points.length > 1 ? innerW / (props.points.length - 1) : 0;
 
   return conns.map((c, idx) => {
-    // Сопоставление history c props.points: history идёт в том же порядке бакетов
-    // что и chart points (oldest → newest). Берём по индексу.
+    // Per-connection min/max для собственной Y-оси (small multiples)
     const values = props.points.map((_, i) => c.history[i]?.total || 0);
+    const nonZero = values.filter(v => v > 0);
+    const min = nonZero.length ? Math.min(...nonZero) : 0;
+    const max = nonZero.length ? Math.max(...nonZero) : 1;
+    const range = max - min || 1;
+
     const points = values.map((v, i) => ({
-      x: BIG_PAD_L + i * stepX,
-      y: allMax === allMin
-        ? BIG_PAD_T + innerH / 2
-        : BIG_PAD_T + innerH * (1 - (v - allMin) / range),
+      x: SM_PAD_L + i * stepX,
+      y: v === 0
+        ? SM_H - SM_PAD_B // нулевые значения прижимаем к нижней линии оси
+        : max === min
+          ? SM_PAD_T + innerH / 2
+          : SM_PAD_T + innerH * (1 - (v - min) / range),
     }));
     const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const lastX = points[points.length - 1]?.x || 0;
+    const firstX = points[0]?.x || 0;
+    const areaPath = path
+      ? `${path} L ${lastX.toFixed(1)},${SM_H - SM_PAD_B} L ${firstX.toFixed(1)},${SM_H - SM_PAD_B} Z`
+      : '';
+
+    // current = live total из ConnectionDetail
+    const current = c.total;
+    // first non-zero для delta
+    let first = 0;
+    for (const v of values) { if (v > 0) { first = v; break; } }
+    const d = first > 0 ? current - first : 0;
+    let deltaText = '—', deltaClass = 'sm-flat';
+    if (first > 0) {
+      if (d === 0) deltaText = '0';
+      else {
+        deltaText = (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('ru-RU');
+        deltaClass = d > 0 ? 'sm-up' : 'sm-down';
+      }
+    }
+
     return {
       id: c.id,
       name: c.name,
       color: CONN_PALETTE[idx % CONN_PALETTE.length],
+      current,
+      deltaText,
+      deltaClass,
       values,
       points,
       path,
+      areaPath,
+      minLabel: min.toLocaleString('ru-RU'),
+      maxLabel: max.toLocaleString('ru-RU'),
     };
   });
 });
@@ -425,18 +457,8 @@ const bigAreaPath = computed(() => {
 
 const yTicks = computed(() => {
   if (!props.source || !props.points.length) return [];
-  let values: number[];
-  if (useMultiLine.value) {
-    // В multi-line диапазон — по всем connection.history
-    values = [];
-    for (const c of connections.value) {
-      for (const h of c.history) values.push(h.total);
-    }
-    values = values.filter(v => v > 0);
-    if (!values.length) values = [0];
-  } else {
-    values = props.points.map(p => p[props.source!.key]);
-  }
+  // yTicks — для одиночного big-chart. В small-multiples собственный Y per chart.
+  const values = props.points.map(p => p[props.source!.key]);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
@@ -660,26 +682,44 @@ async function exportXLSX() {
 .big-tooltip-row.diff-up b { color: #1a8f3c; }
 .big-tooltip-row.diff-down b { color: #c0382b; }
 .big-tooltip-row .dot-sm { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
-.big-legend {
-  display: flex;
-  flex-wrap: wrap;
+.small-multiples-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
-  padding: 6px 0 4px;
+  margin: 12px 0;
+}
+.sm-card {
+  background: rgba(0, 0, 0, 0.015);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.sm-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   font-size: 12px;
+  margin-bottom: 6px;
   color: #555;
 }
-.big-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.big-legend-item .dot {
+.sm-header .dot {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  align-self: center;
 }
-[data-theme="dark"] .big-legend { color: #ccc; }
+.sm-name { font-weight: 600; flex: 1; }
+.sm-current { font-size: 16px; font-weight: 700; color: #222; }
+.sm-delta { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.sm-delta.sm-up { color: #1a8f3c; background: rgba(26, 143, 60, 0.1); }
+.sm-delta.sm-down { color: #c0382b; background: rgba(192, 56, 43, 0.1); }
+.sm-delta.sm-flat { color: #888; background: rgba(0, 0, 0, 0.04); }
+.estimated-mark { color: #ff9500; font-weight: 700; cursor: help; margin-left: 2px; }
+.sm-svg { width: 100%; height: 140px; display: block; }
+[data-theme="dark"] .sm-card { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .sm-current { color: #f0f0f0; }
+[data-theme="dark"] .sm-header { color: #ccc; }
 
 .drilldown-table-wrap {
   margin-top: 16px;

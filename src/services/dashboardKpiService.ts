@@ -117,6 +117,7 @@ export interface ConnectionDetail {
   created: number;
   deleted: number;
   history: ConnectionHistoryPoint[];
+  estimated?: boolean;
 }
 
 export interface SourceDetailResponse {
