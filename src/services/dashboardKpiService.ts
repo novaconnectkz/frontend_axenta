@@ -91,6 +91,39 @@ export interface ChartPoint {
   wl: number;
   skif: number;
   revenues: CurrencyRevenue[];
+  axenta_created?: number;
+  axenta_deleted?: number;
+  wh_created?: number;
+  wh_deleted?: number;
+  wl_created?: number;
+  wl_deleted?: number;
+  skif_created?: number;
+  skif_deleted?: number;
+}
+
+export interface ConnectionHistoryPoint {
+  date: string;
+  label?: string;
+  total: number;
+  created: number;
+  deleted: number;
+}
+
+export interface ConnectionDetail {
+  id: number;
+  name: string;
+  type: string;
+  total: number;
+  created: number;
+  deleted: number;
+  history: ConnectionHistoryPoint[];
+}
+
+export interface SourceDetailResponse {
+  key: string;
+  period: string;
+  connections: ConnectionDetail[];
+  generated_at: string;
 }
 
 export interface LifecyclePoint {
@@ -148,6 +181,14 @@ export const dashboardKpiService = {
   async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {
     const res = await apiClient.get(`${BASE}/chart`, { params: { period } });
     return res.data?.data || { points: [], currencies: [], generated_at: new Date().toISOString() };
+  },
+
+  async getSourceDetail(
+    key: "wh" | "wl" | "skif" | "axenta",
+    period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"
+  ): Promise<SourceDetailResponse> {
+    const res = await apiClient.get(`${BASE}/source-detail`, { params: { key, period } });
+    return res.data?.data || { key, period, connections: [], generated_at: new Date().toISOString() };
   },
 
   async getLifecycle(period: "7d" | "1m" | "3m" | "6m" | "1y" = "1m"): Promise<LifecycleResponse> {

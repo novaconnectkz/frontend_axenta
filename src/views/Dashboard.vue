@@ -183,7 +183,7 @@
 
     </div>
 
-    <ChartDrilldownDialog v-model="drilldownOpen" :source="drilldownSource" :points="chartPoints" />
+    <ChartDrilldownDialog v-model="drilldownOpen" :source="drilldownSource" :points="chartPoints" :period="chartPeriod" />
   </div>
 </template>
 

@@ -79,7 +79,7 @@
         <div class="drilldown-table-wrap">
           <div class="drilldown-table-head">
             <h3>Детально по дням</h3>
-            <v-btn size="small" variant="outlined" prepend-icon="mdi-download" @click="exportCSV">CSV</v-btn>
+            <v-btn size="small" variant="outlined" prepend-icon="mdi-microsoft-excel" :loading="exporting" @click="exportXLSX">Excel</v-btn>
           </div>
           <table class="drilldown-table">
             <thead>
@@ -98,8 +98,38 @@
                 <td class="num" :class="diffClass(points.length - 1 - i)">
                   {{ points.length - 1 - i > 0 ? formatGrowthAbs(valueAt(points.length - 1 - i) - valueAt(points.length - 2 - i)) : '—' }}
                 </td>
-                <td class="num">{{ source.key === 'axenta' ? '—' : (p.wh + p.wl > 0 ? '—' : '0') }}</td>
-                <td class="num">{{ source.key === 'axenta' ? '—' : (p.wh + p.wl > 0 ? '—' : '0') }}</td>
+                <td class="num diff-up">{{ formatCreated(p) }}</td>
+                <td class="num diff-down">{{ formatDeleted(p) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Разбивка по подключениям -->
+        <div v-if="connections.length > 0" class="drilldown-table-wrap">
+          <div class="drilldown-table-head">
+            <h3>
+              Разбивка по подключениям
+              <v-chip v-if="loadingDetail" size="x-small" variant="tonal" class="ml-2">загрузка…</v-chip>
+            </h3>
+          </div>
+          <table class="drilldown-table">
+            <thead>
+              <tr>
+                <th>Подключение</th>
+                <th class="num">Текущее</th>
+                <th class="num">+Создано</th>
+                <th class="num">−Удалено</th>
+                <th class="num">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="conn in connections" :key="conn.id">
+                <td>{{ conn.name }}</td>
+                <td class="num"><b>{{ conn.total.toLocaleString('ru-RU') }}</b></td>
+                <td class="num diff-up">{{ conn.created > 0 ? '+' + conn.created.toLocaleString('ru-RU') : '—' }}</td>
+                <td class="num diff-down">{{ conn.deleted > 0 ? '−' + conn.deleted.toLocaleString('ru-RU') : '—' }}</td>
+                <td class="num" :class="connDeltaClass(conn)">{{ formatConnDelta(conn) }}</td>
               </tr>
             </tbody>
           </table>
@@ -110,11 +140,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import type { ChartPoint } from '@/services/dashboardKpiService';
+import { computed, ref, watch } from 'vue';
+import { dashboardKpiService, type ChartPoint, type ConnectionDetail } from '@/services/dashboardKpiService';
 
 interface SparkSource {
-  key: 'axenta' | 'wh' | 'wl';
+  key: 'axenta' | 'wh' | 'wl' | 'skif';
   label: string;
   color: string;
   current: number;
@@ -129,11 +159,76 @@ const props = defineProps<{
   modelValue: boolean;
   source: SparkSource | null;
   points: ChartPoint[];
+  period?: '7d' | '1m' | '3m' | '6m' | '1y';
 }>();
 
 defineEmits<{
   'update:modelValue': [value: boolean];
 }>();
+
+const connections = ref<ConnectionDetail[]>([]);
+const loadingDetail = ref(false);
+const exporting = ref(false);
+
+async function loadDetail() {
+  if (!props.source) {
+    connections.value = [];
+    return;
+  }
+  loadingDetail.value = true;
+  try {
+    const r = await dashboardKpiService.getSourceDetail(props.source.key, props.period || '7d');
+    connections.value = r.connections || [];
+  } catch (_) {
+    connections.value = [];
+  } finally {
+    loadingDetail.value = false;
+  }
+}
+
+watch(() => [props.modelValue, props.source?.key, props.period], () => {
+  if (props.modelValue && props.source) {
+    loadDetail();
+  } else if (!props.modelValue) {
+    connections.value = [];
+  }
+}, { immediate: true });
+
+function getCreated(p: ChartPoint): number {
+  if (!props.source) return 0;
+  const k = props.source.key;
+  return Number((p as any)[`${k}_created`] || 0);
+}
+function getDeleted(p: ChartPoint): number {
+  if (!props.source) return 0;
+  const k = props.source.key;
+  return Number((p as any)[`${k}_deleted`] || 0);
+}
+function formatCreated(p: ChartPoint): string {
+  const v = getCreated(p);
+  return v > 0 ? '+' + v.toLocaleString('ru-RU') : '—';
+}
+function formatDeleted(p: ChartPoint): string {
+  const v = getDeleted(p);
+  return v > 0 ? '−' + v.toLocaleString('ru-RU') : '—';
+}
+
+function formatConnDelta(conn: ConnectionDetail): string {
+  if (!conn.history.length) return '—';
+  const first = conn.history[0].total;
+  const last = conn.history[conn.history.length - 1].total;
+  const d = last - first;
+  if (d === 0) return '0';
+  return (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('ru-RU');
+}
+function connDeltaClass(conn: ConnectionDetail): string {
+  if (!conn.history.length) return '';
+  const first = conn.history[0].total;
+  const last = conn.history[conn.history.length - 1].total;
+  if (last > first) return 'diff-up';
+  if (last < first) return 'diff-down';
+  return 'diff-flat';
+}
 
 const BIG_W = 1040;
 const BIG_H = 320;
@@ -261,22 +356,95 @@ const deltaChipColor = computed(() => {
   return props.source.deltaDir === 'up' ? 'success' : props.source.deltaDir === 'down' ? 'error' : 'grey';
 });
 
-function exportCSV() {
+async function exportXLSX() {
   if (!props.source) return;
-  const rows = [['Дата', 'Объектов', 'Δ vs предыд.']];
-  for (let i = 0; i < props.points.length; i++) {
-    const v = valueAt(i);
-    const diff = i > 0 ? v - valueAt(i - 1) : 0;
-    rows.push([props.points[i].month, String(v), i > 0 ? String(diff) : '']);
+  exporting.value = true;
+  try {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Axenta CRM';
+    wb.created = new Date();
+
+    // Лист 1: По дням
+    const ws1 = wb.addWorksheet('По дням');
+    ws1.columns = [
+      { header: 'Дата', key: 'date', width: 14 },
+      { header: 'Объектов', key: 'total', width: 12 },
+      { header: 'Δ vs предыд.', key: 'diff', width: 14 },
+      { header: '+Создано', key: 'created', width: 12 },
+      { header: '−Удалено', key: 'deleted', width: 12 },
+    ];
+    ws1.getRow(1).font = { bold: true };
+    for (let i = 0; i < props.points.length; i++) {
+      const p = props.points[i];
+      const v = valueAt(i);
+      const diff = i > 0 ? v - valueAt(i - 1) : null;
+      ws1.addRow({
+        date: p.month,
+        total: v,
+        diff: diff,
+        created: getCreated(p) || null,
+        deleted: getDeleted(p) || null,
+      });
+    }
+
+    // Лист 2: По подключениям (если breakdown есть)
+    if (connections.value.length > 0) {
+      const ws2 = wb.addWorksheet('По подключениям');
+      ws2.columns = [
+        { header: 'Подключение', key: 'name', width: 30 },
+        { header: 'Тип', key: 'type', width: 12 },
+        { header: 'Текущее', key: 'total', width: 12 },
+        { header: '+Создано', key: 'created', width: 12 },
+        { header: '−Удалено', key: 'deleted', width: 12 },
+      ];
+      ws2.getRow(1).font = { bold: true };
+      for (const c of connections.value) {
+        ws2.addRow({
+          name: c.name,
+          type: c.type,
+          total: c.total,
+          created: c.created || null,
+          deleted: c.deleted || null,
+        });
+      }
+
+      // Лист 3: Подробная история по подключениям
+      if (connections.value.some(c => c.history.length > 0)) {
+        const ws3 = wb.addWorksheet('История по подключениям');
+        ws3.columns = [
+          { header: 'Подключение', key: 'name', width: 30 },
+          { header: 'Дата', key: 'date', width: 14 },
+          { header: 'Объектов', key: 'total', width: 12 },
+          { header: '+Создано', key: 'created', width: 12 },
+          { header: '−Удалено', key: 'deleted', width: 12 },
+        ];
+        ws3.getRow(1).font = { bold: true };
+        for (const c of connections.value) {
+          for (const h of c.history) {
+            ws3.addRow({
+              name: c.name,
+              date: h.date,
+              total: h.total,
+              created: h.created || null,
+              deleted: h.deleted || null,
+            });
+          }
+        }
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${props.source.key}-history-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } finally {
+    exporting.value = false;
   }
-  const csv = rows.map(r => r.join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${props.source.key}-history.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 </script>
 
