@@ -56,4 +56,22 @@ export const skifAccountsService = {
       return { ok: false, error: e?.response?.data?.error || e?.message || 'Ошибка отмены удаления' };
     }
   },
+
+  async block(connectionId: number, skifCompanyId: string, blockType: 'terminals_not_block' | 'terminals_block' = 'terminals_not_block', pending = false): Promise<{ ok: boolean; error?: string }> {
+    try {
+      await apiClient.post(`/auth/skif/connections/${connectionId}/companies/${skifCompanyId}/block`, { block_type: blockType, pending });
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.response?.data?.error || e?.message || 'Ошибка блокировки' };
+    }
+  },
+
+  async unblock(connectionId: number, skifCompanyId: string): Promise<{ ok: boolean; error?: string }> {
+    try {
+      await apiClient.post(`/auth/skif/connections/${connectionId}/companies/${skifCompanyId}/unblock`);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.response?.data?.error || e?.message || 'Ошибка разблокировки' };
+    }
+  },
 };

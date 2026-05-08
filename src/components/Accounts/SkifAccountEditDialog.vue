@@ -46,8 +46,18 @@
             </div>
           </div>
 
-          <v-alert v-if="!pendingDeleteFor" type="info" variant="tonal" density="compact" class="mt-3">
-            SKIF-учётка отображается в read-only режиме. Редактирование дилерских компаний через API SKIF не реализовано.
+          <!-- Block status -->
+          <v-alert v-if="isBlocked" type="error" variant="tonal" density="compact" class="mt-3">
+            <div class="d-flex align-center justify-space-between flex-wrap" style="gap: 8px;">
+              <div><strong>Компания заблокирована.</strong> Юзеры не могут войти.</div>
+              <v-btn color="success" variant="elevated" size="small" :loading="unblocking" @click="onUnblock">
+                Разблокировать
+              </v-btn>
+            </div>
+          </v-alert>
+
+          <v-alert v-else-if="!pendingDeleteFor" type="info" variant="tonal" density="compact" class="mt-3">
+            SKIF-учётка. Управление: блокировка/разблокировка/удаление.
           </v-alert>
 
           <!-- Countdown badge: SKIF удалит компанию через N дней -->
@@ -69,19 +79,31 @@
             </div>
           </v-alert>
 
-          <!-- Кнопка планирования удаления -->
-          <div v-if="!pendingDeleteFor" class="delete-section mt-4">
-            <v-btn
-              color="error"
-              variant="outlined"
-              prepend-icon="mdi-delete-outline"
-              :loading="deleting"
-              @click="onScheduleDelete"
-            >
-              Запланировать удаление компании
-            </v-btn>
+          <!-- Actions: блокировка + удаление -->
+          <div v-if="!pendingDeleteFor" class="actions-section mt-4">
+            <div class="actions-row">
+              <v-btn
+                v-if="!isBlocked"
+                color="warning"
+                variant="outlined"
+                prepend-icon="mdi-lock-outline"
+                :loading="blocking"
+                @click="onBlock"
+              >
+                Заблокировать
+              </v-btn>
+              <v-btn
+                color="error"
+                variant="outlined"
+                prepend-icon="mdi-delete-outline"
+                :loading="deleting"
+                @click="onScheduleDelete"
+              >
+                Запланировать удаление
+              </v-btn>
+            </div>
             <div class="hint mt-1">
-              SKIF удалит компанию через 14 дней. До этого момента можно отменить.
+              Удаление: SKIF уберёт компанию через 14 дней (до этого можно отменить).
             </div>
           </div>
         </v-window-item>
@@ -162,6 +184,13 @@ const unitsTotal = computed(() => units.value.length);
 
 const deleting = ref(false);
 const canceling = ref(false);
+const blocking = ref(false);
+const unblocking = ref(false);
+
+// Локальный override блок-статуса (мгновенный UI после действия).
+const blockOverride = ref<boolean | null>(null);
+// TODO: backend пока не sync'ит реальный billing.company_status. Default — активна.
+const isBlocked = computed(() => blockOverride.value === true);
 
 // Локальный override чтобы UI обновлялся сразу после schedule/cancel
 // без ожидания refresh всего /unified/accounts.
@@ -200,6 +229,41 @@ const onScheduleDelete = async () => {
     emit('changed');
   } finally {
     deleting.value = false;
+  }
+};
+
+const onBlock = async () => {
+  if (!props.account?.connectionId || !props.account?.skifCompanyId) return;
+  if (!confirm(`Заблокировать компанию "${props.account.name}"?\nПользователи не смогут войти. Терминалы продолжат отправлять данные.`)) return;
+  blocking.value = true;
+  try {
+    const r = await skifAccountsService.block(props.account.connectionId, props.account.skifCompanyId, 'terminals_not_block');
+    if (!r.ok) {
+      emit('snack', { text: r.error || 'Ошибка', color: 'error' });
+      return;
+    }
+    blockOverride.value = true;
+    emit('snack', { text: 'Компания заблокирована', color: 'warning' });
+    emit('changed');
+  } finally {
+    blocking.value = false;
+  }
+};
+
+const onUnblock = async () => {
+  if (!props.account?.connectionId || !props.account?.skifCompanyId) return;
+  unblocking.value = true;
+  try {
+    const r = await skifAccountsService.unblock(props.account.connectionId, props.account.skifCompanyId);
+    if (!r.ok) {
+      emit('snack', { text: r.error || 'Ошибка', color: 'error' });
+      return;
+    }
+    blockOverride.value = false;
+    emit('snack', { text: 'Компания разблокирована', color: 'success' });
+    emit('changed');
+  } finally {
+    unblocking.value = false;
   }
 };
 
@@ -248,6 +312,7 @@ watch(
     if (!props.modelValue || !props.account) return;
     tab.value = 'main';
     pendingOverride.value = undefined; // сбрасываем override на свежий account
+    blockOverride.value = null;
     await loadUnits();
   },
   { immediate: true },
@@ -282,8 +347,11 @@ const formatDate = (s: string) => {
 .loading { display: flex; align-items: center; gap: 8px; padding: 24px; color: rgba(0, 0, 0, 0.6); }
 .empty { padding: 24px; text-align: center; color: rgba(0, 0, 0, 0.6); }
 .ft { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
-.delete-section { padding: 16px; background: rgba(244, 67, 54, 0.04); border-radius: 8px; border: 1px solid rgba(244, 67, 54, 0.2); }
+.actions-section { padding: 16px; background: rgba(0, 0, 0, 0.02); border-radius: 8px; border: 1px solid rgba(0, 0, 0, 0.08); }
+.actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .hint { font-size: 12px; color: rgba(0, 0, 0, 0.6); }
+[data-theme="dark"] .actions-section { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.08); }
+[data-theme="dark"] .hint { color: rgba(255, 255, 255, 0.6); }
 
 [data-theme="dark"] .label { color: rgba(255, 255, 255, 0.6); }
 [data-theme="dark"] .value { color: rgba(255, 255, 255, 0.87); }
