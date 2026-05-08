@@ -74,4 +74,22 @@ export const skifAccountsService = {
       return { ok: false, error: e?.response?.data?.error || e?.message || 'Ошибка разблокировки' };
     }
   },
+
+  async registerSubdealer(connectionId: number, payload: {
+    type_key: 'legal_entity' | 'individual_entrepreneur';
+    name: string;
+    email: string;
+    inn: string;
+    phone: string;
+    contact_person: string;
+    password: string;
+    address: string;
+  }): Promise<{ ok: boolean; data?: any; error?: string }> {
+    try {
+      const r = await apiClient.post(`/auth/skif/connections/${connectionId}/subdealers`, payload);
+      return { ok: true, data: r.data?.data };
+    } catch (e: any) {
+      return { ok: false, error: e?.response?.data?.error || e?.message || 'Ошибка регистрации субинтегратора' };
+    }
+  },
 };

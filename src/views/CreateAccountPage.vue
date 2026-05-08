@@ -47,10 +47,9 @@
                 @update:model-value="onSystemChange"
               />
               <v-select
-                v-if="!isSkif"
                 v-model="form.type"
                 :items="typeOptions"
-                :label="isWialon ? 'Тип учётной записи (Партнёр = права дилера)' : 'Тип учетной записи'"
+                :label="typeLabel"
                 variant="outlined"
                 density="compact"
                 required
@@ -281,8 +280,8 @@
               />
             </div>
 
-            <!-- SKIF секция: timezone (обязательно) + опциональный admin user -->
-            <template v-if="isSkif">
+            <!-- SKIF + type=client: создание компании -->
+            <template v-if="isSkif && form.type === 'client'">
               <div class="form-row">
                 <v-select
                   v-model="skifForm.timezone"
@@ -334,6 +333,82 @@
                   variant="outlined"
                   density="compact"
                   :error-messages="errors['skif.userPassword']"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showPassword = !showPassword"
+                />
+              </div>
+            </template>
+
+            <!-- SKIF + type=partner: регистрация субинтегратора -->
+            <template v-if="isSkif && form.type === 'partner'">
+              <div class="form-row">
+                <v-select
+                  v-model="skifSubdealerForm.typeKey"
+                  :items="skifSubdealerTypeOptions"
+                  label="Тип организации"
+                  variant="outlined"
+                  density="compact"
+                  required
+                />
+                <v-text-field
+                  v-model="skifSubdealerForm.inn"
+                  label="ИНН"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.inn']"
+                />
+              </div>
+
+              <div class="form-row">
+                <v-text-field
+                  v-model="skifSubdealerForm.phone"
+                  label="Телефон"
+                  placeholder="+7..."
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.phone']"
+                />
+                <v-text-field
+                  v-model="skifSubdealerForm.address"
+                  label="Адрес"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.address']"
+                />
+              </div>
+
+              <div class="form-row">
+                <v-text-field
+                  v-model="skifSubdealerForm.email"
+                  label="Email основного пользователя"
+                  type="email"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.email']"
+                />
+                <v-text-field
+                  v-model="skifSubdealerForm.contactPerson"
+                  label="ФИО основного пользователя"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.contactPerson']"
+                />
+              </div>
+
+              <div class="form-row">
+                <v-text-field
+                  v-model="skifSubdealerForm.password"
+                  label="Пароль"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.password']"
                   :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                   @click:append-inner="showPassword = !showPassword"
                 />
@@ -424,6 +499,22 @@ const skifForm = ref({
   userName: '',
 });
 
+// SKIF subdealer form (для type=partner)
+const skifSubdealerForm = ref({
+  typeKey: 'legal_entity' as 'legal_entity' | 'individual_entrepreneur',
+  inn: '',
+  phone: '',
+  address: '',
+  email: '',
+  contactPerson: '',
+  password: '',
+});
+
+const skifSubdealerTypeOptions = [
+  { value: 'legal_entity', title: 'Юридическое лицо' },
+  { value: 'individual_entrepreneur', title: 'Индивидуальный предприниматель' },
+];
+
 const skifTimezoneOptions = [
   { value: 'Europe/Moscow', title: 'Москва (UTC+3)' },
   { value: 'Europe/Kaliningrad', title: 'Калининград (UTC+2)' },
@@ -499,6 +590,12 @@ const successNotification = ref({
 // Computed
 const isWialon = computed(() => form.value.system.startsWith('wialon:'));
 const isSkif = computed(() => form.value.system.startsWith('skif:'));
+
+const typeLabel = computed(() => {
+  if (isWialon.value) return 'Тип учётной записи (Партнёр = права дилера)';
+  if (isSkif.value) return 'Тип учётной записи (Партнёр = субинтегратор)';
+  return 'Тип учетной записи';
+});
 const selectedConnection = computed<WialonConnection | undefined>(() => {
   if (!isWialon.value) return undefined;
   const id = Number(form.value.system.slice('wialon:'.length));
@@ -629,6 +726,12 @@ const isFormValid = computed(() => {
   if (!form.value.name.trim()) return false;
 
   if (isSkif.value) {
+    if (!form.value.type) return false;
+    if (form.value.type === 'partner') {
+      const f = skifSubdealerForm.value;
+      if (!f.inn.trim() || !f.phone.trim() || !f.address.trim() || !f.email.trim() || !f.contactPerson.trim() || !f.password.trim()) return false;
+      return !Object.values(errors.value).some(e => e);
+    }
     if (!skifForm.value.timezone) return false;
     if (skifForm.value.withUser) {
       if (!skifForm.value.userEmail.trim() || !skifForm.value.userPassword.trim()) return false;
@@ -687,6 +790,15 @@ const resetForm = () => {
       confirmPassword: '',
       visibleTabsNames: ['monitoring'],
     },
+  };
+  skifSubdealerForm.value = {
+    typeKey: 'legal_entity',
+    inn: '',
+    phone: '',
+    address: '',
+    email: '',
+    contactPerson: '',
+    password: '',
   };
   errors.value = {};
 };
@@ -748,6 +860,26 @@ const validateForm = (): boolean => {
   }
 
   if (isSkif.value) {
+    // Партнёр = subdealer
+    if (form.value.type === 'partner') {
+      const f = skifSubdealerForm.value;
+      const requiredFields: Array<[string, string, string]> = [
+        ['inn', f.inn, 'ИНН обязателен'],
+        ['phone', f.phone, 'Телефон обязателен'],
+        ['address', f.address, 'Адрес обязателен'],
+        ['email', f.email, 'Email обязателен'],
+        ['contactPerson', f.contactPerson, 'ФИО обязательно'],
+        ['password', f.password, 'Пароль обязателен'],
+      ];
+      for (const [key, val, msg] of requiredFields) {
+        if (!val.trim()) {
+          errors.value[`skif.${key}`] = msg;
+          return false;
+        }
+      }
+      return true;
+    }
+    // Клиент = company create
     if (!skifForm.value.timezone) {
       errors.value['skif.timezone'] = 'Часовой пояс обязателен';
       return false;
@@ -815,6 +947,35 @@ const createAccount = async () => {
 
   try {
     saving.value = true;
+
+    if (isSkif.value && form.value.type === 'partner') {
+      const conn = selectedSkifConnection.value!;
+      const f = skifSubdealerForm.value;
+      const r = await skifAccountsService.registerSubdealer(conn.id, {
+        type_key: f.typeKey,
+        name: form.value.name,
+        email: f.email,
+        inn: f.inn,
+        phone: f.phone,
+        contact_person: f.contactPerson,
+        password: f.password,
+        address: f.address,
+      });
+      if (!r.ok) {
+        showSnackbar(r.error || 'Ошибка регистрации субинтегратора', 'error');
+        return;
+      }
+      successNotification.value = {
+        show: true,
+        title: 'Субинтегратор зарегистрирован',
+        message: `"${form.value.name}" создан в SKIF.PRO (${conn.name})`,
+        details: `Approve-link отправлен на ${f.email}. Кликните на него для активации.`,
+        icon: 'mdi-check-circle',
+      };
+      resetForm();
+      setTimeout(() => router.push('/accounts'), 2500);
+      return;
+    }
 
     if (isSkif.value) {
       const conn = selectedSkifConnection.value!;
