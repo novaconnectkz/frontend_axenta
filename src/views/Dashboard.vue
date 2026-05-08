@@ -296,15 +296,19 @@ function buildSpark(key: SparkKey, label: string, color: string): SparkData {
   const values = points.map(p => p[key]);
   const min = values.length ? Math.min(...values) : 0;
   const max = values.length ? Math.max(...values) : 0;
-  const current = values.length ? values[values.length - 1] : 0;
   const first = values.length ? values[0] : 0;
+
+  const status = sourceStatusFor(key);
+  // current = live total из sources-stats (стабильно, не зависит от period).
+  // Если sources-stats пуст — fallback на последнюю точку sparkline.
+  const current = status.total > 0
+    ? status.total
+    : (values.length ? values[values.length - 1] : 0);
   const deltaAbs = current - first;
   const deltaPct = first > 0 ? (deltaAbs / first) * 100 : 0;
   let deltaDir: 'up' | 'down' | 'flat' = 'flat';
   if (deltaAbs > 0) deltaDir = 'up';
   else if (deltaAbs < 0) deltaDir = 'down';
-
-  const status = sourceStatusFor(key);
 
   // Sparkline path. range=0 (все одинаковые) → центрируем линию по середине canvas.
   const rangeRaw = max - min;
