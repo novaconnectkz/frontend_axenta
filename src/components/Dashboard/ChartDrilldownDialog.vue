@@ -213,21 +213,27 @@ function formatDeleted(p: ChartPoint): string {
   return v > 0 ? '−' + v.toLocaleString('ru-RU') : '—';
 }
 
+function connDeltaValue(conn: ConnectionDetail): number | null {
+  // Δ = live total минус первая ненулевая точка истории.
+  // history[].total часто = 0 для бакетов где нет snapshot — пропускаем.
+  if (!conn.history.length) return null;
+  let first = 0;
+  for (const h of conn.history) {
+    if (h.total > 0) { first = h.total; break; }
+  }
+  if (first === 0) return null;
+  return conn.total - first;
+}
 function formatConnDelta(conn: ConnectionDetail): string {
-  if (!conn.history.length) return '—';
-  const first = conn.history[0].total;
-  const last = conn.history[conn.history.length - 1].total;
-  const d = last - first;
+  const d = connDeltaValue(conn);
+  if (d === null) return '—';
   if (d === 0) return '0';
   return (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('ru-RU');
 }
 function connDeltaClass(conn: ConnectionDetail): string {
-  if (!conn.history.length) return '';
-  const first = conn.history[0].total;
-  const last = conn.history[conn.history.length - 1].total;
-  if (last > first) return 'diff-up';
-  if (last < first) return 'diff-down';
-  return 'diff-flat';
+  const d = connDeltaValue(conn);
+  if (d === null || d === 0) return 'diff-flat';
+  return d > 0 ? 'diff-up' : 'diff-down';
 }
 
 const BIG_W = 1040;
