@@ -36,42 +36,64 @@
           </div>
         </div>
 
-        <!-- Большой chart с осями + сеткой + vertical guideline -->
+        <!-- Большой chart с осями + сеткой + vertical guideline.
+             Multi-line: одна линия на каждое подключение если их > 1, иначе общая. -->
         <div class="big-chart" @mousemove="onChartMove" @mouseleave="hoverIdx = null">
           <svg :viewBox="`0 0 ${BIG_W} ${BIG_H}`" preserveAspectRatio="none">
-            <!-- горизонтальная сетка с метками Y -->
             <g v-for="(yTick, i) in yTicks" :key="'y-' + i">
               <line :x1="BIG_PAD_L" :y1="yTick.y" :x2="BIG_W - BIG_PAD_R" :y2="yTick.y" stroke="#eee" stroke-dasharray="2,3"/>
               <text :x="BIG_PAD_L - 6" :y="yTick.y + 3" font-size="11" fill="#888" text-anchor="end">{{ yTick.label }}</text>
             </g>
 
-            <!-- area + line -->
-            <path :d="bigAreaPath" :fill="source.color" fill-opacity="0.08"/>
-            <path :d="bigLinePath" :stroke="source.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-
-            <!-- точки -->
-            <circle v-for="(c, i) in bigPoints" :key="'pt-' + i" :cx="c.x" :cy="c.y" r="3" :fill="source.color" :class="{ 'pt-active': hoverIdx === i }"/>
+            <!-- multi-line: per-connection, если больше 1 connection и есть данные -->
+            <template v-if="useMultiLine">
+              <g v-for="line in connectionLines" :key="'cl-' + line.id">
+                <path :d="line.path" :stroke="line.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle v-for="(c, i) in line.points" :key="'lp-' + line.id + '-' + i" :cx="c.x" :cy="c.y" r="2.5" :fill="line.color" :class="{ 'pt-active': hoverIdx === i }"/>
+              </g>
+            </template>
+            <!-- single-line: общая линия источника -->
+            <template v-else>
+              <path :d="bigAreaPath" :fill="source.color" fill-opacity="0.08"/>
+              <path :d="bigLinePath" :stroke="source.color" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle v-for="(c, i) in bigPoints" :key="'pt-' + i" :cx="c.x" :cy="c.y" r="3" :fill="source.color" :class="{ 'pt-active': hoverIdx === i }"/>
+            </template>
 
             <!-- vertical guideline на hover -->
             <g v-if="hoverIdx !== null && bigPoints[hoverIdx]">
               <line :x1="bigPoints[hoverIdx].x" y1="20" :x2="bigPoints[hoverIdx].x" :y2="BIG_H - BIG_PAD_B" stroke="#999" stroke-dasharray="3,3"/>
             </g>
 
-            <!-- X labels -->
             <g v-for="(p, i) in points" :key="'xl-' + i">
               <text v-if="i % bigLabelEvery === 0 || i === points.length - 1"
                 :x="bigPoints[i].x" :y="BIG_H - 6" font-size="11" fill="#888" text-anchor="middle">{{ p.month_label }}</text>
             </g>
           </svg>
 
+          <!-- Легенда — только в multi-line режиме -->
+          <div v-if="useMultiLine" class="big-legend">
+            <div v-for="line in connectionLines" :key="'lg-' + line.id" class="big-legend-item">
+              <span class="dot" :style="{ background: line.color }"/>
+              <span>{{ line.name }}</span>
+            </div>
+          </div>
+
           <div v-if="hoverIdx !== null && points[hoverIdx]" class="big-tooltip" :style="tooltipStyle">
             <div class="big-tooltip-title">{{ points[hoverIdx].month_label }}</div>
-            <div class="big-tooltip-row">
-              <span>Объектов:</span> <b>{{ valueAt(hoverIdx).toLocaleString('ru-RU') }}</b>
-            </div>
-            <div v-if="hoverIdx > 0" class="big-tooltip-row" :class="diffClass(hoverIdx)">
-              <span>Изменение:</span> <b>{{ formatGrowthAbs(valueAt(hoverIdx) - valueAt(hoverIdx - 1)) }}</b>
-            </div>
+            <template v-if="useMultiLine">
+              <div v-for="line in connectionLines" :key="'tt-' + line.id" class="big-tooltip-row">
+                <span><span class="dot dot-sm" :style="{ background: line.color }"/>{{ line.name }}:</span>
+                <b>{{ (line.values[hoverIdx] || 0).toLocaleString('ru-RU') }}</b>
+              </div>
+            </template>
+            <template v-else>
+              <div class="big-tooltip-row">
+                <span>Объектов:</span> <b>{{ valueAt(hoverIdx).toLocaleString('ru-RU') }}</b>
+              </div>
+              <div v-if="hoverIdx > 0" class="big-tooltip-row" :class="diffClass(hoverIdx)">
+                <span>Изменение:</span> <b>{{ formatGrowthAbs(valueAt(hoverIdx) - valueAt(hoverIdx - 1)) }}</b>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -116,6 +138,7 @@
           <table class="drilldown-table">
             <thead>
               <tr>
+                <th style="width: 30px;"></th>
                 <th>Подключение</th>
                 <th class="num">Текущее</th>
                 <th class="num">+Создано</th>
@@ -124,13 +147,43 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="conn in connections" :key="conn.id">
-                <td>{{ conn.name }}</td>
-                <td class="num"><b>{{ conn.total.toLocaleString('ru-RU') }}</b></td>
-                <td class="num diff-up">{{ conn.created > 0 ? '+' + conn.created.toLocaleString('ru-RU') : '—' }}</td>
-                <td class="num diff-down">{{ conn.deleted > 0 ? '−' + conn.deleted.toLocaleString('ru-RU') : '—' }}</td>
-                <td class="num" :class="connDeltaClass(conn)">{{ formatConnDelta(conn) }}</td>
-              </tr>
+              <template v-for="conn in connections" :key="conn.id">
+                <tr class="conn-row" @click="toggleConn(conn.id)">
+                  <td>
+                    <v-icon size="18">{{ expandedConns.has(conn.id) ? 'mdi-chevron-down' : 'mdi-chevron-right' }}</v-icon>
+                  </td>
+                  <td>{{ conn.name }}</td>
+                  <td class="num"><b>{{ conn.total.toLocaleString('ru-RU') }}</b></td>
+                  <td class="num diff-up">{{ conn.created > 0 ? '+' + conn.created.toLocaleString('ru-RU') : '—' }}</td>
+                  <td class="num diff-down">{{ conn.deleted > 0 ? '−' + conn.deleted.toLocaleString('ru-RU') : '—' }}</td>
+                  <td class="num" :class="connDeltaClass(conn)">{{ formatConnDelta(conn) }}</td>
+                </tr>
+                <tr v-if="expandedConns.has(conn.id)" class="conn-detail-row">
+                  <td></td>
+                  <td colspan="5">
+                    <table class="conn-detail-table">
+                      <thead>
+                        <tr>
+                          <th>Дата</th>
+                          <th class="num">Объектов</th>
+                          <th class="num">Δ vs предыд.</th>
+                          <th class="num">+Создано</th>
+                          <th class="num">−Удалено</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(h, i) in [...conn.history].reverse()" :key="h.date">
+                          <td>{{ h.label || h.date }} <span class="muted">{{ h.date }}</span></td>
+                          <td class="num"><b>{{ h.total > 0 ? h.total.toLocaleString('ru-RU') : '—' }}</b></td>
+                          <td class="num" :class="histDiffClass(conn, i)">{{ histDiffText(conn, i) }}</td>
+                          <td class="num diff-up">{{ h.created > 0 ? '+' + h.created.toLocaleString('ru-RU') : '—' }}</td>
+                          <td class="num diff-down">{{ h.deleted > 0 ? '−' + h.deleted.toLocaleString('ru-RU') : '—' }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -169,6 +222,40 @@ defineEmits<{
 const connections = ref<ConnectionDetail[]>([]);
 const loadingDetail = ref(false);
 const exporting = ref(false);
+const expandedConns = ref<Set<number>>(new Set());
+
+function toggleConn(id: number) {
+  if (expandedConns.value.has(id)) {
+    expandedConns.value.delete(id);
+  } else {
+    expandedConns.value.add(id);
+  }
+  expandedConns.value = new Set(expandedConns.value);
+}
+
+// История в UI отображается в reversed порядке (newest first).
+// i — индекс в reversed array. Δ vs предыд. = текущий total - следующий по индексу
+// (т.е. предыдущий по времени).
+function histDiffText(conn: ConnectionDetail, i: number): string {
+  const rev = [...conn.history].reverse();
+  if (i >= rev.length - 1) return '—';
+  const cur = rev[i].total;
+  const prev = rev[i + 1].total;
+  if (cur === 0 || prev === 0) return '—';
+  const d = cur - prev;
+  if (d === 0) return '0';
+  return (d > 0 ? '+' : '−') + Math.abs(d).toLocaleString('ru-RU');
+}
+function histDiffClass(conn: ConnectionDetail, i: number): string {
+  const rev = [...conn.history].reverse();
+  if (i >= rev.length - 1) return '';
+  const cur = rev[i].total;
+  const prev = rev[i + 1].total;
+  if (cur === 0 || prev === 0) return '';
+  if (cur > prev) return 'diff-up';
+  if (cur < prev) return 'diff-down';
+  return 'diff-flat';
+}
 
 async function loadDetail() {
   if (!props.source) {
@@ -193,6 +280,65 @@ watch(() => [props.modelValue, props.source?.key, props.period], () => {
     connections.value = [];
   }
 }, { immediate: true });
+
+// Палитра для multi-line chart (per connection).
+const CONN_PALETTE = ['#34c759', '#5856d6', '#ff9500', '#0a8a8a', '#ff3b30', '#af52de', '#1a8f3c', '#ff2d55'];
+
+interface ConnLine {
+  id: number;
+  name: string;
+  color: string;
+  values: number[];
+  points: { x: number; y: number }[];
+  path: string;
+}
+
+// Multi-line: показываем per-connection если ≥ 2 connection и хотя бы у одной
+// есть ненулевая history.
+const useMultiLine = computed<boolean>(() => {
+  if (connections.value.length < 2) return false;
+  return connections.value.some(c => c.history.some(h => h.total > 0));
+});
+
+const connectionLines = computed<ConnLine[]>(() => {
+  if (!useMultiLine.value || !props.points.length) return [];
+  const conns = connections.value;
+
+  // Y-scale общий: max по всем connections в их history
+  let allMax = 0, allMin = Infinity;
+  for (const c of conns) {
+    for (const h of c.history) {
+      if (h.total > allMax) allMax = h.total;
+      if (h.total > 0 && h.total < allMin) allMin = h.total;
+    }
+  }
+  if (allMin === Infinity) allMin = 0;
+  const range = allMax - allMin || 1;
+  const innerW = BIG_W - BIG_PAD_L - BIG_PAD_R;
+  const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
+  const stepX = props.points.length > 1 ? innerW / (props.points.length - 1) : 0;
+
+  return conns.map((c, idx) => {
+    // Сопоставление history c props.points: history идёт в том же порядке бакетов
+    // что и chart points (oldest → newest). Берём по индексу.
+    const values = props.points.map((_, i) => c.history[i]?.total || 0);
+    const points = values.map((v, i) => ({
+      x: BIG_PAD_L + i * stepX,
+      y: allMax === allMin
+        ? BIG_PAD_T + innerH / 2
+        : BIG_PAD_T + innerH * (1 - (v - allMin) / range),
+    }));
+    const path = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    return {
+      id: c.id,
+      name: c.name,
+      color: CONN_PALETTE[idx % CONN_PALETTE.length],
+      values,
+      points,
+      path,
+    };
+  });
+});
 
 function getCreated(p: ChartPoint): number {
   if (!props.source) return 0;
@@ -279,7 +425,18 @@ const bigAreaPath = computed(() => {
 
 const yTicks = computed(() => {
   if (!props.source || !props.points.length) return [];
-  const values = props.points.map(p => p[props.source!.key]);
+  let values: number[];
+  if (useMultiLine.value) {
+    // В multi-line диапазон — по всем connection.history
+    values = [];
+    for (const c of connections.value) {
+      for (const h of c.history) values.push(h.total);
+    }
+    values = values.filter(v => v > 0);
+    if (!values.length) values = [0];
+  } else {
+    values = props.points.map(p => p[props.source!.key]);
+  }
   const min = Math.min(...values);
   const max = Math.max(...values);
   const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
@@ -502,6 +659,27 @@ async function exportXLSX() {
 .big-tooltip-row { display: flex; justify-content: space-between; gap: 12px; line-height: 1.6; }
 .big-tooltip-row.diff-up b { color: #1a8f3c; }
 .big-tooltip-row.diff-down b { color: #c0382b; }
+.big-tooltip-row .dot-sm { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+.big-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 6px 0 4px;
+  font-size: 12px;
+  color: #555;
+}
+.big-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.big-legend-item .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+[data-theme="dark"] .big-legend { color: #ccc; }
 
 .drilldown-table-wrap {
   margin-top: 16px;
@@ -545,6 +723,38 @@ async function exportXLSX() {
 .drilldown-table .diff-up { color: #1a8f3c; }
 .drilldown-table .diff-down { color: #c0382b; }
 .drilldown-table .diff-flat { color: #aaa; }
+
+.conn-row { cursor: pointer; }
+.conn-row:hover { background: rgba(0, 0, 0, 0.02); }
+.conn-detail-row > td { padding: 0; background: rgba(0, 0, 0, 0.015); }
+.conn-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin: 4px 0 8px;
+}
+.conn-detail-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  color: #777;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.conn-detail-table th.num,
+.conn-detail-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.conn-detail-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+.conn-detail-table .muted { color: #aaa; font-size: 10px; margin-left: 4px; }
+.conn-detail-table .diff-up { color: #1a8f3c; }
+.conn-detail-table .diff-down { color: #c0382b; }
+.conn-detail-table .diff-flat { color: #aaa; }
+[data-theme="dark"] .conn-row:hover { background: rgba(255, 255, 255, 0.04); }
+[data-theme="dark"] .conn-detail-row > td { background: rgba(255, 255, 255, 0.02); }
 
 [data-theme="dark"] .kpi-item { background: rgba(255, 255, 255, 0.04); }
 [data-theme="dark"] .big-chart svg { background: rgba(255, 255, 255, 0.02); }
