@@ -36,8 +36,13 @@
           </div>
         </div>
 
+        <!-- Loader пока подгружается breakdown — не моргает между общим и раздельным -->
+        <div v-if="loadingDetail" class="big-chart-skeleton">
+          <v-progress-circular indeterminate size="36" color="primary" />
+        </div>
+
         <!-- Single-line chart (1 connection или нет breakdown'а) -->
-        <div v-if="!useSmallMultiples" class="big-chart" @mousemove="onChartMove" @mouseleave="hoverIdx = null">
+        <div v-else-if="!useSmallMultiples" class="big-chart" @mousemove="onChartMove" @mouseleave="hoverIdx = null">
           <svg :viewBox="`0 0 ${BIG_W} ${BIG_H}`" preserveAspectRatio="none">
             <g v-for="(yTick, i) in yTicks" :key="'y-' + i">
               <line :x1="BIG_PAD_L" :y1="yTick.y" :x2="BIG_W - BIG_PAD_R" :y2="yTick.y" stroke="#eee" stroke-dasharray="2,3"/>
@@ -716,6 +721,16 @@ async function exportXLSX() {
 .sm-delta.sm-down { color: #c0382b; background: rgba(192, 56, 43, 0.1); }
 .sm-delta.sm-flat { color: #888; background: rgba(0, 0, 0, 0.04); }
 .estimated-mark { color: #ff9500; font-weight: 700; cursor: help; margin-left: 2px; }
+.big-chart-skeleton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 320px;
+  background: rgba(0, 0, 0, 0.01);
+  border-radius: 8px;
+  margin: 12px 0;
+}
+[data-theme="dark"] .big-chart-skeleton { background: rgba(255, 255, 255, 0.02); }
 .sm-svg { width: 100%; height: 140px; display: block; }
 [data-theme="dark"] .sm-card { background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.08); }
 [data-theme="dark"] .sm-current { color: #f0f0f0; }
