@@ -378,8 +378,11 @@ const headers = computed(() => [
   { title: 'Действия', key: 'actions', sortable: false, align: 'end' as const },
 ]);
 
-const formatDateShort = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('ru-RU', {
+const formatDateShort = (dateString: string | null | undefined) => {
+  if (!dateString) return '—';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

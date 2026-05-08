@@ -150,6 +150,7 @@ interface SkifAccount {
   creationDatetime?: string;
   connectionId?: number;
   deleteScheduledFor?: string;
+  isActive?: boolean;
 }
 
 interface SkifUnit {
@@ -187,10 +188,14 @@ const canceling = ref(false);
 const blocking = ref(false);
 const unblocking = ref(false);
 
-// Локальный override блок-статуса (мгновенный UI после действия).
+// Локальный override блок-статуса (мгновенный UI после block/unblock).
+// Сбрасывается в null при смене account, тогда читается реальное props.account.isActive.
 const blockOverride = ref<boolean | null>(null);
-// TODO: backend пока не sync'ит реальный billing.company_status. Default — активна.
-const isBlocked = computed(() => blockOverride.value === true);
+const isBlocked = computed(() => {
+  if (blockOverride.value !== null) return blockOverride.value;
+  // isActive=false из /unified/accounts (источник: skif_company_statuses.company_status != "ACTIVE")
+  return props.account?.isActive === false;
+});
 
 // Локальный override чтобы UI обновлялся сразу после schedule/cancel
 // без ожидания refresh всего /unified/accounts.
