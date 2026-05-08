@@ -18,21 +18,21 @@
         <div class="kpi-row">
           <div class="kpi-item">
             <div class="kpi-label">Текущее</div>
-            <div class="kpi-value">{{ source.current.toLocaleString('ru-RU') }}</div>
+            <div class="kpi-value">{{ kpiCurrent.toLocaleString('ru-RU') }}</div>
           </div>
           <div class="kpi-item">
             <div class="kpi-label">В начале периода</div>
-            <div class="kpi-value">{{ source.first.toLocaleString('ru-RU') }}</div>
+            <div class="kpi-value">{{ kpiFirst.toLocaleString('ru-RU') }}</div>
           </div>
           <div class="kpi-item">
             <div class="kpi-label">Прирост</div>
-            <div class="kpi-value" :class="{ 'kpi-up': source.deltaDir === 'up', 'kpi-down': source.deltaDir === 'down' }">
-              {{ formatGrowthAbs(source.current - source.first) }}
+            <div class="kpi-value" :class="{ 'kpi-up': kpiDeltaDir === 'up', 'kpi-down': kpiDeltaDir === 'down' }">
+              {{ formatGrowthAbs(kpiCurrent - kpiFirst) }}
             </div>
           </div>
           <div class="kpi-item">
             <div class="kpi-label">Min · Max</div>
-            <div class="kpi-value-sm">{{ source.min.toLocaleString('ru-RU') }} · {{ source.max.toLocaleString('ru-RU') }}</div>
+            <div class="kpi-value-sm">{{ kpiMin.toLocaleString('ru-RU') }} · {{ kpiMax.toLocaleString('ru-RU') }}</div>
           </div>
         </div>
 
@@ -373,6 +373,56 @@ const connectionLines = computed<ConnLine[]>(() => {
       maxLabel: max.toLocaleString('ru-RU'),
     };
   });
+});
+
+// KPI на основе aligned-history (если breakdown загружен) или fallback
+// на source props (chart endpoint значения).
+const kpiCurrent = computed(() => {
+  if (connections.value.length > 0) {
+    return connections.value.reduce((s, c) => s + c.total, 0);
+  }
+  return props.source?.current || 0;
+});
+const kpiFirst = computed(() => {
+  if (connections.value.length > 0 && props.points.length > 0) {
+    let first = 0;
+    for (const c of connections.value) {
+      const h = c.history[0];
+      if (h) first += h.total;
+    }
+    return first;
+  }
+  return props.source?.first || 0;
+});
+const kpiMin = computed(() => {
+  if (connections.value.length > 0 && props.points.length > 0) {
+    const sums: number[] = [];
+    for (let i = 0; i < props.points.length; i++) {
+      let s = 0;
+      for (const c of connections.value) s += c.history[i]?.total || 0;
+      if (s > 0) sums.push(s);
+    }
+    return sums.length ? Math.min(...sums) : 0;
+  }
+  return props.source?.min || 0;
+});
+const kpiMax = computed(() => {
+  if (connections.value.length > 0 && props.points.length > 0) {
+    const sums: number[] = [];
+    for (let i = 0; i < props.points.length; i++) {
+      let s = 0;
+      for (const c of connections.value) s += c.history[i]?.total || 0;
+      sums.push(s);
+    }
+    return sums.length ? Math.max(...sums) : 0;
+  }
+  return props.source?.max || 0;
+});
+const kpiDeltaDir = computed<'up' | 'down' | 'flat'>(() => {
+  const d = kpiCurrent.value - kpiFirst.value;
+  if (d > 0) return 'up';
+  if (d < 0) return 'down';
+  return 'flat';
 });
 
 interface DailyRow {
