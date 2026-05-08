@@ -128,6 +128,7 @@ const sourceOptions = [
   { title: 'Wialon (все)', value: 'wialon' },
   { title: 'WH (Hosting)', value: 'wh' },
   { title: 'WL (Local)', value: 'wl' },
+  { title: 'SKIF.PRO', value: 'skif' },
 ];
 
 const searchModel = computed({

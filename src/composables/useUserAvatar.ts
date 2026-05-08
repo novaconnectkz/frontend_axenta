@@ -40,6 +40,7 @@ export function useUserAvatar() {
     const lower = source.toLowerCase();
     if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'orange';
     if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'cyan';
+    if (lower.startsWith('skif(') || lower === 'skif') return 'purple';
     return 'grey';
   };
 
@@ -49,12 +50,16 @@ export function useUserAvatar() {
     const lower = source.toLowerCase();
     if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'mdi-cloud-outline';
     if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'mdi-server-outline';
+    if (lower.startsWith('skif(') || lower === 'skif') return 'mdi-radar';
     return 'mdi-satellite-uplink';
   };
 
   const getSourceLabel = (source: string | null | undefined): string => {
     if (!source) return '—';
     if (source === 'axenta') return 'Axenta';
+    const lower = source.toLowerCase();
+    // SKIF(<company>) → "SKIF" — компания и так отображается в колонке "Создатель"
+    if (lower.startsWith('skif(') || lower === 'skif') return 'SKIF';
     return source;
   };
 

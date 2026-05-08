@@ -42,7 +42,7 @@
               />
 
               <v-autocomplete
-                v-if="!isWialon"
+                v-if="!isWialon && !isSkif"
                 v-model="form.accountId"
                 :items="axentaAccountOptions"
                 item-title="displayName"
@@ -78,6 +78,25 @@
                   <span class="text-caption text-grey-600 ml-2">(Admin ID: {{ item.raw.adminId }})</span>
                 </template>
               </v-autocomplete>
+
+              <v-autocomplete
+                v-else-if="isSkif"
+                v-model="form.skifCompanyId"
+                :items="skifCompanyOptions"
+                item-title="name"
+                item-value="id"
+                label="Компания SKIF"
+                placeholder="Начните вводить название..."
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                :loading="loadingSkifCompanies"
+                required
+                clearable
+                hide-no-data
+                auto-select-first
+                :rules="[(v: any) => !!v || 'Выберите компанию SKIF']"
+              />
 
               <v-autocomplete
                 v-else
@@ -125,6 +144,32 @@
                 Для аккаунта с биллингом — страница «Учетные записи».
               </div>
             </v-alert>
+
+            <div v-if="isSkif" class="form-row mt-2">
+              <v-select
+                v-model="form.skifRoleKey"
+                :items="skifRoleOptions"
+                item-title="title"
+                item-value="value"
+                label="Роль в SKIF"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+              />
+            </div>
+
+            <v-alert
+              v-if="isSkif"
+              type="info"
+              variant="tonal"
+              density="compact"
+              text
+              class="mt-2"
+            >
+              <div class="text-caption">
+                Юзер создаётся в выбранной компании SKIF. Email/телефон — опционально.
+              </div>
+            </v-alert>
           </div>
 
           <!-- Логин + Email -->
@@ -157,7 +202,7 @@
           </div>
 
           <!-- Полное имя (только axenta) -->
-          <div v-if="!isWialon" class="form-section">
+          <div v-if="!isWialon && !isSkif" class="form-section">
             <div class="form-row full-width">
               <v-text-field
                 v-model="form.name"
@@ -197,7 +242,7 @@
                 </div>
               </div>
               <v-text-field
-                v-if="!isWialon"
+                v-if="!isWialon && !isSkif"
                 v-model="form.confirmPassword"
                 label="Подтверждение пароля"
                 :type="showPassword ? 'text' : 'password'"
@@ -211,7 +256,7 @@
           </div>
 
           <!-- Axenta-specific: hasAdminAccess + visibleTabsNames -->
-          <template v-if="!isWialon">
+          <template v-if="!isWialon && !isSkif">
             <div class="form-section">
               <div class="form-row">
                 <v-switch
@@ -272,6 +317,7 @@ import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import accountsService from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import { apiClient } from '@/services/api';
 import { config } from '@/config/env';
 
 const router = useRouter();
@@ -284,6 +330,19 @@ const loadingWialonAccounts = ref(false);
 
 type WialonConnection = { id: number; name: string; user_name: string; connection_type: 'hosting' | 'local'; is_active: boolean; source_label: string };
 const wialonConnections = ref<WialonConnection[]>([]);
+
+type SkifConnection = { id: number; name: string; is_active: boolean };
+const skifConnections = ref<SkifConnection[]>([]);
+type SkifCompanyOption = { id: string; name: string };
+const skifCompanyOptions = ref<SkifCompanyOption[]>([]);
+const loadingSkifCompanies = ref(false);
+
+const skifRoleOptions = [
+  { title: 'Редактор (EDITOR)', value: 'EDITOR' },
+  { title: 'Администратор (ADMIN)', value: 'ADMIN' },
+  { title: 'Читатель (READER)', value: 'READER' },
+  { title: 'Супервизор (SUPERVISOR)', value: 'SUPERVISOR' },
+];
 
 interface AxentaAccountOption {
   id: number;
@@ -313,6 +372,8 @@ const form = ref({
   confirmPassword: '',
   accountId: null as number | null,
   wialonCreatorId: null as number | null,
+  skifCompanyId: null as string | null,
+  skifRoleKey: 'EDITOR',
   hasAdminAccess: false,
   visibleTabsNames: ['monitoring', 'reports'] as string[],
 });
@@ -325,10 +386,16 @@ const showSnackbar = (text: string, color: 'info' | 'success' | 'error' | 'warni
 
 // Computed
 const isWialon = computed(() => form.value.system.startsWith('wialon:'));
+const isSkif = computed(() => form.value.system.startsWith('skif:'));
 const selectedConnection = computed<WialonConnection | undefined>(() => {
   if (!isWialon.value) return undefined;
   const id = Number(form.value.system.slice('wialon:'.length));
   return wialonConnections.value.find((c) => c.id === id);
+});
+const selectedSkifConnection = computed<SkifConnection | undefined>(() => {
+  if (!isSkif.value) return undefined;
+  const id = Number(form.value.system.slice('skif:'.length));
+  return skifConnections.value.find((c) => c.id === id);
 });
 
 const systemOptions = computed(() => {
@@ -337,6 +404,9 @@ const systemOptions = computed(() => {
   ];
   for (const c of wialonConnections.value) {
     opts.push({ value: `wialon:${c.id}`, title: c.source_label });
+  }
+  for (const c of skifConnections.value) {
+    opts.push({ value: `skif:${c.id}`, title: `SKIF — ${c.name}` });
   }
   return opts;
 });
@@ -364,7 +434,7 @@ const usernameRules = [
 ];
 
 const emailRules = computed(() => {
-  const required = !isWialon.value;
+  const required = !isWialon.value && !isSkif.value;
   return [
     (v: string) => (required ? !!v || 'Email обязателен' : true),
     (v: string) => !v || /.+@.+\..+/.test(v) || 'Неверный формат email',
@@ -414,6 +484,31 @@ const loadWialonConnections = async () => {
   }
 };
 
+const loadSkifConnections = async () => {
+  try {
+    const r = await apiClient.get('/auth/skif/connections');
+    skifConnections.value = (r.data?.data || [])
+      .filter((c: any) => c.is_active)
+      .map((c: any) => ({ id: c.id, name: c.name, is_active: c.is_active }));
+  } catch (e) {
+    console.error('loadSkifConnections', e);
+    skifConnections.value = [];
+  }
+};
+
+const loadSkifCompaniesForConnection = async (connectionId: number) => {
+  loadingSkifCompanies.value = true;
+  try {
+    const r = await apiClient.get(`/auth/skif/connections/${connectionId}/companies`);
+    skifCompanyOptions.value = (r.data?.data || []) as SkifCompanyOption[];
+  } catch (e) {
+    console.error('loadSkifCompaniesForConnection', e);
+    skifCompanyOptions.value = [];
+  } finally {
+    loadingSkifCompanies.value = false;
+  }
+};
+
 const loadAxentaAccounts = async () => {
   loadingAxentaAccounts.value = true;
   try {
@@ -458,8 +553,11 @@ const onSystemChange = () => {
   // Сбросить creator при смене системы
   form.value.accountId = null;
   form.value.wialonCreatorId = null;
+  form.value.skifCompanyId = null;
   if (isWialon.value && selectedConnection.value) {
     loadWialonAccountsForConnection(selectedConnection.value.id);
+  } else if (isSkif.value && selectedSkifConnection.value) {
+    loadSkifCompaniesForConnection(selectedSkifConnection.value.id);
   }
 };
 
@@ -488,6 +586,30 @@ const createUser = async () => {
       }
       showSnackbar(`Wialon-пользователь "${form.value.username}" создан`, 'success');
       setTimeout(() => router.push('/users'), 1500);
+      return;
+    }
+
+    if (isSkif.value && selectedSkifConnection.value) {
+      if (!form.value.skifCompanyId) {
+        showSnackbar('Выберите компанию SKIF', 'error');
+        return;
+      }
+      try {
+        await apiClient.post(
+          `/auth/skif/connections/${selectedSkifConnection.value.id}/users?company=${encodeURIComponent(form.value.skifCompanyId)}`,
+          {
+            name: form.value.username,
+            email: form.value.email || undefined,
+            password: form.value.password,
+            role_key: form.value.skifRoleKey,
+          },
+        );
+        showSnackbar(`SKIF-пользователь "${form.value.username}" создан`, 'success');
+        setTimeout(() => router.push('/users'), 1500);
+      } catch (e: any) {
+        const msg = e?.response?.data?.error || e?.message || 'Ошибка создания SKIF-пользователя';
+        showSnackbar(msg, 'error');
+      }
       return;
     }
 
@@ -543,7 +665,7 @@ const createUser = async () => {
 const goBack = () => router.push('/users');
 
 onMounted(async () => {
-  await Promise.all([loadAxentaAccounts(), loadWialonConnections()]);
+  await Promise.all([loadAxentaAccounts(), loadWialonConnections(), loadSkifConnections()]);
 });
 </script>
 

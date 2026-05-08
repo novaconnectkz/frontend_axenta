@@ -25,6 +25,7 @@ export function useUsersList(ctx: UseUsersListContext) {
     wl: { total: 0, active: 0, inactive: 0 },
   });
   const axentaStats = ref({ total: 0, active: 0, inactive: 0 });
+  const skifStats = ref({ total: 0, active: 0, inactive: 0 });
 
   const applyStatsFromResponse = (resp: any) => {
     if (!resp?.data?.stats) return;
@@ -44,6 +45,9 @@ export function useUsersList(ctx: UseUsersListContext) {
       wh: { total: whT, active: whA, inactive: whT - whA },
       wl: { total: wlT, active: wlA, inactive: wlT - wlA },
     };
+    const skifT = resp.data.stats.skif_total ?? 0;
+    const skifA = resp.data.stats.skif_active ?? 0;
+    skifStats.value = { total: skifT, active: skifA, inactive: skifT - skifA };
   };
 
   // hasActiveFilters — true если применён search/role/active/user_type/source != all.
@@ -130,6 +134,7 @@ export function useUsersList(ctx: UseUsersListContext) {
     pagination,
     wialonStats,
     axentaStats,
+    skifStats,
     loadUsers,
     loadGlobalStats,
     handlePageChange,

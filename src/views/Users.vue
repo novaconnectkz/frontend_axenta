@@ -56,6 +56,13 @@
       @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => showSnackbar(p.text, p.color)"
     />
 
+    <SkifUserEditDialog
+      v-model="skifEditDialog.show"
+      :user="skifEditDialog.user"
+      @saved="onUserRefreshed"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => showSnackbar(p.text, p.color)"
+    />
+
     <PasswordResetDialog
       v-model="passwordDialog.show"
       :user="passwordDialog.user"
@@ -102,6 +109,7 @@ import InactiveUsersDialog from '@/components/Users/InactiveUsersDialog.vue';
 import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import WialonUserEditDialog from '@/components/Users/WialonUserEditDialog.vue';
+import SkifUserEditDialog from '@/components/Users/SkifUserEditDialog.vue';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import UsersFilters from '@/components/Users/UsersFilters.vue';
 import UsersStats from '@/components/Users/UsersStats.vue';
@@ -132,6 +140,7 @@ const {
   pagination,
   wialonStats,
   axentaStats,
+  skifStats,
   loadUsers,
   loadGlobalStats,
   handlePageChange,
@@ -188,7 +197,7 @@ const templateOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
 const loadingTemplates = ref(false);
 
-interface StatBreakdown { axenta: number; wl: number; wh: number }
+interface StatBreakdown { axenta: number; wl: number; wh: number; skif: number }
 interface StatItem {
   key: string;
   label: string;
@@ -209,6 +218,7 @@ const statsCards = computed(() => stats.value);
 
 const userDialog = ref({ show: false, isEdit: false, user: null as UserWithRelations | null });
 const wialonEditDialog = ref({ show: false, user: null as any });
+const skifEditDialog = ref({ show: false, user: null as any });
 const passwordDialog = ref({ show: false, user: null as UserWithRelations | null });
 const viewDialog = ref({ show: false, user: null as UserWithRelations | null });
 const inactiveUsersDialog = ref({ show: false });
@@ -228,27 +238,30 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
 };
 
 const updateTotalStats = () => {
-  stats.value[0].value = axentaStats.value.total + wialonStats.value.total;
-  stats.value[1].value = axentaStats.value.active + wialonStats.value.active;
-  stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive;
+  stats.value[0].value = axentaStats.value.total + wialonStats.value.total + skifStats.value.total;
+  stats.value[1].value = axentaStats.value.active + wialonStats.value.active + skifStats.value.active;
+  stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive + skifStats.value.inactive;
   stats.value[0].breakdown = {
     axenta: axentaStats.value.total,
     wl: wialonStats.value.wl.total,
     wh: wialonStats.value.wh.total,
+    skif: skifStats.value.total,
   };
   stats.value[1].breakdown = {
     axenta: axentaStats.value.active,
     wl: wialonStats.value.wl.active,
     wh: wialonStats.value.wh.active,
+    skif: skifStats.value.active,
   };
   stats.value[2].breakdown = {
     axenta: axentaStats.value.inactive,
     wl: wialonStats.value.wl.inactive,
     wh: wialonStats.value.wh.inactive,
+    skif: skifStats.value.inactive,
   };
 };
 
-watch([axentaStats, wialonStats], updateTotalStats, { deep: true });
+watch([axentaStats, wialonStats, skifStats], updateTotalStats, { deep: true });
 
 const loadStats = async (forceRefresh = false) => {
   try {
@@ -449,11 +462,13 @@ const onUserRefreshed = async () => {
 
 const onEdit = (user: UserWithRelations) => {
   const u: any = user;
+  const srcLabel = String(u?.external_source || u?.source_label || u?.sourceLabel || '');
   const isWialon =
-    u?.source === 'wialon' ||
-    String(u?.external_source || u?.source_label || '').startsWith('WH(') ||
-    String(u?.external_source || u?.source_label || '').startsWith('WL(');
-  if (isWialon) {
+    u?.source === 'wialon' || srcLabel.startsWith('WH(') || srcLabel.startsWith('WL(');
+  const isSkif = u?.source === 'skif' || srcLabel.startsWith('SKIF') || srcLabel === 'SKIF';
+  if (isSkif) {
+    skifEditDialog.value = { show: true, user: u };
+  } else if (isWialon) {
     wialonEditDialog.value = { show: true, user: u };
   } else {
     userDialog.value = { show: true, isEdit: true, user };

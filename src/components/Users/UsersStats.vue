@@ -18,6 +18,7 @@
             <div><strong>Axenta:</strong> {{ stat.breakdown.axenta }}</div>
             <div v-if="stat.breakdown.wl > 0"><strong>WL:</strong> {{ stat.breakdown.wl }}</div>
             <div v-if="stat.breakdown.wh > 0"><strong>WH:</strong> {{ stat.breakdown.wh }}</div>
+            <div v-if="stat.breakdown.skif > 0"><strong>SKIF:</strong> {{ stat.breakdown.skif }}</div>
           </div>
         </v-tooltip>
         <AppleCard
@@ -43,7 +44,7 @@ interface Stat {
   value: number;
   icon: string;
   color: string;
-  breakdown?: { axenta: number; wl: number; wh: number };
+  breakdown?: { axenta: number; wl: number; wh: number; skif: number };
 }
 
 defineProps<{ stats: Stat[] }>();

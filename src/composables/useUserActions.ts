@@ -2,6 +2,7 @@ import { useRouter } from 'vue-router';
 import accountsService from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import usersService from '@/services/usersService';
+import { apiClient } from '@/services/api';
 import type { UserWithRelations } from '@/types/users';
 
 type Notify = (text: string, color?: 'success' | 'error' | 'info' | 'warning') => void;
@@ -19,9 +20,34 @@ export function useUserActions(notify: Notify) {
   };
 
   const deleteUser = async (user: UserWithRelations): Promise<boolean> => {
-    if (!confirm(`Вы уверены, что хотите удалить пользователя "${user.username}"?`)) {
-      return false;
+    const u: any = user;
+    const isSkif = u?.source === 'skif';
+    const confirmText = isSkif
+      ? `Снять пользователя "${user.username}" с компании "${u.creator_name || u.creatorName || ''}"?`
+      : `Вы уверены, что хотите удалить пользователя "${user.username}"?`;
+    if (!confirm(confirmText)) return false;
+
+    if (isSkif) {
+      const connID = u.connection_id ?? u.connectionId;
+      const userUUID = u.external_id || u.externalId;
+      const skifCompanyID = u.skif_company_id || u.skifCompanyId;
+      if (!connID || !userUUID || !skifCompanyID) {
+        notify('Не хватает данных SKIF (connection_id / external_id / skif_company_id)', 'error');
+        return false;
+      }
+      try {
+        await apiClient.delete(
+          `/auth/skif/connections/${connID}/users/${userUUID}?company=${encodeURIComponent(skifCompanyID)}`,
+        );
+        notify('Пользователь снят с компании', 'success');
+        return true;
+      } catch (e: any) {
+        const msg = e?.response?.data?.error || e?.message || 'Ошибка удаления';
+        notify(msg, 'error');
+        return false;
+      }
     }
+
     try {
       const response = await usersService.deleteUser(user.id);
       if (response.status === 'success') {
