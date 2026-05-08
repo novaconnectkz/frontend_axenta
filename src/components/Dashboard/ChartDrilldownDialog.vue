@@ -541,23 +541,41 @@ const BIG_PAD_B = 30;
 
 const hoverIdx = ref<number | null>(null);
 
+// Aligned values по бакетам (forward order). Если connections загружены —
+// sum по connections.history (aligned с live). Иначе — values из chart points.
+const alignedValues = computed<number[]>(() => {
+  if (!props.source || !props.points.length) return [];
+  if (connections.value.length > 0) {
+    return props.points.map((_, i) => {
+      let s = 0;
+      for (const c of connections.value) s += c.history[i]?.total || 0;
+      return s;
+    });
+  }
+  return props.points.map(p => p[props.source!.key]);
+});
+
 function valueAt(i: number): number {
-  if (!props.source || !props.points[i]) return 0;
-  return props.points[i][props.source.key];
+  return alignedValues.value[i] || 0;
 }
 
 const bigPoints = computed(() => {
   if (!props.source || !props.points.length) return [];
-  const values = props.points.map(p => p[props.source!.key]);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const values = alignedValues.value;
+  const nonZero = values.filter(v => v > 0);
+  const min = nonZero.length ? Math.min(...nonZero) : 0;
+  const max = nonZero.length ? Math.max(...nonZero) : 1;
   const range = max - min || 1;
   const innerW = BIG_W - BIG_PAD_L - BIG_PAD_R;
   const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
   const stepX = props.points.length > 1 ? innerW / (props.points.length - 1) : 0;
   return values.map((v, i) => ({
     x: BIG_PAD_L + i * stepX,
-    y: max === min ? BIG_PAD_T + innerH / 2 : BIG_PAD_T + innerH * (1 - (v - min) / range),
+    y: v === 0
+      ? BIG_H - BIG_PAD_B
+      : max === min
+        ? BIG_PAD_T + innerH / 2
+        : BIG_PAD_T + innerH * (1 - (v - min) / range),
   }));
 });
 
@@ -576,7 +594,9 @@ const bigAreaPath = computed(() => {
 const yTicks = computed(() => {
   if (!props.source || !props.points.length) return [];
   // yTicks — для одиночного big-chart. В small-multiples собственный Y per chart.
-  const values = props.points.map(p => p[props.source!.key]);
+  const all = alignedValues.value;
+  const values = all.filter(v => v > 0);
+  if (!values.length) return [];
   const min = Math.min(...values);
   const max = Math.max(...values);
   const innerH = BIG_H - BIG_PAD_T - BIG_PAD_B;
