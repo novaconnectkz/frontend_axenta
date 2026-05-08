@@ -76,6 +76,8 @@ export function useAccountsList(ctx: UseAccountsListContext) {
     wialon_wh_active: 0,
     wialon_wl_total: 0,
     wialon_wl_active: 0,
+    skif_total: 0,
+    skif_active: 0,
   });
 
   const updateStatsFromUnified = (s: UnifiedAccountsStats, animate: boolean) => {

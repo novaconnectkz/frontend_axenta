@@ -62,6 +62,8 @@ export interface UnifiedAccount extends Account {
   sourceLabel?: string;
   connectionId?: number;
   dealerRights?: boolean;
+  skifCompanyId?: string;
+  deleteScheduledFor?: string;
 }
 
 export interface UnifiedAccountsStats {
@@ -75,6 +77,8 @@ export interface UnifiedAccountsStats {
   wialon_wh_active: number;
   wialon_wl_total: number;
   wialon_wl_active: number;
+  skif_total: number;
+  skif_active: number;
 }
 
 export interface UnifiedAccountsResponse {

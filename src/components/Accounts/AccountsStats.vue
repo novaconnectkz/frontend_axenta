@@ -17,6 +17,7 @@
           <div><strong>Axenta:</strong> {{ stats.total }}</div>
           <div v-if="wialonStats.wl.total > 0"><strong>WL:</strong> {{ wialonStats.wl.total }}</div>
           <div v-if="wialonStats.wh.total > 0"><strong>WH:</strong> {{ wialonStats.wh.total }}</div>
+          <div v-if="skifStats.total > 0"><strong>SKIF:</strong> {{ skifStats.total }}</div>
         </div>
       </v-tooltip>
 
@@ -36,6 +37,7 @@
           <div><strong>Axenta:</strong> {{ stats.active }}</div>
           <div v-if="wialonStats.wl.active > 0"><strong>WL:</strong> {{ wialonStats.wl.active }}</div>
           <div v-if="wialonStats.wh.active > 0"><strong>WH:</strong> {{ wialonStats.wh.active }}</div>
+          <div v-if="skifStats.active > 0"><strong>SKIF:</strong> {{ skifStats.active }}</div>
         </div>
       </v-tooltip>
 
@@ -43,7 +45,7 @@
         <template #activator="{ props: tooltipProps }">
           <AppleCard
             v-bind="tooltipProps"
-            :title="(stats.clients + wialonStats.clients).toString()"
+            :title="(stats.clients + wialonStats.clients + skifStats.clients).toString()"
             subtitle="Клиентов"
             icon="mdi-account-outline"
             icon-color="warning"
@@ -55,6 +57,7 @@
           <div><strong>Axenta:</strong> {{ stats.clients }}</div>
           <div v-if="wialonStats.wl.clients > 0"><strong>WL:</strong> {{ wialonStats.wl.clients }}</div>
           <div v-if="wialonStats.wh.clients > 0"><strong>WH:</strong> {{ wialonStats.wh.clients }}</div>
+          <div v-if="skifStats.clients > 0"><strong>SKIF:</strong> {{ skifStats.clients }}</div>
         </div>
       </v-tooltip>
 
@@ -115,9 +118,18 @@ interface TotalStats {
   blocked: number;
 }
 
+interface SkifStats {
+  total: number;
+  active: number;
+  blocked: number;
+  clients: number;
+  dealers: number;
+}
+
 defineProps<{
   stats: AxentaStats;
   wialonStats: WialonStats;
+  skifStats: SkifStats;
   totalStats: TotalStats;
 }>();
 </script>

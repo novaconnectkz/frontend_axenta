@@ -177,7 +177,20 @@
       </template>
 
       <template #item.isActive="{ item }">
-        <v-tooltip location="top" :open-delay="400" :text="item.isActive ? 'Активен' : 'Заблокирован'">
+        <v-tooltip
+          v-if="item.deleteScheduledFor"
+          location="top"
+          :open-delay="200"
+          :text="`SKIF удалит компанию через ${daysUntil(item.deleteScheduledFor)} дн. (${formatDeleteDate(item.deleteScheduledFor)})`"
+        >
+          <template #activator="{ props: tooltipProps }">
+            <v-chip v-bind="tooltipProps" color="warning" size="small" variant="elevated" class="pending-delete-chip">
+              <v-icon start size="14">mdi-timer-sand</v-icon>
+              {{ daysUntil(item.deleteScheduledFor) }}д
+            </v-chip>
+          </template>
+        </v-tooltip>
+        <v-tooltip v-else location="top" :open-delay="400" :text="item.isActive ? 'Активен' : 'Заблокирован'">
           <template #activator="{ props: tooltipProps }">
             <v-icon
               v-bind="tooltipProps"
@@ -193,7 +206,7 @@
       <template #item.source="{ item }">
         <v-chip :color="getSourceColor(item.source)" size="small" variant="tonal">
           <v-icon start size="16">{{ getSourceIcon(item.source) }}</v-icon>
-          {{ item.source === 'axenta' ? 'Axenta' : item.source }}
+          {{ getSourceLabel(item.source) }}
         </v-chip>
       </template>
 
@@ -375,6 +388,7 @@ const formatDateShort = (dateString: string) => {
 
 const getSourceColor = (source: string): string => {
   if (source === 'axenta') return 'primary';
+  if (source === 'skif') return 'green';
   const lower = source?.toLowerCase() || '';
   if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'orange';
   if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'cyan';
@@ -383,10 +397,30 @@ const getSourceColor = (source: string): string => {
 
 const getSourceIcon = (source: string): string => {
   if (source === 'axenta') return 'mdi-server-network-outline';
+  if (source === 'skif') return 'mdi-crosshairs-gps';
   const lower = source?.toLowerCase() || '';
   if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'mdi-cloud-outline';
   if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'mdi-server-outline';
   return 'mdi-satellite-uplink';
+};
+
+const getSourceLabel = (source: string): string => {
+  if (source === 'axenta') return 'Axenta';
+  if (source === 'skif') return 'SKIF';
+  return source;
+};
+
+const daysUntil = (iso: string): number => {
+  const ms = new Date(iso).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+};
+
+const formatDeleteDate = (iso: string): string => {
+  try {
+    return new Date(iso).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch {
+    return iso;
+  }
 };
 
 const keepOpen = (event: Event) => {

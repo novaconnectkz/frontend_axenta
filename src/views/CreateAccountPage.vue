@@ -47,6 +47,7 @@
                 @update:model-value="onSystemChange"
               />
               <v-select
+                v-if="!isSkif"
                 v-model="form.type"
                 :items="typeOptions"
                 :label="isWialon ? 'Тип учётной записи (Партнёр = права дилера)' : 'Тип учетной записи'"
@@ -131,7 +132,7 @@
 
               <!-- Видимые вкладки — только для Axenta -->
               <v-select
-                v-if="!isWialon"
+                v-if="!isWialon && !isSkif"
                 v-model="form.admin.visibleTabsNames"
                 :items="visibleTabsOptions"
                 label="Видимые вкладки"
@@ -145,7 +146,7 @@
             </div>
 
             <!-- Axenta-only поля: комментарий + дата блокировки -->
-            <div v-if="!isWialon" class="form-row">
+            <div v-if="!isWialon && !isSkif" class="form-row">
               <v-text-field
                 v-model="form.comment"
                 label="Комментарий"
@@ -170,7 +171,7 @@
           <!-- Секция администратора -->
           <div class="form-section">
             <!-- Axenta: имя + логин в одной строке -->
-            <div v-if="!isWialon" class="form-row">
+            <div v-if="!isWialon && !isSkif" class="form-row">
               <v-text-field
                 v-model="form.admin.name"
                 label="Имя администратора"
@@ -195,7 +196,7 @@
             </div>
 
             <!-- Axenta: email + ID -->
-            <div v-if="!isWialon" class="form-row">
+            <div v-if="!isWialon && !isSkif" class="form-row">
               <v-text-field
                 v-model="form.admin.email"
                 label="Email администратора"
@@ -220,7 +221,7 @@
             </div>
 
             <!-- Логин + Пароль в одной строке (для wialon — основные поля админа) -->
-            <div class="form-row">
+            <div v-if="!isSkif" class="form-row">
               <v-text-field
                 v-if="isWialon"
                 v-model="form.admin.username"
@@ -267,7 +268,7 @@
               </div>
 
               <v-text-field
-                v-if="!isWialon"
+                v-if="!isWialon && !isSkif"
                 v-model="form.admin.confirmPassword"
                 label="Подтверждение пароля"
                 type="password"
@@ -279,6 +280,65 @@
                 clearable
               />
             </div>
+
+            <!-- SKIF секция: timezone (обязательно) + опциональный admin user -->
+            <template v-if="isSkif">
+              <div class="form-row">
+                <v-select
+                  v-model="skifForm.timezone"
+                  :items="skifTimezoneOptions"
+                  label="Часовой пояс"
+                  variant="outlined"
+                  density="compact"
+                  required
+                  :error-messages="errors['skif.timezone']"
+                />
+              </div>
+
+              <div class="form-row">
+                <v-switch
+                  v-model="skifForm.withUser"
+                  label="Создать первого пользователя (admin) вместе с компанией"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                  inset
+                />
+              </div>
+
+              <div v-if="skifForm.withUser" class="form-row">
+                <v-text-field
+                  v-model="skifForm.userEmail"
+                  label="Email администратора"
+                  type="email"
+                  placeholder="admin@example.com"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="errors['skif.userEmail']"
+                  clearable
+                />
+                <v-text-field
+                  v-model="skifForm.userName"
+                  label="Имя администратора"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                />
+              </div>
+
+              <div v-if="skifForm.withUser" class="form-row">
+                <v-text-field
+                  v-model="skifForm.userPassword"
+                  label="Пароль"
+                  :type="showPassword ? 'text' : 'password'"
+                  variant="outlined"
+                  density="compact"
+                  :error-messages="errors['skif.userPassword']"
+                  :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
+                  @click:append-inner="showPassword = !showPassword"
+                />
+              </div>
+            </template>
 
           </div>
         </div>
@@ -336,6 +396,7 @@ import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
 import accountsService from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import { skifAccountsService, type SkifConnectionListItem } from '@/services/skifAccountsService';
 
 // Router
 const router = useRouter();
@@ -350,7 +411,33 @@ const showPassword = ref(false);
 // Список wialon-подключений (загружается на mount). Используется в селекторе "Система мониторинга".
 type WialonConnection = { id: number; name: string; user_name: string; connection_type: 'hosting' | 'local'; is_active: boolean; source_label: string };
 const wialonConnections = ref<WialonConnection[]>([]);
+const skifConnections = ref<SkifConnectionListItem[]>([]);
 const billingPlans = ref<Array<{ name: string }>>([]);
+
+// SKIF-форма (отдельная от admin/billing) — поля POST /api_v1/company/create.
+// Часовые пояса по IANA. Дефолт МСК.
+const skifForm = ref({
+  timezone: 'Europe/Moscow',
+  withUser: false,
+  userEmail: '',
+  userPassword: '',
+  userName: '',
+});
+
+const skifTimezoneOptions = [
+  { value: 'Europe/Moscow', title: 'Москва (UTC+3)' },
+  { value: 'Europe/Kaliningrad', title: 'Калининград (UTC+2)' },
+  { value: 'Europe/Samara', title: 'Самара (UTC+4)' },
+  { value: 'Asia/Yekaterinburg', title: 'Екатеринбург (UTC+5)' },
+  { value: 'Asia/Omsk', title: 'Омск (UTC+6)' },
+  { value: 'Asia/Krasnoyarsk', title: 'Красноярск (UTC+7)' },
+  { value: 'Asia/Irkutsk', title: 'Иркутск (UTC+8)' },
+  { value: 'Asia/Yakutsk', title: 'Якутск (UTC+9)' },
+  { value: 'Asia/Vladivostok', title: 'Владивосток (UTC+10)' },
+  { value: 'Asia/Almaty', title: 'Алматы (UTC+5)' },
+  { value: 'Europe/Kiev', title: 'Киев (UTC+2)' },
+  { value: 'UTC', title: 'UTC' },
+];
 
 // Интерфейс для формы создания учетной записи
 interface AccountForm {
@@ -411,10 +498,16 @@ const successNotification = ref({
 
 // Computed
 const isWialon = computed(() => form.value.system.startsWith('wialon:'));
+const isSkif = computed(() => form.value.system.startsWith('skif:'));
 const selectedConnection = computed<WialonConnection | undefined>(() => {
   if (!isWialon.value) return undefined;
   const id = Number(form.value.system.slice('wialon:'.length));
   return wialonConnections.value.find(c => c.id === id);
+});
+const selectedSkifConnection = computed<SkifConnectionListItem | undefined>(() => {
+  if (!isSkif.value) return undefined;
+  const id = Number(form.value.system.slice('skif:'.length));
+  return skifConnections.value.find(c => c.id === id);
 });
 const isWialonLocal = computed(() => selectedConnection.value?.connection_type === 'local');
 
@@ -424,6 +517,9 @@ const systemOptions = computed(() => {
   ];
   for (const c of wialonConnections.value) {
     opts.push({ value: `wialon:${c.id}`, title: c.source_label });
+  }
+  for (const c of skifConnections.value) {
+    opts.push({ value: `skif:${c.id}`, title: `SKIF: ${c.name}` });
   }
   return opts;
 });
@@ -530,7 +626,17 @@ const toggleDefaultPlan = (planName: string) => {
 };
 
 const isFormValid = computed(() => {
-  if (!form.value.name.trim() || !form.value.type) return false;
+  if (!form.value.name.trim()) return false;
+
+  if (isSkif.value) {
+    if (!skifForm.value.timezone) return false;
+    if (skifForm.value.withUser) {
+      if (!skifForm.value.userEmail.trim() || !skifForm.value.userPassword.trim()) return false;
+    }
+    return !Object.values(errors.value).some(e => e);
+  }
+
+  if (!form.value.type) return false;
   if (!form.value.admin.username.trim() || !form.value.admin.email.trim() || !form.value.admin.password.trim()) return false;
 
   if (isWialon.value) {
@@ -589,6 +695,8 @@ const resetForm = () => {
 const onSystemChange = async () => {
   form.value.billingPlan = '';
   billingPlans.value = [];
+  errors.value = {};
+  if (isSkif.value) return;
   if (!isWialon.value) return;
 
   // Автогенерация пароля для Wialon (если ещё не задан или был установлен только что для axenta)
@@ -620,7 +728,12 @@ const onSystemChange = async () => {
 onMounted(async () => {
   loadingConnections.value = true;
   try {
-    wialonConnections.value = await settingsService.getWialonConnections();
+    const [wialon, skif] = await Promise.all([
+      settingsService.getWialonConnections(),
+      skifAccountsService.getConnections().catch(() => []),
+    ]);
+    wialonConnections.value = wialon;
+    skifConnections.value = skif.filter(c => c.is_active);
   } finally {
     loadingConnections.value = false;
   }
@@ -633,6 +746,25 @@ const validateForm = (): boolean => {
     errors.value.name = 'Название учетной записи обязательно';
     return false;
   }
+
+  if (isSkif.value) {
+    if (!skifForm.value.timezone) {
+      errors.value['skif.timezone'] = 'Часовой пояс обязателен';
+      return false;
+    }
+    if (skifForm.value.withUser) {
+      if (!skifForm.value.userEmail.trim()) {
+        errors.value['skif.userEmail'] = 'Email обязателен';
+        return false;
+      }
+      if (!skifForm.value.userPassword.trim()) {
+        errors.value['skif.userPassword'] = 'Пароль обязателен';
+        return false;
+      }
+    }
+    return true;
+  }
+
   if (!form.value.type) {
     errors.value.type = 'Тип учетной записи обязателен';
     return false;
@@ -683,6 +815,32 @@ const createAccount = async () => {
 
   try {
     saving.value = true;
+
+    if (isSkif.value) {
+      const conn = selectedSkifConnection.value!;
+      const result = await skifAccountsService.createCompany(conn.id, {
+        company_name: form.value.name,
+        timezone: skifForm.value.timezone,
+        with_user: skifForm.value.withUser,
+        user_email: skifForm.value.withUser ? skifForm.value.userEmail : undefined,
+        user_password: skifForm.value.withUser ? skifForm.value.userPassword : undefined,
+        user_name: skifForm.value.withUser ? skifForm.value.userName : undefined,
+      });
+      if (!result.ok) {
+        showSnackbar(result.error || 'Ошибка создания SKIF-компании', 'error');
+        return;
+      }
+      successNotification.value = {
+        show: true,
+        title: 'SKIF-компания создана',
+        message: `"${form.value.name}" создана в SKIF.PRO (${conn.name})`,
+        details: skifForm.value.withUser ? `С администратором ${skifForm.value.userEmail}` : 'Без администратора',
+        icon: 'mdi-check-circle',
+      };
+      resetForm();
+      setTimeout(() => router.push('/accounts'), 2000);
+      return;
+    }
 
     if (isWialon.value) {
       // Wialon: вызываем backend POST /api/wialon/connections/:id/accounts

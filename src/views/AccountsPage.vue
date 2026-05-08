@@ -1,7 +1,7 @@
 <template>
   <div class="accounts-page">
     <!-- Статистика -->
-    <AccountsStats :stats="stats" :wialon-stats="wialonStats" :total-stats="totalStats" />
+    <AccountsStats :stats="stats" :wialon-stats="wialonStats" :skif-stats="skifStats" :total-stats="totalStats" />
 
     <!-- Фильтры -->
     <AccountsFilters
@@ -79,6 +79,14 @@
       @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => snackbar = { show: true, text: p.text, color: p.color, timeout: 4000 }"
     />
 
+    <!-- Свойства SKIF-аккаунта (read-only + schedule_delete) -->
+    <SkifAccountEditDialog
+      v-model="skifPropsDialog.show"
+      :account="skifPropsDialog.account"
+      @changed="onAccountSaved"
+      @snack="(p: { text: string; color: 'success' | 'error' | 'info' | 'warning' }) => snackbar = { show: true, text: p.text, color: p.color, timeout: 4000 }"
+    />
+
 
     <!-- Snackbar для уведомлений -->
     <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="bottom right">
@@ -131,6 +139,7 @@ import AccountsFilters from '@/components/Accounts/AccountsFilters.vue';
 import AccountsTable from '@/components/Accounts/AccountsTable.vue';
 import WialonAccountEditDialog from '@/components/Accounts/WialonAccountEditDialog.vue';
 import AxentaAccountEditDialog from '@/components/Accounts/AxentaAccountEditDialog.vue';
+import SkifAccountEditDialog from '@/components/Accounts/SkifAccountEditDialog.vue';
 import accountsService, { type Account, type AccountsFilters as AccountsFiltersType } from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
 import { wialonCacheService } from '@/services/wialonCacheService';
@@ -235,11 +244,27 @@ const wialonStats = computed(() => ({
   },
 }));
 
-// Объединённая статистика (Axenta + Wialon)
+// SKIF-разбивка (дилерские компании). active = есть хоть один активный юнит.
+// `?? 0` защищает от старого backend без skif_total/active в ответе — без этого
+// totalStats.total = stats.total + wialonStats.total + undefined = NaN.
+const skifStats = computed(() => {
+  const t = unifiedStats.value.skif_total ?? 0;
+  const a = unifiedStats.value.skif_active ?? 0;
+  return {
+    total: t,
+    active: a,
+    blocked: t - a,
+    // SKIF не делит на client/partner — все дилеры считаются клиентами для KPI.
+    clients: t,
+    dealers: 0,
+  };
+});
+
+// Объединённая статистика (Axenta + Wialon + SKIF)
 const totalStats = computed(() => ({
-  total: stats.value.total + wialonStats.value.total,
-  active: stats.value.active + wialonStats.value.active,
-  blocked: stats.value.blocked + wialonStats.value.blocked,
+  total: stats.value.total + wialonStats.value.total + skifStats.value.total,
+  active: stats.value.active + wialonStats.value.active + skifStats.value.active,
+  blocked: stats.value.blocked + wialonStats.value.blocked + skifStats.value.blocked,
 }));
 
 // Диалоги
@@ -295,11 +320,15 @@ const moveDialog = ref(false);
 const accountToMove = ref<Account | null>(null);
 const wialonPropsDialog = ref({ show: false, account: null as any });
 const axentaPropsDialog = ref({ show: false, account: null as any });
+const skifPropsDialog = ref({ show: false, account: null as any });
 
 const onProperties = (item: any) => {
   const src = String(item?.source || item?.sourceLabel || item?.source_label || '');
   const isWialon = src === 'wialon' || src.startsWith('WH(') || src.startsWith('WL(') || src.startsWith('wh') || src.startsWith('wl');
-  if (isWialon) {
+  const isSkif = src.toLowerCase() === 'skif';
+  if (isSkif) {
+    skifPropsDialog.value = { show: true, account: item };
+  } else if (isWialon) {
     wialonPropsDialog.value = { show: true, account: item };
   } else {
     axentaPropsDialog.value = { show: true, account: item };
@@ -356,6 +385,7 @@ const sourceOptions = [
   { title: 'Wialon (все)', value: 'wialon' },
   { title: 'WH (Hosting)', value: 'wh' },
   { title: 'WL (Local)', value: 'wl' },
+  { title: 'SKIF.PRO', value: 'skif' },
 ];
 
 // Опции для количества записей на странице
