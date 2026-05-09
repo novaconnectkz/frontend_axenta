@@ -11,8 +11,8 @@ function resolveDefaultBackendUrl(): string {
   if (typeof window !== "undefined") {
     const { host, protocol } = window.location;
 
-    if (host.endsWith("axenta.glonass-saratov.ru")) {
-      return `${protocol}//api.axenta.glonass-saratov.ru`;
+    if (host.endsWith("acrm.su")) {
+      return `${protocol}//api.acrm.su`;
     }
   }
 
@@ -58,7 +58,7 @@ export const config = {
   // Базовый URL API
   get apiBaseUrl() {
     // Всегда добавляем /api к базовому URL
-    // Например: https://api.axenta.glonass-saratov.ru + /api = https://api.axenta.glonass-saratov.ru/api
+    // Например: https://api.acrm.su + /api = https://api.acrm.su/api
     return `${this.backendUrl}/api`;
   },
 

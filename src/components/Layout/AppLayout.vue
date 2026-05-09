@@ -641,7 +641,7 @@ const goToSettings = () => {
 
 const goToMonitoring = () => {
   // Переход к системе мониторинга (внешняя ссылка)
-  window.open('https://axenta.glonass-saratov.ru', '_blank');
+  window.open('https://acrm.su', '_blank');
 };
 
 const goToCMS = async () => {
