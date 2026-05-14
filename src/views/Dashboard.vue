@@ -296,7 +296,10 @@ function buildSpark(key: SparkKey, label: string, color: string): SparkData {
   const values = points.map(p => p[key]);
   const min = values.length ? Math.min(...values) : 0;
   const max = values.length ? Math.max(...values) : 0;
-  const first = values.length ? values[0] : 0;
+  // first = первое НЕнулевое значение. Нули = пропущенные/битые снапшоты,
+  // не реальный 0 — иначе deltaPct раздувается до тысяч процентов.
+  const nonZero = values.filter(v => v > 0);
+  const first = nonZero.length ? nonZero[0] : 0;
 
   const status = sourceStatusFor(key);
   // current = live total из sources-stats (стабильно, не зависит от period).
