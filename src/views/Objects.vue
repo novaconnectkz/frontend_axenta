@@ -60,7 +60,6 @@
       @toggle-all-activity="toggleAllObjectsActivity"
       @view="viewObject"
       @edit="editObject"
-      @create-template="createTemplateFromObject"
       @cancel-scheduled-delete="cancelScheduledDelete"
       @schedule-delete="scheduleDelete"
       @delete="deleteObject"
@@ -71,7 +70,6 @@
     <!-- Диалог создания/редактирования объекта -->
     <ObjectFormDialog
       v-model:show="objectDialog.show"
-      v-model:selected-template="selectedTemplate"
       :is-edit="objectDialog.isEdit"
       :form="objectForm"
       :errors="formErrors"
@@ -80,11 +78,9 @@
       :company-options="companyOptions"
       :contract-options="contractOptions"
       :location-options="locationOptions"
-      :template-options="templateOptions"
       :loading-companies="loadingCompanies"
       @close="closeObjectDialog"
       @save="saveObject"
-      @apply-template="applyTemplate"
       @add-phone-number="addPhoneNumber"
       @remove-phone-number="removePhoneNumber"
     />
@@ -100,17 +96,6 @@
       @update:form="scheduleDeleteForm = $event"
       @close="closeScheduleDeleteDialog"
       @confirm="confirmScheduleDelete" />
-
-    <!-- Диалог создания шаблона из объекта -->
-    <CreateTemplateDialog
-      v-model="createTemplateDialog.show"
-      :object="createTemplateDialog.object"
-      :form="createTemplateForm"
-      :errors="createTemplateErrors"
-      :loading="saving"
-      @update:form="createTemplateForm = $event"
-      @close="closeCreateTemplateDialog"
-      @confirm="confirmCreateTemplate" />
 
     <!-- Диалог просмотра объекта -->
     <ObjectViewDialog
@@ -152,7 +137,6 @@ import AppleCard from '@/components/Apple/AppleCard.vue';
 import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import AppleInput from '@/components/Apple/AppleInput.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
-import CreateTemplateDialog from '@/components/Objects/CreateTemplateDialog.vue';
 import ObjectFormDialog from '@/components/Objects/ObjectFormDialog.vue';
 import ObjectViewDialog from '@/components/Objects/ObjectViewDialog.vue';
 import ObjectsFiltersBar from '@/components/Objects/ObjectsFiltersBar.vue';
@@ -271,28 +255,9 @@ const crud = useObjectsCRUD({
   loadObjects: () => list.loadObjects(),
   loadStats: () => list.loadStats(),
   loadCompanies: () => lookups.loadCompanies(),
-  loadTemplates: () => lookups.loadTemplates(),
   showSnackbar,
   showSuccessNotification,
-  selectedTemplate: lookups.selectedTemplate,
 });
-
-const applyTemplate = (templateId: number | null) => {
-  if (!templateId) return;
-  const template = lookups.templateOptions.value.find((t: any) => t.value === templateId);
-  if (!template) return;
-  crud.objectForm.value.template_id = templateId;
-  crud.objectForm.value.type = template.category || crud.objectForm.value.type;
-  if (template.default_settings) {
-    try {
-      const settings = JSON.parse(template.default_settings);
-      crud.objectForm.value.settings = JSON.stringify(settings);
-    } catch (error) {
-      console.warn('Ошибка парсинга настроек шаблона:', error);
-    }
-  }
-  showSnackbar(`Шаблон "${template.name}" применен`, 'success');
-};
 
 const exporter = useObjectsExport({
   filters: _filters.filters,
@@ -337,16 +302,12 @@ const handleSortChange = list.handleSortChange;
 const companyOptions = lookups.companyOptions;
 const contractOptions = lookups.contractOptions;
 const locationOptions = lookups.locationOptions;
-const templateOptions = lookups.templateOptions;
 const loadingCompanies = lookups.loadingCompanies;
 const loadingContracts = lookups.loadingContracts;
 const loadingLocations = lookups.loadingLocations;
-const loadingTemplates = lookups.loadingTemplates;
-const selectedTemplate = lookups.selectedTemplate;
 const loadCompanies = lookups.loadCompanies;
 const loadContracts = lookups.loadContracts;
 const loadLocations = lookups.loadLocations;
-const loadTemplates = lookups.loadTemplates;
 
 const selectedObjects = selection.selectedObjects;
 const selectAll = selection.selectAll;
@@ -364,9 +325,6 @@ const scheduleDeleteDialog = crud.scheduleDeleteDialog;
 const scheduleDeleteForm = crud.scheduleDeleteForm;
 const scheduleDeleteErrors = crud.scheduleDeleteErrors;
 const viewDialog = crud.viewDialog;
-const createTemplateDialog = crud.createTemplateDialog;
-const createTemplateForm = crud.createTemplateForm;
-const createTemplateErrors = crud.createTemplateErrors;
 const openCreateDialog = crud.openCreateDialog;
 const editObject = crud.editObject;
 const closeObjectDialog = crud.closeObjectDialog;
@@ -380,9 +338,6 @@ const scheduleDelete = crud.scheduleDelete;
 const closeScheduleDeleteDialog = crud.closeScheduleDeleteDialog;
 const confirmScheduleDelete = crud.confirmScheduleDelete;
 const cancelScheduledDelete = crud.cancelScheduledDelete;
-const createTemplateFromObject = crud.createTemplateFromObject;
-const closeCreateTemplateDialog = crud.closeCreateTemplateDialog;
-const confirmCreateTemplate = crud.confirmCreateTemplate;
 const restoreObject = crud.restoreObject;
 const permanentDeleteObject = crud.permanentDeleteObject;
 const toggleObjectActivity = crud.toggleObjectActivity;
@@ -522,11 +477,10 @@ onMounted(async () => {
       loadCompanies(),
       loadContracts(),
       loadLocations(),
-      loadTemplates(),
     ]).then(results => {
       results.forEach((result, index) => {
         if (result.status === 'rejected') {
-          const names = ['компании', 'договоры', 'локации', 'шаблоны'];
+          const names = ['компании', 'договоры', 'локации'];
           console.warn(`⚠️ Не удалось загрузить ${names[index]}:`, result.reason);
         }
       });

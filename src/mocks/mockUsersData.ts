@@ -1,6 +1,6 @@
 // Mock данные для демонстрации раздела "Пользователи"
 
-import type { UserWithRelations, Role, UserTemplate, UserStats } from '@/types/users';
+import type { UserWithRelations, Role, UserStats } from '@/types/users';
 
 // Базовые системные роли - для демонстрации интерфейса
 export const mockRoles: Role[] = [
@@ -41,9 +41,6 @@ export const mockRoles: Role[] = [
     updated_at: '2024-01-01T10:00:00Z'
   }
 ];
-
-// Демо шаблоны пользователей - очищено для продакшена
-export const mockTemplates: UserTemplate[] = [];
 
 // Демо пользователи - базовые данные для демонстрации интерфейса
 export const mockUsers: UserWithRelations[] = [

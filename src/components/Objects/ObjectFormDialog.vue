@@ -12,25 +12,6 @@
 
       <v-form ref="objectFormRef" @submit.prevent="$emit('save')">
         <div class="form-content">
-          <!-- Шаблон объекта -->
-          <v-row v-if="!isEdit">
-            <v-col cols="12">
-              <v-select v-model="selectedTemplate" :items="templateOptions" label="Шаблон объекта (опционально)"
-                variant="outlined" density="comfortable" clearable prepend-icon="mdi-file-document-outline"
-                @update:model-value="(v: any) => $emit('applyTemplate', v)">
-                <template #item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <template #prepend>
-                      <v-icon :icon="item.raw.icon || 'mdi-file-document-outline'" />
-                    </template>
-                    <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
-                    <v-list-item-subtitle>{{ item.raw.description }}</v-list-item-subtitle>
-                  </v-list-item>
-                </template>
-              </v-select>
-            </v-col>
-          </v-row>
-
           <!-- Основная информация -->
           <v-row>
             <v-col cols="12">
@@ -117,11 +98,6 @@
                 density="comfortable" :loading="false" />
             </v-col>
 
-            <v-col cols="12" md="6">
-              <v-select v-model="form.template_id" :items="templateOptions" label="Шаблон объекта" clearable
-                variant="outlined" density="comfortable" :loading="false" />
-            </v-col>
-
             <v-col cols="12">
               <AppleInput v-model="form.address" label="Адрес" placeholder="Введите адрес объекта" />
             </v-col>
@@ -171,17 +147,14 @@ defineProps<{
   companyOptions: any[];
   contractOptions: any[];
   locationOptions: any[];
-  templateOptions: any[];
   loadingCompanies: boolean;
 }>();
 
 const show = defineModel<boolean>('show', { required: true });
-const selectedTemplate = defineModel<number | null>('selectedTemplate', { default: null });
 
 defineEmits<{
   close: [];
   save: [];
-  applyTemplate: [templateId: number | null];
   addPhoneNumber: [];
   removePhoneNumber: [index: number];
 }>();

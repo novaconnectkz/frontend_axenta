@@ -5,7 +5,6 @@ import type {
   CompanyInfo,
   ObjectFilters,
   ObjectForm,
-  ObjectTemplate,
   ObjectWithRelations,
   ObjectsResponse,
   ScheduleDeleteForm,
@@ -749,87 +748,6 @@ export class ObjectsService {
     return response.data;
   }
 
-  // === ШАБЛОНЫ ОБЪЕКТОВ ===
-
-  // Получение списка шаблонов
-  async getObjectTemplates(
-    page = 1,
-    per_page = 50,
-    filters: { category?: string; search?: string; active_only?: boolean } = {}
-  ): Promise<{
-    status: string;
-    data: {
-      items: ObjectTemplate[];
-      total: number;
-      page: number;
-      per_page: number;
-      total_pages: number;
-    };
-    error?: string;
-  }> {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: per_page.toString(),
-      ordering: "name",
-    });
-
-    if (filters.category) params.append("category", filters.category);
-    if (filters.search) params.append("search", filters.search);
-    if (filters.active_only !== undefined)
-      params.append("active_only", filters.active_only.toString());
-
-    const response = await this.apiClient.get(
-      `/object-templates?${params.toString()}`
-    );
-    return response.data;
-  }
-
-  // Получение одного шаблона
-  async getObjectTemplate(
-    id: number
-  ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.apiClient.get(
-      `/object-templates/${id}`
-    );
-    return response.data;
-  }
-
-  // Создание шаблона
-  async createObjectTemplate(
-    template: Omit<
-      ObjectTemplate,
-      "id" | "created_at" | "updated_at" | "usage_count"
-    >
-  ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.apiClient.post(
-      "/object-templates",
-      template
-    );
-    return response.data;
-  }
-
-  // Обновление шаблона
-  async updateObjectTemplate(
-    id: number,
-    template: Partial<ObjectTemplate>
-  ): Promise<{ status: string; data: ObjectTemplate; error?: string }> {
-    const response = await this.apiClient.put(
-      `/object-templates/${id}`,
-      template
-    );
-    return response.data;
-  }
-
-  // Удаление шаблона
-  async deleteObjectTemplate(
-    id: number
-  ): Promise<{ status: string; message: string; error?: string }> {
-    const response = await this.apiClient.delete(
-      `/object-templates/${id}`
-    );
-    return response.data;
-  }
-
   // === ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ===
 
   // Получение статистики объектов с кешированием и дедупликацией
@@ -1060,35 +978,6 @@ export class ObjectsService {
       }
     );
     return response.data;
-  }
-
-  // Проверка демо режима
-  // Создание шаблона на основе объекта
-  async createTemplateFromObject(
-    objectId: number,
-    templateData: {
-      name: string;
-      description: string;
-      category: string;
-      icon: string;
-      color: string;
-    }
-  ): Promise<{ status: string; data?: any; error?: string }> {
-    try {
-      const response = await fetch(`/api/objects/${objectId}/create-template`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(templateData),
-      });
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Ошибка создания шаблона:', error);
-      return { status: 'error', error: 'Ошибка создания шаблона' };
-    }
   }
 
   isMockDataEnabled(): boolean {

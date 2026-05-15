@@ -118,18 +118,6 @@
             </v-col>
             
             <v-col cols="12" md="6">
-              <v-select
-                v-model="form.template_id"
-                :items="templateOptions"
-                label="Шаблон пользователя"
-                clearable
-                variant="outlined"
-                density="comfortable"
-                :loading="loadingTemplates"
-              />
-            </v-col>
-            
-            <v-col cols="12" md="6">
               <v-switch
                 v-model="form.is_active"
                 label="Активный пользователь"
@@ -198,18 +186,14 @@ interface Props {
   modelValue: boolean;
   user?: UserWithRelations | null;
   roleOptions?: Array<{ title: string; value: number }>;
-  templateOptions?: Array<{ title: string; value: number }>;
   loadingRoles?: boolean;
-  loadingTemplates?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   modelValue: false,
   user: null,
   roleOptions: () => [],
-  templateOptions: () => [],
   loadingRoles: false,
-  loadingTemplates: false,
 });
 
 // Emits

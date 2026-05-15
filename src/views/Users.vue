@@ -33,9 +33,7 @@
       v-model="userDialog.show"
       :user="userDialog.user"
       :role-options="roleOptionsForForm"
-      :template-options="templateOptions"
       :loading-roles="loadingRoles"
-      :loading-templates="loadingTemplates"
       @saved="onUserSaved"
       @error="(msg: string) => showSnackbar(msg, 'error')"
     />
@@ -193,9 +191,7 @@ watch([filters, pagination], saveFiltersToStorage, { deep: true });
 
 const roleOptions = ref<Array<{ title: string; value: string }>>([]);
 const roleOptionsForForm = ref<Array<{ title: string; value: number }>>([]);
-const templateOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
-const loadingTemplates = ref(false);
 
 interface StatBreakdown { axenta: number; wl: number; wh: number; skif: number }
 interface StatItem {
@@ -297,20 +293,6 @@ const loadRoles = async (forceRefresh = false) => {
     console.error('Ошибка загрузки ролей:', e);
   } finally {
     loadingRoles.value = false;
-  }
-};
-
-const loadTemplates = async (forceRefresh = false) => {
-  loadingTemplates.value = true;
-  try {
-    const response = await usersService.getUserTemplates(1, 100, { active_only: true }, forceRefresh);
-    if (response.status === 'success') {
-      templateOptions.value = response.data.items.map((t) => ({ title: t.name, value: t.id }));
-    }
-  } catch (e) {
-    console.error('Ошибка загрузки шаблонов:', e);
-  } finally {
-    loadingTemplates.value = false;
   }
 };
 
@@ -512,7 +494,7 @@ onMounted(async () => {
   loadFiltersFromStorage();
 
   try {
-    await Promise.all([loadUsers(), loadStats(), loadGlobalStats(), loadRoles(), loadTemplates()]);
+    await Promise.all([loadUsers(), loadStats(), loadGlobalStats(), loadRoles()]);
   } catch (e) {
     console.error('Ошибка загрузки данных:', e);
     showSnackbar('Ошибка загрузки данных пользователей', 'error');

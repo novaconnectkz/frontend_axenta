@@ -11,10 +11,8 @@ interface UseObjectsCRUDContext {
   loadObjects: () => Promise<void>;
   loadStats: () => Promise<void>;
   loadCompanies: () => Promise<void>;
-  loadTemplates: () => Promise<void>;
   showSnackbar: (text: string, color?: string, timeout?: number) => void;
   showSuccessNotification: (title: string, message: string, details?: string, showTimer?: boolean) => void;
-  selectedTemplate: Ref<number | null>;
 }
 
 const objectsService = getObjectsService();
@@ -76,19 +74,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     object: null as ObjectWithRelations | null,
   });
 
-  const createTemplateDialog = ref({
-    show: false,
-    object: null as ObjectWithRelations | null,
-  });
-  const createTemplateForm = ref({
-    name: '',
-    description: '',
-    category: '',
-    icon: '',
-    color: '',
-  });
-  const createTemplateErrors = ref<Record<string, string>>({});
-
   const resetObjectForm = () => {
     objectForm.value = emptyObjectForm();
   };
@@ -125,7 +110,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     objectDialog.value = { show: true, isEdit: false, object: null };
     resetObjectForm();
     ctx.loadCompanies();
-    ctx.loadTemplates();
   };
 
   const editObject = (object: ObjectWithRelations) => {
@@ -137,7 +121,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     objectDialog.value.show = false;
     resetObjectForm();
     formErrors.value = {};
-    ctx.selectedTemplate.value = null;
     if (route.query.action === 'create') {
       router.replace({ path: route.path });
     }
@@ -298,63 +281,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     }
   };
 
-  const createTemplateFromObject = (object: ObjectWithRelations) => {
-    createTemplateDialog.value = { show: true, object };
-    createTemplateForm.value = {
-      name: `Шаблон на основе "${object.name}"`,
-      description: `Шаблон создан на основе объекта "${object.name}"`,
-      category: object.type || 'Стандартные',
-      icon: 'mdi-card-account-details-outline',
-      color: '#1976D2',
-    };
-    createTemplateErrors.value = {};
-  };
-
-  const closeCreateTemplateDialog = () => {
-    createTemplateDialog.value.show = false;
-    createTemplateDialog.value.object = null;
-    createTemplateForm.value = {
-      name: '',
-      description: '',
-      category: '',
-      icon: '',
-      color: '',
-    };
-    createTemplateErrors.value = {};
-  };
-
-  const confirmCreateTemplate = async () => {
-    try {
-      createTemplateErrors.value = {};
-      if (!createTemplateForm.value.name.trim()) {
-        createTemplateErrors.value.name = 'Название шаблона обязательно';
-        return;
-      }
-      if (!createTemplateForm.value.category.trim()) {
-        createTemplateErrors.value.category = 'Категория шаблона обязательна';
-        return;
-      }
-
-      saving.value = true;
-      const response = await objectsService.createTemplateFromObject(
-        createTemplateDialog.value.object!.id,
-        createTemplateForm.value,
-      );
-
-      if (response.status === 'success') {
-        ctx.showSnackbar('Шаблон успешно создан на основе объекта', 'success');
-        closeCreateTemplateDialog();
-      } else {
-        ctx.showSnackbar(response.error || 'Ошибка создания шаблона', 'error');
-      }
-    } catch (error: any) {
-      console.error('Ошибка создания шаблона:', error);
-      ctx.showSnackbar('Ошибка создания шаблона', 'error');
-    } finally {
-      saving.value = false;
-    }
-  };
-
   const restoreObject = async (object: ObjectWithRelations) => {
     if (!confirm(`Восстановить объект "${object.name}"?`)) return;
 
@@ -472,9 +398,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     scheduleDeleteForm,
     scheduleDeleteErrors,
     viewDialog,
-    createTemplateDialog,
-    createTemplateForm,
-    createTemplateErrors,
     openCreateDialog,
     editObject,
     closeObjectDialog,
@@ -490,9 +413,6 @@ export function useObjectsCRUD(ctx: UseObjectsCRUDContext) {
     closeScheduleDeleteDialog,
     confirmScheduleDelete,
     cancelScheduledDelete,
-    createTemplateFromObject,
-    closeCreateTemplateDialog,
-    confirmCreateTemplate,
     restoreObject,
     permanentDeleteObject,
     toggleObjectActivity,

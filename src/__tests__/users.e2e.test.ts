@@ -126,16 +126,6 @@ describe("Users Management", () => {
         pages: 1,
       },
     });
-    mockUsersService.getUserTemplates.mockResolvedValue({
-      status: "success",
-      data: {
-        items: [],
-        total: 0,
-        page: 1,
-        limit: 100,
-        pages: 0,
-      },
-    });
   });
 
   it("should render users page with title", async () => {

@@ -189,9 +189,6 @@
                     @click="$emit('view', item)" />
                   <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="$emit('edit', item)" />
                   <v-divider />
-                  <v-list-item prepend-icon="mdi-file-document-plus" title="Создать шаблон"
-                    @click="$emit('createTemplate', item)" />
-                  <v-divider />
                   <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
                     @click="$emit('cancelScheduledDelete', item)" />
                   <v-list-item v-else prepend-icon="mdi-clock-alert" title="Запланировать удаление"
@@ -332,7 +329,6 @@ const emit = defineEmits<{
   toggleAllActivity: [active: boolean];
   view: [item: any];
   edit: [item: any];
-  createTemplate: [item: any];
   cancelScheduledDelete: [item: any];
   scheduleDelete: [item: any];
   delete: [item: any];

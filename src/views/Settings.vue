@@ -140,11 +140,6 @@
               <NotificationTemplates />
             </div>
 
-            <!-- Шаблоны -->
-            <div v-if="activeTab === 'templates'">
-              <TemplatesSettings />
-            </div>
-
             <!-- Мониторинг -->
             <div v-if="activeTab === 'monitoring'">
               <MonitoringSettings />
@@ -342,7 +337,6 @@ import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
 import WialonHistorySettings from '@/components/Settings/WialonHistorySettings.vue';
 import SkifHistoryBackfill from '@/components/Settings/SkifHistoryBackfill.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
-import TemplatesSettings from '@/components/Settings/TemplatesSettings.vue';
 import Trash from '@/components/Settings/Trash.vue';
 
 // Импорт компонентов документации
@@ -409,11 +403,6 @@ const stats = ref({
     total: 3,
     enabled: 2
   },
-  templates: {
-    total: 6,
-    system: 4,
-    custom: 2
-  },
   documentation: {
     apiEndpoints: { total: 0, documented: 0 },
     userDocs: { total: 0, published: 0 },
@@ -457,14 +446,6 @@ const defaultTabs = [
     title: 'Уведомления',
     subtitle: 'Каналы связи',
     icon: 'mdi-bell-ring',
-    badge: undefined as number | undefined,
-    badgeColor: undefined as string | undefined
-  },
-  {
-    value: 'templates',
-    title: 'Шаблоны',
-    subtitle: 'Объекты и пользователи',
-    icon: 'mdi-file-document-multiple',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
   },
@@ -565,9 +546,6 @@ const tabs = computed(() => {
         break;
       case 'notifications':
         updatedTab.badge = stats.value.notifications.enabled;
-        break;
-      case 'templates':
-        updatedTab.badge = stats.value.templates.total;
         break;
       case 'documentation':
         updatedTab.badge = stats.value.documentation.apiEndpoints.documented + stats.value.documentation.userDocs.published;
@@ -743,10 +721,9 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
 const loadStats = async () => {
   try {
     // Загружаем статистику для бейджей с таймаутом
-    const [integrations, notifications, templates, trashStats] = await Promise.all([
+    const [integrations, notifications, trashStats] = await Promise.all([
       withTimeout(settingsService.getIntegrations(), 3000),
       withTimeout(settingsService.getNotificationChannels(), 3000),
-      withTimeout(settingsService.getTemplates(), 3000),
       withTimeout(trashService.getTrashStats(), 3000).catch(() => ({ can_be_restored: 0 }))
     ]);
     
@@ -759,11 +736,6 @@ const loadStats = async () => {
       notifications: {
         total: notifications.total,
         enabled: notifications.channels.filter(c => c.enabled).length
-      },
-      templates: {
-        total: templates.total,
-        system: templates.templates.filter(t => t.is_system).length,
-        custom: templates.templates.filter(t => !t.is_system).length
       },
       documentation: {
         apiEndpoints: documentationStats.value.apiEndpoints,
@@ -782,7 +754,6 @@ const loadStats = async () => {
     stats.value = {
       integrations: { total: 0, active: 0, errors: 0 },
       notifications: { total: 0, enabled: 0 },
-      templates: { total: 0, system: 0, custom: 0 },
       documentation: currentDocStats || {
         apiEndpoints: { total: 0, documented: 0 },
         userDocs: { total: 0, published: 0 },
