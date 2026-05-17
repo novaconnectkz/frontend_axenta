@@ -2405,6 +2405,9 @@ const openSubscriptionDialog = (subscription?: Subscription) => {
 const onSubscriptionCreated = async (_subscription: Subscription) => {
   await fetchSubscriptions()
   await fetchInvoices() // Обновляем счета после создания подписки
+  // Инвалидируем кэш перед dashboard — иначе loadDashboardData() попадёт в
+  // 3-мин cache-hit и затрёт свежий subscriptions.value старым списком
+  invalidateBillingCache()
   await loadDashboardData()
 
   // Обновляем список договоров, так как подписка обновляет информацию в договоре
@@ -2465,6 +2468,7 @@ const saveSubscription = async () => {
     }
     await fetchSubscriptions()
     await fetchInvoices() // Обновляем счета после изменения подписки
+    invalidateBillingCache()
     await loadDashboardData()
 
     // Обновляем список договоров, так как подписка обновляет информацию в договоре
@@ -2487,6 +2491,7 @@ const cancelSubscription = async (subscription: Subscription) => {
     await billingService.updateSubscription(subscription.id!, { status: 'cancelled' })
     await fetchSubscriptions()
     await fetchInvoices() // Обновляем счета после отмены подписки
+    invalidateBillingCache()
     await loadDashboardData()
 
     // Обновляем список договоров, так как отмена подписки влияет на объекты
@@ -2512,6 +2517,7 @@ const deleteSubscription = async (subscription: Subscription) => {
     await fetchInvoices() // Обновляем счета после удаления подписки
     console.log('✅ Billing.vue: Счета обновлены')
 
+    invalidateBillingCache()
     await loadDashboardData()
     console.log('✅ Billing.vue: Dashboard обновлен')
 
@@ -2533,6 +2539,7 @@ const deleteSubscription = async (subscription: Subscription) => {
       console.log('⚠️ Подписка уже была удалена, обновляем список...')
       await fetchSubscriptions()
       await fetchInvoices()
+      invalidateBillingCache()
       await loadDashboardData()
       if (contractsTabRef.value?.loadContracts) {
         await contractsTabRef.value.loadContracts()
