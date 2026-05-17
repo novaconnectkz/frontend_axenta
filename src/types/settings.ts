@@ -24,6 +24,7 @@ export const INTEGRATION_TYPES = {
   WIALON: "wialon",
   NOVACONNECT: "novaconnect",
   MAX: "max",
+  GELIOS: "gelios",
 } as const;
 
 export type IntegrationType =

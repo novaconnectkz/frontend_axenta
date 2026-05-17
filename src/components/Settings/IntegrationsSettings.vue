@@ -1134,7 +1134,8 @@ const getIntegrationIcon = (type: string) => {
     max: 'mdi-message-flash',
     email: 'mdi-email',
     wialon: 'mdi-map-marker-radius',
-    skif: 'mdi-satellite-variant'
+    skif: 'mdi-satellite-variant',
+    gelios: 'mdi-crosshairs-gps'
   };
   return icons[type as keyof typeof icons] || 'mdi-connection';
 };
@@ -1149,7 +1150,8 @@ const getIntegrationColor = (type: string) => {
     max: 'blue',
     email: 'purple',
     wialon: 'lime-darken-2',
-    skif: 'teal-darken-1'
+    skif: 'teal-darken-1',
+    gelios: 'deep-orange-darken-1'
   };
   return colors[type as keyof typeof colors] || 'primary';
 };
@@ -1164,7 +1166,8 @@ const getIntegrationTypeLabel = (type: string) => {
     max: 'MAX Messenger',
     email: 'Email SMTP',
     wialon: 'Wialon Hosting',
-    skif: 'SKIF GPS'
+    skif: 'SKIF GPS',
+    gelios: 'GELIOS GPS'
   } as any;
   return labels[type] || type;
 };
@@ -1586,6 +1589,24 @@ const loadIntegrations = async () => {
       updated_at: new Date(),
       settings: {
         api_url: 'https://app.skif.pro',
+      },
+    });
+
+    // GELIOS — 4-й GPS-провайдер в roadmap. Placeholder-карточка:
+    // бэкенда нет (нужна /postman разведка GELIOS API). id с -demo →
+    // isDemoIntegration → generic-карточка с бейджем «Демо», disabled.
+    allIntegrations.push({
+      id: 'gelios-demo',
+      type: 'gelios',
+      name: 'GELIOS',
+      description: 'Интеграция с GPS-мониторингом GELIOS для синхронизации объектов и терминалов (в разработке)',
+      status: 'inactive',
+      enabled: false,
+      lastSync: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      settings: {
+        api_url: '',
       },
     });
 
