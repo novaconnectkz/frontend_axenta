@@ -61,6 +61,14 @@
       @snack="(p: { text: string; color: 'success' | 'error' | 'info' }) => showSnackbar(p.text, p.color)"
     />
 
+    <GeliosUserDialog
+      v-model="geliosDialog.show"
+      :mode="geliosDialog.mode"
+      :conn-id="geliosDialog.connId"
+      :user="geliosDialog.user"
+      @saved="onUserRefreshed"
+    />
+
     <PasswordResetDialog
       v-model="passwordDialog.show"
       :user="passwordDialog.user"
@@ -108,6 +116,8 @@ import PasswordResetDialog from '@/components/Users/PasswordResetDialog.vue';
 import UserDialog from '@/components/Users/UserDialog.vue';
 import WialonUserEditDialog from '@/components/Users/WialonUserEditDialog.vue';
 import SkifUserEditDialog from '@/components/Users/SkifUserEditDialog.vue';
+import GeliosUserDialog from '@/components/Users/GeliosUserDialog.vue';
+import { geliosService } from '@/services/geliosService';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import UsersFilters from '@/components/Users/UsersFilters.vue';
 import UsersStats from '@/components/Users/UsersStats.vue';
@@ -216,6 +226,27 @@ const statsCards = computed(() => stats.value);
 const userDialog = ref({ show: false, isEdit: false, user: null as UserWithRelations | null });
 const wialonEditDialog = ref({ show: false, user: null as any });
 const skifEditDialog = ref({ show: false, user: null as any });
+const geliosDialog = ref({
+  show: false,
+  mode: 'create' as 'create' | 'delete',
+  connId: null as number | null,
+  user: null as any,
+});
+
+// GELIOS create: нужен connId. 1 подключение → берём его; 0 → ошибка;
+// >1 → берём первое (мульти-GELIOS редок; TODO conn-picker при надобности).
+async function openGeliosCreate() {
+  try {
+    const conns = await geliosService.list();
+    if (!conns.length) {
+      showSnackbar('Нет GELIOS-подключения', 'error');
+      return;
+    }
+    geliosDialog.value = { show: true, mode: 'create', connId: conns[0].id, user: null };
+  } catch {
+    showSnackbar('Не удалось получить GELIOS-подключения', 'error');
+  }
+}
 const passwordDialog = ref({ show: false, user: null as UserWithRelations | null });
 const viewDialog = ref({ show: false, user: null as UserWithRelations | null });
 const inactiveUsersDialog = ref({ show: false });
@@ -342,6 +373,13 @@ const fabMenuItems = [
     icon: 'mdi-account-plus-outline',
     color: 'success' as const,
     action: () => actions.openCreate(),
+  },
+  {
+    id: 'create-gelios',
+    label: 'Создать GELIOS-пользователя',
+    icon: 'mdi-map-marker-radius-outline',
+    color: 'primary' as const,
+    action: () => openGeliosCreate(),
   },
 ];
 
@@ -472,6 +510,15 @@ const onResetPassword = (user: UserWithRelations) => {
 };
 
 const onDelete = async (user: UserWithRelations) => {
+  const u: any = user;
+  const srcLabel = String(u?.external_source || u?.source_label || u?.sourceLabel || '');
+  const isGelios = u?.source === 'gelios' || srcLabel.toUpperCase().startsWith('GELIOS');
+  if (isGelios) {
+    // GELIOS hard-delete через спец-диалог с typed-подтверждением
+    // (защита от дурака). НЕ actions.deleteUser (бил бы Axenta по id).
+    geliosDialog.value = { show: true, mode: 'delete', connId: null, user: u };
+    return;
+  }
   if (await actions.deleteUser(user)) {
     await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
     emitCrossSection('users:mutated', { action: 'delete', id: user.id });

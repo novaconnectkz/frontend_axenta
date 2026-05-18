@@ -54,6 +54,17 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Безопасность: error.config.data = тело запроса (axios сохраняет),
+    // globalErrorHandler делает console.error(error) → пароль из любого
+    // POST (gelios create-user, login, etc) утёк бы в devtools-консоль.
+    // Редактируем до логирования (запрос уже отправлен — на сеть не влияет).
+    try {
+      if (error?.config?.data && typeof error.config.data === "string" &&
+          error.config.data.includes("password")) {
+        error.config.data = error.config.data.replace(
+          /("password"\s*:\s*)"(?:[^"\\]|\\.)*"/g, '$1"***"');
+      }
+    } catch { /* best-effort redaction */ }
     // Используем улучшенный обработчик ошибок
     import("@/utils/errorHandler").then(({ globalErrorHandler }) => {
       globalErrorHandler.handleError(error);

@@ -72,4 +72,32 @@ export const geliosService = {
     const r = await apiClient.post(`${BASE}/${id}/sync`);
     return r.data?.data;
   },
+
+  // Допустимые создатели (узлы дерева + корень) — тот же allow-list,
+  // что форсит backend create-handler (защита от дурака).
+  async listCreators(connId: number): Promise<{ gelios_id: number; login: string }[]> {
+    const r = await apiClient.get(`${BASE}/${connId}/creators`);
+    return r.data?.data || [];
+  },
+
+  async createUser(
+    connId: number,
+    payload: {
+      login: string;
+      password: string;
+      creator_id: number;
+      is_admin: boolean;
+      email?: string;
+      phone?: string;
+      legal_name?: string;
+    },
+  ): Promise<{ gelios_user_id: number }> {
+    const r = await apiClient.post(`${BASE}/${connId}/users`, payload);
+    return r.data?.data;
+  },
+
+  // geliosUserId = ExternalID юзера (gelios_user_id). HARD-delete в GELIOS.
+  async deleteUser(connId: number, geliosUserId: string): Promise<void> {
+    await apiClient.delete(`${BASE}/${connId}/users/${encodeURIComponent(geliosUserId)}`);
+  },
 };
