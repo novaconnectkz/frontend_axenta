@@ -161,6 +161,51 @@
               </v-card-actions>
             </template>
 
+            <!-- Спец-карточка для GELIOS (multi-connection, OAuth2) -->
+            <template v-else-if="integration.type === 'gelios'">
+              <v-card-title class="d-flex align-center justify-space-between">
+                <div class="d-flex align-center gap-3">
+                  <v-avatar color="deep-orange-darken-1" size="40">
+                    <v-icon>mdi-crosshairs-gps</v-icon>
+                  </v-avatar>
+                  <div>
+                    <div class="text-subtitle-1 font-weight-bold">GELIOS GPS</div>
+                    <div class="text-caption text-medium-emphasis">Multi-account мониторинг</div>
+                  </div>
+                </div>
+                <v-chip
+                  :color="integration.enabled ? 'success' : 'grey'"
+                  :variant="integration.enabled ? 'elevated' : 'outlined'"
+                  size="small"
+                >
+                  {{ integration.enabled ? 'Активно' : 'Неактивна' }}
+                </v-chip>
+              </v-card-title>
+
+              <v-card-text class="pt-0">
+                <p class="text-body-2 mb-3">
+                  <v-icon size="16" class="mr-1" color="deep-orange-darken-1">mdi-crosshairs-gps</v-icon>
+                  GELIOS API
+                  <span class="text-caption text-medium-emphasis ms-2">
+                    OAuth2 Bearer, авто-refresh, sync per-connection
+                  </span>
+                </p>
+              </v-card-text>
+
+              <v-card-actions class="pt-0">
+                <v-spacer />
+                <v-btn
+                  color="primary"
+                  variant="elevated"
+                  size="small"
+                  prepend-icon="mdi-cog"
+                  @click="openGeliosConnectionsDialog"
+                >
+                  Настроить
+                </v-btn>
+              </v-card-actions>
+            </template>
+
             <!-- Стандартная карточка для других интеграций -->
             <template v-else>
               <!-- Заголовок карточки -->
@@ -1025,6 +1070,23 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог подключений GELIOS -->
+    <v-dialog v-model="geliosDialog.show" max-width="1100" persistent>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon start color="deep-orange-darken-1">mdi-crosshairs-gps</v-icon>
+          Подключения GELIOS
+          <v-spacer />
+          <v-btn icon variant="text" @click="geliosDialog.show = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <v-card-text>
+          <GeliosConnectionsSettings />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <!-- Snackbar для уведомлений -->
     <v-snackbar
       v-model="snackbar.show"
@@ -1052,6 +1114,7 @@ import type {
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
 import SkifConnectionsSettings from './SkifConnectionsSettings.vue';
+import GeliosConnectionsSettings from './GeliosConnectionsSettings.vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -1083,6 +1146,11 @@ const openMultiConnectionsDialog = () => {
 const skifDialog = ref({ show: false });
 const openSkifConnectionsDialog = () => {
   skifDialog.value.show = true;
+};
+
+const geliosDialog = ref({ show: false });
+const openGeliosConnectionsDialog = () => {
+  geliosDialog.value.show = true;
 };
 
 const snackbar = ref({
@@ -1472,11 +1540,45 @@ const loadIntegrations = async () => {
       });
     }
     
+    // GELIOS — реальная multi-connection интеграция (как SKIF/Wialon).
+    // Card ведёт в GeliosConnectionsSettings dialog (CRUD + test/sync).
+    allIntegrations.push({
+      id: 'gelios',
+      type: 'gelios',
+      name: 'GELIOS',
+      description: 'Интеграция с GPS-мониторингом GELIOS (api.geliospro.com) для синхронизации объектов',
+      status: 'active',
+      enabled: true,
+      lastSync: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      settings: {
+        api_url: 'https://api.geliospro.com',
+      },
+    });
+
+    // SKIF — реальная multi-connection интеграция (как Wialon).
+    // Card ведёт в SkifConnectionsSettings dialog с CRUD + test/sync.
+    allIntegrations.push({
+      id: 'skif',
+      type: 'skif',
+      name: 'SKIF',
+      description: 'Интеграция с GPS-мониторингом SKIF для синхронизации объектов, терминалов и команд',
+      status: 'active',
+      enabled: true,
+      lastSync: null,
+      created_at: new Date(),
+      updated_at: new Date(),
+      settings: {
+        api_url: 'https://app.skif.pro',
+      },
+    });
+
       // NovaConnect интеграция - загружаем из БД только если настроена
       if (configuredMap.get('novaconnect')) {
         try {
           const novaConnectConfig = await settingsService.getNovaConnectConfig();
-        
+
         if (novaConnectConfig) {
           // Настройки найдены в БД
           allIntegrations.push({
@@ -1574,41 +1676,6 @@ const loadIntegrations = async () => {
           },
         });
       }
-    
-    // SKIF — реальная multi-connection интеграция (как Wialon).
-    // Card ведёт в SkifConnectionsSettings dialog с CRUD + test/sync.
-    allIntegrations.push({
-      id: 'skif',
-      type: 'skif',
-      name: 'SKIF',
-      description: 'Интеграция с GPS-мониторингом SKIF для синхронизации объектов, терминалов и команд',
-      status: 'active',
-      enabled: true,
-      lastSync: null,
-      created_at: new Date(),
-      updated_at: new Date(),
-      settings: {
-        api_url: 'https://app.skif.pro',
-      },
-    });
-
-    // GELIOS — 4-й GPS-провайдер в roadmap. Placeholder-карточка:
-    // бэкенда нет (нужна /postman разведка GELIOS API). id с -demo →
-    // isDemoIntegration → generic-карточка с бейджем «Демо», disabled.
-    allIntegrations.push({
-      id: 'gelios-demo',
-      type: 'gelios',
-      name: 'GELIOS',
-      description: 'Интеграция с GPS-мониторингом GELIOS для синхронизации объектов и терминалов (в разработке)',
-      status: 'inactive',
-      enabled: false,
-      lastSync: null,
-      created_at: new Date(),
-      updated_at: new Date(),
-      settings: {
-        api_url: '',
-      },
-    });
 
     // Демо интеграции (в разработке)
 
