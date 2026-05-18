@@ -78,6 +78,10 @@ export function useAccountsList(ctx: UseAccountsListContext) {
     wialon_wl_active: 0,
     skif_total: 0,
     skif_active: 0,
+    gelios_total: 0,
+    gelios_active: 0,
+    gelios_clients: 0,
+    gelios_partners: 0,
   });
 
   const updateStatsFromUnified = (s: UnifiedAccountsStats, animate: boolean) => {

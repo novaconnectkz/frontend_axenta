@@ -1,7 +1,7 @@
 <template>
   <div class="accounts-page">
     <!-- Статистика -->
-    <AccountsStats :stats="stats" :wialon-stats="wialonStats" :skif-stats="skifStats" :total-stats="totalStats" />
+    <AccountsStats :stats="stats" :wialon-stats="wialonStats" :skif-stats="skifStats" :gelios-stats="geliosStats" :total-stats="totalStats" />
 
     <!-- Фильтры -->
     <AccountsFilters
@@ -260,11 +260,29 @@ const skifStats = computed(() => {
   };
 });
 
-// Объединённая статистика (Axenta + Wialon + SKIF)
+// GELIOS-разбивка (узлы дерева users = биллинг-аккаунты). active = !is_block.
+// `?? 0` — защита от старого backend без gelios_total/active (как у SKIF).
+const geliosStats = computed(() => {
+  const t = unifiedStats.value.gelios_total ?? 0;
+  const a = unifiedStats.value.gelios_active ?? 0;
+  // GELIOS делит client/partner по is_admin (в отличие от SKIF).
+  // Fallback на total если старый backend без gelios_clients.
+  const cl = unifiedStats.value.gelios_clients ?? t;
+  const dl = unifiedStats.value.gelios_partners ?? 0;
+  return {
+    total: t,
+    active: a,
+    blocked: t - a,
+    clients: cl,
+    dealers: dl,
+  };
+});
+
+// Объединённая статистика (Axenta + Wialon + SKIF + GELIOS)
 const totalStats = computed(() => ({
-  total: stats.value.total + wialonStats.value.total + skifStats.value.total,
-  active: stats.value.active + wialonStats.value.active + skifStats.value.active,
-  blocked: stats.value.blocked + wialonStats.value.blocked + skifStats.value.blocked,
+  total: stats.value.total + wialonStats.value.total + skifStats.value.total + geliosStats.value.total,
+  active: stats.value.active + wialonStats.value.active + skifStats.value.active + geliosStats.value.active,
+  blocked: stats.value.blocked + wialonStats.value.blocked + skifStats.value.blocked + geliosStats.value.blocked,
 }));
 
 // Диалоги
@@ -326,7 +344,13 @@ const onProperties = (item: any) => {
   const src = String(item?.source || item?.sourceLabel || item?.source_label || '');
   const isWialon = src === 'wialon' || src.startsWith('WH(') || src.startsWith('WL(') || src.startsWith('wh') || src.startsWith('wl');
   const isSkif = src.toLowerCase() === 'skif';
-  if (isSkif) {
+  const isGelios = src.toLowerCase() === 'gelios' || src.toLowerCase().startsWith('gelios(');
+  if (isGelios) {
+    // GELIOS read-only: спец-write-диалога нет (write-API не разведан),
+    // открываем обычный просмотр аккаунта.
+    selectedAccount.value = item;
+    viewDialog.value = true;
+  } else if (isSkif) {
     skifPropsDialog.value = { show: true, account: item };
   } else if (isWialon) {
     wialonPropsDialog.value = { show: true, account: item };
@@ -386,6 +410,7 @@ const sourceOptions = [
   { title: 'WH (Hosting)', value: 'wh' },
   { title: 'WL (Local)', value: 'wl' },
   { title: 'SKIF.PRO', value: 'skif' },
+  { title: 'GELIOS', value: 'gelios' },
 ];
 
 // Опции для количества записей на странице

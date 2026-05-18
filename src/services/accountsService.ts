@@ -79,6 +79,10 @@ export interface UnifiedAccountsStats {
   wialon_wl_active: number;
   skif_total: number;
   skif_active: number;
+  gelios_total?: number;
+  gelios_active?: number;
+  gelios_clients?: number;
+  gelios_partners?: number;
 }
 
 export interface UnifiedAccountsResponse {

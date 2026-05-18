@@ -393,6 +393,7 @@ const getSourceColor = (source: string): string => {
   if (source === 'axenta') return 'primary';
   if (source === 'skif') return 'green';
   const lower = source?.toLowerCase() || '';
+  if (source === 'gelios' || lower.startsWith('gelios')) return 'pink';
   if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'orange';
   if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'cyan';
   return 'grey';
@@ -402,6 +403,7 @@ const getSourceIcon = (source: string): string => {
   if (source === 'axenta') return 'mdi-server-network-outline';
   if (source === 'skif') return 'mdi-crosshairs-gps';
   const lower = source?.toLowerCase() || '';
+  if (source === 'gelios' || lower.startsWith('gelios')) return 'mdi-map-marker-radius-outline';
   if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'mdi-cloud-outline';
   if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'mdi-server-outline';
   return 'mdi-satellite-uplink';
@@ -410,6 +412,7 @@ const getSourceIcon = (source: string): string => {
 const getSourceLabel = (source: string): string => {
   if (source === 'axenta') return 'Axenta';
   if (source === 'skif') return 'SKIF';
+  if (source === 'gelios' || source?.toLowerCase().startsWith('gelios')) return 'GELIOS';
   return source;
 };
 

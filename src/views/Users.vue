@@ -139,6 +139,7 @@ const {
   wialonStats,
   axentaStats,
   skifStats,
+  geliosStats,
   loadUsers,
   loadGlobalStats,
   handlePageChange,
@@ -193,7 +194,7 @@ const roleOptions = ref<Array<{ title: string; value: string }>>([]);
 const roleOptionsForForm = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
 
-interface StatBreakdown { axenta: number; wl: number; wh: number; skif: number }
+interface StatBreakdown { axenta: number; wl: number; wh: number; skif: number; gelios: number }
 interface StatItem {
   key: string;
   label: string;
@@ -234,30 +235,33 @@ const showSnackbar = (text: string, color = 'info', timeout = 5000) => {
 };
 
 const updateTotalStats = () => {
-  stats.value[0].value = axentaStats.value.total + wialonStats.value.total + skifStats.value.total;
-  stats.value[1].value = axentaStats.value.active + wialonStats.value.active + skifStats.value.active;
-  stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive + skifStats.value.inactive;
+  stats.value[0].value = axentaStats.value.total + wialonStats.value.total + skifStats.value.total + geliosStats.value.total;
+  stats.value[1].value = axentaStats.value.active + wialonStats.value.active + skifStats.value.active + geliosStats.value.active;
+  stats.value[2].value = axentaStats.value.inactive + wialonStats.value.inactive + skifStats.value.inactive + geliosStats.value.inactive;
   stats.value[0].breakdown = {
     axenta: axentaStats.value.total,
     wl: wialonStats.value.wl.total,
     wh: wialonStats.value.wh.total,
     skif: skifStats.value.total,
+    gelios: geliosStats.value.total,
   };
   stats.value[1].breakdown = {
     axenta: axentaStats.value.active,
     wl: wialonStats.value.wl.active,
     wh: wialonStats.value.wh.active,
     skif: skifStats.value.active,
+    gelios: geliosStats.value.active,
   };
   stats.value[2].breakdown = {
     axenta: axentaStats.value.inactive,
     wl: wialonStats.value.wl.inactive,
     wh: wialonStats.value.wh.inactive,
     skif: skifStats.value.inactive,
+    gelios: geliosStats.value.inactive,
   };
 };
 
-watch([axentaStats, wialonStats, skifStats], updateTotalStats, { deep: true });
+watch([axentaStats, wialonStats, skifStats, geliosStats], updateTotalStats, { deep: true });
 
 const loadStats = async (forceRefresh = false) => {
   try {
@@ -448,6 +452,12 @@ const onEdit = (user: UserWithRelations) => {
   const isWialon =
     u?.source === 'wialon' || srcLabel.startsWith('WH(') || srcLabel.startsWith('WL(');
   const isSkif = u?.source === 'skif' || srcLabel.startsWith('SKIF') || srcLabel === 'SKIF';
+  const isGelios = u?.source === 'gelios' || srcLabel.toUpperCase().startsWith('GELIOS');
+  if (isGelios) {
+    // GELIOS read-only: write-API не разведан (риск засорения прода),
+    // edit-диалога нет. Список/поиск/фильтр работают.
+    return;
+  }
   if (isSkif) {
     skifEditDialog.value = { show: true, user: u };
   } else if (isWialon) {

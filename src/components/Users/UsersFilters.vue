@@ -129,6 +129,7 @@ const sourceOptions = [
   { title: 'WH (Hosting)', value: 'wh' },
   { title: 'WL (Local)', value: 'wl' },
   { title: 'SKIF.PRO', value: 'skif' },
+  { title: 'GELIOS', value: 'gelios' },
 ];
 
 const searchModel = computed({

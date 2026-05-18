@@ -18,6 +18,7 @@
           <div v-if="wialonStats.wl.total > 0"><strong>WL:</strong> {{ wialonStats.wl.total }}</div>
           <div v-if="wialonStats.wh.total > 0"><strong>WH:</strong> {{ wialonStats.wh.total }}</div>
           <div v-if="skifStats.total > 0"><strong>SKIF:</strong> {{ skifStats.total }}</div>
+          <div v-if="geliosStats.total > 0"><strong>GELIOS:</strong> {{ geliosStats.total }}</div>
         </div>
       </v-tooltip>
 
@@ -38,6 +39,7 @@
           <div v-if="wialonStats.wl.active > 0"><strong>WL:</strong> {{ wialonStats.wl.active }}</div>
           <div v-if="wialonStats.wh.active > 0"><strong>WH:</strong> {{ wialonStats.wh.active }}</div>
           <div v-if="skifStats.active > 0"><strong>SKIF:</strong> {{ skifStats.active }}</div>
+          <div v-if="geliosStats.active > 0"><strong>GELIOS:</strong> {{ geliosStats.active }}</div>
         </div>
       </v-tooltip>
 
@@ -45,7 +47,7 @@
         <template #activator="{ props: tooltipProps }">
           <AppleCard
             v-bind="tooltipProps"
-            :title="(stats.clients + wialonStats.clients + skifStats.clients).toString()"
+            :title="(stats.clients + wialonStats.clients + skifStats.clients + geliosStats.clients).toString()"
             subtitle="Клиентов"
             icon="mdi-account-outline"
             icon-color="warning"
@@ -58,6 +60,7 @@
           <div v-if="wialonStats.wl.clients > 0"><strong>WL:</strong> {{ wialonStats.wl.clients }}</div>
           <div v-if="wialonStats.wh.clients > 0"><strong>WH:</strong> {{ wialonStats.wh.clients }}</div>
           <div v-if="skifStats.clients > 0"><strong>SKIF:</strong> {{ skifStats.clients }}</div>
+          <div v-if="geliosStats.clients > 0"><strong>GELIOS:</strong> {{ geliosStats.clients }}</div>
         </div>
       </v-tooltip>
 
@@ -130,6 +133,7 @@ defineProps<{
   stats: AxentaStats;
   wialonStats: WialonStats;
   skifStats: SkifStats;
+  geliosStats: SkifStats;
   totalStats: TotalStats;
 }>();
 </script>
