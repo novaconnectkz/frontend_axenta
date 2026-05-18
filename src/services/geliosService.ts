@@ -44,8 +44,12 @@ export interface GeliosConnectionUpdate {
 const BASE = "/auth/gelios/connections";
 
 export const geliosService = {
+  // GELIOS-вызовы дёргают upstream (api.geliospro.com) + create/delete
+  // делают re-sync дерева внутри handler'а → могут идти дольше дефолтного
+  // прод-таймаута (10s). Щедрый per-request timeout: при успехе бэкенда
+  // клиент НЕ оборвёт (иначе ложная ошибка + ретрай = дубль).
   async list(): Promise<GeliosConnection[]> {
-    const r = await apiClient.get(BASE);
+    const r = await apiClient.get(BASE, { timeout: 60000 });
     return r.data?.data || [];
   },
 
@@ -76,7 +80,7 @@ export const geliosService = {
   // Допустимые создатели (узлы дерева + корень) — тот же allow-list,
   // что форсит backend create-handler (защита от дурака).
   async listCreators(connId: number): Promise<{ gelios_id: number; login: string }[]> {
-    const r = await apiClient.get(`${BASE}/${connId}/creators`);
+    const r = await apiClient.get(`${BASE}/${connId}/creators`, { timeout: 60000 });
     return r.data?.data || [];
   },
 
@@ -92,12 +96,12 @@ export const geliosService = {
       legal_name?: string;
     },
   ): Promise<{ gelios_user_id: number }> {
-    const r = await apiClient.post(`${BASE}/${connId}/users`, payload);
+    const r = await apiClient.post(`${BASE}/${connId}/users`, payload, { timeout: 60000 });
     return r.data?.data;
   },
 
   // geliosUserId = ExternalID юзера (gelios_user_id). HARD-delete в GELIOS.
   async deleteUser(connId: number, geliosUserId: string): Promise<void> {
-    await apiClient.delete(`${BASE}/${connId}/users/${encodeURIComponent(geliosUserId)}`);
+    await apiClient.delete(`${BASE}/${connId}/users/${encodeURIComponent(geliosUserId)}`, { timeout: 60000 });
   },
 };

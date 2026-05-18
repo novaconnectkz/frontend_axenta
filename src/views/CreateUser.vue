@@ -359,6 +359,7 @@ import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
 import accountsService from '@/services/accountsService';
 import settingsService from '@/services/settingsService';
+import { geliosService } from '@/services/geliosService';
 import { apiClient } from '@/services/api';
 import { config } from '@/config/env';
 
@@ -442,9 +443,9 @@ const loadingGeliosCreators = ref(false);
 
 const loadGeliosConnections = async () => {
   try {
-    const { geliosService } = await import('@/services/geliosService');
     geliosConnections.value = (await geliosService.list()).map((c) => ({ id: c.id, name: c.name }));
   } catch (e) {
+    // Не критично: GELIOS просто не появится в селекторе систем.
     console.error('loadGeliosConnections', e);
     geliosConnections.value = [];
   }
@@ -453,7 +454,6 @@ const loadGeliosConnections = async () => {
 const loadGeliosCreators = async (connId: number) => {
   loadingGeliosCreators.value = true;
   try {
-    const { geliosService } = await import('@/services/geliosService');
     geliosCreatorOptions.value = await geliosService.listCreators(connId);
   } catch (e) {
     console.error('loadGeliosCreators', e);
@@ -711,7 +711,6 @@ const createUser = async () => {
         return;
       }
       try {
-        const { geliosService } = await import('@/services/geliosService');
         await geliosService.createUser(connId, {
           login: form.value.username,
           password: form.value.password,
