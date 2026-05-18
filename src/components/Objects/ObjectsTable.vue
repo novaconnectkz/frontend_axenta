@@ -37,6 +37,7 @@
         @update:sort-by="(s: any) => $emit('sortChange', s)"
         item-value="id"
         show-select
+        :item-selectable="isRowSelectable"
         hide-default-footer
         class="objects-table"
         no-data-text="Объекты не найдены"
@@ -60,6 +61,15 @@
             color="error"
             size="22"
             title="В корзине"
+          />
+          <!-- GELIOS read-only: статус без toggle (клик бил бы Axenta-эндпоинт
+               по локальному id — Codex High) -->
+          <v-icon
+            v-else-if="item.source === 'gelios'"
+            :icon="item.is_active ? 'mdi-check-circle' : 'mdi-pause-circle'"
+            :color="item.is_active ? 'success' : 'warning'"
+            size="22"
+            :title="item.is_active ? 'Активный (GELIOS, read-only)' : 'Деактивирован (GELIOS, read-only)'"
           />
           <v-icon
             v-else-if="item.is_active"
@@ -136,6 +146,13 @@
             size="22"
             :title="item.sourceLabel || (item.source === 'wh' ? 'Wialon Hosting' : 'Wialon Local')"
           />
+          <v-icon
+            v-else-if="item.source === 'gelios'"
+            icon="mdi-map-marker-radius-outline"
+            color="pink"
+            size="22"
+            :title="item.sourceLabel || 'GELIOS'"
+          />
           <v-icon v-else icon="mdi-help-circle-outline" color="grey" size="22" :title="item.source || ''" />
         </template>
 
@@ -187,15 +204,19 @@
                 <v-list density="compact">
                   <v-list-item prepend-icon="mdi-card-account-details-outline" title="Свойства объекта"
                     @click="$emit('view', item)" />
-                  <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="$emit('edit', item)" />
-                  <v-divider />
-                  <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
-                    @click="$emit('cancelScheduledDelete', item)" />
-                  <v-list-item v-else prepend-icon="mdi-clock-alert" title="Запланировать удаление"
-                    @click="$emit('scheduleDelete', item)" />
-                  <v-divider />
-                  <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error"
-                    @click="$emit('delete', item)" />
+                  <!-- GELIOS read-only: write-действия бьют Axenta-эндпоинты по
+                       локальному id (404 / чужой объект) — скрываем (Codex High) -->
+                  <template v-if="item.source !== 'gelios'">
+                    <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="$emit('edit', item)" />
+                    <v-divider />
+                    <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
+                      @click="$emit('cancelScheduledDelete', item)" />
+                    <v-list-item v-else prepend-icon="mdi-clock-alert" title="Запланировать удаление"
+                      @click="$emit('scheduleDelete', item)" />
+                    <v-divider />
+                    <v-list-item prepend-icon="mdi-delete" title="Удалить" class="text-error"
+                      @click="$emit('delete', item)" />
+                  </template>
                 </v-list>
               </v-menu>
             </template>
@@ -341,6 +362,12 @@ void emit;
 function clearSelection() {
   selectedObjects.value = [];
   selectAll.value = false;
+}
+
+// GELIOS read-only: запрещаем выбор строки → bulk-операции (toggleAll/
+// delete) не попадут в Axenta-эндпоинты по локальному gelios id (Codex High).
+function isRowSelectable(item: any): boolean {
+  return item?.source !== 'gelios';
 }
 </script>
 

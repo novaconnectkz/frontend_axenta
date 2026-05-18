@@ -413,6 +413,7 @@ const sourceOptions = [
   { title: 'Все системы', value: null },
   { title: 'Axenta', value: 'axenta' },
   { title: 'Wialon', value: 'wialon' },
+  { title: 'GELIOS', value: 'gelios' },
 ];
 
 const tableHeaders = computed(() => [

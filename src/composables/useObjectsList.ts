@@ -69,9 +69,9 @@ export function useObjectsList(ctx: UseObjectsListContext) {
 
         const st = response.data.stats;
         if (st) {
-          stats.value[0].value = st.axenta_total + st.wialon_total;
-          stats.value[1].value = st.axenta_active + st.wialon_active;
-          stats.value[2].value = st.axenta_inactive;
+          stats.value[0].value = st.axenta_total + st.wialon_total + (st.gelios_total ?? 0);
+          stats.value[1].value = st.axenta_active + st.wialon_active + (st.gelios_active ?? 0);
+          stats.value[2].value = st.axenta_inactive + (st.gelios_inactive ?? 0);
           stats.value[4].value = st.axenta_scheduled_delete;
         }
 

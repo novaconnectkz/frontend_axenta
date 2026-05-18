@@ -230,6 +230,9 @@ export class ObjectsService {
         wialon_wh_active: number;
         wialon_wl_total: number;
         wialon_wl_active: number;
+        gelios_total?: number;
+        gelios_active?: number;
+        gelios_inactive?: number;
       };
     };
     error?: string;
