@@ -90,6 +90,7 @@ export interface ChartPoint {
   wh: number;
   wl: number;
   skif: number;
+  gelios: number;
   revenues: CurrencyRevenue[];
   axenta_created?: number;
   axenta_deleted?: number;
@@ -99,6 +100,8 @@ export interface ChartPoint {
   wl_deleted?: number;
   skif_created?: number;
   skif_deleted?: number;
+  gelios_created?: number;
+  gelios_deleted?: number;
 }
 
 export interface ConnectionHistoryPoint {
@@ -185,7 +188,7 @@ export const dashboardKpiService = {
   },
 
   async getSourceDetail(
-    key: "wh" | "wl" | "skif" | "axenta",
+    key: "wh" | "wl" | "skif" | "gelios" | "axenta",
     period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"
   ): Promise<SourceDetailResponse> {
     const res = await apiClient.get(`${BASE}/source-detail`, { params: { key, period } });
@@ -210,6 +213,8 @@ export const dashboardKpiService = {
           EMPTY_SOURCE("axenta", "Axenta"),
           EMPTY_SOURCE("wh", "Wialon Hosting"),
           EMPTY_SOURCE("wl", "Wialon Local"),
+          EMPTY_SOURCE("skif", "SKIF"),
+          EMPTY_SOURCE("gelios", "GELIOS"),
         ],
         total: EMPTY_SOURCE("all", "Все"),
       };

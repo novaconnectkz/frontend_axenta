@@ -263,7 +263,7 @@ const SPARK_H = 56;
 const SPARK_PAD = 4;
 
 interface SparkData {
-  key: 'axenta' | 'wh' | 'wl' | 'skif';
+  key: 'axenta' | 'wh' | 'wl' | 'skif' | 'gelios';
   label: string;
   color: string;
   current: number;
@@ -282,7 +282,7 @@ interface SparkData {
 }
 
 // Процент активных и absolute значения active/inactive из sourcesStats
-type SparkKey = 'axenta' | 'wh' | 'wl' | 'skif';
+type SparkKey = 'axenta' | 'wh' | 'wl' | 'skif' | 'gelios';
 function sourceStatusFor(key: SparkKey) {
   const src = sourcesStats.value.sources.find(s => s.key === key);
   if (!src) return { active: 0, inactive: 0, total: 0, activePct: 0 };
@@ -293,7 +293,10 @@ function sourceStatusFor(key: SparkKey) {
 
 function buildSpark(key: SparkKey, label: string, color: string): SparkData {
   const points = chartPoints.value;
-  const values = points.map(p => p[key]);
+  // Number(... ?? 0): stale SWR-кэш или рассинхрон BE↔FE деплоя может
+  // отдать point без нового ключа (gelios) → undefined → Math.min даёт NaN
+  // → битый path и пропавшая карта. Дефолт 0 защищает все ключи.
+  const values = points.map(p => Number(p[key] ?? 0));
   const min = values.length ? Math.min(...values) : 0;
   const max = values.length ? Math.max(...values) : 0;
   // first = первое НЕнулевое значение. Нули = пропущенные/битые снапшоты,
@@ -348,12 +351,14 @@ const sparkWH = computed(() => buildSpark('wh', 'Wialon Hosting', '#34c759'));
 const sparkWL = computed(() => buildSpark('wl', 'Wialon Local', '#ff9500'));
 
 const sparkSkif = computed(() => buildSpark('skif', 'SKIF', '#0a8a8a'));
+const sparkGelios = computed(() => buildSpark('gelios', 'GELIOS', '#ff2d55'));
 
 const sparks = computed(() => {
   const out = [sparkAxenta.value];
   if (sparkWH.value.hasData) out.push(sparkWH.value);
   if (sparkWL.value.hasData) out.push(sparkWL.value);
   if (sparkSkif.value.hasData) out.push(sparkSkif.value);
+  if (sparkGelios.value.hasData) out.push(sparkGelios.value);
   // Sort по числу объектов DESC: топ-3 в видимом окне carousel.
   return out.sort((a, b) => b.current - a.current);
 });

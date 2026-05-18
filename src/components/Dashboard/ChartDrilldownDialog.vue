@@ -196,7 +196,7 @@ import { computed, ref, watch } from 'vue';
 import { dashboardKpiService, type ChartPoint, type ConnectionDetail } from '@/services/dashboardKpiService';
 
 interface SparkSource {
-  key: 'axenta' | 'wh' | 'wl' | 'skif';
+  key: 'axenta' | 'wh' | 'wl' | 'skif' | 'gelios';
   label: string;
   color: string;
   current: number;
