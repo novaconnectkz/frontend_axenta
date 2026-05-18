@@ -100,6 +100,26 @@ export const geliosService = {
     return r.data?.data;
   },
 
+  // PATCH partial: шлём только переданные поля (password опускать если не меняем).
+  async updateUser(
+    connId: number,
+    geliosUserId: string,
+    payload: Partial<{
+      login: string;
+      password: string;
+      email: string;
+      phone: string;
+      legal_name: string;
+      is_admin: boolean;
+      is_block: boolean;
+      creator_id: number;
+    }>,
+  ): Promise<void> {
+    await apiClient.patch(`${BASE}/${connId}/users/${encodeURIComponent(geliosUserId)}`, payload, {
+      timeout: 60000,
+    });
+  },
+
   // geliosUserId = ExternalID юзера (gelios_user_id). HARD-delete в GELIOS.
   async deleteUser(connId: number, geliosUserId: string): Promise<void> {
     await apiClient.delete(`${BASE}/${connId}/users/${encodeURIComponent(geliosUserId)}`, { timeout: 60000 });

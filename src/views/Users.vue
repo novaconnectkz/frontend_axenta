@@ -472,8 +472,9 @@ const onEdit = (user: UserWithRelations) => {
   const isSkif = u?.source === 'skif' || srcLabel.startsWith('SKIF') || srcLabel === 'SKIF';
   const isGelios = u?.source === 'gelios' || srcLabel.toUpperCase().startsWith('GELIOS');
   if (isGelios) {
-    // GELIOS read-only: write-API не разведан (риск засорения прода),
-    // edit-диалога нет. Список/поиск/фильтр работают.
+    // GELIOS edit через спец-диалог (PATCH с локальной len-валидацией —
+    // GELIOS PATCH сам не валидирует длины). connId/gid берутся из user.
+    geliosDialog.value = { show: true, mode: 'edit', connId: null, user: u };
     return;
   }
   if (isSkif) {
