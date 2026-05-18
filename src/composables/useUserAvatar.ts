@@ -41,6 +41,7 @@ export function useUserAvatar() {
     if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'orange';
     if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'cyan';
     if (lower.startsWith('skif(') || lower === 'skif') return 'purple';
+    if (lower.startsWith('gelios(') || lower === 'gelios') return 'pink';
     return 'grey';
   };
 
@@ -51,6 +52,7 @@ export function useUserAvatar() {
     if (lower.startsWith('wh(') || lower.startsWith('wh ')) return 'mdi-cloud-outline';
     if (lower.startsWith('wl(') || lower.startsWith('wl ')) return 'mdi-server-outline';
     if (lower.startsWith('skif(') || lower === 'skif') return 'mdi-radar';
+    if (lower.startsWith('gelios(') || lower === 'gelios') return 'mdi-map-marker-radius-outline';
     return 'mdi-satellite-uplink';
   };
 
@@ -60,6 +62,8 @@ export function useUserAvatar() {
     const lower = source.toLowerCase();
     // SKIF(<company>) → "SKIF" — компания и так отображается в колонке "Создатель"
     if (lower.startsWith('skif(') || lower === 'skif') return 'SKIF';
+    // GELIOS(<conn>) → "GELIOS" — connName и так в колонке "Создатель"/контексте
+    if (lower.startsWith('gelios(') || lower === 'gelios') return 'GELIOS';
     return source;
   };
 
