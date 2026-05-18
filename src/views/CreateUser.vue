@@ -42,7 +42,7 @@
               />
 
               <v-autocomplete
-                v-if="!isWialon && !isSkif"
+                v-if="!isWialon && !isSkif && !isGelios"
                 v-model="form.accountId"
                 :items="axentaAccountOptions"
                 item-title="displayName"
@@ -96,6 +96,25 @@
                 hide-no-data
                 auto-select-first
                 :rules="[(v: any) => !!v || 'Выберите компанию SKIF']"
+              />
+
+              <v-autocomplete
+                v-else-if="isGelios"
+                v-model="form.geliosCreatorId"
+                :items="geliosCreatorOptions"
+                item-title="login"
+                item-value="gelios_id"
+                label="Создатель (узел дерева GELIOS)"
+                placeholder="Выберите создателя"
+                variant="outlined"
+                density="compact"
+                persistent-placeholder
+                :loading="loadingGeliosCreators"
+                required
+                clearable
+                hide-no-data
+                auto-select-first
+                :rules="[(v: any) => !!v || 'Выберите создателя GELIOS']"
               />
 
               <v-autocomplete
@@ -170,6 +189,29 @@
                 Юзер создаётся в выбранной компании SKIF. Email/телефон — опционально.
               </div>
             </v-alert>
+
+            <div v-if="isGelios" class="form-row mt-2">
+              <v-checkbox
+                v-model="form.geliosIsAdmin"
+                label="Администратор (дилер-узел: может иметь детей, видно в Учётных записях)"
+                density="compact"
+                hide-details
+              />
+            </div>
+            <v-alert
+              v-if="isGelios"
+              type="info"
+              variant="tonal"
+              density="compact"
+              text
+              class="mt-2"
+            >
+              <div class="text-caption">
+                GELIOS = дерево пользователей (нет отдельной сущности «аккаунт»).
+                Создатель — узел дерева/корень. Email — опционально. С галкой
+                «Администратор» юзер появится и в разделе «Учётные записи».
+              </div>
+            </v-alert>
           </div>
 
           <!-- Логин + Email -->
@@ -194,7 +236,7 @@
                 variant="outlined"
                 density="compact"
                 persistent-placeholder
-                :required="!isWialon"
+                :required="!isWialon && !isGelios"
                 clearable
                 :rules="emailRules"
               />
@@ -202,7 +244,7 @@
           </div>
 
           <!-- Полное имя (только axenta) -->
-          <div v-if="!isWialon && !isSkif" class="form-section">
+          <div v-if="!isWialon && !isSkif && !isGelios" class="form-section">
             <div class="form-row full-width">
               <v-text-field
                 v-model="form.name"
@@ -242,7 +284,7 @@
                 </div>
               </div>
               <v-text-field
-                v-if="!isWialon && !isSkif"
+                v-if="!isWialon && !isSkif && !isGelios"
                 v-model="form.confirmPassword"
                 label="Подтверждение пароля"
                 :type="showPassword ? 'text' : 'password'"
@@ -256,7 +298,7 @@
           </div>
 
           <!-- Axenta-specific: hasAdminAccess + visibleTabsNames -->
-          <template v-if="!isWialon && !isSkif">
+          <template v-if="!isWialon && !isSkif && !isGelios">
             <div class="form-section">
               <div class="form-row">
                 <v-switch
@@ -374,6 +416,8 @@ const form = ref({
   wialonCreatorId: null as number | null,
   skifCompanyId: null as string | null,
   skifRoleKey: 'EDITOR',
+  geliosCreatorId: null as number | null,
+  geliosIsAdmin: false,
   hasAdminAccess: false,
   visibleTabsNames: ['monitoring', 'reports'] as string[],
 });
@@ -387,6 +431,37 @@ const showSnackbar = (text: string, color: 'info' | 'success' | 'error' | 'warni
 // Computed
 const isWialon = computed(() => form.value.system.startsWith('wialon:'));
 const isSkif = computed(() => form.value.system.startsWith('skif:'));
+const isGelios = computed(() => form.value.system.startsWith('gelios:'));
+const selectedGeliosConnId = computed<number | null>(() => {
+  if (!isGelios.value) return null;
+  return Number(form.value.system.slice('gelios:'.length)) || null;
+});
+const geliosConnections = ref<{ id: number; name: string }[]>([]);
+const geliosCreatorOptions = ref<{ gelios_id: number; login: string }[]>([]);
+const loadingGeliosCreators = ref(false);
+
+const loadGeliosConnections = async () => {
+  try {
+    const { geliosService } = await import('@/services/geliosService');
+    geliosConnections.value = (await geliosService.list()).map((c) => ({ id: c.id, name: c.name }));
+  } catch (e) {
+    console.error('loadGeliosConnections', e);
+    geliosConnections.value = [];
+  }
+};
+
+const loadGeliosCreators = async (connId: number) => {
+  loadingGeliosCreators.value = true;
+  try {
+    const { geliosService } = await import('@/services/geliosService');
+    geliosCreatorOptions.value = await geliosService.listCreators(connId);
+  } catch (e) {
+    console.error('loadGeliosCreators', e);
+    geliosCreatorOptions.value = [];
+  } finally {
+    loadingGeliosCreators.value = false;
+  }
+};
 const selectedConnection = computed<WialonConnection | undefined>(() => {
   if (!isWialon.value) return undefined;
   const id = Number(form.value.system.slice('wialon:'.length));
@@ -407,6 +482,9 @@ const systemOptions = computed(() => {
   }
   for (const c of skifConnections.value) {
     opts.push({ value: `skif:${c.id}`, title: `SKIF — ${c.name}` });
+  }
+  for (const c of geliosConnections.value) {
+    opts.push({ value: `gelios:${c.id}`, title: `GELIOS — ${c.name}` });
   }
   return opts;
 });
@@ -434,7 +512,7 @@ const usernameRules = [
 ];
 
 const emailRules = computed(() => {
-  const required = !isWialon.value && !isSkif.value;
+  const required = !isWialon.value && !isSkif.value && !isGelios.value;
   return [
     (v: string) => (required ? !!v || 'Email обязателен' : true),
     (v: string) => !v || /.+@.+\..+/.test(v) || 'Неверный формат email',
@@ -448,7 +526,13 @@ const nameRules = [
 
 const passwordRules = computed(() => [
   (v: string) => !!v || 'Пароль обязателен',
-  (v: string) => (isWialon.value ? isWialonPasswordValid.value || 'Не выполнены требования Wialon' : (v && v.length >= 6) || 'Минимум 6 символов'),
+  (v: string) => {
+    if (isWialon.value) return isWialonPasswordValid.value || 'Не выполнены требования Wialon';
+    // GELIOS API допускает пароль от 5 символов (проверено вживую) —
+    // shared-минимум 6 блокировал бы валидный GELIOS-пароль (Codex #3).
+    const min = isGelios.value ? 5 : 6;
+    return (v && v.length >= min) || `Минимум ${min} символов`;
+  },
 ]);
 
 const confirmPasswordRules = [
@@ -554,10 +638,13 @@ const onSystemChange = () => {
   form.value.accountId = null;
   form.value.wialonCreatorId = null;
   form.value.skifCompanyId = null;
+  form.value.geliosCreatorId = null;
   if (isWialon.value && selectedConnection.value) {
     loadWialonAccountsForConnection(selectedConnection.value.id);
   } else if (isSkif.value && selectedSkifConnection.value) {
     loadSkifCompaniesForConnection(selectedSkifConnection.value.id);
+  } else if (isGelios.value && selectedGeliosConnId.value) {
+    loadGeliosCreators(selectedGeliosConnId.value);
   }
 };
 
@@ -609,6 +696,36 @@ const createUser = async () => {
       } catch (e: any) {
         const msg = e?.response?.data?.error || e?.message || 'Ошибка создания SKIF-пользователя';
         showSnackbar(msg, 'error');
+      }
+      return;
+    }
+
+    if (isGelios.value) {
+      const connId = selectedGeliosConnId.value;
+      if (!connId) {
+        showSnackbar('Не выбрано GELIOS-подключение', 'error');
+        return;
+      }
+      if (!form.value.geliosCreatorId) {
+        showSnackbar('Выберите создателя (узел дерева GELIOS)', 'error');
+        return;
+      }
+      try {
+        const { geliosService } = await import('@/services/geliosService');
+        await geliosService.createUser(connId, {
+          login: form.value.username,
+          password: form.value.password,
+          creator_id: form.value.geliosCreatorId,
+          is_admin: form.value.geliosIsAdmin,
+          email: form.value.email || undefined,
+        });
+        showSnackbar(`GELIOS-пользователь "${form.value.username}" создан`, 'success');
+        setTimeout(() => router.push('/users'), 1500);
+      } catch (e: any) {
+        showSnackbar(
+          e?.response?.data?.error || e?.message || 'Ошибка создания GELIOS-пользователя',
+          'error',
+        );
       }
       return;
     }
@@ -665,7 +782,7 @@ const createUser = async () => {
 const goBack = () => router.push('/users');
 
 onMounted(async () => {
-  await Promise.all([loadAxentaAccounts(), loadWialonConnections(), loadSkifConnections()]);
+  await Promise.all([loadAxentaAccounts(), loadWialonConnections(), loadSkifConnections(), loadGeliosConnections()]);
 });
 </script>
 

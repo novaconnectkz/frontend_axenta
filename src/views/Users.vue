@@ -117,7 +117,6 @@ import UserDialog from '@/components/Users/UserDialog.vue';
 import WialonUserEditDialog from '@/components/Users/WialonUserEditDialog.vue';
 import SkifUserEditDialog from '@/components/Users/SkifUserEditDialog.vue';
 import GeliosUserDialog from '@/components/Users/GeliosUserDialog.vue';
-import { geliosService } from '@/services/geliosService';
 import UserViewDialog from '@/components/Users/UserViewDialog.vue';
 import UsersFilters from '@/components/Users/UsersFilters.vue';
 import UsersStats from '@/components/Users/UsersStats.vue';
@@ -233,20 +232,8 @@ const geliosDialog = ref({
   user: null as any,
 });
 
-// GELIOS create: нужен connId. 1 подключение → берём его; 0 → ошибка;
-// >1 → берём первое (мульти-GELIOS редок; TODO conn-picker при надобности).
-async function openGeliosCreate() {
-  try {
-    const conns = await geliosService.list();
-    if (!conns.length) {
-      showSnackbar('Нет GELIOS-подключения', 'error');
-      return;
-    }
-    geliosDialog.value = { show: true, mode: 'create', connId: conns[0].id, user: null };
-  } catch {
-    showSnackbar('Не удалось получить GELIOS-подключения', 'error');
-  }
-}
+// GELIOS create — теперь через универсальную форму (/users/create,
+// система=GELIOS). geliosDialog используется только для delete-confirm.
 const passwordDialog = ref({ show: false, user: null as UserWithRelations | null });
 const viewDialog = ref({ show: false, user: null as UserWithRelations | null });
 const inactiveUsersDialog = ref({ show: false });
@@ -373,13 +360,6 @@ const fabMenuItems = [
     icon: 'mdi-account-plus-outline',
     color: 'success' as const,
     action: () => actions.openCreate(),
-  },
-  {
-    id: 'create-gelios',
-    label: 'Создать GELIOS-пользователя',
-    icon: 'mdi-map-marker-radius-outline',
-    color: 'primary' as const,
-    action: () => openGeliosCreate(),
   },
 ];
 
