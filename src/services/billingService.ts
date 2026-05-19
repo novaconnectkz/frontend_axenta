@@ -70,22 +70,9 @@ class BillingService {
     this.apiClient.interceptors.response.use(
       (response) => response,
       (error) => {
+        // Ф1: 401 от Axenta-прокси ≠ смерть локальной сессии.
         if (error.response?.status === 401) {
-          // Перенаправляем на страницу входа при ошибке авторизации
-          localStorage.removeItem("axenta_token");
-          localStorage.removeItem("axenta_user");
-          localStorage.removeItem("axenta_company");
-          localStorage.removeItem("axenta_token_expiry");
-          
-          // Используем роутер для навигации вместо window.location.href
-          // Это предотвращает полную перезагрузку страницы
-          if (typeof window !== 'undefined' && window.location) {
-            // Проверяем, не находимся ли мы уже на странице логина
-            if (window.location.pathname !== '/login') {
-              // Используем replace, чтобы не создавать запись в истории
-              window.location.replace('/login');
-            }
-          }
+          console.debug("billingService 401 (downstream, session kept)");
         }
         return Promise.reject(error);
       }

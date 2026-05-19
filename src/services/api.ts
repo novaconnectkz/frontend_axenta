@@ -68,9 +68,13 @@ apiClient.interceptors.request.use(
 // Single-flight refresh: параллельные 401 ждут один /auth/refresh,
 // не устраивая refresh-шторм (бэк его переживёт — grace-окно, риск B1,
 // но лишних запросов не плодим).
-// "RACE" — бэк ответил 409 (ErrRefreshRace, BLK1): параллельная
-// ротация, сессия жива. НЕ разлогиниваем, просто не ретраим этот запрос.
-type RefreshResult = string | null | "RACE";
+// Результат refresh:
+//   string — новый access (успех)
+//   "RACE" — 409 ErrRefreshRace (BLK1): параллельная ротация, сессия жива
+//   "DEAD" — /auth/refresh вернул 401: локальная сессия ТОЧНО мертва
+//   null   — сеть/прочее: НЕ трактуем как смерть сессии (Ф1: 401 от
+//            Axenta-прокси downstream не должен выкидывать юзера)
+type RefreshResult = string | null | "RACE" | "DEAD";
 let refreshInFlight: Promise<RefreshResult> | null = null;
 
 async function doRefresh(): Promise<RefreshResult> {
@@ -93,8 +97,10 @@ async function doRefresh(): Promise<RefreshResult> {
     }
     return null;
   } catch (e: any) {
-    if (e?.response?.status === 409) return "RACE";
-    return null;
+    const st = e?.response?.status;
+    if (st === 409) return "RACE";
+    if (st === 401) return "DEAD"; // refresh-токен невалиден → сессия мертва
+    return null; // сеть/5xx/прочее — сессию НЕ убиваем
   }
 }
 
@@ -127,17 +133,23 @@ apiClient.interceptors.response.use(
         // этот запрос просто фейлим — следующий пройдёт штатно.
         return Promise.reject(error);
       }
-      if (newToken) {
+      if (newToken === "DEAD") {
+        // /auth/refresh явно 401 → локальная сессия мертва. ТОЛЬКО
+        // здесь чистим и уводим на логин.
+        localStorage.removeItem("axenta_token");
+        localStorage.removeItem("acrm_csrf");
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+        return Promise.reject(error);
+      }
+      if (newToken && newToken !== "RACE") {
         original.headers = original.headers || {};
         original.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(original);
       }
-      // refresh не вышел — сессия мертва.
-      localStorage.removeItem("axenta_token");
-      localStorage.removeItem("acrm_csrf");
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
-      }
+      // null (сеть/прочее) или RACE — сессия жива, просто фейлим запрос
+      // (Ф1: downstream Axenta-прокси 401 не выкидывает залогиненного).
       return Promise.reject(error);
     }
     return handleApiError(error);
@@ -161,12 +173,11 @@ function handleApiError(error: any) {
       globalErrorHandler.handleError(error);
     }).catch((err) => {
       console.warn("Cannot access error handler:", err);
-      // Fallback для обработки ошибок авторизации
-      if (error.response?.status === 401) {
-        localStorage.removeItem("axenta_token");
-        localStorage.removeItem("tenant_id");
-        window.location.href = "/login";
-      }
+      // НЕ логаутим здесь: смерть локальной сессии определяет ТОЛЬКО
+      // refresh-путь выше (doRefresh==null → clear+redirect). 401,
+      // переживший один refresh, = downstream Axenta-прокси/authz,
+      // НЕ протухший токен — иначе любой пустой Axenta-экран
+      // выкидывает залогиненного юзера (Ф1: данные ещё прокси-coupled).
     });
 
     return Promise.reject(error);

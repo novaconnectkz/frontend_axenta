@@ -77,36 +77,45 @@ const COMPANY_KEY = "axenta_company";
 const TOKEN_EXPIRY_KEY = "axenta_token_expiry";
 
 // Утилиты для работы с токенами
+// JWT использует base64URL ('-' '_', без паддинга). Голый atob()
+// принимает только base64 и БРОСАЕТ на '-'/'_' → раньше любой наш
+// HS256-токен считался "истёкшим" (catch → true) и сессия убивалась
+// в loadFromStorage. Нормализуем перед декодом.
+const decodeJwtPayload = (seg: string): any => {
+  let b64 = seg.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+  return JSON.parse(atob(b64));
+};
+
 const isTokenExpired = (token: string): boolean => {
   if (!token) return true;
-  
+
   try {
-    // Проверяем, является ли токен JWT (имеет 3 части, разделенные точками)
+    // 3 части = JWT; иначе не-JWT (легаси opaque) → считаем валидным.
     const parts = token.split(".");
     if (parts.length !== 3) {
-      // Это не JWT токен (например, токен Axenta Cloud), считаем его валидным
-      console.log("🔍 Non-JWT token detected, considering valid");
       return false;
     }
-    
-    // Для JWT токенов проверяем срок действия
-    const payload = JSON.parse(atob(parts[1]));
-    const isExpired = Date.now() >= payload.exp * 1000;
-    console.log("🕐 JWT token expiry check:", { 
-      exp: new Date(payload.exp * 1000).toLocaleString(),
-      isExpired 
-    });
-    return isExpired;
+    const payload = decodeJwtPayload(parts[1]);
+    if (!payload || typeof payload.exp !== "number") {
+      // Нет exp — не можем судить; не выкидываем юзера.
+      return false;
+    }
+    return Date.now() >= payload.exp * 1000;
   } catch (error) {
     console.error("❌ Error checking token expiry:", error);
-    return true;
+    // Не трактуем ошибку парсинга как протухание (иначе ложный logout).
+    return false;
   }
 };
 
 const getTokenExpiry = (token: string): Date | null => {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return new Date(payload.exp * 1000);
+    const payload = decodeJwtPayload(token.split(".")[1]);
+    return typeof payload.exp === "number"
+      ? new Date(payload.exp * 1000)
+      : null;
   } catch {
     return null;
   }
@@ -157,19 +166,15 @@ export function useAuthProvider() {
   apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+      // Ф1: 401 здесь НЕ означает смерть локальной сессии. После
+      // отвязки от Axenta data-layer (objects/cms/stats) — это
+      // passthrough-прокси в axenta.cloud по login-токену; без
+      // Axenta-токена они законно отдают 401. Раньше тут был
+      // logout(true) → любой пустой Axenta-экран выкидывал
+      // залогиненного юзера. Смерть локальной сессии определяет
+      // ТОЛЬКО refresh-путь в services/api.ts + watcher истечения.
       if (error.response?.status === 401) {
-        // Токен истек или недействителен - выходим из системы
-        console.error('❌ Ошибка 401 Unauthorized');
-        console.error('URL:', error.config?.url);
-        console.error('Токен в памяти:', token.value ? `EXISTS (${token.value.length} chars)` : 'ОТСУТСТВУЕТ');
-        
-        const storedToken = localStorage.getItem('axenta_token');
-        console.error('Токен в localStorage:', storedToken ? `EXISTS (${storedToken.length} chars)` : 'ОТСУТСТВУЕТ');
-        
-        // Очищаем данные и перенаправляем на логин
-        logout(true); // true = перенаправить на /login
-        
-        return Promise.reject(new Error('Сессия истекла, требуется повторная авторизация'));
+        console.warn('401 (downstream, не логаутим):', error.config?.url);
       }
       return Promise.reject(error);
     }
