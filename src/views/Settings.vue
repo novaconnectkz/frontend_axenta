@@ -130,8 +130,6 @@
           <v-card-text class="pa-6">
             <!-- Интеграции -->
             <div v-if="activeTab === 'integrations'">
-              <AxentaConnectionSettings />
-              <v-divider class="my-8" />
               <IntegrationsSettings />
             </div>
 
@@ -329,7 +327,6 @@ import { VueDraggable } from 'vue-draggable-plus';
 // Импорты компонентов (будут созданы далее)
 import AuditLogs from '@/components/Settings/AuditLogs.vue';
 import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
-import AxentaConnectionSettings from '@/components/Settings/AxentaConnectionSettings.vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';

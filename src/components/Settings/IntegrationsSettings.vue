@@ -39,6 +39,11 @@
     <!-- Список интеграций -->
     <div v-else>
       <v-row>
+        <!-- Ф3-D #1: «Подключение Axenta» (cred-UX) — первой карточкой
+             в той же сетке, что Wialon/GELIOS/SKIF/NovaConnect -->
+        <v-col cols="12" md="6">
+          <AxentaConnectionSettings />
+        </v-col>
         <v-col
           v-for="integration in integrations"
           :key="integration.id"
@@ -1115,6 +1120,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
 import SkifConnectionsSettings from './SkifConnectionsSettings.vue';
 import GeliosConnectionsSettings from './GeliosConnectionsSettings.vue';
+import AxentaConnectionSettings from './AxentaConnectionSettings.vue';
 
 // Реактивные данные
 const loading = ref(false);

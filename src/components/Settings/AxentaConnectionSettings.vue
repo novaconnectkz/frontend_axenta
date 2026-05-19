@@ -1,12 +1,10 @@
 <template>
-  <v-row>
-    <v-col cols="12" md="6">
-      <v-card
-        class="integration-card"
-        :class="{ 'integration-card--active': configured }"
-        elevation="2"
-      >
-        <!-- Заголовок (как GELIOS/SKIF/Wialon) -->
+  <v-card
+    class="integration-card"
+    :class="{ 'integration-card--active': configured }"
+    elevation="2"
+  >
+    <!-- Заголовок (как GELIOS/SKIF/Wialon) -->
         <v-card-title class="d-flex align-center justify-space-between">
           <div class="d-flex align-center gap-3">
             <v-avatar color="blue-darken-2" size="40">
@@ -123,9 +121,7 @@
             </v-card-actions>
           </div>
         </v-expand-transition>
-      </v-card>
-    </v-col>
-  </v-row>
+  </v-card>
 </template>
 
 <script setup lang="ts">
