@@ -35,6 +35,23 @@ const routes = [
   }),
 
 
+  // === CONTROL-PLANE (Фаза 2, монетизация — операторский surface) ===
+  // Изолирован: свой auth (operatorClient), БЕЗ requiresAuth/Guest —
+  // tenant-guard ниже их пропускает (early-return по /control-plane).
+  // Гейтит сам ControlPanel.onMounted (operator-токен).
+  {
+    path: "/control-plane/login",
+    name: "ControlLogin",
+    component: () => import("@/control-plane/ControlLogin.vue"),
+    meta: { title: "Control-plane · вход", controlPlane: true },
+  },
+  {
+    path: "/control-plane",
+    name: "ControlPanel",
+    component: () => import("@/control-plane/ControlPanel.vue"),
+    meta: { title: "Control-plane", controlPlane: true },
+  },
+
   // === ОЧИСТКА АВТОРИЗАЦИИ ===
   createPublicRoute("/clear-auth", () => import("@/views/ClearAuth.vue"), {
     title: "Очистка авторизации",
@@ -295,6 +312,13 @@ router.beforeEach(titleGuard);
 
 // Простая проверка auth без context
 router.beforeEach((to, from, next) => {
+  // Control-plane (Ф2) полностью изолирован от tenant-auth: свой
+  // operator-токен, своя проверка в ControlPanel. Tenant-гвард его
+  // не трогает (иначе редиректил бы оператора на tenant /login).
+  if (to.path.startsWith("/control-plane")) {
+    return next();
+  }
+
   let token = localStorage.getItem("axenta_token");
   let localToken = localStorage.getItem("local_access_token");
 
