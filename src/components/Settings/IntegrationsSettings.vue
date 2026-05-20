@@ -38,14 +38,17 @@
 
     <!-- Список интеграций -->
     <div v-else>
+      <!-- Единая карточка «Источники данных GPS» (Axenta + Wialon + GELIOS + SKIF)
+           заменила 4 отдельные плашки. Внутри — табличный обзор всех подключений
+           + inline-actions Test/Sync/Configure. Existing modal-диалоги
+           (Wialon/GELIOS/SKIF/Axenta cred) переиспользуются без переписывания. -->
+      <v-card class="mb-6 pa-4" elevation="2">
+        <GpsSourcesUnified />
+      </v-card>
+
       <v-row>
-        <!-- Ф3-D #1: «Подключение Axenta» (cred-UX) — первой карточкой
-             в той же сетке, что Wialon/GELIOS/SKIF/NovaConnect -->
-        <v-col cols="12" md="6">
-          <AxentaConnectionSettings />
-        </v-col>
         <v-col
-          v-for="integration in integrations"
+          v-for="integration in nonGpsIntegrations"
           :key="integration.id"
           cols="12"
           md="6"
@@ -1121,10 +1124,17 @@ import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
 import SkifConnectionsSettings from './SkifConnectionsSettings.vue';
 import GeliosConnectionsSettings from './GeliosConnectionsSettings.vue';
 import AxentaConnectionSettings from './AxentaConnectionSettings.vue';
+import GpsSourcesUnified from './GpsSourcesUnified.vue';
 
 // Реактивные данные
 const loading = ref(false);
 const integrations = ref<IntegrationWithSettings[]>([]);
+
+// Wialon/SKIF/GELIOS теперь живут в GpsSourcesUnified-карточке выше, поэтому
+// исключаем их из обычной сетки v-row, чтобы не дублировались.
+const nonGpsIntegrations = computed(() =>
+  integrations.value.filter(i => !['wialon', 'skif', 'gelios'].includes(i.type)),
+);
 const testingConnections = ref<Record<string, boolean>>({});
 const loadingPassword = ref(false);
 
