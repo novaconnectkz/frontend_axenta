@@ -360,19 +360,23 @@ async function loadAxenta(): Promise<SourceRow | null> {
     }
     axentaConfigured.value = true;
 
-    // Параллельно: статус интеграции (connection_ok) + objects total + last snapshot job.
-    // objects (НЕ accounts) — реальный сравнительный показатель vs Wialon/GELIOS/SKIF.
-    // status.last_sync часто пуст (integration row без LastSyncAt) — fallback на snapshot-jobs.
-    const [statusRes, statsRes, jobsRes] = await Promise.allSettled([
-      fetch(`${config.apiBaseUrl}/axenta/status`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
-      }).then(r => r.ok ? r.json() : null),
+    // Параллельно: статус интеграции (connection_ok) + objects total +
+    // last manual axenta-sync + last partner-snapshot cron job.
+    // Приоритет last_sync: manual sync finished_at > daily cron > legacy
+    // integration row.
+    const auth = { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` };
+    const [statusRes, statsRes, jobsRes, syncRes] = await Promise.allSettled([
+      fetch(`${config.apiBaseUrl}/axenta/status`, { headers: auth })
+        .then(r => r.ok ? r.json() : null),
       apiClient.get('/auth/objects/stats').then(r => r.data?.data || r.data).catch(() => null),
       apiClient.get('/auth/snapshot-jobs/stats').then(r => r.data?.data || r.data).catch(() => null),
+      fetch(`${config.apiBaseUrl}/auth/axenta-sync/status`, { headers: auth })
+        .then(r => r.ok ? r.json() : null),
     ]);
     const status: any = statusRes.status === 'fulfilled' ? statusRes.value : null;
     const stats: any = statsRes.status === 'fulfilled' ? statsRes.value : null;
     const jobs: any = jobsRes.status === 'fulfilled' ? jobsRes.value : null;
+    const lastSyncTracker: any = syncRes.status === 'fulfilled' ? syncRes.value : null;
 
     // Источник правды о здоровье Axenta = cred-UX (валидирует пароль через
     // Probe). /api/axenta/status.TestConnection — другая ветка (легаси
@@ -382,7 +386,10 @@ async function loadAxenta(): Promise<SourceRow | null> {
     const hasFailed = typeof jobs?.failed_jobs === 'number' && jobs.failed_jobs > 0;
     const connectionOk = !hasFailed;
     const objects = typeof stats?.total === 'number' ? stats.total : null;
-    const lastSync = status?.last_sync || jobs?.last_job_started_at || null;
+    // Приоритет: ручной axenta-sync (started_at если ещё running, иначе
+    // finished_at) > daily cron last_job_started_at > legacy status.last_sync.
+    const manualSync = lastSyncTracker?.finished_at || lastSyncTracker?.started_at || null;
+    const lastSync = manualSync || jobs?.last_job_started_at || status?.last_sync || null;
 
     return {
       key: 'axenta-1',
