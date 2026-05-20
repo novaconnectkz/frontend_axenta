@@ -500,14 +500,27 @@ async function onTest(item: SourceRow) {
       await skifService.test(item.id as number);
       showSnack(`${item.name}: подключение OK`);
     } else if (item.provider === 'axenta') {
-      // Axenta-test без передачи пароля: используем server-status (TestConnection
-      // на бэке через сохранённый server-token / зашифрованный пароль).
-      const r = await fetch(`${config.apiBaseUrl}/axenta/status`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
-      });
-      const j = r.ok ? await r.json() : null;
-      if (j?.connection_ok) showSnack(`Axenta (${item.name}): подключение работает`);
-      else showSnack(`Axenta (${item.name}): ошибка соединения`, 'error');
+      // Axenta-test без передачи пароля. /api/axenta/status.TestConnection
+      // часто даёт false-negative (legacy integration row отсутствует) —
+      // не полагаемся. Источник правды:
+      //  1. cred-UX configured=true (пароль валидирован через Probe);
+      //  2. snapshot-jobs last successful run (cron sync с сохранёнными
+      //     credentials прошёл).
+      const [credRes, jobsRes] = await Promise.allSettled([
+        apiClient.get('/auth/axenta-credentials'),
+        apiClient.get('/auth/snapshot-jobs/stats'),
+      ]);
+      const cred: any = credRes.status === 'fulfilled' ? credRes.value.data : null;
+      const jobs: any = jobsRes.status === 'fulfilled' ? jobsRes.value.data?.data || jobsRes.value.data : null;
+      const credOk = cred?.status === 'success' && !!cred.data?.configured;
+      const recentOk = !!jobs?.last_job_started_at && (jobs.failed_jobs ?? 0) === 0;
+      if (credOk && recentOk) {
+        showSnack(`Axenta (${item.name}): подключение работает (cred OK, ${jobs?.completed_jobs ?? 0} успешных sync)`);
+      } else if (credOk) {
+        showSnack(`Axenta (${item.name}): креды OK, но sync ещё не запускался`);
+      } else {
+        showSnack(`Axenta (${item.name}): креды не настроены — откройте «Настроить»`, 'error');
+      }
     }
   } catch (e: any) {
     showSnack(`Ошибка теста: ${e?.response?.data?.error || e?.message}`, 'error');
