@@ -46,16 +46,16 @@
             </v-btn>
           </template>
           <v-list density="compact">
-            <v-list-item
-              :disabled="axentaConfigured"
-              @click="onAdd('axenta')"
-            >
+            <v-list-item @click="onAdd('axenta')">
               <template #prepend>
                 <v-icon color="indigo">mdi-cloud-key</v-icon>
               </template>
               <v-list-item-title>Axenta</v-list-item-title>
               <v-list-item-subtitle v-if="axentaConfigured" class="text-caption">
-                Уже подключено
+                Обновить логин / пароль
+              </v-list-item-subtitle>
+              <v-list-item-subtitle v-else class="text-caption">
+                Подключить аккаунт партнёра
               </v-list-item-subtitle>
             </v-list-item>
             <v-list-item @click="onAdd('wialon')">
@@ -548,13 +548,46 @@ async function onSync(item: SourceRow) {
       });
       if (r.ok) showSnack(`${providerLabel(item.provider, item.subtype)}: синхронизация завершена`);
     } else if (item.provider === 'axenta') {
-      // Axenta-sync — async-trigger (фоновый snapshot всех компаний партнёра).
-      const r = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/trigger`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
-      });
-      if (r.ok) showSnack(`Axenta: синхронизация запущена в фоне`);
-      else showSnack(`Axenta: ошибка запуска sync (${r.status})`, 'error');
+      // Axenta sync — backend-async (тяжёлый snapshot всех 2000+ компаний),
+      // но FE-обёртка делает polling /axenta-sync/status до finished,
+      // показывая снепшот-count из /accounts/stats. UX идентичен другим.
+      const auth = { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` };
+      const beforeStats = await apiClient.get('/auth/objects/stats')
+        .then(r => r.data?.data?.total ?? 0).catch(() => 0);
+
+      const t = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/trigger`, { method: 'POST', headers: auth });
+      if (!t.ok) {
+        showSnack(`Axenta: ошибка запуска sync (${t.status})`, 'error');
+        return;
+      }
+      showSnack(`Axenta: синхронизация запущена…`, 'info');
+
+      // Polling до 10 минут (Axenta sync обычно 1-5 мин на 2000 учёток).
+      const TIMEOUT = 10 * 60 * 1000;
+      const startMs = Date.now();
+      while (Date.now() - startMs < TIMEOUT) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const s = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/status`, { headers: auth });
+          if (!s.ok) continue;
+          const j = await s.json();
+          if (j.running === false && j.finished_at) {
+            const afterStats = await apiClient.get('/auth/objects/stats')
+              .then(r => r.data?.data?.total ?? 0).catch(() => 0);
+            const diff = afterStats - beforeStats;
+            const dur = Math.round(j.duration_s || 0);
+            if (j.error) {
+              showSnack(`Axenta: sync завершён с ошибкой — ${j.error}`, 'error');
+            } else if (diff > 0) {
+              showSnack(`Axenta: загружено ${afterStats} объектов (+${diff} за ${dur}с)`);
+            } else {
+              showSnack(`Axenta: sync завершён за ${dur}с (объектов ${afterStats})`);
+            }
+            return;
+          }
+        } catch (_) { /* network blip — продолжаем polling */ }
+      }
+      showSnack(`Axenta: sync продолжается дольше 10 мин — проверьте позже`, 'info');
     }
   } catch (e: any) {
     showSnack(`Ошибка sync: ${e?.response?.data?.error || e?.message}`, 'error');
