@@ -274,6 +274,7 @@ interface SourceRow {
 interface WialonConnection {
   id: number;
   name: string;
+  user_name?: string;
   host: string;
   connection_type: 'hosting' | 'local';
   units_count?: number;
@@ -409,8 +410,11 @@ async function loadWialon(): Promise<SourceRow[]> {
       provider: 'wialon' as const,
       subtype: c.connection_type,
       id: c.id,
-      name: c.name,
-      host: c.host,
+      // Колонка «Название / Логин» = user_name (актуальный логин Wialon).
+      // c.name для Local часто = домен (app.gpsnetwork.ru) — это не логин,
+      // его прячем в tooltip с host'ом.
+      name: c.user_name || c.name,
+      host: `${c.host}${c.name && c.name !== c.user_name ? ' · ' + c.name : ''}`,
       objects: c.units_count ?? null,
       last_sync: c.last_sync_at ?? null,
       status: c.last_error_at ? 'error' : (c.is_active === false ? 'unknown' : 'active'),
