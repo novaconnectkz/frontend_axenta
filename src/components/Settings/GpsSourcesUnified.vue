@@ -92,19 +92,22 @@
         class="gps-sources-table"
       >
         <template #[`item.provider`]="{ item }">
-          <div class="d-flex align-center gap-2">
+          <div class="d-flex align-center provider-cell">
             <v-avatar :color="providerColor(item.provider)" size="28">
               <v-icon size="16" color="white">{{ providerIcon(item.provider) }}</v-icon>
             </v-avatar>
+            <div class="provider-divider" />
             <span class="text-body-2 font-weight-medium">{{ providerLabel(item.provider, item.subtype) }}</span>
           </div>
         </template>
 
         <template #[`item.name`]="{ item }">
-          <div>
-            <div class="text-body-2">{{ item.name || '—' }}</div>
-            <div v-if="item.host" class="text-caption text-medium-emphasis">{{ item.host }}</div>
-          </div>
+          <span
+            v-if="item.host"
+            class="text-body-2"
+            :title="item.host"
+          >{{ item.name || '—' }}</span>
+          <span v-else class="text-body-2">{{ item.name || '—' }}</span>
         </template>
 
         <template #[`item.objects`]="{ item }">
@@ -128,7 +131,6 @@
         <template #[`item.actions`]="{ item }">
           <div class="d-flex align-center gap-1 justify-end">
             <v-btn
-              v-if="item.provider !== 'axenta'"
               icon
               variant="text"
               size="small"
@@ -139,7 +141,6 @@
               <v-icon size="18">mdi-connection</v-icon>
             </v-btn>
             <v-btn
-              v-if="item.provider !== 'axenta'"
               icon
               variant="text"
               size="small"
@@ -349,21 +350,46 @@ function formatDate(iso: string | null): string {
 
 async function loadAxenta(): Promise<SourceRow | null> {
   try {
-    const { data } = await apiClient.get('/auth/axenta-credentials');
-    if (data?.status === 'success' && data.data) {
-      axentaConfigured.value = !!data.data.configured;
-      if (axentaConfigured.value) {
-        return {
-          key: 'axenta-1',
-          provider: 'axenta',
-          id: 'axenta',
-          name: data.data.login || '—',
-          objects: null,
-          last_sync: null,
-          status: 'active',
-        };
-      }
+    const { data: cred } = await apiClient.get('/auth/axenta-credentials');
+    if (cred?.status !== 'success' || !cred.data?.configured) {
+      axentaConfigured.value = false;
+      return null;
     }
+    axentaConfigured.value = true;
+
+    // Параллельно: статус интеграции (connection_ok) + stats аккаунтов + last snapshot job.
+    // status.last_sync часто пуст (integration row без LastSyncAt) — fallback на snapshot-jobs.
+    const [statusRes, statsRes, jobsRes] = await Promise.allSettled([
+      fetch(`${config.apiBaseUrl}/axenta/status`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
+      }).then(r => r.ok ? r.json() : null),
+      apiClient.get('/auth/accounts/stats').then(r => r.data?.data || r.data).catch(() => null),
+      apiClient.get('/auth/snapshot-jobs/stats').then(r => r.data?.data || r.data).catch(() => null),
+    ]);
+    const status: any = statusRes.status === 'fulfilled' ? statusRes.value : null;
+    const stats: any = statsRes.status === 'fulfilled' ? statsRes.value : null;
+    const jobs: any = jobsRes.status === 'fulfilled' ? jobsRes.value : null;
+
+    // Источник правды о здоровье Axenta = cred-UX (валидирует пароль через
+    // Probe). /api/axenta/status.TestConnection — другая ветка (легаси
+    // integration row), часто даёт false-negative — игнорируем для статуса.
+    // Status row отражаем как active если cred.configured && last successful
+    // snapshot job. Если snapshot-jobs показывает failed_jobs>0 — Ошибка.
+    const hasFailed = typeof jobs?.failed_jobs === 'number' && jobs.failed_jobs > 0;
+    const connectionOk = !hasFailed;
+    const objects = typeof stats?.total === 'number' ? stats.total : null;
+    const lastSync = status?.last_sync || jobs?.last_job_started_at || null;
+
+    return {
+      key: 'axenta-1',
+      provider: 'axenta',
+      id: 'axenta',
+      name: cred.data.login || '—',
+      host: 'axenta.cloud',
+      objects,
+      last_sync: lastSync,
+      status: connectionOk ? 'active' : 'error',
+    };
   } catch (e) {
     console.error('axenta load failed', e);
   }
@@ -468,6 +494,15 @@ async function onTest(item: SourceRow) {
     } else if (item.provider === 'skif') {
       await skifService.test(item.id as number);
       showSnack(`${item.name}: подключение OK`);
+    } else if (item.provider === 'axenta') {
+      // Axenta-test без передачи пароля: используем server-status (TestConnection
+      // на бэке через сохранённый server-token / зашифрованный пароль).
+      const r = await fetch(`${config.apiBaseUrl}/axenta/status`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
+      });
+      const j = r.ok ? await r.json() : null;
+      if (j?.connection_ok) showSnack(`Axenta (${item.name}): подключение работает`);
+      else showSnack(`Axenta (${item.name}): ошибка соединения`, 'error');
     }
   } catch (e: any) {
     showSnack(`Ошибка теста: ${e?.response?.data?.error || e?.message}`, 'error');
@@ -494,6 +529,14 @@ async function onSync(item: SourceRow) {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
       });
       if (r.ok) showSnack(`${providerLabel(item.provider, item.subtype)}: синхронизация завершена`);
+    } else if (item.provider === 'axenta') {
+      // Axenta-sync — async-trigger (фоновый snapshot всех компаний партнёра).
+      const r = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/trigger`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
+      });
+      if (r.ok) showSnack(`Axenta: синхронизация запущена в фоне`);
+      else showSnack(`Axenta: ошибка запуска sync (${r.status})`, 'error');
     }
   } catch (e: any) {
     showSnack(`Ошибка sync: ${e?.response?.data?.error || e?.message}`, 'error');
@@ -528,5 +571,16 @@ onMounted(loadAll);
 <style scoped>
 .gps-sources-table :deep(td) {
   vertical-align: middle;
+}
+
+.provider-cell {
+  gap: 10px;
+}
+
+.provider-divider {
+  width: 1px;
+  height: 24px;
+  background-color: rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
 }
 </style>
