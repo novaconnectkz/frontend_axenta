@@ -573,46 +573,24 @@ async function onSync(item: SourceRow) {
       });
       if (r.ok) showSnack(`${providerLabel(item.provider, item.subtype)}: синхронизация завершена`);
     } else if (item.provider === 'axenta') {
-      // Axenta sync — backend-async (тяжёлый snapshot всех 2000+ компаний),
-      // но FE-обёртка делает polling /axenta-sync/status до finished,
-      // показывая снепшот-count из /accounts/stats. UX идентичен другим.
+      // Inline lightweight refresh аккаунтов (план C+B1):
+      // backend держит соединение до завершения и возвращает accounts_count + duration_s.
+      // Polling-цикл больше не нужен. Тяжёлый partner_snapshot остаётся за cron'ом 04:00 UTC.
       const auth = { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` };
-      const beforeStats = await apiClient.get('/auth/objects/stats')
-        .then(r => r.data?.data?.total ?? 0).catch(() => 0);
-
+      showSnack(`Axenta: синхронизация запущена…`, 'info');
       const t = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/trigger`, { method: 'POST', headers: auth });
       if (!t.ok) {
-        showSnack(`Axenta: ошибка запуска sync (${t.status})`, 'error');
+        showSnack(`Axenta: ошибка sync (${t.status})`, 'error');
         return;
       }
-      showSnack(`Axenta: синхронизация запущена…`, 'info');
-
-      // Polling до 10 минут (Axenta sync обычно 1-5 мин на 2000 учёток).
-      const TIMEOUT = 10 * 60 * 1000;
-      const startMs = Date.now();
-      while (Date.now() - startMs < TIMEOUT) {
-        await new Promise(r => setTimeout(r, 3000));
-        try {
-          const s = await fetch(`${config.apiBaseUrl}/auth/axenta-sync/status`, { headers: auth });
-          if (!s.ok) continue;
-          const j = await s.json();
-          if (j.running === false && j.finished_at) {
-            const afterStats = await apiClient.get('/auth/objects/stats')
-              .then(r => r.data?.data?.total ?? 0).catch(() => 0);
-            const diff = afterStats - beforeStats;
-            const dur = Math.round(j.duration_s || 0);
-            if (j.error) {
-              showSnack(`Axenta: sync завершён с ошибкой — ${j.error}`, 'error');
-            } else if (diff > 0) {
-              showSnack(`Axenta: загружено ${afterStats} объектов (+${diff} за ${dur}с)`);
-            } else {
-              showSnack(`Axenta: sync завершён за ${dur}с (объектов ${afterStats})`);
-            }
-            return;
-          }
-        } catch (_) { /* network blip — продолжаем polling */ }
+      const j = await t.json().catch(() => ({} as any));
+      if (j.status === 'error') {
+        showSnack(`Axenta: sync завершён с ошибкой — ${j.message || 'unknown'}`, 'error');
+        return;
       }
-      showSnack(`Axenta: sync продолжается дольше 10 мин — проверьте позже`, 'info');
+      const count = j.accounts_count ?? 0;
+      const dur = Math.round(j.duration_s || 0);
+      showSnack(`Axenta: загружено ${count} аккаунтов за ${dur}с`);
     }
   } catch (e: any) {
     showSnack(`Ошибка sync: ${e?.response?.data?.error || e?.message}`, 'error');
