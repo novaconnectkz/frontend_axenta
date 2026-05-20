@@ -1,34 +1,9 @@
 <template>
   <div class="integrations-settings">
-    <!-- Заголовок и статистика -->
-    <div class="d-flex align-center justify-space-between mb-6">
-      <div>
-        <h3 class="text-h6 font-weight-bold mb-1">Внешние интеграции</h3>
-        <p class="text-body-2 text-medium-emphasis">
-          Управление подключениями к внешним системам и сервисам
-        </p>
-      </div>
-      
-      <!-- Статистика -->
-      <div class="d-flex gap-4">
-        <v-chip
-          :color="stats.active > 0 ? 'success' : 'grey'"
-          variant="elevated"
-          size="small"
-        >
-          <v-icon start>mdi-check-circle</v-icon>
-          Активных: {{ stats.active }}
-        </v-chip>
-        <v-chip
-          :color="stats.errors > 0 ? 'error' : 'grey'"
-          variant="elevated"
-          size="small"
-        >
-          <v-icon start>mdi-alert-circle</v-icon>
-          Ошибок: {{ stats.errors }}
-        </v-chip>
-      </div>
-    </div>
+    <!-- Дубль-header «Внешние интеграции» удалён: GpsSourcesUnified
+         имеет собственный заголовок «Источники данных GPS» + свои stats-чипы.
+         Остальные интеграции (NovaConnect/Битрикс/1С/Telegram/MAX/Email)
+         идентифицируются по контексту таба «Интеграции». -->
 
     <!-- Загрузка -->
     <div v-if="loading" class="text-center py-8">
