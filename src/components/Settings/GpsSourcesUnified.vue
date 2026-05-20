@@ -88,8 +88,10 @@
         :items="rows"
         :loading="loading"
         :items-per-page="20"
+        item-value="key"
         density="comfortable"
         class="gps-sources-table"
+        return-object
       >
         <template #[`item.provider`]="{ item }">
           <div class="d-flex align-center provider-cell">
@@ -463,17 +465,33 @@ async function loadSkif(): Promise<SourceRow[]> {
   }
 }
 
+// Single-flight гвард: если loadAll() уже выполняется, второй вызов
+// возвращает тот же in-flight promise. Защита от UI-race при sort/тест/sync
+// (несколько concurrent loadAll → дубли в строках из-за стейл-кэша v-data-table).
+let loadAllPromise: Promise<void> | null = null;
+
 async function loadAll() {
+  if (loadAllPromise) return loadAllPromise;
   loading.value = true;
-  try {
-    const [ax, wi, ge, sk] = await Promise.all([loadAxenta(), loadWialon(), loadGelios(), loadSkif()]);
-    const all: SourceRow[] = [];
-    if (ax) all.push(ax);
-    all.push(...wi, ...ge, ...sk);
-    rows.value = all;
-  } finally {
-    loading.value = false;
-  }
+  loadAllPromise = (async () => {
+    try {
+      const [ax, wi, ge, sk] = await Promise.all([loadAxenta(), loadWialon(), loadGelios(), loadSkif()]);
+      // dedupe по key (на случай race-конкатенаций — каждый ключ строго уникален).
+      const merged: SourceRow[] = [];
+      const seen = new Set<string>();
+      const all: SourceRow[] = [];
+      if (ax) all.push(ax);
+      all.push(...wi, ...ge, ...sk);
+      for (const r of all) {
+        if (!seen.has(r.key)) { seen.add(r.key); merged.push(r); }
+      }
+      rows.value = merged;
+    } finally {
+      loading.value = false;
+      loadAllPromise = null;
+    }
+  })();
+  return loadAllPromise;
 }
 
 function showSnack(text: string, color: 'success' | 'error' | 'info' = 'success') {
