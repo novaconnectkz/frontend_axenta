@@ -358,13 +358,14 @@ async function loadAxenta(): Promise<SourceRow | null> {
     }
     axentaConfigured.value = true;
 
-    // Параллельно: статус интеграции (connection_ok) + stats аккаунтов + last snapshot job.
+    // Параллельно: статус интеграции (connection_ok) + objects total + last snapshot job.
+    // objects (НЕ accounts) — реальный сравнительный показатель vs Wialon/GELIOS/SKIF.
     // status.last_sync часто пуст (integration row без LastSyncAt) — fallback на snapshot-jobs.
     const [statusRes, statsRes, jobsRes] = await Promise.allSettled([
       fetch(`${config.apiBaseUrl}/axenta/status`, {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('axenta_token')}` },
       }).then(r => r.ok ? r.json() : null),
-      apiClient.get('/auth/accounts/stats').then(r => r.data?.data || r.data).catch(() => null),
+      apiClient.get('/auth/objects/stats').then(r => r.data?.data || r.data).catch(() => null),
       apiClient.get('/auth/snapshot-jobs/stats').then(r => r.data?.data || r.data).catch(() => null),
     ]);
     const status: any = statusRes.status === 'fulfilled' ? statusRes.value : null;
