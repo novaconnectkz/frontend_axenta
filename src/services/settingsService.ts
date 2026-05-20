@@ -51,7 +51,7 @@ const createHeaders = (): HeadersInit => {
   };
 
   if (token) {
-    headers['Authorization'] = `Token ${token}`;
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   return headers;
@@ -82,7 +82,7 @@ class SettingsService {
     this.apiClient.interceptors.request.use((config) => {
       const token = localStorage.getItem('axenta_token');
       if (token) {
-        config.headers.Authorization = `Token ${token}`;
+        config.headers.Authorization = `Bearer ${token}`;
       }
 
       const companyRaw = localStorage.getItem('axenta_company');

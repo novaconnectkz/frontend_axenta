@@ -17,7 +17,7 @@ class InvoiceNumeratorsService {
     this.apiClient.interceptors.request.use((config) => {
       const token = localStorage.getItem("axenta_token");
       const company = localStorage.getItem("axenta_company");
-      if (token) config.headers["authorization"] = `Token ${token}`;
+      if (token) config.headers["authorization"] = `Bearer ${token}`;
       if (company) {
         try {
           const companyData = JSON.parse(company);

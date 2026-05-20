@@ -47,7 +47,7 @@ class ContractsService {
       }
 
       if (token) {
-        config.headers["authorization"] = `Token ${token}`;
+        config.headers["authorization"] = `Bearer ${token}`;
       }
 
       if (company) {

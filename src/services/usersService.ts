@@ -58,8 +58,8 @@ export class UsersService {
       const company = localStorage.getItem("axenta_company");
 
       if (token) {
-        config.headers["authorization"] = `Token ${token}`;
-        config.headers["Authorization"] = `Token ${token}`;
+        config.headers["authorization"] = `Bearer ${token}`;
+        config.headers["Authorization"] = `Bearer ${token}`;
       }
 
       if (company) {

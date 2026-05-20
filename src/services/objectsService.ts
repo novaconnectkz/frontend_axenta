@@ -70,8 +70,8 @@ export class ObjectsService {
         console.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Токен отсутствует в localStorage!");
         console.error("Проверьте, что пользователь авторизован");
       } else {
-        config.headers["authorization"] = `Token ${token}`;
-        config.headers["Authorization"] = `Token ${token}`;
+        config.headers["authorization"] = `Bearer ${token}`;
+        config.headers["Authorization"] = `Bearer ${token}`;
         logger.debug("✅ Токен добавлен в заголовки запроса");
       }
 
@@ -324,7 +324,7 @@ export class ObjectsService {
             `/cms/objects/?${params.toString()}`,
             {
               headers: {
-                'Authorization': `Token ${userToken}`,
+                'Authorization': `Bearer ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }
@@ -545,7 +545,7 @@ export class ObjectsService {
             `/cms/trash/?${params.toString()}`,
             {
               headers: {
-                'Authorization': `Token ${userToken}`,
+                'Authorization': `Bearer ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }
@@ -678,7 +678,7 @@ export class ObjectsService {
             `/cms/trash/?page=1&per_page=1000`,
             {
               headers: {
-                'Authorization': `Token ${userToken}`,
+                'Authorization': `Bearer ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }
@@ -816,7 +816,7 @@ export class ObjectsService {
             `/cms/objects/?page=1&per_page=1`,
             {
               headers: {
-                'Authorization': `Token ${userToken}`,
+                'Authorization': `Bearer ${userToken}`,
                 'Content-Type': 'application/json'
               }
             }

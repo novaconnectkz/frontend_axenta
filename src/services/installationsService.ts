@@ -56,7 +56,7 @@ export class InstallationsService {
       const company = localStorage.getItem("axenta_company");
 
       if (token) {
-        config.headers["authorization"] = `Token ${token}`;
+        config.headers["authorization"] = `Bearer ${token}`;
       }
 
       if (company) {
