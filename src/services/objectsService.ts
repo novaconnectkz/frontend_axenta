@@ -961,15 +961,21 @@ export class ObjectsService {
     return localStorage.getItem('objects_demo_mode') === 'true';
   }
 
-  // Получение списка компаний для селектора
+  // Получение списка компаний для селектора.
+  // Ф3-G: переключено с /admin/accounts/list (axenta-mode-only mock,
+  // 401 в local) на /auth/accounts (snapshot read-path Ф3-B, работает
+  // в обоих AUTH_MODE). DRF-style ответ {count, results:[]}.
   async getCompanies(): Promise<{ status: string; data: CompanyInfo[]; error?: string }> {
     try {
-      const response = await this.apiClient.get("/admin/accounts/list");
-      return {
-        status: response.data.status,
-        data: response.data.data || [], // Обеспечиваем, что data всегда массив
-        error: response.data.error
-      };
+      const response = await this.apiClient.get("/auth/accounts", {
+        params: { per_page: 10000 },
+      });
+      const results = Array.isArray(response.data?.results) ? response.data.results : [];
+      const data: CompanyInfo[] = results.map((r: any) => ({
+        id: Number(r.id),
+        name: String(r.name ?? ""),
+      }));
+      return { status: "success", data };
     } catch (error: any) {
       console.error("Ошибка получения списка компаний:", error);
       return {

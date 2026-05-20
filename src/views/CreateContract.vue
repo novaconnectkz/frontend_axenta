@@ -1134,7 +1134,8 @@ import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import dadataService from '@/services/dadataService';
-import companiesService from '@/services/companiesService';
+// Ф3-G: companiesService удалён из импортов (Axenta-proxy, 401 в local).
+// Партнёры теперь грузятся через accountsService (snapshot read-path).
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 import { useAutopilot } from '@/composables/useAutopilot';
@@ -1739,14 +1740,17 @@ const loadCompanies = async () => {
   loadingCompanies.value = true;
   try {
     // Запрашиваем всех партнеров одним запросом (без ограничения по количеству)
-    console.log('🔍 Запрос ВСЕХ партнерских компаний с type=partner (limit=10000)...');
-    
-    const response = await companiesService.getCompanies({ 
+    // Ф3-G: переключено с companiesService (/admin/accounts Axenta-proxy,
+    // 401 в local-mode) на accountsService (/api/auth/accounts snapshot
+    // read-path Ф3-B, работает в обоих AUTH_MODE).
+    console.log('🔍 Запрос ВСЕХ партнерских компаний с type=partner (per_page=10000)...');
+
+    const response = await accountsService.getAccounts({
       type: 'partner',
-      limit: 10000  // Очень большой лимит чтобы получить всех за раз
+      per_page: 10000,
     });
-    
-    const allCompanies = response.companies || [];
+
+    const allCompanies = response.results || [];
     console.log('📦 Полный ответ от API:', response);
     console.log('📊 Всего партнеров от API:', allCompanies.length);
     
