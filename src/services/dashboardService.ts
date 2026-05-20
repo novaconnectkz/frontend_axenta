@@ -112,7 +112,7 @@ class DashboardService {
       timeout: API_TIMEOUTS.QUICK, // Используем таймаут для быстрых операций (статистика)
       headers: {
         "Content-Type": "application/json",
-        ...(token && { authorization: `Token ${token}` }),
+        ...(token && { authorization: `Bearer ${token}` }),
       },
     });
   }

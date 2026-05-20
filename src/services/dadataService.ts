@@ -137,8 +137,8 @@ class DaDataService {
           requestConfig.headers['authorization'] = token;
           requestConfig.headers['Authorization'] = token;
         } else {
-          requestConfig.headers['authorization'] = `Token ${token}`;
-          requestConfig.headers['Authorization'] = `Token ${token}`;
+          requestConfig.headers['authorization'] = `Bearer ${token}`;
+          requestConfig.headers['Authorization'] = `Bearer ${token}`;
         }
         console.log('🌐 Token added to headers');
       } else {

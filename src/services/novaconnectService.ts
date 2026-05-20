@@ -120,7 +120,7 @@ class NovaConnectService {
       const response = await fetch(`${apiBaseUrl}/novaconnect/config`, {
         method: 'GET',
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });

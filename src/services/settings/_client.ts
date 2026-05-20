@@ -18,7 +18,7 @@ export const createHeaders = (): HeadersInit => {
     "Content-Type": "application/json",
   };
   if (token) {
-    headers["Authorization"] = `Token ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
   return headers;
 };
@@ -69,7 +69,7 @@ export async function fetchIntegrationsList(): Promise<
 settingsApiClient.interceptors.request.use((cfg) => {
   const token = getAuthToken();
   if (token) {
-    cfg.headers.Authorization = `Token ${token}`;
+    cfg.headers.Authorization = `Bearer ${token}`;
   }
   const companyRaw = localStorage.getItem("axenta_company");
   if (companyRaw) {

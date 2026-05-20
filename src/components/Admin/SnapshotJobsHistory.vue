@@ -802,7 +802,7 @@ const loadJobs = async () => {
 
     const response = await axios.get(`${config.apiBaseUrl}/auth/snapshot-jobs`, {
       headers: {
-        'Authorization': `Token ${token}`,
+        'Authorization': `Bearer ${token}`,
         'X-Tenant-ID': String(tenantId),
       },
       params: {
@@ -844,7 +844,7 @@ const loadStats = async () => {
 
     const response = await axios.get(`${config.apiBaseUrl}/auth/snapshot-jobs/stats`, {
       headers: {
-        'Authorization': `Token ${token}`,
+        'Authorization': `Bearer ${token}`,
         'X-Tenant-ID': String(tenantId),
       },
     });
@@ -1159,7 +1159,7 @@ const loadSettings = async () => {
 
     const response = await axios.get(`${config.apiBaseUrl}/auth/snapshot-settings`, {
       headers: {
-        'Authorization': `Token ${token}`,
+        'Authorization': `Bearer ${token}`,
         'X-Tenant-ID': String(tenantId),
       },
     });
@@ -1202,7 +1202,7 @@ const saveSettings = async () => {
       },
       {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': String(tenantId),
           'Content-Type': 'application/json',
         },
@@ -1253,7 +1253,7 @@ const clearAllHistory = async () => {
       `${config.apiBaseUrl}/auth/snapshot-jobs/clear-all`,
       {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': String(tenantId),
         },
       }
@@ -1305,7 +1305,7 @@ const loadAllObjects = async () => {
       {},
       {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': String(tenantId),
           'Content-Type': 'application/json',
         },
@@ -1383,7 +1383,7 @@ const startProgressPolling = () => {
         `${config.apiBaseUrl}/auth/snapshots/load-progress`,
         {
           headers: {
-            'Authorization': `Token ${token}`,
+            'Authorization': `Bearer ${token}`,
             'X-Tenant-ID': String(tenantId),
           },
         }
@@ -1476,7 +1476,7 @@ const createSnapshots = async () => {
       requestBody,
       {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': String(tenantId),
           'Content-Type': 'application/json',
         },
@@ -1544,7 +1544,7 @@ const createPartnerSnapshots = async () => {
       requestBody,
       {
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'X-Tenant-ID': String(tenantId),
           'Content-Type': 'application/json',
         },

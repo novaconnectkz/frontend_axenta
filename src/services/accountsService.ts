@@ -188,8 +188,8 @@ class AccountsService {
           config.headers["authorization"] = token;
           config.headers["Authorization"] = token;
         } else {
-          config.headers["authorization"] = `Token ${token}`;
-          config.headers["Authorization"] = `Token ${token}`;
+          config.headers["authorization"] = `Bearer ${token}`;
+          config.headers["Authorization"] = `Bearer ${token}`;
         }
       }
 
@@ -238,7 +238,7 @@ class AccountsService {
         localStorage.getItem("authToken");
 
       if (token) {
-        config.headers.Authorization = `Token ${token}`;
+        config.headers.Authorization = `Bearer ${token}`;
       }
 
       return config;

@@ -73,7 +73,7 @@ class AuditService {
     const token = localStorage.getItem('token')
     const response = await axios.get(`${API_URL}/api/auth/audit/logs`, {
       headers: {
-        Authorization: `Token ${token}`
+        Authorization: `Bearer ${token}`
       },
       params: filters
     })
@@ -87,7 +87,7 @@ class AuditService {
     const token = localStorage.getItem('token')
     const response = await axios.get(`${API_URL}/api/auth/audit/logs/${id}`, {
       headers: {
-        Authorization: `Token ${token}`
+        Authorization: `Bearer ${token}`
       }
     })
     return response.data
@@ -100,7 +100,7 @@ class AuditService {
     const token = localStorage.getItem('token')
     const response = await axios.get(`${API_URL}/api/auth/audit/stats`, {
       headers: {
-        Authorization: `Token ${token}`
+        Authorization: `Bearer ${token}`
       },
       params: { days }
     })
@@ -114,7 +114,7 @@ class AuditService {
     const token = localStorage.getItem('token')
     const response = await axios.get(`${API_URL}/api/auth/audit/export`, {
       headers: {
-        Authorization: `Token ${token}`
+        Authorization: `Bearer ${token}`
       },
       params: filters
     })
