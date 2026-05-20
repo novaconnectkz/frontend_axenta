@@ -220,20 +220,11 @@ class AccountsService {
           message: error.message,
         });
 
+        // Ф1: 401 от Axenta-прокси ≠ смерть локальной сессии.
+        // Не чистим/не редиректим (вход отскакивал). Сессию убивает
+        // только api.ts (refresh→DEAD).
         if (error.response?.status === 401) {
-          console.log("401 error - clearing auth and redirecting to login");
-          // Перенаправляем на страницу входа при ошибке авторизации
-          localStorage.removeItem("axenta_token");
-          localStorage.removeItem("axenta_user");
-          localStorage.removeItem("axenta_company");
-          localStorage.removeItem("axenta_token_expiry");
-
-          // Используем replace, чтобы не создавать запись в истории
-          if (typeof window !== 'undefined' && window.location) {
-            if (window.location.pathname !== '/login') {
-              window.location.replace('/login');
-            }
-          }
+          console.debug("accountsService 401 (downstream, session kept)");
         }
         return Promise.reject(error);
       }

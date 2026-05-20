@@ -39,6 +39,11 @@
     <!-- Список интеграций -->
     <div v-else>
       <v-row>
+        <!-- Ф3-D #1: «Подключение Axenta» (cred-UX) — первой карточкой
+             в той же сетке, что Wialon/GELIOS/SKIF/NovaConnect -->
+        <v-col cols="12" md="6">
+          <AxentaConnectionSettings />
+        </v-col>
         <v-col
           v-for="integration in integrations"
           :key="integration.id"
@@ -1115,6 +1120,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import WialonConnectionsSettings from './WialonConnectionsSettings.vue';
 import SkifConnectionsSettings from './SkifConnectionsSettings.vue';
 import GeliosConnectionsSettings from './GeliosConnectionsSettings.vue';
+import AxentaConnectionSettings from './AxentaConnectionSettings.vue';
 
 // Реактивные данные
 const loading = ref(false);
@@ -1420,42 +1426,16 @@ const loadIntegrations = async () => {
     const integrationsList = await settingsService.getIntegrationsList();
     const configuredMap = new Map(integrationsList.map(i => [i.type, i.configured]));
     
-    // Пытаемся загрузить Axenta интеграцию (метод сам проверит, настроена ли она)
-    let axentaIntegration = null;
-    try {
-      axentaIntegration = await settingsService.getAxentaIntegrationConfig(true);
-    } catch (error) {
-      // Игнорируем ошибки - интеграция просто не настроена
-      console.error('Ошибка загрузки Axenta интеграции:', error);
-    }
-    
-    // Axenta Cloud API (реальная интеграция)
-    if (axentaIntegration) {
-      allIntegrations.push(axentaIntegration);
-    } else {
-      // Если интеграция не настроена, добавляем заглушку для настройки
-      allIntegrations.push({
-        id: 'axenta-new',
-        type: 'axenta',
-        name: 'Axenta Cloud API',
-        description: 'Основная интеграция с облачным сервисом Axenta для синхронизации объектов мониторинга',
-        status: 'inactive',
-        enabled: false,
-        lastSync: null,
-        created_at: new Date(),
-        updated_at: new Date(),
-        settings: {
-          api_url: 'https://api.axenta.cloud',
-          username: '',
-          password: '',
-          sync_interval: 15,
-          auto_sync_enabled: false,
-          retry_attempts: 3,
-          timeout: 30,
-        },
-      });
-    }
-    
+    // Ф3-cutover (2026-05-19): legacy «Axenta Cloud API»-карточка УДАЛЕНА.
+    // После Ф1/Ф3 Axenta-креды компании управляются отдельной панелью
+    // «Подключение Axenta» (components/Settings/AxentaConnectionSettings.vue,
+    // Ф3-D #1) — она оперирует Company.AxetnaLogin/Password (server-токен
+    // sync/мутаций). Старая интеграционная карточка дублировала смысл,
+    // была «Неактивна» и относилась к мёртвому доинтеграционному фреймворку.
+    // Прочие type==='axenta' ветки в этом компоненте теперь недостижимы
+    // (нет карточки → edit-dialog не открыть) — оставлены как есть
+    // (faithful: не потрошим 2804-строчный legacy-файл вне scope).
+
     // Wialon Hosting интеграция - загружаем из БД если настроена
     try {
       const wialonConfig = await settingsService.getWialonConfig();

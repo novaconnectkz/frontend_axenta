@@ -97,38 +97,12 @@ export class ObjectsService {
           message: error.message,
         });
 
-        // Если получили 401, обрабатываем ошибку авторизации
+        // Ф1: 401 от Axenta-прокси (objects ещё passthrough в
+        // axenta.cloud) НЕ означает смерть локальной сессии. НЕ чистим
+        // токен и НЕ редиректим — иначе вход отскакивает на /login.
+        // Смерть сессии определяет ТОЛЬКО api.ts (refresh→DEAD).
         if (error.response?.status === 401) {
-          const token = localStorage.getItem("axenta_token");
-          if (!token) {
-            console.error("❌ Ошибка 401: Токен отсутствует в localStorage");
-          } else {
-            console.error("❌ Ошибка 401: Токен присутствует, но недействителен");
-            console.error("Длина токена:", token.length);
-            console.error("Начало токена:", token.substring(0, 30));
-          }
-          
-          // Очищаем все данные авторизации
-          logger.debug("🧹 Очистка данных авторизации из-за ошибки 401");
-          localStorage.removeItem("axenta_token");
-          localStorage.removeItem("axenta_user");
-          localStorage.removeItem("axenta_company");
-          localStorage.removeItem("axenta_token_expiry");
-          
-          // Перенаправляем на страницу входа
-          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            logger.debug("🔄 Перенаправление на страницу входа из ObjectsService...");
-            
-            // Сохраняем текущий путь для редиректа после входа
-            const currentPath = window.location.pathname;
-            if (currentPath !== '/login' && currentPath !== '/' && currentPath !== '/dashboard') {
-              localStorage.setItem('redirect_after_login', currentPath);
-            }
-            
-            setTimeout(() => {
-              window.location.href = '/login?reason=session_expired';
-            }, 100);
-          }
+          logger.debug("ObjectsService 401 (downstream, сессию не трогаем)");
         }
 
         return Promise.reject(error);

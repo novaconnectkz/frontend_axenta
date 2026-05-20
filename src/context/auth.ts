@@ -77,36 +77,45 @@ const COMPANY_KEY = "axenta_company";
 const TOKEN_EXPIRY_KEY = "axenta_token_expiry";
 
 // Утилиты для работы с токенами
+// JWT использует base64URL ('-' '_', без паддинга). Голый atob()
+// принимает только base64 и БРОСАЕТ на '-'/'_' → раньше любой наш
+// HS256-токен считался "истёкшим" (catch → true) и сессия убивалась
+// в loadFromStorage. Нормализуем перед декодом.
+const decodeJwtPayload = (seg: string): any => {
+  let b64 = seg.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4;
+  if (pad) b64 += "=".repeat(4 - pad);
+  return JSON.parse(atob(b64));
+};
+
 const isTokenExpired = (token: string): boolean => {
   if (!token) return true;
-  
+
   try {
-    // Проверяем, является ли токен JWT (имеет 3 части, разделенные точками)
+    // 3 части = JWT; иначе не-JWT (легаси opaque) → считаем валидным.
     const parts = token.split(".");
     if (parts.length !== 3) {
-      // Это не JWT токен (например, токен Axenta Cloud), считаем его валидным
-      console.log("🔍 Non-JWT token detected, considering valid");
       return false;
     }
-    
-    // Для JWT токенов проверяем срок действия
-    const payload = JSON.parse(atob(parts[1]));
-    const isExpired = Date.now() >= payload.exp * 1000;
-    console.log("🕐 JWT token expiry check:", { 
-      exp: new Date(payload.exp * 1000).toLocaleString(),
-      isExpired 
-    });
-    return isExpired;
+    const payload = decodeJwtPayload(parts[1]);
+    if (!payload || typeof payload.exp !== "number") {
+      // Нет exp — не можем судить; не выкидываем юзера.
+      return false;
+    }
+    return Date.now() >= payload.exp * 1000;
   } catch (error) {
     console.error("❌ Error checking token expiry:", error);
-    return true;
+    // Не трактуем ошибку парсинга как протухание (иначе ложный logout).
+    return false;
   }
 };
 
 const getTokenExpiry = (token: string): Date | null => {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return new Date(payload.exp * 1000);
+    const payload = decodeJwtPayload(token.split(".")[1]);
+    return typeof payload.exp === "number"
+      ? new Date(payload.exp * 1000)
+      : null;
   } catch {
     return null;
   }
@@ -123,34 +132,32 @@ export function useAuthProvider() {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
-  // Создаем axios instance с автоматическим добавлением токена
+  // Создаем axios instance с автоматическим добавлением токена.
+  // withCredentials: refresh-токен в httpOnly-cookie (Ф1).
   const apiClient = axios.create({
     baseURL: config.apiBaseUrl,
-    timeout: config.apiTimeout, // Используем таймаут из конфигурации
+    timeout: config.apiTimeout,
+    withCredentials: true,
   });
 
-  // Interceptor для автоматического добавления токена
+  // Interceptor: access-токен по схеме Bearer (унифицировано с
+  // services/api.ts — раньше тут был «Token <axenta>») + CSRF.
   apiClient.interceptors.request.use(
-    (config) => {
+    (cfg) => {
       const currentToken = token.value || localStorage.getItem("axenta_token");
-      const currentCompany = company.value || JSON.parse(localStorage.getItem("axenta_company") || "null");
-      
       if (currentToken) {
-        config.headers["authorization"] = `Token ${currentToken}`;
-        config.headers["Authorization"] = `Token ${currentToken}`;
-        
-        // Убираем X-Tenant-ID заголовок из-за проблем с CORS
-        // if (currentCompany) {
-        //   config.headers["X-Tenant-ID"] = currentCompany.id;
-        // }
+        cfg.headers["Authorization"] = `Bearer ${currentToken}`;
       }
-      
-      console.log("🔐 Auth headers:", {
-        authorization: config.headers["authorization"] ? "Token ***" : "none"
-        // tenantId убран из-за проблем с CORS
-      });
-      
-      return config;
+      const tenantId = localStorage.getItem("tenant_id");
+      if (tenantId) {
+        cfg.headers["X-Tenant-ID"] = tenantId;
+      }
+      const method = (cfg.method || "get").toLowerCase();
+      if (!["get", "head", "options"].includes(method)) {
+        const csrf = localStorage.getItem("acrm_csrf");
+        if (csrf) cfg.headers["X-CSRF-Token"] = csrf;
+      }
+      return cfg;
     },
     (error) => Promise.reject(error)
   );
@@ -159,19 +166,15 @@ export function useAuthProvider() {
   apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+      // Ф1: 401 здесь НЕ означает смерть локальной сессии. После
+      // отвязки от Axenta data-layer (objects/cms/stats) — это
+      // passthrough-прокси в axenta.cloud по login-токену; без
+      // Axenta-токена они законно отдают 401. Раньше тут был
+      // logout(true) → любой пустой Axenta-экран выкидывал
+      // залогиненного юзера. Смерть локальной сессии определяет
+      // ТОЛЬКО refresh-путь в services/api.ts + watcher истечения.
       if (error.response?.status === 401) {
-        // Токен истек или недействителен - выходим из системы
-        console.error('❌ Ошибка 401 Unauthorized');
-        console.error('URL:', error.config?.url);
-        console.error('Токен в памяти:', token.value ? `EXISTS (${token.value.length} chars)` : 'ОТСУТСТВУЕТ');
-        
-        const storedToken = localStorage.getItem('axenta_token');
-        console.error('Токен в localStorage:', storedToken ? `EXISTS (${storedToken.length} chars)` : 'ОТСУТСТВУЕТ');
-        
-        // Очищаем данные и перенаправляем на логин
-        logout(true); // true = перенаправить на /login
-        
-        return Promise.reject(new Error('Сессия истекла, требуется повторная авторизация'));
+        console.warn('401 (downstream, не логаутим):', error.config?.url);
       }
       return Promise.reject(error);
     }
@@ -235,14 +238,8 @@ export function useAuthProvider() {
           });
           
           if (!isExpired) {
-            // Проверяем тип аккаунта при загрузке из localStorage
-            if (parsedUser.accountType && parsedUser.accountType !== 'partner') {
-              console.log("🚫 Non-partner user found in storage, clearing...");
-              console.log("Account type:", parsedUser.accountType);
-              clearStorage();
-              return;
-            }
-            
+            // Ф1: гейт accountType==partner убран — роль из нашей БД,
+            // доступ решает RBAC, а не тип аккаунта Axenta.
             token.value = storedToken;
             user.value = parsedUser;
             
@@ -299,227 +296,74 @@ export function useAuthProvider() {
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
   };
 
+  // Локальная авторизация (Ф1): прямой POST /auth/login.
+  // Никаких Axenta-retry и accountType==partner гейта — роль из нашей
+  // БД. Access — в память+localStorage, refresh — httpOnly cookie.
   const login = async (credentials: LoginForm) => {
     isLoading.value = true;
     error.value = null;
-    
+
     try {
-      // Используем наш backend API для авторизации через Axenta
-      const backendLoginUrl = `${config.apiBaseUrl}/auth/login`;
-      console.log('🔐 Attempting backend login to:', backendLoginUrl);
-      console.log('🔧 Config apiBaseUrl:', config.apiBaseUrl);
-      
-      // Retry механизм для обработки ошибок
-      const maxRetries = 3;
-      let lastError: any = null;
-      
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-          console.log(`🔄 Попытка авторизации через backend ${attempt}/${maxRetries}`);
-          
-          const response = await axios.post(
-            backendLoginUrl,
-            credentials,
-            {
-              timeout: 15000,
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          console.log('✅ Backend login response:', response.data);
-
-          // Backend возвращает { status: "success", data: { token, user } }
-          if (response.data.status === 'success' && response.data.data) {
-            const responseData = response.data.data;
-            
-            // Проверяем тип аккаунта на стороне frontend
-            if (responseData.user.accountType !== 'partner') {
-              const errorMsg = `Доступ к CRM разрешен только партнерам Axenta. Ваш тип аккаунта: ${responseData.user.accountType}`;
-              console.error('🚫 Access denied:', errorMsg);
-              error.value = errorMsg;
-              clearStorage();
-              throw new Error(errorMsg);
-            }
-
-            // Используем полные данные пользователя от Axenta
-            const axentaUser: User = {
-              accountBlockingDatetime: responseData.user.accountBlockingDatetime,
-              accountName: responseData.user.accountName,
-              accountType: responseData.user.accountType,
-              creatorName: responseData.user.creatorName,
-              id: responseData.user.id,
-              lastLogin: responseData.user.lastLogin,
-              name: responseData.user.name,
-              username: responseData.user.username,
-              email: responseData.user.email,
-              accountId: responseData.user.accountId,
-              isAdmin: responseData.user.isAdmin,
-              isActive: responseData.user.isActive,
-              language: responseData.user.language,
-              timezone: responseData.user.timezone,
-            };
-
-            user.value = axentaUser;
-            token.value = responseData.token;
-
-            // Создаем компанию на основе данных аккаунта
-            company.value = {
-              id: responseData.user.accountId?.toString() || "axenta-cloud",
-              name: responseData.user.accountName || "Axenta Cloud",
-              isActive: true,
-            };
-
-            saveToStorage();
-            console.log('✅ Axenta login successful, user saved:', user.value);
-            return; // Успешная авторизация, выходим из функции
-          } else {
-            throw new Error("Неверный формат ответа API");
-          }
-          
-        } catch (err: any) {
-          console.error(`❌ Backend login error (attempt ${attempt}):`, err);
-          lastError = err;
-          
-          // Если это ошибка доступа (403), не повторяем попытки
-          if (err.response?.status === 403) {
-            console.log('🚫 Access denied - account type not allowed');
-            break;
-          }
-          
-          // Если это 502 ошибка и не последняя попытка, повторяем
-          if (err.response?.status === 502 && attempt < maxRetries) {
-            console.log(`⏳ Получен 502, ожидание перед повтором...`);
-            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Увеличиваем задержку
-            continue;
-          }
-          
-          // Если это не 502 или последняя попытка, прерываем цикл
-          break;
+      const resp = await axios.post(
+        `${config.apiBaseUrl}/auth/login`,
+        { username: credentials.username, password: credentials.password },
+        {
+          timeout: 15000,
+          withCredentials: true,
+          headers: { "Content-Type": "application/json" },
         }
+      );
+
+      const d = resp.data?.data;
+      if (resp.data?.status !== "success" || !d?.access_token) {
+        throw new Error("Неверный формат ответа сервера");
       }
-      
-      // Если backend не работает, пробуем локальную авторизацию
-      if (lastError) {
-        console.log('🔄 Backend недоступен, пробуем локальную авторизацию...');
-        
-        try {
-          const localLoginUrl = `${config.apiBaseUrl}/local/login`;
-          console.log('🔐 Attempting local login to:', localLoginUrl);
-          
-          const localResponse = await axios.post(
-            localLoginUrl,
-            credentials,
-            {
-              timeout: 15000,
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            }
-          );
 
-          console.log('✅ Local login response:', localResponse.data);
+      const u = d.user || {};
+      const role = u.role || "user";
+      const isPrivileged =
+        role === "admin" || role === "superadmin" || !!u.is_superadmin;
 
-          // Локальная авторизация возвращает { status: "success", data: { access_token, user, ... } }
-          if (localResponse.data.status === "success" && localResponse.data.data) {
-            const responseData = localResponse.data.data;
-            
-            // Используем данные пользователя из ответа
-            const userData = responseData.user;
-            
-            // Определяем тип аккаунта из company_id
-            let accountType = "local";
-            if (userData.company_id && userData.company_id.includes("partner")) {
-              accountType = "partner";
-            } else if (userData.company_id && userData.company_id.includes("client")) {
-              accountType = "client";
-            }
-            
-            // Если это не партнер, блокируем доступ
-            if (accountType !== "partner") {
-              const errorMsg = `Доступ к CRM разрешен только партнерам Axenta. Обнаружен тип: ${accountType}`;
-              console.error('🚫 Local auth access denied:', errorMsg);
-              error.value = errorMsg;
-              clearStorage();
-              throw new Error(errorMsg);
-            }
-            
-            const localUser: User = {
-              accountBlockingDatetime: null,
-              accountName: userData.name || "Local User",
-              accountType: accountType,
-              creatorName: "Local Auth",
-              id: userData.id.toString(),
-              lastLogin: userData.last_login || new Date().toISOString(),
-              name: userData.name || credentials.username,
-              username: userData.username,
-              email: userData.email || credentials.username,
-              isAdmin: userData.role === "admin",
-              isActive: userData.is_active,
-              language: "ru",
-              timezone: 3,
-            };
+      const mapped: User = {
+        accountBlockingDatetime: null,
+        accountName: u.name || u.username || credentials.username,
+        accountType: role,
+        creatorName: "",
+        id: String(u.id ?? ""),
+        lastLogin: u.last_login || new Date().toISOString(),
+        name: u.name || u.username || credentials.username,
+        username: u.username || credentials.username,
+        email: u.email,
+        accountId: u.company_id != null ? Number(u.company_id) : undefined,
+        isAdmin: isPrivileged,
+        isActive: u.is_active !== false,
+        language: "ru",
+        timezone: 3,
+      };
 
-            user.value = localUser;
-            token.value = responseData.access_token; // Используем access_token
+      user.value = mapped;
+      token.value = d.access_token;
+      company.value = {
+        id: String(u.company_id ?? ""),
+        name: mapped.accountName,
+        isActive: true,
+      };
 
-            // Создаем компанию на основе company_id
-            company.value = {
-              id: userData.company_id,
-              name: "Local Company",
-              isActive: true,
-            };
-
-            saveToStorage();
-            console.log('✅ Local login successful, user saved:', user.value);
-            return; // Успешная локальная авторизация
-          }
-        } catch (localError: any) {
-          console.log('❌ Local login also failed:', localError);
-        }
-        
-        // Если и локальная авторизация не сработала, показываем ошибку
-        let errorMessage = "Ошибка входа в систему";
-        
-        if (lastError.response?.data?.detail) {
-          if (Array.isArray(lastError.response.data.detail)) {
-            errorMessage = lastError.response.data.detail.join(', ');
-          } else {
-            errorMessage = lastError.response.data.detail;
-          }
-        } else if (lastError.response?.status === 403) {
-          errorMessage = lastError.response.data?.error || "Доступ запрещен. Проверьте права доступа.";
-        } else if (lastError.response?.status === 502) {
-          errorMessage = `Сервер недоступен (502) после ${maxRetries} попыток. Попробуйте позже.`;
-        } else if (lastError.response?.status === 503) {
-          errorMessage = "Сервис временно недоступен (503). Попробуйте позже.";
-        } else if (lastError.response?.status === 504) {
-          errorMessage = "Таймаут сервера (504). Попробуйте позже.";
-        } else if (lastError.response?.data?.error) {
-          errorMessage = lastError.response.data.error;
-        } else if (lastError.message) {
-          errorMessage = lastError.message;
-        }
-        
-        error.value = errorMessage;
-        clearStorage();
-        throw new Error(errorMessage);
+      localStorage.setItem("axenta_token", d.access_token);
+      if (d.csrf_token) localStorage.setItem("acrm_csrf", d.csrf_token);
+      if (u.company_id != null) {
+        // tenant_id == numeric company_id == JWT-claim (риск B5:
+        // расхождение заголовка с claim → 403 на бэке).
+        localStorage.setItem("tenant_id", String(u.company_id));
       }
-      
+      saveToStorage();
     } catch (err: any) {
-      // Дополнительная обработка ошибок на верхнем уровне
-      console.error('❌ Top-level login error:', err);
-      
-      if (err.message && err.message.startsWith('Сервер Axenta')) {
-        // Уже обработанная ошибка, просто пробрасываем
-        throw err;
-      }
-      
-      const errorMessage = err.response?.data?.error || err.message || "Ошибка входа в систему";
-      error.value = errorMessage;
+      const msg =
+        err.response?.data?.error || err.message || "Ошибка входа в систему";
+      error.value = msg;
       clearStorage();
-      throw new Error(errorMessage);
+      localStorage.removeItem("acrm_csrf");
+      throw new Error(msg);
     } finally {
       isLoading.value = false;
     }
@@ -531,21 +375,27 @@ export function useAuthProvider() {
     }
 
     try {
+      // Refresh по httpOnly-cookie (браузер шлёт сам). CSRF double-submit.
       const response = await axios.post(
         `${config.apiBaseUrl}/auth/refresh`,
         {},
         {
+          withCredentials: true,
           headers: {
-            authorization: `Token ${token.value}`,
-            // Убираем X-Tenant-ID из-за проблем с CORS
-            // ...(company.value && { "X-Tenant-ID": company.value.id }),
+            "X-CSRF-Token": localStorage.getItem("acrm_csrf") || "",
           },
         }
       );
 
-      const newToken = response.data.token;
-      token.value = newToken;
-      saveToStorage();
+      const d = response.data?.data;
+      if (response.data?.status === "success" && d?.access_token) {
+        token.value = d.access_token;
+        localStorage.setItem("axenta_token", d.access_token);
+        if (d.csrf_token) localStorage.setItem("acrm_csrf", d.csrf_token);
+        saveToStorage();
+        return;
+      }
+      throw new Error("refresh failed");
     } catch (err: any) {
       console.error("Ошибка обновления токена:", err);
       logout();
@@ -554,19 +404,33 @@ export function useAuthProvider() {
   };
 
   const logout = (redirectToLogin: boolean = false) => {
-    console.log("🚪 Axenta Cloud logout initiated...");
-    
+    console.log("🚪 Logout initiated...");
+
+    // Серверный logout: отзыв всей семьи refresh + чистка cookie.
+    // Fire-and-forget — UI не блокируем, локально чистим в любом случае.
+    try {
+      axios.post(
+        `${config.apiBaseUrl}/auth/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: { "X-CSRF-Token": localStorage.getItem("acrm_csrf") || "" },
+        }
+      ).catch(() => {});
+    } catch { /* ignore */ }
+
     user.value = null;
     token.value = null;
     company.value = null;
     error.value = null;
-    
+
     // Очищаем все данные авторизации
     clearStorage();
-    
+
     // Дополнительная очистка для надежности
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("acrm_csrf");
     localStorage.removeItem("demo_token");
     localStorage.removeItem("demo_user");
     
@@ -608,13 +472,16 @@ export function useAuthProvider() {
   let tokenCheckInterval: NodeJS.Timeout;
 
   const startTokenCheck = () => {
+    // Access JWT короткий (15м, Ф1). Раз в 5м пробуем тихий refresh
+    // по cookie; не вышло (refresh мёртв/отозван) → logout. НЕ выкидываем
+    // юзера только из-за истёкшего access, пока жива refresh-сессия.
     tokenCheckInterval = setInterval(() => {
       if (token.value && isTokenExpired(token.value)) {
-        console.log('🔄 Токен истек, требуется повторная авторизация');
-        // Вместо refresh просто выходим - пользователь авторизуется заново
-        logout();
+        refreshToken().catch(() => {
+          console.log("🔄 refresh не удался — выход");
+        });
       }
-    }, 30 * 60 * 1000); // 30 минут (увеличено с 5 минут)
+    }, 5 * 60 * 1000);
   };
 
   const stopTokenCheck = () => {
