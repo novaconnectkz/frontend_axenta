@@ -293,8 +293,7 @@ const getStatusColor = (status: string): string => {
     overdue: 'red',
     cancelled: 'grey',
     active: 'green',
-    expired: 'red',
-    cancelled: 'grey'
+    expired: 'red'
   }
   return colors[status] || 'grey'
 }
