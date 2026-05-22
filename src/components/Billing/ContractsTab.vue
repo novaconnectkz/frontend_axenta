@@ -1645,7 +1645,7 @@ const createTestSnapshot = async () => {
       {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'X-Tenant-ID': String(tenantId)
         }
@@ -1780,7 +1780,7 @@ const loadPartnerStatistics = async () => {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'X-Tenant-ID': String(tenantId)
         }
@@ -1858,7 +1858,7 @@ const generateSnapshotsForPeriod = async () => {
       {
         method: 'POST',
         headers: {
-          'Authorization': `Token ${token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'X-Tenant-ID': String(tenantId)
         },

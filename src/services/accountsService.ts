@@ -99,10 +99,11 @@ export interface UnifiedAccountsFilters {
   per_page?: number;
   ordering?: string;
   search?: string;
-  source?: "all" | "axenta" | "wialon" | "wh" | "wl" | null;
+  source?: "all" | "axenta" | "wialon" | "wh" | "wl" | "skif" | "gelios" | null;
   type?: "client" | "partner" | null;
   is_active?: boolean | null;
   parent?: string | null;
+  for?: "picker" | null; // Ф0: режим выбора партнёра — обход TTL-гейта Axenta для полноты
 }
 
 class AccountsService {
@@ -1030,6 +1031,7 @@ class AccountsService {
       params.is_active = filters.is_active;
     }
     if (filters.parent) params.parent = filters.parent;
+    if (filters.for) params.for = filters.for;
 
     const response = await this.apiClient.get<any>("/api/auth/unified/accounts", { params });
     const data = response.data?.data ?? response.data;

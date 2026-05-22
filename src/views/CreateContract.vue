@@ -200,7 +200,7 @@
                   </span>
                 </label>
                 <v-autocomplete
-                  v-model="form.partner_company_id"
+                  v-model="selectedPartnerKey"
                   :items="partnerCompanyOptions"
                   :loading="loadingCompanies"
                   variant="outlined"
@@ -1181,8 +1181,19 @@ const generatingNumber = ref(false);
 const billingSettings = ref<BillingSettings | null>(null);
 const loadingBillingSettings = ref(false);
 
-// Партнерские компании
-const partnerCompanies = ref<Array<{id: number; name: string}>>([]);
+// Партнерские компании (Ф0: мульти-системные — Axenta/Wialon/SKIF/GELIOS).
+// key = составной "source|connectionId|externalId" (id коллизируют между системами).
+interface PartnerOption {
+  key: string;
+  id: number;
+  name: string;
+  source: string;
+  sourceLabel: string;
+  connectionId: number;
+  externalId: string;
+}
+const partnerCompanies = ref<PartnerOption[]>([]);
+const selectedPartnerKey = ref<string | null>(null);
 const loadingCompanies = ref(false);
 
 // Тарифные планы
@@ -1273,11 +1284,11 @@ const numeratorOptions = computed(() => {
   }));
 });
 
-// Опции партнерских компаний
+// Опции партнерских компаний (с меткой системы-источника)
 const partnerCompanyOptions = computed(() => {
   return partnerCompanies.value.map(company => ({
-    value: company.id,
-    title: company.name,
+    value: company.key,
+    title: company.sourceLabel ? `${company.name} · ${company.sourceLabel}` : company.name,
   }));
 });
 
@@ -1505,7 +1516,7 @@ const saveContract = async () => {
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
       contract_type: form.value.contract_type || 'client',
-      partner_company_id: form.value.partner_company_id || undefined,
+      // partner_* поля заполняются ниже в блоке партнёрского договора (Ф0 мульти-система)
       client_type: form.value.client_type,
       client_name: form.value.client_name,
       client_short_name: form.value.client_short_name || '',
@@ -1539,9 +1550,29 @@ const saveContract = async () => {
       notes: form.value.notes || '',
     };
     
-    // Для партнерских договоров добавляем tariff_plan_id
-    if (form.value.contract_type === 'partner' && form.value.tariff_plan_id) {
-      contractData.tariff_plan_id = form.value.tariff_plan_id;
+    // Для партнерских договоров: партнёр (мульти-система Ф0) + тариф + скидки
+    if (form.value.contract_type === 'partner') {
+      // Разрешаем выбранного партнёра по составному ключу source|connectionId|externalId
+      const partner = partnerCompanies.value.find(p => p.key === selectedPartnerKey.value);
+      if (partner) {
+        contractData.partner_source = partner.source;
+        contractData.partner_connection_id = partner.connectionId;
+        contractData.partner_external_id = partner.externalId;
+        // Axenta back-compat: BE ждёт числовой partner_company_id.
+        if (partner.source === 'axenta') {
+          contractData.partner_company_id = partner.id;
+        }
+      }
+
+      if (form.value.tariff_plan_id) {
+        contractData.tariff_plan_id = form.value.tariff_plan_id;
+      }
+      // Скидки: без этих полей BE создавал договор с discount_type='none'
+      // независимо от выбора в UI → auto-скидка не применялась.
+      contractData.discount_type = form.value.discount_type || 'none';
+      contractData.manual_discount_percent = form.value.manual_discount_percent || 0;
+      contractData.manual_discount_fixed = form.value.manual_discount_fixed || 0;
+      contractData.use_auto_discount = form.value.use_auto_discount || false;
     }
     
     // Добавляем company_id из localStorage
@@ -1735,67 +1766,56 @@ const loadNumerators = async () => {
   }
 };
 
-// Load partner companies
+// Load partner companies (Ф0: мульти-системные)
 const loadCompanies = async () => {
   loadingCompanies.value = true;
   try {
-    // Запрашиваем всех партнеров одним запросом (без ограничения по количеству)
-    // Ф3-G: переключено с companiesService (/admin/accounts Axenta-proxy,
-    // 401 в local-mode) на accountsService (/api/auth/accounts snapshot
-    // read-path Ф3-B, работает в обоих AUTH_MODE).
-    console.log('🔍 Запрос ВСЕХ партнерских компаний с type=partner (per_page=10000)...');
+    // Ф0: партнёры из ВСЕХ систем. Два источника, потому что:
+    //  - Axenta: read-path /accounts отдаёт ПОЛНЫЙ набор (unified-путь Axenta
+    //    возвращает лишь подмножество ~14 из 81 → неполно для дропдауна);
+    //  - не-Axenta (skif/gelios/wialon): только в /unified/accounts (?for=picker
+    //    обходит TTL-гейт Axenta-ветки, не влияя на не-Axenta).
+    const [axentaResp, unifiedResp] = await Promise.all([
+      accountsService.getAccounts({ type: 'partner', per_page: 10000 }),
+      accountsService.getUnifiedAccounts({ source: 'all', type: 'partner', per_page: 10000, for: 'picker' }),
+    ]);
 
-    const response = await accountsService.getAccounts({
-      type: 'partner',
-      per_page: 10000,
-    });
+    // Axenta: только прямые потомки тенант-корня (2 уровня иерархии "Корень > Партнёр") —
+    // established поведение (все существующие договоры на level-2). /accounts не
+    // проставляет source → считаем axenta.
+    const axentaItems: PartnerOption[] = (axentaResp.results || [])
+      .filter((a: any) => String(a.hierarchy || '').split(' > ').map((p: string) => p.trim()).length === 2)
+      .map((a: any) => ({
+        key: `axenta|0|${a.id}`,
+        id: a.id,
+        name: a.name,
+        source: 'axenta',
+        sourceLabel: 'Axenta Cloud',
+        connectionId: 0,
+        externalId: String(a.id),
+      }));
 
-    const allCompanies = response.results || [];
-    console.log('📦 Полный ответ от API:', response);
-    console.log('📊 Всего партнеров от API:', allCompanies.length);
-    
-    // Получаем имя текущей компании из localStorage
-    const currentCompanyStr = localStorage.getItem('axenta_company');
-    const currentCompany = currentCompanyStr ? JSON.parse(currentCompanyStr) : null;
-    const currentCompanyName = currentCompany?.name || '';
-    
-    console.log('🏢 Текущая компания:', currentCompanyName);
-    
-    // Фильтруем только прямых потомков текущей компании
-    // Формат hierarchy: "GLOMOS > Партнер1" (прямой потомок) или "GLOMOS > Партнер1 > Партнер2" (внук)
-    const filteredCompanies = allCompanies.filter((company: any) => {
-      const hierarchy = company.hierarchy || '';
-      // Разбиваем иерархию на части
-      const parts = hierarchy.split(' > ').map(p => p.trim());
-      
-      // Показываем только те записи, где:
-      // 1. Первый уровень = текущая компания
-      // 2. Это прямой потомок (всего 2 уровня в иерархии)
-      const isDirectChild = parts.length === 2 && parts[0] === currentCompanyName;
-      
-      return isDirectChild;
-    });
-    
-    partnerCompanies.value = filteredCompanies.map((company: any) => ({
-      id: company.id,
-      name: company.name,
-    }));
-    
-    console.log('🎯 Отфильтровано прямых потомков:', partnerCompanies.value.length);
-    console.log('🏢 Загружено партнерских компаний:', partnerCompanies.value.length);
-    console.log('📋 Список партнеров (первые 10):', partnerCompanies.value.slice(0, 10));
-    
-    // Проверяем есть ли партнер 1715
-    const partner1715 = filteredCompanies.find((c: any) => c.id === 1715);
-    if (partner1715) {
-      console.log('✅ Партнер 1715 найден:', partner1715.name, '| ID:', partner1715.id);
-    } else {
-      console.warn('⚠️ Партнер 1715 не найден среди прямых потомков');
-      const partner1715All = allCompanies.find((c: any) => c.id === 1715);
-      if (partner1715All) {
-        console.log('🔍 Партнер 1715 в полном списке:', partner1715All.name, '| Иерархия:', partner1715All.hierarchy);
-      }
-    }
+    // Не-Axenta: всех партнёров систем (их иерархия не в Axenta-формате).
+    const otherItems: PartnerOption[] = (unifiedResp.items || [])
+      .filter((a: any) => a.source && a.source !== 'axenta')
+      .map((a: any) => {
+        // external_id — стабильный ключ. SKIF → UUID компании-дилера, иначе id.
+        const externalId = a.source === 'skif' && a.skifCompanyId ? String(a.skifCompanyId) : String(a.id);
+        const connectionId = a.connectionId || 0;
+        return {
+          key: `${a.source}|${connectionId}|${externalId}`,
+          id: a.id,
+          name: a.name,
+          source: a.source,
+          sourceLabel: a.sourceLabel || a.source,
+          connectionId,
+          externalId,
+        };
+      });
+
+    partnerCompanies.value = [...axentaItems, ...otherItems];
+    console.log('🎯 Партнёров в дропдауне:', partnerCompanies.value.length,
+      '(axenta:', axentaItems.length, 'др:', otherItems.length, ')');
   } catch (error) {
     console.error('Error loading companies:', error);
     showSnackbarMessage('Ошибка загрузки партнерских компаний', 'error');
