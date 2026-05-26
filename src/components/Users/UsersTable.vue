@@ -120,7 +120,7 @@
                   @click="$emit('login-monitoring', item)"
                 />
                 <v-list-item
-                  v-if="!isWialonUserRow(item) && (item as any).source !== 'skif' && (item as any).source !== 'gelios'"
+                  v-if="((item as any).source || '').toLowerCase() === 'axenta'"
                   prepend-icon="mdi-monitor-star"
                   title="Войти в мониторинг (полный доступ)"
                   @click="$emit('login-monitoring-full', item)"

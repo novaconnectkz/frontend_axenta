@@ -261,7 +261,7 @@
               <v-list-item prepend-icon="mdi-cog-outline" title="Свойства" @click="$emit('properties', item)" />
               <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг" @click="$emit('loginMonitoring', item)" />
               <v-list-item
-                v-if="item.source === 'axenta' || !item.source"
+                v-if="(item.source || '').toLowerCase() === 'axenta'"
                 prepend-icon="mdi-monitor-star"
                 title="Войти в мониторинг (полный доступ)"
                 @click="$emit('loginMonitoringFull', item)"
