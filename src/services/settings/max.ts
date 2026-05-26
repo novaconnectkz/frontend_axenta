@@ -1,6 +1,6 @@
 // MAX Messenger-интеграция.
 // Извлечено из settingsService.ts.
-import { API_BASE_URL, createHeaders } from "./_client";
+import { API_BASE_URL, createHeaders, fetchIntegrationsList } from "./_client";
 
 // === MAX MESSENGER ИНТЕГРАЦИЯ ===
 
@@ -94,7 +94,7 @@ export async function getMaxConfig(skipIfNotConfigured = false): Promise<{
 } | null> {
   // Если skipIfNotConfigured = true, сначала проверяем через список интеграций
   if (skipIfNotConfigured) {
-    const list = await this.getIntegrationsList();
+    const list = await fetchIntegrationsList();
     const max = list.find(i => i.type === 'max');
     if (!max || !max.configured) {
       return null; // Не делаем запрос, если не настроена

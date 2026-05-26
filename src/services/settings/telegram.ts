@@ -1,6 +1,6 @@
 // Telegram-интеграция: setup/update конфигурации, получение и тест.
 // Извлечено из settingsService.ts.
-import { API_BASE_URL, createHeaders } from "./_client";
+import { API_BASE_URL, createHeaders, fetchIntegrationsList } from "./_client";
 
 // === TELEGRAM ИНТЕГРАЦИЯ ===
 
@@ -106,7 +106,7 @@ export async function getTelegramConfig(skipIfNotConfigured = false): Promise<{
 } | null> {
   // Если skipIfNotConfigured = true, сначала проверяем через список интеграций
   if (skipIfNotConfigured) {
-    const list = await this.getIntegrationsList();
+    const list = await fetchIntegrationsList();
     const telegram = list.find(i => i.type === 'telegram');
     if (!telegram || !telegram.configured) {
       return null; // Не делаем запрос, если не настроена
