@@ -380,13 +380,13 @@ const alert = ref<{ type: 'success' | 'error' | 'info' | 'warning', message: str
 })
 
 const headers = [
-  { title: 'Логин', key: 'username', width: '110px', cellProps: { style: 'white-space:normal; word-break:break-word;' } },
+  { title: 'Логин', key: 'username', cellProps: { style: 'white-space:nowrap;' } },
   { title: 'Имя', key: 'name', cellProps: { style: 'white-space:normal; word-break:break-word;' } },
   { title: 'Email', key: 'email', cellProps: { style: 'white-space:normal; word-break:break-all;' } },
-  { title: 'Роль', key: 'role', width: '104px' },
-  { title: 'Активен', key: 'is_active', width: '64px', align: 'center' as const },
-  { title: 'Создан', key: 'created_at', width: '86px' },
-  { title: '', key: 'actions', sortable: false, width: '120px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
+  { title: 'Роль', key: 'role', cellProps: { style: 'white-space:nowrap;' } },
+  { title: 'Активен', key: 'is_active', align: 'center' as const },
+  { title: 'Создан', key: 'created_at', cellProps: { style: 'white-space:nowrap;' } },
+  { title: '', key: 'actions', sortable: false, align: 'end' as const, cellProps: { style: 'white-space:nowrap;' } },
 ]
 
 const roleOptions = [
@@ -743,20 +743,19 @@ onMounted(fetchUsers)
 }
 .local-users-settings :deep(.v-data-table table),
 .local-users-settings :deep(.v-table table) {
-  table-layout: fixed !important;
   width: 100% !important;
   min-width: 0 !important;
 }
 .local-users-settings :deep(.v-data-table td),
 .local-users-settings :deep(.v-data-table th) {
-  padding-inline: 6px !important;
+  padding-inline: 4px !important;
 }
 .local-users-settings :deep(.v-data-table td:first-child),
 .local-users-settings :deep(.v-data-table th:first-child) {
-  padding-inline-start: 12px !important;
+  padding-inline-start: 8px !important;
 }
 .local-users-settings :deep(.v-data-table td:last-child),
 .local-users-settings :deep(.v-data-table th:last-child) {
-  padding-inline-end: 12px !important;
+  padding-inline-end: 8px !important;
 }
 </style>
