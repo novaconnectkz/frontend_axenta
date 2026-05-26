@@ -70,6 +70,14 @@
 
         <template #item.actions="{ item }">
           <v-btn
+            icon="mdi-pencil"
+            variant="text"
+            size="small"
+            :disabled="!canAdmin"
+            @click="openEditDialog(item)"
+            title="Редактировать"
+          />
+          <v-btn
             icon="mdi-key-variant"
             variant="text"
             size="small"
@@ -82,9 +90,9 @@
             variant="text"
             size="small"
             color="error"
-            :disabled="!isSuperadmin || item.id === currentUserId"
+            :disabled="!isSuperadmin || item.id === currentUserId || isSuperadminUser(item)"
             @click="confirmDelete(item)"
-            title="Удалить"
+            :title="isSuperadminUser(item) ? 'Суперадмина нельзя удалить' : 'Удалить'"
           />
         </template>
       </v-data-table>
@@ -151,6 +159,54 @@
             @click="submitCreate"
           >
             Создать
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог редактирования -->
+    <v-dialog v-model="editDialog.open" max-width="500">
+      <v-card>
+        <v-card-title>
+          Редактировать: {{ editDialog.target?.username }}
+        </v-card-title>
+        <v-card-text>
+          <v-alert
+            v-if="editDialog.target && isSuperadminUser(editDialog.target)"
+            type="info" variant="tonal" class="mb-4" density="compact"
+          >
+            Суперадмин: можно менять email/имя. Деактивация заблокирована.
+          </v-alert>
+          <v-text-field
+            v-model="editDialog.form.email"
+            label="Email"
+            type="email"
+            :rules="[r.required, r.email]"
+            autocomplete="off"
+          />
+          <v-text-field
+            v-model="editDialog.form.name"
+            label="Имя"
+            :rules="[r.required]"
+            autocomplete="off"
+          />
+          <v-switch
+            v-model="editDialog.form.is_active"
+            label="Активен"
+            color="success"
+            :disabled="editDialog.target ? isSuperadminUser(editDialog.target) : false"
+            inset
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="editDialog.open = false">Отмена</v-btn>
+          <v-btn
+            color="primary"
+            :loading="editDialog.submitting"
+            @click="submitEdit"
+          >
+            Сохранить
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -314,6 +370,18 @@ const resetDialog = ref<{
   open: false, target: null, newPassword: '', showPassword: false, submitting: false
 })
 
+// Редактирование
+const editDialog = ref<{
+  open: boolean,
+  target: LocalUser | null,
+  form: { email: string, name: string, is_active: boolean },
+  submitting: boolean
+}>({
+  open: false, target: null,
+  form: { email: '', name: '', is_active: true },
+  submitting: false
+})
+
 // Удаление
 const deleteDialog = ref<{
   open: boolean,
@@ -422,6 +490,56 @@ const submitCreate = async () => {
     showError(err.response?.data?.error || 'Ошибка создания')
   } finally {
     createDialog.value.submitting = false
+  }
+}
+
+const isSuperadminUser = (u: LocalUser): boolean => {
+  return u?.role === 'superadmin' || (u as any)?.is_superadmin === true
+}
+
+const openEditDialog = (target: LocalUser) => {
+  editDialog.value = {
+    open: true,
+    target,
+    form: {
+      email: target.email || '',
+      name: target.name || '',
+      is_active: target.is_active !== false,
+    },
+    submitting: false,
+  }
+}
+
+const submitEdit = async () => {
+  if (!editDialog.value.target) return
+  if (!editDialog.value.form.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(editDialog.value.form.email)) {
+    showError('Невалидный email'); return
+  }
+  if (!editDialog.value.form.name.trim()) {
+    showError('Имя не может быть пустым'); return
+  }
+  editDialog.value.submitting = true
+  try {
+    const payload: any = {
+      email: editDialog.value.form.email,
+      name: editDialog.value.form.name,
+    }
+    // is_active отправляем только если изменилось (superadmin его всё равно не сможет менять)
+    if (editDialog.value.form.is_active !== editDialog.value.target.is_active) {
+      payload.is_active = editDialog.value.form.is_active
+    }
+    await axios.patch(
+      `${API_URL}/local/users/${editDialog.value.target.id}`,
+      payload,
+      { headers: { ...authHeader(), 'Content-Type': 'application/json' } }
+    )
+    showSuccess(`Данные ${editDialog.value.target.username} обновлены`)
+    editDialog.value.open = false
+    await fetchUsers()
+  } catch (err: any) {
+    showError(err.response?.data?.error || 'Ошибка сохранения')
+  } finally {
+    editDialog.value.submitting = false
   }
 }
 
