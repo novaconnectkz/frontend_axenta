@@ -315,47 +315,92 @@ export function useAuthProvider() {
       );
 
       const d = resp.data?.data;
-      if (resp.data?.status !== "success" || !d?.access_token) {
+      if (resp.data?.status !== "success" || !d) {
+        throw new Error("Неверный формат ответа сервера");
+      }
+
+      // Auth-mode-aware. BE может работать в двух режимах:
+      //  - local (Ф1): возвращает { access_token, csrf_token, user{ id, username,
+      //    role, company_id, is_superadmin, ... } } — JWT в access_token.
+      //  - axenta: { token, user{ id, username, accountType, accountId,
+      //    accountName, role{ name }, isAxentaUser, ... } } — opaque Axenta-токен.
+      // Различаем по полям ответа, чтобы один FE собранный с обоих shape работал.
+      const isAxentaResponse = !d.access_token && (!!d.token || !!resp.data?.data?.user?.accountType);
+
+      if (!d.access_token && !d.token) {
         throw new Error("Неверный формат ответа сервера");
       }
 
       const u = d.user || {};
-      const role = u.role || "user";
-      const isPrivileged =
-        role === "admin" || role === "superadmin" || !!u.is_superadmin;
+      let mapped: User;
+      let storedToken: string;
 
-      const mapped: User = {
-        accountBlockingDatetime: null,
-        accountName: u.name || u.username || credentials.username,
-        accountType: role,
-        creatorName: "",
-        id: String(u.id ?? ""),
-        lastLogin: u.last_login || new Date().toISOString(),
-        name: u.name || u.username || credentials.username,
-        username: u.username || credentials.username,
-        email: u.email,
-        accountId: u.company_id != null ? Number(u.company_id) : undefined,
-        isAdmin: isPrivileged,
-        isActive: u.is_active !== false,
-        language: "ru",
-        timezone: 3,
-      };
+      if (isAxentaResponse) {
+        // axenta-shape: роль из u.role.name, company_id = u.accountId
+        const roleName = u.role?.name || u.accountType || "user";
+        const isPrivileged = u.isAdmin === true || roleName === "admin" || roleName === "superadmin";
+        mapped = {
+          accountBlockingDatetime: u.accountBlockingDatetime ?? null,
+          accountName: u.accountName || u.name || credentials.username,
+          accountType: u.accountType || roleName,
+          creatorName: u.creatorName || "",
+          id: String(u.id ?? ""),
+          lastLogin: u.lastLogin || new Date().toISOString(),
+          name: u.name || u.username || credentials.username,
+          username: u.username || credentials.username,
+          email: u.email,
+          accountId: u.accountId != null ? Number(u.accountId) : undefined,
+          isAdmin: isPrivileged,
+          isActive: u.isActive !== false,
+          language: u.language || "ru",
+          timezone: u.timezone ?? 3,
+        };
+        storedToken = d.token;
+        company.value = {
+          id: String(u.accountId ?? ""),
+          name: mapped.accountName,
+          isActive: mapped.isActive,
+        };
+        if (u.accountId != null) {
+          localStorage.setItem("tenant_id", String(u.accountId));
+        }
+      } else {
+        // local-shape (Ф1)
+        const role = u.role || "user";
+        const isPrivileged = role === "admin" || role === "superadmin" || !!u.is_superadmin;
+        mapped = {
+          accountBlockingDatetime: null,
+          accountName: u.name || u.username || credentials.username,
+          accountType: role,
+          creatorName: "",
+          id: String(u.id ?? ""),
+          lastLogin: u.last_login || new Date().toISOString(),
+          name: u.name || u.username || credentials.username,
+          username: u.username || credentials.username,
+          email: u.email,
+          accountId: u.company_id != null ? Number(u.company_id) : undefined,
+          isAdmin: isPrivileged,
+          isActive: u.is_active !== false,
+          language: "ru",
+          timezone: 3,
+        };
+        storedToken = d.access_token;
+        company.value = {
+          id: String(u.company_id ?? ""),
+          name: mapped.accountName,
+          isActive: true,
+        };
+        if (u.company_id != null) {
+          // tenant_id == numeric company_id == JWT-claim (риск B5:
+          // расхождение заголовка с claim → 403 на бэке).
+          localStorage.setItem("tenant_id", String(u.company_id));
+        }
+      }
 
       user.value = mapped;
-      token.value = d.access_token;
-      company.value = {
-        id: String(u.company_id ?? ""),
-        name: mapped.accountName,
-        isActive: true,
-      };
-
-      localStorage.setItem("axenta_token", d.access_token);
+      token.value = storedToken;
+      localStorage.setItem("axenta_token", storedToken);
       if (d.csrf_token) localStorage.setItem("acrm_csrf", d.csrf_token);
-      if (u.company_id != null) {
-        // tenant_id == numeric company_id == JWT-claim (риск B5:
-        // расхождение заголовка с claim → 403 на бэке).
-        localStorage.setItem("tenant_id", String(u.company_id));
-      }
       saveToStorage();
     } catch (err: any) {
       const msg =
