@@ -77,7 +77,8 @@ export function useUserActions(notify: Notify) {
 
   const loginToTarget = async (
     user: UserWithRelations & { source?: string; connection_id?: number },
-    target: 'monitoring' | 'cms'
+    target: 'monitoring' | 'cms',
+    impersonation = false,
   ) => {
     try {
       if (!user.id) {
@@ -86,6 +87,7 @@ export function useUserActions(notify: Notify) {
       }
 
       if (isWialonUser(user)) {
+        // Wialon: полный доступ не поддерживается провайдером — игнорируем флаг.
         const connId = user.connection_id;
         if (!connId) {
           notify(`У пользователя "${user.username}" не указан ID подключения Wialon`, 'error');
@@ -101,11 +103,11 @@ export function useUserActions(notify: Notify) {
         }
         window.open(result.redirectUrl, '_blank');
       } else {
-        const result = await accountsService.loginAs(user.id, target);
+        const result = await accountsService.loginAs(user.id, target, impersonation);
         window.open(result.redirectUrl, '_blank');
       }
     } catch (e: any) {
-      const msg = e.response?.data?.detail || e.response?.data?.message || e.message || 'Неизвестная ошибка';
+      const msg = e.response?.data?.error || e.response?.data?.detail || e.response?.data?.message || e.message || 'Неизвестная ошибка';
       notify(`Ошибка входа: ${msg}`, 'error');
     }
   };
@@ -115,6 +117,7 @@ export function useUserActions(notify: Notify) {
     deleteUser,
     toggleActivity,
     loginToMonitoring: (u: UserWithRelations & { source?: string; connection_id?: number }) => loginToTarget(u, 'monitoring'),
+    loginToMonitoringFull: (u: UserWithRelations & { source?: string; connection_id?: number }) => loginToTarget(u, 'monitoring', true),
     loginToCMS: (u: UserWithRelations & { source?: string; connection_id?: number }) => loginToTarget(u, 'cms'),
     isWialonUser,
   };

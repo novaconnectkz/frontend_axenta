@@ -49,6 +49,7 @@
       @next-page="goToNextPage"
       @last-page="goToLastPage"
       @login-monitoring="loginToMonitoring"
+      @login-monitoring-full="loginToMonitoringFull"
       @login-cms="loginToCms"
       @move="moveAccount"
       @properties="onProperties"
@@ -699,56 +700,47 @@ const loginToCms = async (account: Account) => {
   }
 };
 
-const loginToMonitoring = async (account: Account) => {
+const loginToMonitoring = async (account: Account, impersonation = false) => {
   try {
-    console.log('📊 Вход в мониторинг для аккаунта:', account.name);
-    console.log('📊 Account ID:', account.id, 'Type:', typeof account.id);
+    const label = impersonation ? 'мониторинг (полный доступ)' : 'мониторинг';
+    console.log(`📊 Вход в ${label} для аккаунта:`, account.name);
 
-    // Проверяем тип источника аккаунта
     const accountWithSource = account as Account & { source?: string; connection_id?: number };
     const isWialon = accountWithSource.source && accountWithSource.source !== 'axenta';
 
     if (isWialon) {
-      // Для Wialon аккаунтов используем API входа через Wialon
+      // Wialon — полный доступ не поддерживается провайдером
       if (!accountWithSource.connection_id) {
         showSnackbar(`У аккаунта "${account.name}" не указан ID подключения`, 'error');
         return;
       }
-
-      // Передаём account_id (ID ресурса) для поиска связанного пользователя по bact
-      // Бэкенд найдёт пользователя с bact == account.id и войдёт под ним
       const result = await settingsService.loginToWialonMonitoring(
         accountWithSource.connection_id,
-        undefined, // user_name не передаём — бэкенд найдёт его по account_id
-        account.id // ID ресурса для поиска пользователя
+        undefined,
+        account.id,
       );
-
       if (!result.success) {
         showSnackbar(`Ошибка входа в мониторинг: ${result.message}`, 'error');
         return;
       }
-
-      console.log('✅ Получен URL для входа в мониторинг Wialon:', result.redirectUrl);
       window.open(result.redirectUrl, '_blank');
-    } else {
-      // Для Axenta аккаунтов используем старый метод
-      if (!account.adminId) {
-        showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
-        return;
-      }
-
-      const result = await accountsService.loginAs(account.adminId, 'monitoring');
-
-      console.log('✅ Получен URL для входа в мониторинг:', result.redirectUrl);
-      window.open(result.redirectUrl, '_blank');
+      return;
     }
 
+    if (!account.adminId) {
+      showSnackbar(`У аккаунта "${account.name}" не указан ID администратора`, 'error');
+      return;
+    }
+    const result = await accountsService.loginAs(account.adminId, 'monitoring', impersonation);
+    window.open(result.redirectUrl, '_blank');
   } catch (error: any) {
     console.error('❌ Ошибка входа в мониторинг:', error);
-    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
+    const errorMessage = error.response?.data?.error || error.response?.data?.detail || error.response?.data?.message || error.message || 'Неизвестная ошибка';
     showSnackbar(`Ошибка входа в мониторинг: ${errorMessage}`, 'error');
   }
 };
+
+const loginToMonitoringFull = (account: Account) => loginToMonitoring(account, true);
 
 const moveAccount = async (account: Account) => {
   console.log('🔄 Перемещение аккаунта:', account.name);

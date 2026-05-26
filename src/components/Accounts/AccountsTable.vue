@@ -261,6 +261,12 @@
               <v-list-item prepend-icon="mdi-cog-outline" title="Свойства" @click="$emit('properties', item)" />
               <v-list-item prepend-icon="mdi-monitor-dashboard" title="Войти в мониторинг" @click="$emit('loginMonitoring', item)" />
               <v-list-item
+                v-if="item.source === 'axenta' || !item.source"
+                prepend-icon="mdi-monitor-star"
+                title="Войти в мониторинг (полный доступ)"
+                @click="$emit('loginMonitoringFull', item)"
+              />
+              <v-list-item
                 v-if="item.type === 'partner' || item.dealer_rights"
                 prepend-icon="mdi-cog-transfer-outline"
                 title="Войти в CMS"
@@ -358,6 +364,7 @@ const emit = defineEmits<{
   (e: 'nextPage'): void;
   (e: 'lastPage'): void;
   (e: 'loginMonitoring', item: any): void;
+  (e: 'loginMonitoringFull', item: any): void;
   (e: 'loginCms', item: any): void;
   (e: 'move', item: any): void;
   (e: 'properties', item: any): void;

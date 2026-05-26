@@ -985,29 +985,30 @@ class AccountsService {
   }
 
   /**
-   * Войти в CMS или мониторинг с токеном другого пользователя
+   * Войти в CMS или мониторинг с токеном другого пользователя.
+   * impersonation: соответствует пункту Axenta UI «Войти в мониторинг (полный доступ)».
+   * После Ф1 ходим через наш backend (axenta.cloud не принимает локальный JWT).
    */
-  async loginAs(userId: number, type: 'cms' | 'monitoring'): Promise<{ redirectUrl: string }> {
+  async loginAs(userId: number, type: 'cms' | 'monitoring', impersonation = false): Promise<{ redirectUrl: string }> {
     try {
-      console.log(`🔐 Вход в ${type} для пользователя ${userId}`);
+      console.log(`🔐 Вход в ${type}${impersonation ? ' (полный доступ)' : ''} для пользователя ${userId}`);
 
-      const response = await this.axentaCloudClient.post<any>(
-        `/api/cms/users/login_as/`,
-        {
-          userId: userId,
-          type: type
-        }
+      const payload: Record<string, any> = { userId, type };
+      if (impersonation) payload.impersonation = true;
+
+      const response = await this.apiClient.post<any>(
+        `/api/cms/users/login_as`,
+        payload,
       );
 
-      console.log(`✅ Получен URL для входа в ${type}:`, response.data);
+      const data = response.data?.data ?? response.data;
+      console.log(`✅ Получен URL для входа в ${type}:`, data);
 
-      if (!response.data.redirectUrl) {
-        throw new Error('Не получен URL для перенаправления');
+      if (!data?.redirectUrl) {
+        throw new Error(response.data?.error || 'Не получен URL для перенаправления');
       }
 
-      return {
-        redirectUrl: response.data.redirectUrl
-      };
+      return { redirectUrl: data.redirectUrl };
     } catch (error) {
       console.error(`❌ Ошибка входа в ${type} для пользователя ${userId}:`, error);
       throw error;

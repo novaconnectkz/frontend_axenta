@@ -120,6 +120,12 @@
                   @click="$emit('login-monitoring', item)"
                 />
                 <v-list-item
+                  v-if="!isWialonUserRow(item) && (item as any).source !== 'skif' && (item as any).source !== 'gelios'"
+                  prepend-icon="mdi-monitor-star"
+                  title="Войти в мониторинг (полный доступ)"
+                  @click="$emit('login-monitoring-full', item)"
+                />
+                <v-list-item
                   v-if="item.role && (item.role.display_name === 'Партнер' || item.role.display_name === 'Партнёр')"
                   prepend-icon="mdi-cog-transfer-outline"
                   title="Войти в CMS"
@@ -192,11 +198,17 @@ defineEmits<{
   (e: 'sort-change', sortBy: any[]): void;
   (e: 'toggle-activity', user: UserWithRelations, isActive: boolean): void;
   (e: 'login-monitoring', user: UserWithRelations): void;
+  (e: 'login-monitoring-full', user: UserWithRelations): void;
   (e: 'login-cms', user: UserWithRelations): void;
   (e: 'view', user: UserWithRelations): void;
   (e: 'reset-password', user: UserWithRelations): void;
   (e: 'delete', user: UserWithRelations): void;
 }>();
+
+const isWialonUserRow = (user: UserWithRelations & { source?: string }): boolean => {
+  const src = (user.source || '').toLowerCase();
+  return src.startsWith('wh') || src.startsWith('wl');
+};
 
 const {
   getUserInitials,

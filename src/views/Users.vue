@@ -23,6 +23,7 @@
       @sort-change="onSortChange"
       @toggle-activity="onToggleActivity"
       @login-monitoring="actions.loginToMonitoring"
+      @login-monitoring-full="actions.loginToMonitoringFull"
       @login-cms="actions.loginToCMS"
       @view="onView"
       @reset-password="onResetPassword"
