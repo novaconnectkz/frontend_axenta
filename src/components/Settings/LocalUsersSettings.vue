@@ -73,7 +73,7 @@
             <v-btn
               icon="mdi-history"
               variant="text"
-              size="small"
+              size="x-small"
               density="compact"
               :disabled="!canAdmin"
               @click="openHistoryDialog(item)"
@@ -82,7 +82,7 @@
             <v-btn
               icon="mdi-pencil"
               variant="text"
-              size="small"
+              size="x-small"
               density="compact"
               :disabled="!canAdmin"
               @click="openEditDialog(item)"
@@ -91,7 +91,7 @@
             <v-btn
               icon="mdi-key-variant"
               variant="text"
-              size="small"
+              size="x-small"
               density="compact"
               :disabled="!isSuperadmin"
               @click="openResetDialog(item)"
@@ -100,7 +100,7 @@
             <v-btn
               icon="mdi-delete"
               variant="text"
-              size="small"
+              size="x-small"
               density="compact"
               color="error"
               :disabled="!isSuperadmin || item.id === currentUserId || isSuperadminUser(item)"
@@ -380,14 +380,13 @@ const alert = ref<{ type: 'success' | 'error' | 'info' | 'warning', message: str
 })
 
 const headers = [
-  { title: 'ID', key: 'id', width: '50px' },
-  { title: 'Логин', key: 'username', width: '130px' },
-  { title: 'Имя', key: 'name', minWidth: '180px' },
-  { title: 'Email', key: 'email', minWidth: '180px' },
-  { title: 'Роль', key: 'role', width: '130px' },
-  { title: 'Активен', key: 'is_active', width: '80px', align: 'center' as const },
-  { title: 'Создан', key: 'created_at', width: '110px' },
-  { title: '', key: 'actions', sortable: false, width: '170px', minWidth: '170px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
+  { title: 'Логин', key: 'username', width: '110px', cellProps: { style: 'white-space:normal; word-break:break-word;' } },
+  { title: 'Имя', key: 'name', cellProps: { style: 'white-space:normal; word-break:break-word;' } },
+  { title: 'Email', key: 'email', cellProps: { style: 'white-space:normal; word-break:break-all;' } },
+  { title: 'Роль', key: 'role', width: '104px' },
+  { title: 'Активен', key: 'is_active', width: '64px', align: 'center' as const },
+  { title: 'Создан', key: 'created_at', width: '86px' },
+  { title: '', key: 'actions', sortable: false, width: '120px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
 ]
 
 const roleOptions = [
@@ -731,5 +730,33 @@ onMounted(fetchUsers)
 <style scoped>
 .local-users-settings {
   width: 100%;
+  min-width: 0;
+}
+.local-users-settings :deep(.v-data-table),
+.local-users-settings :deep(.v-table) {
+  width: 100%;
+  max-width: 100%;
+}
+.local-users-settings :deep(.v-table__wrapper) {
+  overflow-x: hidden !important;
+  max-width: 100%;
+}
+.local-users-settings :deep(.v-data-table table),
+.local-users-settings :deep(.v-table table) {
+  table-layout: fixed !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.local-users-settings :deep(.v-data-table td),
+.local-users-settings :deep(.v-data-table th) {
+  padding-inline: 6px !important;
+}
+.local-users-settings :deep(.v-data-table td:first-child),
+.local-users-settings :deep(.v-data-table th:first-child) {
+  padding-inline-start: 12px !important;
+}
+.local-users-settings :deep(.v-data-table td:last-child),
+.local-users-settings :deep(.v-data-table th:last-child) {
+  padding-inline-end: 12px !important;
 }
 </style>
