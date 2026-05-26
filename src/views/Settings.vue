@@ -171,6 +171,11 @@
               <SecuritySettings />
             </div>
 
+            <!-- Локальные пользователи -->
+            <div v-if="activeTab === 'local-users'">
+              <LocalUsersSettings />
+            </div>
+
             <!-- Производительность -->
             <div v-if="activeTab === 'performance'">
               <PerformanceSettings />
@@ -328,6 +333,7 @@ import { VueDraggable } from 'vue-draggable-plus';
 import AuditLogs from '@/components/Settings/AuditLogs.vue';
 import AutoRefreshSettings from '@/components/Settings/AutoRefreshSettings.vue';
 import IntegrationsSettings from '@/components/Settings/IntegrationsSettings.vue';
+import LocalUsersSettings from '@/components/Settings/LocalUsersSettings.vue';
 import MonitoringSettings from '@/components/Settings/MonitoringSettings.vue';
 import NotificationsSettings from '@/components/Settings/NotificationsSettings.vue';
 import NotificationTemplates from '@/components/Settings/NotificationTemplates.vue';
@@ -494,6 +500,14 @@ const defaultTabs = [
     title: 'Безопасность',
     subtitle: 'Доступ и права',
     icon: 'mdi-shield-check',
+    badge: undefined as number | undefined,
+    badgeColor: undefined as string | undefined
+  },
+  {
+    value: 'local-users',
+    title: 'Локальные пользователи',
+    subtitle: 'Учётки ACRM (логин+пароль)',
+    icon: 'mdi-account-key',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
   },
