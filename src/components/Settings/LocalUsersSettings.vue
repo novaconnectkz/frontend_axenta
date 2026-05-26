@@ -372,7 +372,7 @@ const showSuccess = (msg: string) => {
 const fetchUsers = async () => {
   loading.value = true
   try {
-    const resp = await axios.get(`${API_URL}/api/local/users`, { headers: authHeader() })
+    const resp = await axios.get(`${API_URL}/local/users`, { headers: authHeader() })
     users.value = (resp.data?.data || []) as LocalUser[]
   } catch (err: any) {
     showError(err.response?.data?.error || 'Не удалось загрузить список')
@@ -411,7 +411,7 @@ const submitCreate = async () => {
   createDialog.value.submitting = true
   try {
     await axios.post(
-      `${API_URL}/api/local/register`,
+      `${API_URL}/local/register`,
       createDialog.value.form,
       { headers: { ...authHeader(), 'Content-Type': 'application/json' } }
     )
@@ -439,7 +439,7 @@ const submitReset = async () => {
   resetDialog.value.submitting = true
   try {
     await axios.post(
-      `${API_URL}/api/local/users/${resetDialog.value.target?.id}/reset-password`,
+      `${API_URL}/local/users/${resetDialog.value.target?.id}/reset-password`,
       { new_password: resetDialog.value.newPassword },
       { headers: { ...authHeader(), 'Content-Type': 'application/json' } }
     )
@@ -460,7 +460,7 @@ const submitDelete = async () => {
   deleteDialog.value.submitting = true
   try {
     await axios.delete(
-      `${API_URL}/api/local/users/${deleteDialog.value.target?.id}`,
+      `${API_URL}/local/users/${deleteDialog.value.target?.id}`,
       { headers: authHeader() }
     )
     showSuccess(`Пользователь ${deleteDialog.value.target?.username} удалён`)
