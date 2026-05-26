@@ -69,31 +69,36 @@
         </template>
 
         <template #item.actions="{ item }">
-          <v-btn
-            icon="mdi-pencil"
-            variant="text"
-            size="small"
-            :disabled="!canAdmin"
-            @click="openEditDialog(item)"
-            title="Редактировать"
-          />
-          <v-btn
-            icon="mdi-key-variant"
-            variant="text"
-            size="small"
-            :disabled="!isSuperadmin"
-            @click="openResetDialog(item)"
-            title="Сбросить пароль"
-          />
-          <v-btn
-            icon="mdi-delete"
-            variant="text"
-            size="small"
-            color="error"
-            :disabled="!isSuperadmin || item.id === currentUserId || isSuperadminUser(item)"
-            @click="confirmDelete(item)"
-            :title="isSuperadminUser(item) ? 'Суперадмина нельзя удалить' : 'Удалить'"
-          />
+          <div class="d-inline-flex align-center" style="white-space: nowrap; gap: 4px;">
+            <v-btn
+              icon="mdi-pencil"
+              variant="text"
+              size="small"
+              density="comfortable"
+              :disabled="!canAdmin"
+              @click="openEditDialog(item)"
+              title="Редактировать"
+            />
+            <v-btn
+              icon="mdi-key-variant"
+              variant="text"
+              size="small"
+              density="comfortable"
+              :disabled="!isSuperadmin"
+              @click="openResetDialog(item)"
+              title="Сбросить пароль"
+            />
+            <v-btn
+              icon="mdi-delete"
+              variant="text"
+              size="small"
+              density="comfortable"
+              color="error"
+              :disabled="!isSuperadmin || item.id === currentUserId || isSuperadminUser(item)"
+              @click="confirmDelete(item)"
+              :title="isSuperadminUser(item) ? 'Суперадмина нельзя удалить' : 'Удалить'"
+            />
+          </div>
         </template>
       </v-data-table>
     </v-card>
@@ -336,7 +341,7 @@ const headers = [
   { title: 'Роль', key: 'role', width: '120px' },
   { title: 'Активен', key: 'is_active', width: '100px', align: 'center' as const },
   { title: 'Создан', key: 'created_at', width: '160px' },
-  { title: '', key: 'actions', sortable: false, width: '120px', align: 'end' as const },
+  { title: '', key: 'actions', sortable: false, width: '180px', minWidth: '180px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
 ]
 
 const roleOptions = [
