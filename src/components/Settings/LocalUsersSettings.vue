@@ -45,7 +45,7 @@
         :items="users"
         :loading="loading"
         :items-per-page="50"
-        density="comfortable"
+        density="compact"
         no-data-text="Пока нет локальных учёток"
         loading-text="Загружаем..."
       >
@@ -74,7 +74,7 @@
               icon="mdi-history"
               variant="text"
               size="small"
-              density="comfortable"
+              density="compact"
               :disabled="!canAdmin"
               @click="openHistoryDialog(item)"
               title="История событий"
@@ -83,7 +83,7 @@
               icon="mdi-pencil"
               variant="text"
               size="small"
-              density="comfortable"
+              density="compact"
               :disabled="!canAdmin"
               @click="openEditDialog(item)"
               title="Редактировать"
@@ -92,7 +92,7 @@
               icon="mdi-key-variant"
               variant="text"
               size="small"
-              density="comfortable"
+              density="compact"
               :disabled="!isSuperadmin"
               @click="openResetDialog(item)"
               title="Сбросить пароль"
@@ -101,7 +101,7 @@
               icon="mdi-delete"
               variant="text"
               size="small"
-              density="comfortable"
+              density="compact"
               color="error"
               :disabled="!isSuperadmin || item.id === currentUserId || isSuperadminUser(item)"
               @click="confirmDelete(item)"
@@ -380,14 +380,14 @@ const alert = ref<{ type: 'success' | 'error' | 'info' | 'warning', message: str
 })
 
 const headers = [
-  { title: 'ID', key: 'id', width: '70px' },
-  { title: 'Логин', key: 'username' },
-  { title: 'Имя', key: 'name' },
-  { title: 'Email', key: 'email' },
-  { title: 'Роль', key: 'role', width: '120px' },
-  { title: 'Активен', key: 'is_active', width: '100px', align: 'center' as const },
-  { title: 'Создан', key: 'created_at', width: '160px' },
-  { title: '', key: 'actions', sortable: false, width: '220px', minWidth: '220px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
+  { title: 'ID', key: 'id', width: '50px' },
+  { title: 'Логин', key: 'username', width: '130px' },
+  { title: 'Имя', key: 'name', minWidth: '180px' },
+  { title: 'Email', key: 'email', minWidth: '180px' },
+  { title: 'Роль', key: 'role', width: '130px' },
+  { title: 'Активен', key: 'is_active', width: '80px', align: 'center' as const },
+  { title: 'Создан', key: 'created_at', width: '110px' },
+  { title: '', key: 'actions', sortable: false, width: '170px', minWidth: '170px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
 ]
 
 const roleOptions = [
@@ -486,9 +486,8 @@ const roleColor = (role: string) => {
 const formatDate = (iso?: string) => {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleString('ru-RU', {
+    return new Date(iso).toLocaleDateString('ru-RU', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
     })
   } catch { return iso }
 }
