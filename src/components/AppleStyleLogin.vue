@@ -54,12 +54,13 @@
             <div v-if="fieldErrors.password" class="hub-err">{{ fieldErrors.password }}</div>
           </div>
 
-          <div class="hub-row">
+          <div class="hub-row hub-row-between">
             <label class="hub-remember">
               <input v-model="rememberMe" type="checkbox">
               <span class="hub-chk"></span>
               <span>Запомнить меня</span>
             </label>
+            <a class="hub-forgot" @click.prevent="forgotOpen = true" href="#">Забыли пароль?</a>
           </div>
 
           <button type="submit" class="hub-btn" :disabled="isLoading || !isFormValid">
@@ -71,6 +72,30 @@
         <div v-if="error" class="hub-alert">
           <span>{{ error }}</span>
           <button @click="clearError" class="hub-alert-close" aria-label="Закрыть">×</button>
+        </div>
+
+        <!-- Диалог "Забыли пароль?" -->
+        <div v-if="forgotOpen" class="hub-modal-backdrop" @click.self="forgotOpen = false">
+          <div class="hub-modal">
+            <div class="hub-modal-title">Сброс пароля</div>
+            <p class="hub-modal-sub">Введите email учётной записи. Если он зарегистрирован — придёт письмо со ссылкой для сброса (действует 1 час).</p>
+            <input
+              v-model="forgotEmail"
+              type="email"
+              placeholder="you@example.com"
+              class="hub-modal-input"
+              @keyup.enter="submitForgot"
+              autofocus
+            />
+            <div v-if="forgotMsg" :class="forgotKind === 'ok' ? 'hub-modal-ok' : 'hub-modal-err'">{{ forgotMsg }}</div>
+            <div class="hub-modal-actions">
+              <button class="hub-btn-sec" @click="forgotOpen = false">Отмена</button>
+              <button class="hub-btn" :disabled="!forgotEmail || forgotSubmitting" @click="submitForgot">
+                <span v-if="!forgotSubmitting">Отправить</span>
+                <span v-else class="hub-spinner"></span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="hub-foot">Защищённый вход · Единый ACRM-аккаунт</div>
@@ -127,6 +152,7 @@
 import { useAuth, type LoginForm } from '@/context/auth';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import { config } from '@/config/env';
 import axentaLogo from '@/assets/providers/axenta.png';
 import wialonLogo from '@/assets/providers/wialon.svg';
@@ -168,6 +194,34 @@ const showPassword = ref(false);
 const rememberMe = ref(true);
 const isLoading = ref(false);
 const error = ref('');
+
+// Forgot-password диалог
+const forgotOpen = ref(false);
+const forgotEmail = ref('');
+const forgotMsg = ref('');
+const forgotKind = ref<'ok' | 'err'>('ok');
+const forgotSubmitting = ref(false);
+
+async function submitForgot() {
+  if (!forgotEmail.value) return;
+  forgotSubmitting.value = true;
+  forgotMsg.value = '';
+  try {
+    const r = await axios.post(
+      `${config.apiBaseUrl}/auth/forgot-password`,
+      { email: forgotEmail.value },
+      { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
+    );
+    forgotKind.value = 'ok';
+    forgotMsg.value = r.data?.message || 'Если email зарегистрирован — письмо отправлено';
+  } catch (e: any) {
+    // BE anti-enum: 200 даже на ошибках. Сюда попадаем только если сеть/CORS.
+    forgotKind.value = 'err';
+    forgotMsg.value = e?.response?.data?.error || 'Не удалось отправить запрос';
+  } finally {
+    forgotSubmitting.value = false;
+  }
+}
 
 // Ошибки полей
 const fieldErrors = ref<Record<string, string>>({
@@ -407,6 +461,20 @@ onMounted(() => {
 .hub-alert-close{ background:none; border:none; color:#FF3B30; font-size:20px; line-height:1; cursor:pointer; padding:0 4px; }
 
 .hub-foot{ margin-top:26px; padding-top:22px; border-top:1px solid rgba(0,0,0,.07); text-align:center; font-size:11.5px; color:var(--gray); }
+.hub-row-between{ display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.hub-forgot{ color:#1f6feb; font-size:13px; text-decoration:none; cursor:pointer; }
+.hub-forgot:hover{ text-decoration:underline; }
+.hub-modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.hub-modal{ background:var(--card-bg, #fff); border-radius:14px; padding:24px; max-width:420px; width:100%; box-shadow:0 12px 40px rgba(0,0,0,.3); }
+.hub-modal-title{ font-size:18px; font-weight:600; margin-bottom:8px; }
+.hub-modal-sub{ color:var(--gray); font-size:13.5px; margin-bottom:16px; line-height:1.45; }
+.hub-modal-input{ width:100%; padding:11px 13px; border:1px solid rgba(0,0,0,.12); border-radius:8px; font-size:14px; outline:none; background:var(--input-bg, #f5f5f7); color:inherit; }
+.hub-modal-input:focus{ border-color:#1f6feb; }
+.hub-modal-ok{ color:#22c55e; font-size:13px; margin:10px 0 0; }
+.hub-modal-err{ color:#FF3B30; font-size:13px; margin:10px 0 0; }
+.hub-modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+.hub-btn-sec{ background:transparent; border:1px solid rgba(0,0,0,.12); color:inherit; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:14px; }
+.hub-btn-sec:hover{ background:rgba(0,0,0,.04); }
 
 /* RIGHT */
 .hub-right{ flex:1; position:relative; display:flex; flex-direction:column; justify-content:center; padding:64px 56px; z-index:1; }

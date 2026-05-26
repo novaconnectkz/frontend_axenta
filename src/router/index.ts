@@ -34,6 +34,11 @@ const routes = [
     title: "Локальный вход в систему",
   }),
 
+  // Reset password по tokenized-ссылке из email (forgot-password flow).
+  createGuestRoute("/reset-password/:token", () => import("@/views/ResetPassword.vue"), {
+    title: "Сброс пароля",
+  }),
+
 
   // === CONTROL-PLANE (Фаза 2, монетизация — операторский surface) ===
   // Изолирован: свой auth (operatorClient), БЕЗ requiresAuth/Guest —

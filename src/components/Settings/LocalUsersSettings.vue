@@ -129,23 +129,6 @@
               :rules="[r.required]"
               autocomplete="off"
             />
-            <v-text-field
-              v-model="createDialog.form.password"
-              label="Пароль (мин. 10 символов)"
-              :type="createDialog.showPassword ? 'text' : 'password'"
-              :rules="[r.required, r.minLen(10)]"
-              :append-inner-icon="createDialog.showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-              @click:append-inner="createDialog.showPassword = !createDialog.showPassword"
-              autocomplete="new-password"
-            />
-            <v-btn
-              size="small"
-              variant="text"
-              prepend-icon="mdi-dice-multiple"
-              @click="generatePassword"
-            >
-              Сгенерировать
-            </v-btn>
             <v-select
               v-model="createDialog.form.role"
               label="Роль"
@@ -153,6 +136,10 @@
               item-title="label"
               item-value="value"
             />
+            <v-alert type="info" variant="tonal" density="compact" class="mt-2">
+              Временный пароль будет сгенерирован автоматически и отправлен на email пользователя.
+              Юзер сменит его при первом входе в разделе «Профиль».
+            </v-alert>
           </v-form>
         </v-card-text>
         <v-card-actions>
@@ -359,7 +346,6 @@ const createDialog = ref({
     username: '',
     email: '',
     name: '',
-    password: '',
     role: 'user' as 'user' | 'admin',
   }
 })
@@ -462,18 +448,13 @@ const genPassword = () => {
   return Array.from(arr).map(b => alphabet[b % alphabet.length]).join('')
 }
 
-const generatePassword = () => {
-  const pw = genPassword()
-  createDialog.value.form.password = pw
-  createDialog.value.showPassword = true
-}
 const generateResetPassword = () => {
   resetDialog.value.newPassword = genPassword()
   resetDialog.value.showPassword = true
 }
 
 const openCreateDialog = () => {
-  createDialog.value.form = { username: '', email: '', name: '', password: '', role: 'user' }
+  createDialog.value.form = { username: '', email: '', name: '', role: 'user' }
   createDialog.value.showPassword = false
   createDialog.value.open = true
 }
@@ -483,12 +464,22 @@ const submitCreate = async () => {
   if (valid === false) return
   createDialog.value.submitting = true
   try {
-    await axios.post(
+    const resp = await axios.post(
       `${API_URL}/local/register`,
       createDialog.value.form,
       { headers: { ...authHeader(), 'Content-Type': 'application/json' } }
     )
-    showSuccess(`Пользователь ${createDialog.value.form.username} создан`)
+    const u = createDialog.value.form.username
+    const e = createDialog.value.form.email
+    const emailed = resp.data?.emailed
+    if (emailed === false) {
+      alert.value = {
+        type: 'warning',
+        message: `Пользователь ${u} создан, но письмо с паролем НЕ отправлено: ${resp.data?.email_error || 'unknown'}. Проверьте SMTP в /control-plane.`,
+      }
+    } else {
+      showSuccess(`Пользователь ${u} создан. Письмо с паролем отправлено на ${e}.`)
+    }
     createDialog.value.open = false
     await fetchUsers()
   } catch (err: any) {
