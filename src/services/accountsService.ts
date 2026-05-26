@@ -466,20 +466,22 @@ class AccountsService {
   }
 
   /**
-   * Очистить дату блокировки аккаунта
+   * Очистить дату блокировки аккаунта.
+   * После AUTH_MODE=local cutover (26.05) прямой PATCH в axenta.cloud не работает
+   * (наш JWT там 401). Идём через backend-proxy /api/cms/accounts/:id.
    */
   async clearBlockingDatetime(id: number): Promise<void> {
     try {
       console.log(`🔄 Очистка даты блокировки для аккаунта ${id}`);
 
-      const response = await this.axentaCloudClient.patch<any>(
-        `/api/cms/accounts/${id}/`,
+      const response = await this.apiClient.patch<any>(
+        `/api/cms/accounts/${id}`,
         { blockingDatetime: null }
       );
 
       console.log(`✅ Дата блокировки очищена для аккаунта ${id}:`, response.data);
 
-      if (response.status !== 200) {
+      if (response.status >= 400) {
         throw new Error('Ошибка очистки даты блокировки');
       }
     } catch (error) {
