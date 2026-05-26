@@ -35,8 +35,8 @@ jobs:
             cd "${{ secrets.REPO_PATH }}"
             git fetch --all --prune
             git reset --hard origin/${{ secrets.BRANCH || 'main' }}
-            /usr/bin/npm install
-            /usr/bin/npm run build
-            sudo systemctl reload nginx
+            # --ignore-scripts: блок lifecycle-hooks (postinstall/preinstall)
+            # supply-chain защита (security incident 2026-05-26)
+            /usr/bin/npm install --ignore-scripts
             /usr/bin/npm run build
             sudo systemctl reload nginx
