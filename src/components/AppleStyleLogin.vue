@@ -73,7 +73,7 @@
           <button @click="clearError" class="hub-alert-close" aria-label="Закрыть">×</button>
         </div>
 
-        <div class="hub-foot">Защищённый вход · Локальная учётная запись CRM</div>
+        <div class="hub-foot">Защищённый вход · Единый ACRM-аккаунт</div>
       </div>
     </div>
 
