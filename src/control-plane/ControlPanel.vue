@@ -90,6 +90,61 @@
         <div v-if="pvMsg" class="ok">{{ pvMsg }}</div>
       </section>
 
+      <!-- SMTP -->
+      <section v-if="tab === 'SMTP'">
+        <p class="hint">
+          Глобальный SMTP-сервер ACRM (control-plane). Используется для системных
+          email'ов: восстановление пароля, приглашения пользователей, нотификации
+          оператору. Пароль хранится зашифрованным (AES-256-GCM).
+        </p>
+        <form class="form-grid" @submit.prevent="saveSmtp">
+          <label>Host
+            <input v-model="smtp.host" placeholder="smtp.acrm.su" />
+          </label>
+          <label>Port
+            <input v-model.number="smtp.port" type="number" placeholder="587" />
+          </label>
+          <label>Username
+            <input v-model="smtp.username" placeholder="noreply@acrm.su" />
+          </label>
+          <label>Password
+            <input
+              v-model="smtpPassword"
+              type="password"
+              :placeholder="smtp.has_password ? 'не менять (оставить как есть)' : 'установить пароль'"
+              autocomplete="new-password"
+            />
+            <small v-if="smtp.has_password">Пароль уже сохранён. Пустое поле = не менять. Введите новый чтобы перезаписать.</small>
+          </label>
+          <label>From email
+            <input v-model="smtp.from_email" placeholder="noreply@acrm.su" />
+          </label>
+          <label>From name
+            <input v-model="smtp.from_name" placeholder="ACRM Платформа" />
+          </label>
+          <label class="checkbox">
+            <input v-model="smtp.use_tls" type="checkbox" />
+            TLS/STARTTLS (рекомендуется)
+          </label>
+          <div class="row">
+            <button type="submit">Сохранить</button>
+            <button type="button" @click="testSmtp" :disabled="!smtp.host || !smtp.from_email">Тест отправки</button>
+          </div>
+        </form>
+
+        <div v-if="smtpTestDialog" class="dialog">
+          <h4>Тест SMTP</h4>
+          <p>Введите email-получателя:</p>
+          <input v-model="smtpTestTo" type="email" placeholder="you@example.com" />
+          <div class="row">
+            <button @click="runSmtpTest" :disabled="!smtpTestTo">Отправить</button>
+            <button @click="smtpTestDialog = false">Отмена</button>
+          </div>
+        </div>
+
+        <div v-if="smtpMsg" :class="smtpMsgKind === 'ok' ? 'ok' : 'cp-err'">{{ smtpMsg }}</div>
+      </section>
+
       <div v-if="err" class="cp-err">{{ err }}</div>
     </main>
   </div>
@@ -101,7 +156,7 @@ import { useRouter } from "vue-router";
 import { op, operatorLogout, isOperatorAuthed } from "./operatorClient";
 
 const router = useRouter();
-const tabs = ["Пакеты", "Фичи", "Компании", "Provision"];
+const tabs = ["Пакеты", "Фичи", "Компании", "Provision", "SMTP"];
 const tab = ref("Пакеты");
 const me = ref<any>(null);
 const err = ref("");
@@ -180,6 +235,70 @@ const logout = async () => {
   router.push("/control-plane/login");
 };
 
+// === SMTP control-plane ===
+const smtp = ref<any>({
+  host: "", port: 587, username: "", use_tls: true,
+  from_email: "", from_name: "", has_password: false,
+});
+const smtpPassword = ref(""); // отдельно, чтобы пустая строка = не менять
+const smtpMsg = ref("");
+const smtpMsgKind = ref<"ok" | "err">("ok");
+const smtpTestDialog = ref(false);
+const smtpTestTo = ref("");
+
+async function loadSmtp() {
+  try {
+    const r = await op.get("/smtp");
+    smtp.value = r.data?.data || smtp.value;
+    smtpPassword.value = "";
+  } catch (e: any) {
+    smtpMsgKind.value = "err";
+    smtpMsg.value = e.response?.data?.error || "Ошибка загрузки SMTP";
+  }
+}
+
+async function saveSmtp() {
+  smtpMsg.value = "";
+  try {
+    const payload: any = {
+      host: smtp.value.host,
+      port: smtp.value.port,
+      username: smtp.value.username,
+      use_tls: smtp.value.use_tls,
+      from_email: smtp.value.from_email,
+      from_name: smtp.value.from_name,
+    };
+    // password: null/undefined = не менять; явный string = установить.
+    if (smtpPassword.value !== "") payload.password = smtpPassword.value;
+    const r = await op.put("/smtp", payload);
+    smtp.value = r.data?.data || smtp.value;
+    smtpPassword.value = "";
+    smtpMsgKind.value = "ok";
+    smtpMsg.value = "Сохранено";
+  } catch (e: any) {
+    smtpMsgKind.value = "err";
+    smtpMsg.value = e.response?.data?.error || "Ошибка сохранения";
+  }
+}
+
+function testSmtp() {
+  smtpTestTo.value = "";
+  smtpTestDialog.value = true;
+  smtpMsg.value = "";
+}
+
+async function runSmtpTest() {
+  try {
+    const r = await op.post("/smtp/test", { to: smtpTestTo.value });
+    smtpTestDialog.value = false;
+    smtpMsgKind.value = "ok";
+    smtpMsg.value = `Тест отправлен на ${r.data?.data?.sent_to}`;
+  } catch (e: any) {
+    smtpMsgKind.value = "err";
+    smtpMsg.value = e.response?.data?.error || "Ошибка теста SMTP";
+  }
+}
+
 onMounted(async () => {
   if (!isOperatorAuthed()) {
     router.replace("/control-plane/login");
@@ -192,6 +311,7 @@ onMounted(async () => {
     return;
   }
   loadAll();
+  loadSmtp();
 });
 </script>
 
@@ -218,4 +338,21 @@ button { padding: 8px 12px; border: 0; border-radius: 7px; background: #3b82f6; 
 .eff { margin-top: 6px; }
 .ok { color: #4ade80; margin-top: 12px; }
 .cp-err { color: #f87171; margin-top: 14px; }
+
+.hint { color: #9aa0ac; max-width: 720px; margin-bottom: 18px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; max-width: 720px; }
+.form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #9aa0ac; }
+.form-grid label input { background: #14171c; color: #e6e8ec; border: 1px solid #2a2e36; border-radius: 6px; padding: 8px 10px; font-size: 14px; }
+.form-grid label.checkbox { flex-direction: row; align-items: center; gap: 8px; color: #e6e8ec; }
+.form-grid label small { color: #6b727f; font-size: 11px; }
+.form-grid .row { grid-column: span 2; display: flex; gap: 10px; margin-top: 8px; }
+.form-grid .row button { background: #1f6feb; color: white; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+.form-grid .row button:hover { background: #2a7cf5; }
+.form-grid .row button:disabled { background: #444; cursor: not-allowed; }
+.dialog { margin-top: 20px; padding: 16px; background: #1a1d23; border: 1px solid #2a2e36; border-radius: 8px; max-width: 480px; }
+.dialog h4 { margin: 0 0 10px; color: #e6e8ec; }
+.dialog input { width: 100%; background: #14171c; color: #e6e8ec; border: 1px solid #2a2e36; border-radius: 6px; padding: 8px 10px; margin-bottom: 12px; }
+.dialog .row { display: flex; gap: 10px; }
+.dialog .row button { background: #1f6feb; color: white; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+.dialog .row button:last-child { background: #444; }
 </style>
