@@ -71,6 +71,15 @@
         <template #item.actions="{ item }">
           <div class="d-inline-flex align-center" style="white-space: nowrap; gap: 4px;">
             <v-btn
+              icon="mdi-history"
+              variant="text"
+              size="small"
+              density="comfortable"
+              :disabled="!canAdmin"
+              @click="openHistoryDialog(item)"
+              title="История событий"
+            />
+            <v-btn
               icon="mdi-pencil"
               variant="text"
               size="small"
@@ -152,6 +161,56 @@
           >
             Создать
           </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог истории событий -->
+    <v-dialog v-model="historyDialog.open" max-width="800">
+      <v-card>
+        <v-card-title>
+          История: {{ historyDialog.target?.username }}
+        </v-card-title>
+        <v-card-text class="pa-0" style="max-height: 60vh; overflow-y: auto;">
+          <div v-if="historyDialog.loading" class="text-center py-6">
+            <v-progress-circular indeterminate color="primary" />
+          </div>
+          <div v-else-if="historyDialog.entries.length === 0" class="text-center py-6 text-medium-emphasis">
+            История пуста
+          </div>
+          <v-timeline v-else density="compact" side="end" class="pa-4">
+            <v-timeline-item
+              v-for="e in historyDialog.entries"
+              :key="e.id"
+              :dot-color="eventColor(e.action)"
+              :icon="eventIcon(e.action)"
+              size="small"
+            >
+              <template #opposite>
+                <div class="text-caption">{{ formatDateFull(e.timestamp) }}</div>
+              </template>
+              <div>
+                <div class="font-weight-medium">{{ eventLabel(e.action) }}</div>
+                <div v-if="e.username" class="text-caption">
+                  Выполнил: <code>{{ e.username }}</code>
+                </div>
+                <div v-if="e.details?.email" class="text-caption">
+                  email: <code>{{ e.details.email }}</code>
+                </div>
+                <div v-if="e.details?.fields" class="text-caption">
+                  поля: <code>{{ Array.isArray(e.details.fields) ? e.details.fields.join(', ') : e.details.fields }}</code>
+                </div>
+                <div v-if="e.details?.error" class="text-caption text-error">
+                  Ошибка: {{ e.details.error }}
+                </div>
+                <div v-if="e.ip" class="text-caption text-medium-emphasis">IP: {{ e.ip }}</div>
+              </div>
+            </v-timeline-item>
+          </v-timeline>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="historyDialog.open = false">Закрыть</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -328,7 +387,7 @@ const headers = [
   { title: 'Роль', key: 'role', width: '120px' },
   { title: 'Активен', key: 'is_active', width: '100px', align: 'center' as const },
   { title: 'Создан', key: 'created_at', width: '160px' },
-  { title: '', key: 'actions', sortable: false, width: '180px', minWidth: '180px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
+  { title: '', key: 'actions', sortable: false, width: '220px', minWidth: '220px', align: 'end' as const, cellProps: { style: 'white-space:nowrap' } },
 ]
 
 const roleOptions = [
@@ -359,6 +418,24 @@ const resetDialog = ref<{
   submitting: boolean
 }>({
   open: false, target: null, newPassword: '', showPassword: false, submitting: false
+})
+
+// История событий
+interface AuditEntry {
+  id: number
+  timestamp: string
+  action: string
+  username?: string
+  ip?: string
+  details?: Record<string, any>
+}
+const historyDialog = ref<{
+  open: boolean,
+  target: LocalUser | null,
+  entries: AuditEntry[],
+  loading: boolean
+}>({
+  open: false, target: null, entries: [], loading: false
 })
 
 // Редактирование
@@ -486,6 +563,68 @@ const submitCreate = async () => {
     showError(err.response?.data?.error || 'Ошибка создания')
   } finally {
     createDialog.value.submitting = false
+  }
+}
+
+const formatDateFull = (iso?: string) => {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    })
+  } catch { return iso }
+}
+
+const eventLabel = (action: string): string => {
+  const map: Record<string, string> = {
+    'local_user.created': 'Создан',
+    'local_user.welcome_email_sent': '✉️ Welcome-email отправлен',
+    'local_user.welcome_email_failed': '⚠️ Welcome-email НЕ отправлен',
+    'local_user.password_changed': 'Сменил пароль сам',
+    'local_user.password_reset_by_admin': 'Пароль сброшен админом',
+    'local_user.reset_requested': '✉️ Forgot-password: ссылка отправлена',
+    'local_user.reset_email_failed': '⚠️ Forgot-password: email НЕ отправлен',
+    'local_user.reset_completed': 'Пароль сброшен по email-ссылке',
+    'local_user.updated': 'Обновлены данные',
+    'local_user.deleted': 'Удалён',
+  }
+  return map[action] || action
+}
+
+const eventIcon = (action: string): string => {
+  if (action.includes('email_sent') || action.includes('reset_requested')) return 'mdi-email-check'
+  if (action.includes('email_failed')) return 'mdi-email-alert'
+  if (action.includes('password_changed')) return 'mdi-key-change'
+  if (action.includes('password_reset')) return 'mdi-lock-reset'
+  if (action.includes('created')) return 'mdi-account-plus'
+  if (action.includes('deleted')) return 'mdi-account-remove'
+  if (action.includes('updated')) return 'mdi-account-edit'
+  return 'mdi-circle-small'
+}
+
+const eventColor = (action: string): string => {
+  if (action.includes('failed')) return 'error'
+  if (action.includes('deleted')) return 'error'
+  if (action.includes('email_sent') || action.includes('reset_requested')) return 'info'
+  if (action.includes('password')) return 'warning'
+  if (action.includes('created')) return 'success'
+  return 'primary'
+}
+
+const openHistoryDialog = async (target: LocalUser) => {
+  historyDialog.value = { open: true, target, entries: [], loading: true }
+  try {
+    const resp = await axios.get(
+      `${API_URL}/local/users/${target.id}/history`,
+      { headers: authHeader() }
+    )
+    historyDialog.value.entries = (resp.data?.data || []) as AuditEntry[]
+  } catch (err: any) {
+    showError(err.response?.data?.error || 'Ошибка загрузки истории')
+    historyDialog.value.entries = []
+  } finally {
+    historyDialog.value.loading = false
   }
 }
 
