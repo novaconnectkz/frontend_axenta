@@ -130,6 +130,31 @@ export const CONTRACT_TYPE_OPTIONS = [
   { value: CONTRACT_TYPES.PARTNER, title: CONTRACT_TYPE_LABELS[CONTRACT_TYPES.PARTNER] },
 ] as const;
 
+// GPS-системы (источник данных контракта/партнёра)
+export const CONTRACT_SOURCES = {
+  AXENTA: "axenta",
+  WIALON: "wialon",
+  SKIF: "skif",
+  GELIOS: "gelios",
+} as const;
+
+export type ContractSource =
+  (typeof CONTRACT_SOURCES)[keyof typeof CONTRACT_SOURCES];
+
+export const CONTRACT_SOURCE_LABELS: Record<ContractSource, string> = {
+  [CONTRACT_SOURCES.AXENTA]: "Axenta",
+  [CONTRACT_SOURCES.WIALON]: "Wialon",
+  [CONTRACT_SOURCES.SKIF]: "SKIF",
+  [CONTRACT_SOURCES.GELIOS]: "GELIOS",
+};
+
+export const CONTRACT_SOURCE_OPTIONS = [
+  { value: CONTRACT_SOURCES.AXENTA, title: CONTRACT_SOURCE_LABELS[CONTRACT_SOURCES.AXENTA] },
+  { value: CONTRACT_SOURCES.WIALON, title: CONTRACT_SOURCE_LABELS[CONTRACT_SOURCES.WIALON] },
+  { value: CONTRACT_SOURCES.SKIF, title: CONTRACT_SOURCE_LABELS[CONTRACT_SOURCES.SKIF] },
+  { value: CONTRACT_SOURCES.GELIOS, title: CONTRACT_SOURCE_LABELS[CONTRACT_SOURCES.GELIOS] },
+] as const;
+
 // Типы клиентов
 export const CLIENT_TYPES = {
   ORGANIZATION: "organization",
@@ -163,6 +188,7 @@ export interface ContractBase {
   description?: string;
   company_id: number;
   contract_type?: ContractType; // Тип договора: клиентский или партнерский
+  partner_source?: ContractSource; // GPS-система: axenta/wialon/skif/gelios
   partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера
   client_type?: ClientType; // Тип клиента
   client_name: string;
@@ -225,6 +251,7 @@ export interface ContractForm {
   title: string;
   description?: string;
   contract_type?: ContractType; // Тип договора: клиентский или партнерский
+  partner_source?: ContractSource; // GPS-система: axenta/wialon/skif/gelios
   partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера
   client_type?: ClientType; // Тип клиента: организация, ИП, физическое лицо
   client_name: string;
@@ -422,6 +449,7 @@ export interface ContractFilters {
   end_date_to?: string;
   is_active?: boolean;
   currency?: string;
+  partner_source?: ContractSource;
 }
 
 // Статистика договоров
