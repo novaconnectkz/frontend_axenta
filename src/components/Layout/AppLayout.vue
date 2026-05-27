@@ -326,7 +326,6 @@
 
             <v-list density="compact" class="pa-0">
               <v-list-item prepend-icon="mdi-account" title="Профиль" @click="goToProfile" class="profile-menu-item" />
-              <v-list-item prepend-icon="mdi-cog" title="Настройки" @click="goToSettings" class="profile-menu-item" />
               
               <!-- Условные пункты меню в зависимости от статуса пользователя -->
               <v-divider class="my-2" />
