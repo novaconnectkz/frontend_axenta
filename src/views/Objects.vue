@@ -414,6 +414,7 @@ const sourceOptions = [
   { title: 'Axenta', value: 'axenta' },
   { title: 'Wialon', value: 'wialon' },
   { title: 'GELIOS', value: 'gelios' },
+  { title: 'SKIF', value: 'skif' },
 ];
 
 const tableHeaders = computed(() => [

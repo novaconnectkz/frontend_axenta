@@ -62,14 +62,14 @@
             size="22"
             title="В корзине"
           />
-          <!-- GELIOS read-only: статус без toggle (клик бил бы Axenta-эндпоинт
+          <!-- GELIOS/SKIF read-only: статус без toggle (клик бил бы Axenta-эндпоинт
                по локальному id — Codex High) -->
           <v-icon
-            v-else-if="item.source === 'gelios'"
+            v-else-if="item.source === 'gelios' || item.source === 'skif'"
             :icon="item.is_active ? 'mdi-check-circle' : 'mdi-pause-circle'"
             :color="item.is_active ? 'success' : 'warning'"
             size="22"
-            :title="item.is_active ? 'Активный (GELIOS, read-only)' : 'Деактивирован (GELIOS, read-only)'"
+            :title="item.is_active ? `Активный (${item.source === 'skif' ? 'SKIF' : 'GELIOS'}, read-only)` : `Деактивирован (${item.source === 'skif' ? 'SKIF' : 'GELIOS'}, read-only)`"
           />
           <v-icon
             v-else-if="item.is_active"
@@ -153,6 +153,13 @@
             size="22"
             :title="item.sourceLabel || 'GELIOS'"
           />
+          <v-icon
+            v-else-if="item.source === 'skif'"
+            icon="mdi-radar"
+            color="deep-purple"
+            size="22"
+            :title="item.sourceLabel || 'SKIF'"
+          />
           <v-icon v-else icon="mdi-help-circle-outline" color="grey" size="22" :title="item.source || ''" />
         </template>
 
@@ -204,9 +211,9 @@
                 <v-list density="compact">
                   <v-list-item prepend-icon="mdi-card-account-details-outline" title="Свойства объекта"
                     @click="$emit('view', item)" />
-                  <!-- GELIOS read-only: write-действия бьют Axenta-эндпоинты по
+                  <!-- GELIOS/SKIF read-only: write-действия бьют Axenta-эндпоинты по
                        локальному id (404 / чужой объект) — скрываем (Codex High) -->
-                  <template v-if="item.source !== 'gelios'">
+                  <template v-if="item.source !== 'gelios' && item.source !== 'skif'">
                     <v-list-item prepend-icon="mdi-pencil" title="Редактировать" @click="$emit('edit', item)" />
                     <v-divider />
                     <v-list-item v-if="item.scheduled_delete_at" prepend-icon="mdi-restore" title="Отменить удаление"
@@ -364,10 +371,10 @@ function clearSelection() {
   selectAll.value = false;
 }
 
-// GELIOS read-only: запрещаем выбор строки → bulk-операции (toggleAll/
-// delete) не попадут в Axenta-эндпоинты по локальному gelios id (Codex High).
+// GELIOS/SKIF read-only: запрещаем выбор строки → bulk-операции (toggleAll/
+// delete) не попадут в Axenta-эндпоинты по локальному id (Codex High).
 function isRowSelectable(item: any): boolean {
-  return item?.source !== 'gelios';
+  return item?.source !== 'gelios' && item?.source !== 'skif';
 }
 </script>
 
