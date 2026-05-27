@@ -273,34 +273,6 @@
               </div>
             </div>
 
-            <!-- Дополнительная информация -->
-            <div v-if="auth.user.value" class="user-info-section mb-3">
-              <div class="text-caption text-medium-emphasis mb-2">Информация об аккаунте:</div>
-              <div class="user-info-grid">
-                <!-- Текущее время (для мобильных) -->
-                <div v-if="mobile" class="info-item">
-                  <v-icon icon="mdi-clock" size="14" class="me-1" />
-                  <span class="text-caption">{{ formatDateCompact(currentTime) }} {{ formatTime(currentTime) }}</span>
-                </div>
-                <div class="info-item">
-                  <v-icon icon="mdi-domain" size="14" class="me-1" />
-                  <span class="text-caption">{{ auth.user.value.accountName || 'Не указано' }}</span>
-                </div>
-                <div class="info-item" v-if="auth.user.value.accountId">
-                  <v-icon icon="mdi-identifier" size="14" class="me-1" />
-                  <span class="text-caption">ID: {{ auth.user.value.accountId }}</span>
-                </div>
-                <div class="info-item" v-if="auth.user.value.lastLogin">
-                  <v-icon icon="mdi-clock-outline" size="14" class="me-1" />
-                  <span class="text-caption">{{ formatLastLogin(auth.user.value.lastLogin) }}</span>
-                </div>
-                <div class="info-item text-error" v-if="auth.user.value.accountBlockingDatetime">
-                  <v-icon icon="mdi-alert" size="14" class="me-1" />
-                  <span class="text-caption">Блокировка: {{ formatBlockingDate(auth.user.value.accountBlockingDatetime) }}</span>
-                </div>
-              </div>
-            </div>
-
             <!-- Подключённые системы (Wialon / SKIF / GELIOS) -->
             <div v-if="wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
               <!-- Wialon -->
