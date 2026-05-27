@@ -3,6 +3,7 @@
     <div class="search-box" :class="{ focused: searchFocused || searchOpen }">
       <v-icon size="16" class="search-icon">mdi-magnify</v-icon>
       <input
+        ref="inputRef"
         v-model="searchQuery"
         type="text"
         placeholder="Поиск: объект, клиент, № контракта, № счёта..."
@@ -84,6 +85,7 @@ defineProps<{ mobile?: boolean }>();
 const router = useRouter();
 
 const wrapRef = ref<HTMLElement | null>(null);
+const inputRef = ref<HTMLInputElement | null>(null);
 const searchQuery = ref("");
 const searchFocused = ref(false);
 const searching = ref(false);
@@ -215,7 +217,20 @@ async function runSearch() {
   }
 }
 
-function onSearchBlur() {
+function onSearchBlur(event: FocusEvent) {
+  // Если blur пришёл от посторонних событий (clock-rerender / Vuetify mount),
+  // а query >= 2 — возвращаем focus. Реальные blur'ы (Esc, клик вне) идут через
+  // closeSearch/clearSearch и сюда не попадают.
+  const related = event.relatedTarget as HTMLElement | null;
+  if (
+    searchQuery.value.trim().length >= 2 &&
+    inputRef.value &&
+    // related=null = "пустой" blur (системный); если related — внутри dropdown — пусть продолжается клик
+    (related === null || !related.closest?.(".search-dropdown"))
+  ) {
+    requestAnimationFrame(() => inputRef.value?.focus());
+    return;
+  }
   setTimeout(() => { searchFocused.value = false; }, 200);
 }
 
