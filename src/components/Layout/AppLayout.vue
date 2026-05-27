@@ -276,10 +276,10 @@
             <!-- Подключённые системы (Axenta + Wialon / SKIF / GELIOS) -->
             <div v-if="auth.user.value?.accountName || wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
               <!-- Axenta (основная учётка) -->
-              <div v-if="auth.user.value?.accountName" class="text-caption text-medium-emphasis mb-1">
+              <div v-if="auth.user.value?.username" class="text-caption text-medium-emphasis mb-1">
                 <v-icon icon="mdi-domain" size="14" class="me-1" />
                 Axenta:
-                <strong class="text-success">{{ auth.user.value.accountName }}</strong>
+                <strong class="text-success">{{ auth.user.value.username }}</strong>
                 <span v-if="axentaUnitsCount > 0" class="text-medium-emphasis">
                   ({{ axentaUnitsCount }})
                 </span>
@@ -297,7 +297,7 @@
               <div v-for="conn in skifConnections" :key="`skif-${conn.id}`" class="text-caption text-medium-emphasis mb-1">
                 <v-icon icon="mdi-satellite-uplink" size="14" class="me-1" />
                 SKIF:
-                <strong class="text-success">{{ conn.name || 'Подключено' }}</strong>
+                <strong class="text-success">{{ conn.login || conn.name || 'Подключено' }}</strong>
                 <span v-if="conn.units_count > 0" class="text-medium-emphasis">
                   ({{ conn.units_count }})
                 </span>
