@@ -16,7 +16,7 @@
         <v-tooltip location="bottom" :disabled="revenueBreakdown.length === 0" open-delay="200">
           <template #activator="{ props: tipProps }">
             <div v-bind="tipProps" class="kpi" @click="$router.push('/billing')">
-              <div class="kpi-head">Выручка месяц <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
+              <div class="kpi-head">Начислено за месяц <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
               <div class="kpi-value">{{ monthlyRevenueText }}</div>
               <span class="kpi-delta" :class="revenueDirClass">{{ revenueDeltaText }}</span>
             </div>
