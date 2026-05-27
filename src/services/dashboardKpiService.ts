@@ -201,17 +201,18 @@ export const dashboardKpiService = {
     const params: Record<string, string | number> = { q: query, limit };
     if (scope && scope.length) params.scope = scope.join(",");
     const res = await apiClient.get(`/auth/search`, { params });
-    return (
-      res.data?.data || {
-        objects: [],
-        clients: [],
-        contracts: [],
-        invoices: [],
-        users: [],
-        installations: [],
-        query,
-      }
-    );
+    const data = res.data?.data ?? {};
+    // BE при scope-фильтре раньше возвращал null для не-выбранных групп — Vue падал
+    // на .length. Защищаемся merge'ом с пустыми массивами.
+    return {
+      objects: data.objects ?? [],
+      clients: data.clients ?? [],
+      contracts: data.contracts ?? [],
+      invoices: data.invoices ?? [],
+      users: data.users ?? [],
+      installations: data.installations ?? [],
+      query: data.query ?? query,
+    };
   },
 
   async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {
