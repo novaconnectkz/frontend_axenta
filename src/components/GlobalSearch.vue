@@ -193,7 +193,7 @@ async function runSearch() {
   searching.value = true;
   try {
     const scope = activeScope.size > 0 ? Array.from(activeScope) : undefined;
-    searchResults.value = await dashboardKpiService.search(q, 8, scope);
+    searchResults.value = await dashboardKpiService.search(q, 15, scope);
   } catch {
     searchResults.value = {
       objects: [],
