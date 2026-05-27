@@ -12,8 +12,8 @@
         @input="onSearchInput"
         @keydown.escape="closeSearch"
       />
-      <v-progress-circular v-if="searching" size="14" width="2" indeterminate color="primary" class="ml-2" />
-      <v-icon v-else-if="searchQuery" size="16" class="clear-icon" @mousedown.prevent="clearSearch">mdi-close-circle</v-icon>
+      <v-progress-circular v-show="searching" size="14" width="2" indeterminate color="primary" class="ml-2" />
+      <v-icon v-show="!searching && searchQuery" size="16" class="clear-icon" @mousedown.prevent="clearSearch">mdi-close-circle</v-icon>
     </div>
 
     <Teleport to="body">
@@ -151,7 +151,12 @@ function toggleScope(key: SearchScope) {
   if (searchQuery.value.trim().length >= 2) runSearch();
 }
 
-const searchOpen = computed(() => searchFocused.value && (searchQuery.value.length > 0 || searchTotal.value > 0));
+// Dropdown открыт пока в поле есть ≥2 символа ИЛИ есть результаты — focus не требуем,
+// чтобы posthook-blur от router/snackbar/setInterval не закрывал dropdown.
+// Закрытие — только через Esc (closeSearch) или крестик (clearSearch).
+const searchOpen = computed(
+  () => searchQuery.value.length >= 2 || (searchFocused.value && searchTotal.value > 0),
+);
 const searchTotal = computed(
   () =>
     searchResults.value.objects.length +
