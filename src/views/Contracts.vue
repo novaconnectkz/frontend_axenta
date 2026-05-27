@@ -91,6 +91,11 @@
             <v-select v-model="filters.tariff_plan_id" :items="tariffPlanOptions" label="Тарифный план" clearable
               variant="outlined" density="comfortable" :loading="loadingTariffPlans" />
           </v-col>
+
+          <v-col cols="12" md="2">
+            <v-select v-model="filters.partner_source" :items="CONTRACT_SOURCE_OPTIONS" label="GPS-система"
+              clearable variant="outlined" density="comfortable" />
+          </v-col>
         </v-row>
       </div>
     </AppleCard>
@@ -302,6 +307,7 @@ import type {
     ContractStats,
     ContractWithRelations,
 } from '@/types/contracts';
+import { CONTRACT_SOURCE_OPTIONS } from '@/types/contracts';
 import { debounce } from 'lodash-es';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -346,6 +352,7 @@ const filters = ref<ContractFilters>({
   is_active: undefined,
   expiring: false,
   tariff_plan_id: undefined,
+  partner_source: undefined,
   page: 1,
   limit: 20,
 });
@@ -393,6 +400,10 @@ const filteredContracts = computed(() => {
 
   if (filters.value.tariff_plan_id) {
     result = result.filter(contract => contract.tariff_plan_id === filters.value.tariff_plan_id);
+  }
+
+  if (filters.value.partner_source) {
+    result = result.filter(contract => contract.partner_source === filters.value.partner_source);
   }
 
   return result;
@@ -450,7 +461,8 @@ const hasActiveFilters = computed(() => {
     filters.value.status ||
     filters.value.is_active !== undefined ||
     filters.value.expiring ||
-    filters.value.tariff_plan_id
+    filters.value.tariff_plan_id ||
+    filters.value.partner_source
   );
 });
 
@@ -613,6 +625,7 @@ const clearFilters = () => {
     is_active: undefined,
     expiring: false,
     tariff_plan_id: undefined,
+    partner_source: undefined,
     page: 1,
     limit: 20,
   };
