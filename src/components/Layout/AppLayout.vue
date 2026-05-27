@@ -273,8 +273,17 @@
               </div>
             </div>
 
-            <!-- Подключённые системы (Wialon / SKIF / GELIOS) -->
-            <div v-if="wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
+            <!-- Подключённые системы (Axenta + Wialon / SKIF / GELIOS) -->
+            <div v-if="auth.user.value?.accountName || wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
+              <!-- Axenta (основная учётка) -->
+              <div v-if="auth.user.value?.accountName" class="text-caption text-medium-emphasis mb-1">
+                <v-icon icon="mdi-domain" size="14" class="me-1" />
+                Axenta:
+                <strong class="text-success">{{ auth.user.value.accountName }}</strong>
+                <span v-if="axentaUnitsCount > 0" class="text-medium-emphasis">
+                  ({{ axentaUnitsCount }})
+                </span>
+              </div>
               <!-- Wialon -->
               <div v-for="conn in wialonConnections" :key="`wialon-${conn.name}`" class="text-caption text-medium-emphasis mb-1">
                 <v-icon :icon="conn.type === 'hosting' ? 'mdi-cloud' : 'mdi-server'" size="14" class="me-1" />
@@ -390,6 +399,7 @@ import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegr
 import { accountsService } from '@/services/accountsService';
 import { skifService, type SkifConnection } from '@/services/skifService';
 import { geliosService, type GeliosConnection } from '@/services/geliosService';
+import { dashboardKpiService } from '@/services/dashboardKpiService';
 import { config } from '@/config/env';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
@@ -456,6 +466,7 @@ const wialonIntegration = ref({
 const wialonConnections = ref<WialonConnectionInfo[]>([]);
 const skifConnections = ref<SkifConnection[]>([]);
 const geliosConnections = ref<GeliosConnection[]>([]);
+const axentaUnitsCount = ref<number>(0);
 
 // Диалог справки
 const showHelpDialog = ref(false);
@@ -873,10 +884,23 @@ onMounted(() => {
   loadWialonIntegration();
   loadSkifConnections();
   loadGeliosConnections();
+  loadAxentaUnitsCount();
 
   // Отключаем автоматическое переключение системной темы
   // Теперь тема управляется только вручную через кнопку переключения
 });
+
+// Загрузка Axenta units count (для одной строки в user-dropdown)
+const loadAxentaUnitsCount = async () => {
+  try {
+    const res = await dashboardKpiService.getSourcesStats();
+    const axenta = (res.sources || []).find(s => s.key === 'axenta');
+    axentaUnitsCount.value = axenta?.objects?.total || 0;
+  } catch (e) {
+    console.warn('Axenta units count load failed (non-fatal):', e);
+    axentaUnitsCount.value = 0;
+  }
+};
 
 // Загрузка SKIF подключений для отображения в user-dropdown
 const loadSkifConnections = async () => {
