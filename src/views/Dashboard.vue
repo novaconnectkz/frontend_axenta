@@ -90,23 +90,6 @@
               </div>
             </div>
 
-            <!-- Revenue card (если есть оплаты) -->
-            <div v-if="chartHasRevenue" class="spark-card" style="--spark-color: #007aff">
-              <div class="spark-head">
-                <span class="spark-dot" style="background: #007aff" />
-                <span class="spark-label">Выручка</span>
-              </div>
-              <div class="spark-value-row">
-                <span class="spark-value spark-value-revenue">{{ revenueTotalText }}</span>
-              </div>
-              <svg :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`" :width="SPARK_W" :height="SPARK_H" class="spark-svg" preserveAspectRatio="none">
-                <path :d="revenueSparkArea" fill="#007aff" fill-opacity="0.12" />
-                <path :d="revenueSparkLine" stroke="#007aff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <div class="spark-foot">
-                <span v-for="cur in chartCurrencies" :key="cur">{{ cur }}</span>
-              </div>
-            </div>
           </div>
 
           <!-- Dot-индикаторы carousel'а (только если sparks > 3) -->
