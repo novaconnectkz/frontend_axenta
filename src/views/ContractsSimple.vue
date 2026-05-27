@@ -156,6 +156,17 @@
               density="comfortable"
             />
           </v-col>
+
+          <v-col cols="12" md="3">
+            <v-select
+              v-model="partnerSourceFilter"
+              :items="CONTRACT_SOURCE_OPTIONS"
+              label="GPS-система"
+              variant="outlined"
+              density="comfortable"
+              clearable
+            />
+          </v-col>
         </v-row>
       </v-card-text>
     </v-card>
@@ -280,6 +291,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { CONTRACT_SOURCE_OPTIONS, type ContractSource } from '@/types/contracts';
 
 // Простые типы для демо
 interface Contract {
@@ -294,6 +306,7 @@ interface Contract {
   status: string;
   is_active: boolean;
   notify_before: number;
+  partner_source?: ContractSource;
   tariff_plan?: {
     id: number;
     name: string;
@@ -310,6 +323,7 @@ const searchQuery = ref('');
 const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
 const expiringFilter = ref(false);
+const partnerSourceFilter = ref<ContractSource | null>(null);
 
 // Snackbar
 const showSnackbar = ref(false);
@@ -364,6 +378,10 @@ const filteredContracts = computed(() => {
 
   if (expiringFilter.value) {
     result = result.filter(contract => isExpiringSoon(contract));
+  }
+
+  if (partnerSourceFilter.value) {
+    result = result.filter(contract => contract.partner_source === partnerSourceFilter.value);
   }
 
   return result;
