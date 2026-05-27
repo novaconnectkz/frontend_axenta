@@ -340,25 +340,17 @@
               
               <!-- Условные пункты меню в зависимости от статуса пользователя -->
               <v-divider class="my-2" />
-              
-              <!-- Пункт "Войти в мониторинг" - отображается для всех пользователей -->
-              <v-list-item 
-                prepend-icon="mdi-monitor" 
-                title="Войти в мониторинг" 
-                @click="goToMonitoring" 
-                class="profile-menu-item" 
-              />
-              
+
               <!-- Пункт "Войти в CMS" - отображается только для партнеров -->
-              <v-list-item 
+              <v-list-item
                 v-if="isPartner"
-                prepend-icon="mdi-cog-outline" 
-                title="Войти в CMS" 
-                @click="goToCMS" 
-                class="profile-menu-item" 
+                prepend-icon="mdi-cog-outline"
+                title="Войти в CMS"
+                @click="goToCMS"
+                class="profile-menu-item"
               />
-              
-              
+
+
               <v-divider class="my-2" />
               <v-list-item prepend-icon="mdi-logout" title="Выйти" @click="handleLogout"
                 class="profile-menu-item logout-item" />
