@@ -71,7 +71,7 @@ export function useObjectsList(ctx: UseObjectsListContext) {
         if (st) {
           stats.value[0].value = st.axenta_total + st.wialon_total + (st.gelios_total ?? 0) + (st.skif_total ?? 0);
           stats.value[1].value = st.axenta_active + st.wialon_active + (st.gelios_active ?? 0) + (st.skif_active ?? 0);
-          stats.value[2].value = st.axenta_inactive + (st.gelios_inactive ?? 0) + (st.skif_inactive ?? 0);
+          stats.value[2].value = st.axenta_inactive + (st.wialon_inactive ?? 0) + (st.gelios_inactive ?? 0) + (st.skif_inactive ?? 0);
           stats.value[4].value = st.axenta_scheduled_delete;
         }
 
