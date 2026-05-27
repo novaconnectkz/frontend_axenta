@@ -291,6 +291,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { CONTRACT_SOURCE_OPTIONS, type ContractSource } from '@/types/contracts';
 
 // Простые типы для демо
@@ -753,8 +754,14 @@ const getPeriodText = (contract: Contract): string => {
 };
 
 // Lifecycle
+const route = useRoute();
+
 onMounted(async () => {
   console.log('🚀 Contracts page mounted');
+  // Глобальный поиск шлёт ?search=<term>: применяем как фильтр.
+  if (typeof route.query.search === 'string' && route.query.search) {
+    searchQuery.value = route.query.search;
+  }
   // Автоматически загружаем демо данные при загрузке страницы
   if (demoMode.value) {
     await loadDemoContracts();

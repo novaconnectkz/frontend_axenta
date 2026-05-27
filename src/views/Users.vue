@@ -109,6 +109,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { debounce } from 'lodash-es';
 import AppleFAB from '@/components/Apple/AppleFAB.vue';
 import SuccessNotification from '@/components/Common/SuccessNotification.vue';
@@ -523,6 +524,8 @@ const onInactiveUsersSuccess = async (message: string) => {
   await Promise.all([loadUsers(), loadStats(), loadGlobalStats()]);
 };
 
+const route = useRoute();
+
 onMounted(async () => {
   const token = localStorage.getItem('axenta_token');
   if (!token) {
@@ -531,6 +534,11 @@ onMounted(async () => {
   }
 
   loadFiltersFromStorage();
+
+  // Глобальный поиск (GlobalSearch.vue) шлёт ?search=<term>: применяем как фильтр.
+  if (typeof route.query.search === 'string' && route.query.search) {
+    filters.value.search = route.query.search;
+  }
 
   try {
     await Promise.all([loadUsers(), loadStats(), loadGlobalStats(), loadRoles()]);
