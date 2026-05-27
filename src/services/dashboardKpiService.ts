@@ -16,6 +16,13 @@ export interface DashboardAlert {
   created_at: string;
 }
 
+export interface SourceBreakdown {
+  source: "axenta" | "skif" | "wialon" | "gelios" | string;
+  label: string;
+  amount: string;
+  raw_value: number;
+}
+
 export interface KPIMetric {
   id: "active_objects" | "monthly_revenue" | "today_installations" | "alert" | string;
   title: string;
@@ -26,6 +33,7 @@ export interface KPIMetric {
   delta_value: number;
   delta_percentage: number;
   action_url: string;
+  breakdown?: SourceBreakdown[];
 }
 
 export interface KPIResponse {

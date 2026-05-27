@@ -13,11 +13,23 @@
           <div class="kpi-value">{{ formatNum(combinedAccountsTotal) }}</div>
           <span class="kpi-delta">{{ formatNum(combinedAccountsClients) }} клиентов</span>
         </div>
-        <div class="kpi" @click="$router.push('/billing')">
-          <div class="kpi-head">Выручка месяц <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
-          <div class="kpi-value">{{ monthlyRevenueText }}</div>
-          <span class="kpi-delta" :class="revenueDirClass">{{ revenueDeltaText }}</span>
-        </div>
+        <v-tooltip location="bottom" :disabled="revenueBreakdown.length === 0" open-delay="200">
+          <template #activator="{ props: tipProps }">
+            <div v-bind="tipProps" class="kpi" @click="$router.push('/billing')">
+              <div class="kpi-head">Выручка месяц <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
+              <div class="kpi-value">{{ monthlyRevenueText }}</div>
+              <span class="kpi-delta" :class="revenueDirClass">{{ revenueDeltaText }}</span>
+            </div>
+          </template>
+          <div class="revenue-breakdown">
+            <div class="revenue-breakdown-title">По источникам:</div>
+            <div v-for="b in revenueBreakdown" :key="b.source" class="revenue-breakdown-row">
+              <span class="revenue-breakdown-label">{{ b.label }}</span>
+              <span class="revenue-breakdown-amount">{{ b.amount }}</span>
+              <span class="revenue-breakdown-pct">{{ revenuePctOf(b.raw_value) }}</span>
+            </div>
+          </div>
+        </v-tooltip>
         <div class="kpi" :class="{warn: overdueCount > 0}" @click="$router.push('/billing/overdue')">
           <div class="kpi-head">Дебиторка <v-icon size="14" class="dots">mdi-dots-vertical</v-icon></div>
           <div class="kpi-value">{{ overdueText }}</div>
@@ -696,6 +708,21 @@ const revenueDirClass = computed(() => {
   return m.delta_direction === "down" ? "down" : (m.delta_direction === "up" ? "" : "flat");
 });
 
+const revenueBreakdown = computed(() => {
+  const m = kpiMetrics.value.find(m => m.id === "monthly_revenue");
+  return m?.breakdown || [];
+});
+const revenueRawTotal = computed(() => {
+  const m = kpiMetrics.value.find(m => m.id === "monthly_revenue");
+  return m?.raw_value || 0;
+});
+function revenuePctOf(amount: number): string {
+  const total = revenueRawTotal.value;
+  if (!total) return "";
+  const pct = (amount / total) * 100;
+  return pct >= 0.1 ? `${pct.toFixed(1)}%` : `<0.1%`;
+}
+
 const overdueCount = computed(() => {
   const a = alerts.value.find(a => a.id === "billing.overdue");
   return a?.count || 0;
@@ -910,6 +937,13 @@ onUnmounted(() => {
 .kpi.warn .kpi-delta { background: rgba(255,149,0,0.18); color: #8a4500; }
 .kpi-delta.down { background: rgba(255,59,48,0.15); color: #c0231d; }
 .kpi-delta.flat { background: #f2f2f7; color: #6e6e73; }
+
+.revenue-breakdown { font-size: 12px; min-width: 220px; }
+.revenue-breakdown-title { font-size: 11px; opacity: 0.7; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.revenue-breakdown-row { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; padding: 2px 0; align-items: baseline; }
+.revenue-breakdown-label { font-weight: 600; }
+.revenue-breakdown-amount { font-variant-numeric: tabular-nums; }
+.revenue-breakdown-pct { font-size: 10px; opacity: 0.6; min-width: 36px; text-align: right; }
 
 .chart-card {
   background: white;
