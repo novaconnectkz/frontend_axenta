@@ -535,9 +535,12 @@ onMounted(async () => {
 
   loadFiltersFromStorage();
 
-  // Глобальный поиск (GlobalSearch.vue) шлёт ?search=<term>: применяем как фильтр.
+  // Глобальный поиск (GlobalSearch.vue) шлёт ?search=<term>&source=<src>: применяем как фильтры.
   if (typeof route.query.search === 'string' && route.query.search) {
     filters.value.search = route.query.search;
+  }
+  if (typeof route.query.source === 'string' && route.query.source) {
+    filters.value.source = route.query.source as UsersListFilters['source'];
   }
 
   try {
