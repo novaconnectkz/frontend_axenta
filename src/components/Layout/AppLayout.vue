@@ -301,15 +301,33 @@
               </div>
             </div>
 
-            <!-- Wialon интеграция (если подключена) -->
-            <div v-if="wialonConnections.length > 0" class="wialon-info-section mb-3">
-            <!-- Каждое подключение отдельно -->
-              <div v-for="conn in wialonConnections" :key="conn.name" class="text-caption text-medium-emphasis mb-1">
+            <!-- Подключённые системы (Wialon / SKIF / GELIOS) -->
+            <div v-if="wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
+              <!-- Wialon -->
+              <div v-for="conn in wialonConnections" :key="`wialon-${conn.name}`" class="text-caption text-medium-emphasis mb-1">
                 <v-icon :icon="conn.type === 'hosting' ? 'mdi-cloud' : 'mdi-server'" size="14" class="me-1" />
-                {{ conn.type === 'hosting' ? 'WH' : 'WL' }}: 
+                {{ conn.type === 'hosting' ? 'WH' : 'WL' }}:
                 <strong class="text-success">{{ conn.userName || 'Подключено' }}</strong>
                 <span v-if="conn.vehiclesCount > 0" class="text-medium-emphasis">
                   ({{ conn.vehiclesCount }})
+                </span>
+              </div>
+              <!-- SKIF -->
+              <div v-for="conn in skifConnections" :key="`skif-${conn.id}`" class="text-caption text-medium-emphasis mb-1">
+                <v-icon icon="mdi-satellite-uplink" size="14" class="me-1" />
+                SKIF:
+                <strong class="text-success">{{ conn.name || 'Подключено' }}</strong>
+                <span v-if="conn.units_count > 0" class="text-medium-emphasis">
+                  ({{ conn.units_count }})
+                </span>
+              </div>
+              <!-- GELIOS -->
+              <div v-for="conn in geliosConnections" :key="`gelios-${conn.id}`" class="text-caption text-medium-emphasis mb-1">
+                <v-icon icon="mdi-radar" size="14" class="me-1" />
+                GELIOS:
+                <strong class="text-success">{{ conn.name || 'Подключено' }}</strong>
+                <span v-if="conn.units_count > 0" class="text-medium-emphasis">
+                  ({{ conn.units_count }})
                 </span>
               </div>
             </div>
@@ -399,6 +417,8 @@ import HelpDialog from '@/components/Common/HelpDialog.vue';
 import GlobalSearch from '@/components/GlobalSearch.vue';
 import { useAxentaIntegrationNotifications } from '@/composables/useAxentaIntegrationNotifications';
 import { accountsService } from '@/services/accountsService';
+import { skifService, type SkifConnection } from '@/services/skifService';
+import { geliosService, type GeliosConnection } from '@/services/geliosService';
 import { config } from '@/config/env';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
@@ -463,6 +483,8 @@ const wialonIntegration = ref({
 });
 
 const wialonConnections = ref<WialonConnectionInfo[]>([]);
+const skifConnections = ref<SkifConnection[]>([]);
+const geliosConnections = ref<GeliosConnection[]>([]);
 
 // Диалог справки
 const showHelpDialog = ref(false);
@@ -878,10 +900,34 @@ onMounted(() => {
 
   // Загружаем статус Wialon интеграции
   loadWialonIntegration();
+  loadSkifConnections();
+  loadGeliosConnections();
 
   // Отключаем автоматическое переключение системной темы
   // Теперь тема управляется только вручную через кнопку переключения
 });
+
+// Загрузка SKIF подключений для отображения в user-dropdown
+const loadSkifConnections = async () => {
+  try {
+    const conns = await skifService.list();
+    skifConnections.value = (conns || []).filter(c => c.is_active);
+  } catch (e) {
+    console.warn('SKIF connections load failed (non-fatal):', e);
+    skifConnections.value = [];
+  }
+};
+
+// Загрузка GELIOS подключений для отображения в user-dropdown
+const loadGeliosConnections = async () => {
+  try {
+    const conns = await geliosService.list();
+    geliosConnections.value = (conns || []).filter(c => c.is_active);
+  } catch (e) {
+    console.warn('GELIOS connections load failed (non-fatal):', e);
+    geliosConnections.value = [];
+  }
+};
 
 // Функция загрузки Wialon интеграции
 const loadWialonIntegration = async () => {
