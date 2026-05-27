@@ -337,7 +337,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
-import axios from 'axios'
+import auditService from '@/services/audit'
 import { useNotifications } from '@/composables/useNotifications'
 
 const { showSuccess, showError } = useNotifications()
@@ -394,21 +394,10 @@ const successOptions = [
   { text: 'Ошибка', value: false }
 ]
 
-// API URL
-import { config } from '@/config/env'
-
-const API_URL = config.backendUrl
-
 // Загрузка логов
 const loadLogs = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('axenta_token')
-    if (!token) {
-      showError('Необходима авторизация')
-      return
-    }
-
     const params: any = {
       page: options.value.page,
       per_page: options.value.itemsPerPage,
@@ -422,16 +411,11 @@ const loadLogs = async () => {
     if (filters.startDate) params.start_date = new Date(filters.startDate).toISOString()
     if (filters.endDate) params.end_date = new Date(filters.endDate).toISOString()
 
-    const response = await axios.get(`${API_URL}/api/auth/audit/logs`, {
-      headers: {
-        Authorization: `Token ${token}`
-      },
-      params
-    })
+    const response: any = await auditService.getLogs(params)
 
-    if (response.data.status === 'success') {
-      logs.value = response.data.data.items || []
-      totalLogs.value = response.data.data.total || 0
+    if (response.status === 'success') {
+      logs.value = response.data.items || []
+      totalLogs.value = response.data.total || 0
     }
   } catch (error: any) {
     console.error('Ошибка загрузки логов:', error)
@@ -444,20 +428,10 @@ const loadLogs = async () => {
 // Загрузка статистики
 const loadStats = async () => {
   try {
-    const token = localStorage.getItem('axenta_token')
-    if (!token) return
+    const response: any = await auditService.getStats(statsDays.value)
 
-    const response = await axios.get(`${API_URL}/api/auth/audit/stats`, {
-      headers: {
-        Authorization: `Token ${token}`
-      },
-      params: {
-        days: statsDays.value
-      }
-    })
-
-    if (response.data.status === 'success') {
-      stats.value = response.data.data
+    if (response.status === 'success') {
+      stats.value = response.data
     }
   } catch (error) {
     console.error('Ошибка загрузки статистики:', error)
@@ -468,12 +442,6 @@ const loadStats = async () => {
 const exportLogs = async () => {
   exporting.value = true
   try {
-    const token = localStorage.getItem('axenta_token')
-    if (!token) {
-      showError('Необходима авторизация')
-      return
-    }
-
     const params: any = {}
     if (filters.search) params.search = filters.search
     if (filters.level) params.level = filters.level
@@ -481,15 +449,10 @@ const exportLogs = async () => {
     if (filters.startDate) params.start_date = new Date(filters.startDate).toISOString()
     if (filters.endDate) params.end_date = new Date(filters.endDate).toISOString()
 
-    const response = await axios.get(`${API_URL}/api/auth/audit/export`, {
-      headers: {
-        Authorization: `Token ${token}`
-      },
-      params
-    })
+    const response: any = await auditService.exportLogs(params)
 
     // Создаем и скачиваем файл
-    const dataStr = JSON.stringify(response.data, null, 2)
+    const dataStr = JSON.stringify(response, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement('a')
