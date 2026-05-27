@@ -276,10 +276,10 @@
             <!-- Подключённые системы (Axenta + Wialon / SKIF / GELIOS) -->
             <div v-if="auth.user.value?.accountName || wialonConnections.length > 0 || skifConnections.length > 0 || geliosConnections.length > 0" class="wialon-info-section mb-3">
               <!-- Axenta (основная учётка) -->
-              <div v-if="auth.user.value?.username" class="text-caption text-medium-emphasis mb-1">
+              <div v-if="axentaLogin" class="text-caption text-medium-emphasis mb-1">
                 <v-icon icon="mdi-domain" size="14" class="me-1" />
                 Axenta:
-                <strong class="text-success">{{ auth.user.value.username }}</strong>
+                <strong class="text-success">{{ axentaLogin }}</strong>
                 <span v-if="axentaUnitsCount > 0" class="text-medium-emphasis">
                   ({{ axentaUnitsCount }})
                 </span>
@@ -400,6 +400,7 @@ import { accountsService } from '@/services/accountsService';
 import { skifService, type SkifConnection } from '@/services/skifService';
 import { geliosService, type GeliosConnection } from '@/services/geliosService';
 import { dashboardKpiService } from '@/services/dashboardKpiService';
+import apiClient from '@/services/api';
 import { config } from '@/config/env';
 // import { useWebSocket } from '@/services/websocketService'; // Отключаем до исправления auth context
 
@@ -467,6 +468,7 @@ const wialonConnections = ref<WialonConnectionInfo[]>([]);
 const skifConnections = ref<SkifConnection[]>([]);
 const geliosConnections = ref<GeliosConnection[]>([]);
 const axentaUnitsCount = ref<number>(0);
+const axentaLogin = ref<string>('');
 
 // Диалог справки
 const showHelpDialog = ref(false);
@@ -890,8 +892,19 @@ onMounted(() => {
   // Теперь тема управляется только вручную через кнопку переключения
 });
 
-// Загрузка Axenta units count (для одной строки в user-dropdown)
+// Загрузка Axenta login + units count (для одной строки в user-dropdown).
+// Login берётся из /auth/axenta-credentials (тот же источник что Settings →
+// «Источники GPS» → строка Axenta), НЕ из auth.user.username (это локальный
+// CRM-логин после AUTH_MODE=local cutover, может отличаться от Axenta-login).
 const loadAxentaUnitsCount = async () => {
+  try {
+    const credRes = await apiClient.get('/auth/axenta-credentials');
+    if (credRes.data?.status === 'success' && credRes.data?.data?.configured) {
+      axentaLogin.value = credRes.data.data.login || '';
+    }
+  } catch (e) {
+    console.warn('Axenta credentials load failed (non-fatal):', e);
+  }
   try {
     const res = await dashboardKpiService.getSourcesStats();
     const axenta = (res.sources || []).find(s => s.key === 'axenta');
