@@ -54,8 +54,20 @@ export interface SearchResultItem {
 export interface SearchResponse {
   objects: SearchResultItem[];
   clients: SearchResultItem[];
+  contracts: SearchResultItem[];
+  invoices: SearchResultItem[];
+  users: SearchResultItem[];
+  installations: SearchResultItem[];
   query: string;
 }
+
+export type SearchScope =
+  | "objects"
+  | "clients"
+  | "contracts"
+  | "invoices"
+  | "users"
+  | "installations";
 
 export interface SourceObjectStats {
   total: number;
@@ -185,9 +197,21 @@ export const dashboardKpiService = {
     return res.data?.data || { metrics: [], generated_at: new Date().toISOString() };
   },
 
-  async search(query: string, limit = 10): Promise<SearchResponse> {
-    const res = await apiClient.get(`/auth/search`, { params: { q: query, limit } });
-    return res.data?.data || { objects: [], clients: [], query };
+  async search(query: string, limit = 10, scope?: SearchScope[]): Promise<SearchResponse> {
+    const params: Record<string, string | number> = { q: query, limit };
+    if (scope && scope.length) params.scope = scope.join(",");
+    const res = await apiClient.get(`/auth/search`, { params });
+    return (
+      res.data?.data || {
+        objects: [],
+        clients: [],
+        contracts: [],
+        invoices: [],
+        users: [],
+        installations: [],
+        query,
+      }
+    );
   },
 
   async getChart(period: "7d" | "1m" | "3m" | "6m" | "1y" = "7d"): Promise<ChartResponse> {

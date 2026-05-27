@@ -21,6 +21,7 @@
         v-if="searchOpen"
         class="search-dropdown"
         :style="dropdownStyle"
+        @mousedown.prevent
       >
         <div v-if="!searchTotal && !searching && searchQuery.length >= 2" class="search-empty">
           Ничего не найдено
@@ -47,15 +48,36 @@
         <div v-if="searchQuery.length < 2 && !searching" class="search-hint">
           Введите минимум 2 символа
         </div>
+
+        <div v-if="searchQuery.length >= 2" class="search-scope">
+          <div class="search-scope-title">Искать в</div>
+          <div class="search-scope-chips">
+            <button
+              v-for="opt in scopeOptions"
+              :key="opt.key"
+              type="button"
+              class="search-chip"
+              :class="{ active: activeScope.has(opt.key) }"
+              @mousedown.prevent="toggleScope(opt.key)"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+        </div>
       </div>
     </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
-import { dashboardKpiService, type SearchResponse, type SearchResultItem } from "@/services/dashboardKpiService";
+import {
+  dashboardKpiService,
+  type SearchResponse,
+  type SearchResultItem,
+  type SearchScope,
+} from "@/services/dashboardKpiService";
 
 defineProps<{ mobile?: boolean }>();
 
@@ -65,7 +87,15 @@ const wrapRef = ref<HTMLElement | null>(null);
 const searchQuery = ref("");
 const searchFocused = ref(false);
 const searching = ref(false);
-const searchResults = ref<SearchResponse>({ objects: [], clients: [], query: "" });
+const searchResults = ref<SearchResponse>({
+  objects: [],
+  clients: [],
+  contracts: [],
+  invoices: [],
+  users: [],
+  installations: [],
+  query: "",
+});
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 const dropdownPos = ref({ top: 0, right: 0, width: 480 });
@@ -102,17 +132,56 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", updateDropdownPos);
 });
 
+const scopeOptions: { key: SearchScope; label: string }[] = [
+  { key: "objects", label: "Объекты" },
+  { key: "clients", label: "Учётные записи" },
+  { key: "contracts", label: "Контракты" },
+  { key: "invoices", label: "Счета" },
+  { key: "users", label: "Пользователи" },
+  { key: "installations", label: "Монтажи" },
+];
+
+// activeScope — set scope-чипсов. Пустой = искать везде.
+const activeScope = reactive(new Set<SearchScope>());
+
+function toggleScope(key: SearchScope) {
+  if (activeScope.has(key)) activeScope.delete(key);
+  else activeScope.add(key);
+  // Перезапустить поиск с новым scope при изменении
+  if (searchQuery.value.trim().length >= 2) runSearch();
+}
+
 const searchOpen = computed(() => searchFocused.value && (searchQuery.value.length > 0 || searchTotal.value > 0));
-const searchTotal = computed(() => searchResults.value.objects.length + searchResults.value.clients.length);
+const searchTotal = computed(
+  () =>
+    searchResults.value.objects.length +
+    searchResults.value.clients.length +
+    searchResults.value.contracts.length +
+    searchResults.value.invoices.length +
+    searchResults.value.users.length +
+    searchResults.value.installations.length,
+);
 const searchGroups = computed(() => [
   { key: "objects", label: "Объекты", icon: "mdi-radar", items: searchResults.value.objects },
   { key: "clients", label: "Учётные записи", icon: "mdi-domain", items: searchResults.value.clients },
+  { key: "contracts", label: "Контракты", icon: "mdi-file-document-outline", items: searchResults.value.contracts },
+  { key: "invoices", label: "Счета", icon: "mdi-receipt-text-outline", items: searchResults.value.invoices },
+  { key: "users", label: "Пользователи", icon: "mdi-account-circle-outline", items: searchResults.value.users },
+  { key: "installations", label: "Монтажи", icon: "mdi-wrench-outline", items: searchResults.value.installations },
 ]);
 
 function onSearchInput() {
   if (searchTimer) clearTimeout(searchTimer);
   if (searchQuery.value.trim().length < 2) {
-    searchResults.value = { objects: [], clients: [], query: "" };
+    searchResults.value = {
+      objects: [],
+      clients: [],
+      contracts: [],
+      invoices: [],
+      users: [],
+      installations: [],
+      query: "",
+    };
     return;
   }
   searchTimer = setTimeout(runSearch, 300);
@@ -123,9 +192,18 @@ async function runSearch() {
   if (q.length < 2) return;
   searching.value = true;
   try {
-    searchResults.value = await dashboardKpiService.search(q, 8);
+    const scope = activeScope.size > 0 ? Array.from(activeScope) : undefined;
+    searchResults.value = await dashboardKpiService.search(q, 8, scope);
   } catch {
-    searchResults.value = { objects: [], clients: [], query: q };
+    searchResults.value = {
+      objects: [],
+      clients: [],
+      contracts: [],
+      invoices: [],
+      users: [],
+      installations: [],
+      query: q,
+    };
   } finally {
     searching.value = false;
     updateDropdownPos();
@@ -138,7 +216,15 @@ function onSearchBlur() {
 
 function clearSearch() {
   searchQuery.value = "";
-  searchResults.value = { objects: [], clients: [], query: "" };
+  searchResults.value = {
+    objects: [],
+    clients: [],
+    contracts: [],
+    invoices: [],
+    users: [],
+    installations: [],
+    query: "",
+  };
 }
 
 function closeSearch() {
@@ -209,7 +295,7 @@ function goToResult(item: SearchResultItem) {
 <style>
 .search-dropdown {
   position: fixed;
-  max-height: 480px;
+  max-height: 560px;
   overflow-y: auto;
   background: white;
   border: 1px solid #e5e5ea;
@@ -255,6 +341,43 @@ function goToResult(item: SearchResultItem) {
 .search-dropdown .search-item-title { font-size: 13px; font-weight: 500; color: #1d1d1f; }
 .search-dropdown .search-item-subtitle { font-size: 11px; color: #8e8e93; margin-top: 1px; }
 
+.search-dropdown .search-scope {
+  border-top: 1px solid #f5f5f7;
+  padding: 10px 14px 12px;
+  background: #fafafc;
+  border-radius: 0 0 14px 14px;
+}
+.search-dropdown .search-scope-title {
+  color: #8e8e93;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.search-dropdown .search-scope-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.search-dropdown .search-chip {
+  background: white;
+  border: 1px solid #e5e5ea;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #1d1d1f;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  font-family: inherit;
+}
+.search-dropdown .search-chip:hover { background: #f5f5f7; }
+.search-dropdown .search-chip.active {
+  background: #007aff;
+  border-color: #007aff;
+  color: white;
+}
+
 [data-theme="dark"] .search-dropdown {
   background: #1c1c1e;
   border-color: #38383a;
@@ -268,4 +391,20 @@ function goToResult(item: SearchResultItem) {
 [data-theme="dark"] .search-dropdown .search-item:hover { background: #2c2c2e; }
 [data-theme="dark"] .search-dropdown .search-item-title { color: #f5f5f7; }
 [data-theme="dark"] .search-dropdown .search-item-subtitle { color: #98989d; }
+[data-theme="dark"] .search-dropdown .search-scope {
+  background: #2c2c2e;
+  border-top-color: #38383a;
+}
+[data-theme="dark"] .search-dropdown .search-scope-title { color: #636366; }
+[data-theme="dark"] .search-dropdown .search-chip {
+  background: #1c1c1e;
+  border-color: #38383a;
+  color: #f5f5f7;
+}
+[data-theme="dark"] .search-dropdown .search-chip:hover { background: #2c2c2e; }
+[data-theme="dark"] .search-dropdown .search-chip.active {
+  background: #0a84ff;
+  border-color: #0a84ff;
+  color: white;
+}
 </style>
