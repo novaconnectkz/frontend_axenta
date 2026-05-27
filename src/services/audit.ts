@@ -1,8 +1,4 @@
-import axios from 'axios'
-
-import { config } from '@/config/env'
-
-const API_URL = config.backendUrl
+import { apiClient } from '@/services/api'
 
 export interface AuditLog {
   id: number
@@ -70,13 +66,7 @@ class AuditService {
    * Получить список аудит-логов с фильтрацией
    */
   async getLogs(filters: AuditLogFilters = {}) {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_URL}/api/auth/audit/logs`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      params: filters
-    })
+    const response = await apiClient.get(`/api/auth/audit/logs`, { params: filters })
     return response.data
   }
 
@@ -84,12 +74,7 @@ class AuditService {
    * Получить детали конкретного аудит-лога
    */
   async getLog(id: number) {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_URL}/api/auth/audit/logs/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    })
+    const response = await apiClient.get(`/api/auth/audit/logs/${id}`)
     return response.data
   }
 
@@ -97,13 +82,7 @@ class AuditService {
    * Получить статистику по аудит-логам
    */
   async getStats(days: number = 7): Promise<{ data: AuditLogStats }> {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_URL}/api/auth/audit/stats`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      params: { days }
-    })
+    const response = await apiClient.get(`/api/auth/audit/stats`, { params: { days } })
     return response.data
   }
 
@@ -111,13 +90,7 @@ class AuditService {
    * Экспортировать аудит-логи в JSON
    */
   async exportLogs(filters: AuditLogFilters = {}) {
-    const token = localStorage.getItem('token')
-    const response = await axios.get(`${API_URL}/api/auth/audit/export`, {
-      headers: {
-        Authorization: `Bearer ${token}`
-      },
-      params: filters
-    })
+    const response = await apiClient.get(`/api/auth/audit/export`, { params: filters })
     return response.data
   }
 }
