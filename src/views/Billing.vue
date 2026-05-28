@@ -2387,7 +2387,11 @@ const navigateToSubscription = (invoice: Invoice) => {
 
 const openSubscriptionDialog = (subscription?: Subscription) => {
   if (subscription) {
-    editingSubscription.value = { ...subscription }
+    // type="date" ждёт YYYY-MM-DD — обрезаем ISO-дату с временем ("2026-02-01 00:00:00+00").
+    editingSubscription.value = {
+      ...subscription,
+      start_date: subscription.start_date ? String(subscription.start_date).slice(0, 10) : '',
+    }
     subscriptionDialog.value = true
   } else {
     // Для создания используем мастер
