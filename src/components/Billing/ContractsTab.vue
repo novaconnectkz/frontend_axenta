@@ -1076,13 +1076,13 @@
     </v-dialog>
 
     <!-- Диалог: лицевой счёт (история проводок) -->
-    <v-dialog v-model="ledgerHistoryDialog" max-width="900">
+    <v-dialog v-model="ledgerHistoryDialog" max-width="1100">
       <v-card>
         <v-card-title>Лицевой счёт</v-card-title>
         <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || ledgerHistoryContract.client_name }}</v-card-subtitle>
         <v-card-text>
           <div v-if="loadingLedgerHistory" class="text-center pa-4">Загрузка…</div>
-          <v-table v-else density="compact">
+          <v-table v-else density="compact" class="ledger-history-table">
             <thead>
               <tr><th>Дата</th><th>Время</th><th>Операция</th><th>Сумма</th><th>Источник</th><th>Кто внёс</th><th>Описание</th></tr>
             </thead>
@@ -1094,7 +1094,7 @@
                 <td :class="Number(e.amount) < 0 ? 'text-error' : 'text-success'">{{ formatLedgerBalance(e.amount) }}</td>
                 <td class="text-caption">{{ e.source }}</td>
                 <td class="text-caption">{{ e.created_by || (e.source === 'auto_charge' ? 'система' : '—') }}</td>
-                <td class="text-caption">{{ e.description }}</td>
+                <td class="text-caption ledger-desc">{{ e.description }}</td>
               </tr>
               <tr v-if="ledgerEntries.length === 0">
                 <td colspan="7" class="text-center text-medium-emphasis">Нет проводок</td>
@@ -2670,6 +2670,12 @@ defineExpose({
 <style scoped>
 .contracts-tab {
   /* Стили для вкладки внутри биллинга */
+}
+
+/* История лицевого счёта — без переноса строк в ячейках */
+.ledger-history-table :deep(th),
+.ledger-history-table :deep(td) {
+  white-space: nowrap;
 }
 
 .section-header {
