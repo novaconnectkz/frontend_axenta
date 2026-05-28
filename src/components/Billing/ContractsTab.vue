@@ -189,13 +189,18 @@
 
         <!-- Тип договора -->
         <template #item.contract_type="{ item }">
-          <v-chip 
-            size="small" 
-            :color="CONTRACT_TYPE_COLORS[(item.contract_type || 'client') as ContractType]"
-            variant="tonal"
-          >
-            {{ CONTRACT_TYPE_LABELS[(item.contract_type || 'client') as ContractType] }}
-          </v-chip>
+          <v-tooltip :text="CONTRACT_TYPE_LABELS[(item.contract_type || 'client') as ContractType]" location="top">
+            <template #activator="{ props }">
+              <v-chip
+                v-bind="props"
+                size="small"
+                :color="CONTRACT_TYPE_COLORS[(item.contract_type || 'client') as ContractType]"
+                variant="tonal"
+              >
+                <v-icon size="small" :icon="CONTRACT_TYPE_ICONS[(item.contract_type || 'client') as ContractType]" />
+              </v-chip>
+            </template>
+          </v-tooltip>
         </template>
 
         <!-- Клиент -->
@@ -1112,10 +1117,11 @@ import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
 import type { ContractType, PartnerSnapshotsSummary } from '@/types/contracts';
 import { 
-  CONTRACT_TYPES, 
-  CONTRACT_TYPE_LABELS, 
+  CONTRACT_TYPES,
+  CONTRACT_TYPE_LABELS,
   CONTRACT_TYPE_COLORS,
-  CONTRACT_TYPE_OPTIONS 
+  CONTRACT_TYPE_ICONS,
+  CONTRACT_TYPE_OPTIONS
 } from '@/types/contracts';
 
 const router = useRouter();
@@ -1350,16 +1356,16 @@ const isGeneratingSnapshots = ref<boolean>(false);
 
 // Заголовки таблицы (с динамической шириной для лучшей адаптации)
 const headers = [
-  { title: '№', key: 'sequential_number', sortable: true, width: '60px', minWidth: '50px', align: 'center' as const },
-  { title: 'Дата', key: 'created_at', sortable: true, width: '100px', minWidth: '90px', align: 'center' as const },
-  { title: 'Номер', key: 'number', sortable: true, width: '130px', minWidth: '110px', align: 'center' as const },
-  { title: 'Тип', key: 'contract_type', sortable: true, width: '100px', minWidth: '90px', align: 'center' as const },
-  { title: 'Клиент', key: 'title', sortable: true, width: '260px', minWidth: '260px', align: 'center' as const },
-  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '130px', minWidth: '115px', align: 'center' as const },
-  { title: 'Период', key: 'period', sortable: false, width: '140px', minWidth: '125px', align: 'center' as const },
-  { title: 'Сумма', key: 'total_amount', sortable: true, width: '85px', minWidth: '75px', align: 'center' as const },
-  { title: 'Баланс', key: 'ledger_balance', sortable: false, width: '110px', minWidth: '100px', align: 'center' as const },
-  { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' as const },
+  { title: '№', key: 'sequential_number', sortable: true, width: '56px', minWidth: '48px', align: 'center' as const },
+  { title: 'Дата', key: 'created_at', sortable: true, width: '92px', minWidth: '84px', align: 'center' as const },
+  { title: 'Номер', key: 'number', sortable: true, width: '120px', minWidth: '104px', align: 'center' as const },
+  { title: 'Тип', key: 'contract_type', sortable: true, width: '64px', minWidth: '56px', align: 'center' as const },
+  { title: 'Клиент', key: 'title', sortable: true, width: '220px', minWidth: '180px', align: 'center' as const },
+  { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '118px', minWidth: '104px', align: 'center' as const },
+  { title: 'Период', key: 'period', sortable: false, width: '118px', minWidth: '108px', align: 'center' as const },
+  { title: 'Сумма', key: 'total_amount', sortable: true, width: '80px', minWidth: '72px', align: 'center' as const },
+  { title: 'Баланс', key: 'ledger_balance', sortable: false, width: '100px', minWidth: '92px', align: 'center' as const },
+  { title: 'Действия', key: 'actions', sortable: false, width: '150px', minWidth: '136px', align: 'center' as const },
 ];
 
 // Опции для фильтров

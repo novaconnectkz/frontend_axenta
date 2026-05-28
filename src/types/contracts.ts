@@ -97,6 +97,12 @@ export const CONTRACT_TYPE_COLORS: Record<ContractType, string> = {
   [CONTRACT_TYPES.PARTNER]: "purple",
 };
 
+// Иконки типов договоров
+export const CONTRACT_TYPE_ICONS: Record<ContractType, string> = {
+  [CONTRACT_TYPES.CLIENT]: "mdi-account",
+  [CONTRACT_TYPES.PARTNER]: "mdi-handshake",
+};
+
 // Типы скидок для партнерских договоров
 export const DISCOUNT_TYPES = {
   NONE: "none",
