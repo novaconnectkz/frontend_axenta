@@ -363,20 +363,44 @@
         </template>
 
         <!-- Действия -->
+        <template #item.ledger_balance="{ item }">
+          <div class="ledger-balance-cell" style="cursor:pointer" @click="openLedgerHistory(item)">
+            <span v-if="ledgerBalanceMap[item.id] === undefined" class="text-medium-emphasis">—</span>
+            <span v-else :class="ledgerBalanceClass(ledgerBalanceMap[item.id])" class="font-weight-bold">
+              {{ formatLedgerBalance(ledgerBalanceMap[item.id]) }}
+            </span>
+            <div v-if="ledgerBalanceMap[item.id] !== undefined" class="text-caption text-medium-emphasis">
+              {{ Number(ledgerBalanceMap[item.id]) < 0 ? 'долг' : (Number(ledgerBalanceMap[item.id]) > 0 ? 'переплата' : 'ноль') }}
+            </div>
+          </div>
+        </template>
+
         <template #item.actions="{ item }">
           <div class="actions-cell">
+            <v-tooltip text="Внести платёж">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-cash-plus"
+                  size="small"
+                  variant="text"
+                  color="success"
+                  @click="openPaymentDialog(item)"
+                />
+              </template>
+            </v-tooltip>
             <v-tooltip text="Рассчитать стоимость">
               <template #activator="{ props }">
-                <v-btn 
+                <v-btn
                   v-bind="props"
-                  icon="mdi-calculator" 
-                  size="small" 
-                  variant="text" 
+                  icon="mdi-calculator"
+                  size="small"
+                  variant="text"
                   @click="calculateCost(item)"
                 />
               </template>
             </v-tooltip>
-            
+
             <v-menu location="bottom end">
               <template #activator="{ props }">
                 <v-btn
@@ -387,15 +411,28 @@
                 />
               </template>
               <v-list density="compact">
+                <v-list-item @click="openPaymentDialog(item)">
+                  <template #prepend>
+                    <v-icon icon="mdi-cash-plus" size="small" color="success" />
+                  </template>
+                  <v-list-item-title>Внести платёж</v-list-item-title>
+                </v-list-item>
+                <v-list-item @click="openLedgerHistory(item)">
+                  <template #prepend>
+                    <v-icon icon="mdi-history" size="small" />
+                  </template>
+                  <v-list-item-title>Лицевой счёт (история)</v-list-item-title>
+                </v-list-item>
+                <v-divider />
                 <v-list-item @click="calculateCost(item)">
                   <template #prepend>
                     <v-icon icon="mdi-calculator" size="small" />
                   </template>
                   <v-list-item-title>Рассчитать стоимость</v-list-item-title>
                 </v-list-item>
-                
+
                 <v-divider />
-                
+
                 <v-list-item @click="editContract(item)">
                   <template #prepend>
                     <v-icon icon="mdi-pencil" size="small" />
@@ -1008,6 +1045,63 @@
       </v-card>
     </v-dialog>
 
+    <!-- Диалог: внести платёж на лицевой счёт (без счёта) -->
+    <v-dialog v-model="paymentDialog" max-width="480">
+      <v-card>
+        <v-card-title>Внести платёж</v-card-title>
+        <v-card-subtitle v-if="paymentContract">{{ paymentContract.number }} · {{ paymentContract.title || paymentContract.client_name }}</v-card-subtitle>
+        <v-card-text>
+          <v-text-field v-model.number="paymentForm.amount" label="Сумма платежа, ₽" type="number" min="0" autofocus />
+          <v-select v-model="paymentForm.source" :items="[
+            { title: 'Вручную', value: 'manual' },
+            { title: 'Excel-реестр', value: 'excel' },
+            { title: '1С', value: '1c' },
+            { title: 'Платёжная система', value: 'payment_system' },
+            { title: 'Банк', value: 'bank' },
+          ]" label="Источник платежа" />
+          <v-text-field v-model="paymentForm.payment_date" label="Дата платежа" type="date" />
+          <v-text-field v-model="paymentForm.comment" label="Комментарий" />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="paymentDialog = false">Отмена</v-btn>
+          <v-btn color="success" :loading="savingPayment" :disabled="paymentForm.amount <= 0" @click="submitPayment">Внести</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Диалог: лицевой счёт (история проводок) -->
+    <v-dialog v-model="ledgerHistoryDialog" max-width="760">
+      <v-card>
+        <v-card-title>Лицевой счёт</v-card-title>
+        <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || ledgerHistoryContract.client_name }}</v-card-subtitle>
+        <v-card-text>
+          <div v-if="loadingLedgerHistory" class="text-center pa-4">Загрузка…</div>
+          <v-table v-else density="compact">
+            <thead>
+              <tr><th>Дата</th><th>Операция</th><th>Сумма</th><th>Источник</th><th>Описание</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in ledgerEntries" :key="e.id">
+                <td class="text-caption">{{ String(e.entry_date).slice(0, 10) }}</td>
+                <td>{{ ledgerEntryTypeLabel(e.entry_type) }}</td>
+                <td :class="Number(e.amount) < 0 ? 'text-error' : 'text-success'">{{ formatLedgerBalance(e.amount) }}</td>
+                <td class="text-caption">{{ e.source }}</td>
+                <td class="text-caption">{{ e.description }}</td>
+              </tr>
+              <tr v-if="ledgerEntries.length === 0">
+                <td colspan="5" class="text-center text-medium-emphasis">Нет проводок</td>
+              </tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="ledgerHistoryDialog = false">Закрыть</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
   </div>
 </template>
 
@@ -1115,6 +1209,67 @@ const loadingMore = ref(false);
 // 🚀 Progressive Loading - статистика объектов
 const statsLoading = ref(false);
 const statsLoadedMap = ref<Map<number, boolean>>(new Map());
+
+// === Лицевой счёт (ledger) ===
+const ledgerBalanceMap = ref<Record<number, string>>({}); // contract.id → balance (строка)
+const paymentDialog = ref(false);
+const paymentContract = ref<any>(null);
+const paymentForm = ref({ amount: 0, source: 'manual', comment: '', payment_date: '' });
+const savingPayment = ref(false);
+const ledgerHistoryDialog = ref(false);
+const ledgerHistoryContract = ref<any>(null);
+const ledgerEntries = ref<any[]>([]);
+const loadingLedgerHistory = ref(false);
+
+function formatLedgerBalance(v: string): string {
+  const n = Number(v || 0);
+  return n.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
+}
+function ledgerBalanceClass(v: string): string {
+  const n = Number(v || 0);
+  if (n < 0) return 'text-error';
+  if (n > 0) return 'text-success';
+  return 'text-medium-emphasis';
+}
+function openPaymentDialog(contract: any) {
+  paymentContract.value = contract;
+  paymentForm.value = { amount: 0, source: 'manual', comment: '', payment_date: '' };
+  paymentDialog.value = true;
+}
+async function submitPayment() {
+  if (!paymentContract.value || paymentForm.value.amount <= 0) return;
+  savingPayment.value = true;
+  try {
+    const res = await contractsService.addLedgerPayment({
+      contract_id: paymentContract.value.id,
+      amount: paymentForm.value.amount,
+      source: paymentForm.value.source,
+      comment: paymentForm.value.comment,
+      payment_date: paymentForm.value.payment_date || undefined,
+    });
+    ledgerBalanceMap.value = { ...ledgerBalanceMap.value, [paymentContract.value.id]: res.new_balance };
+    paymentDialog.value = false;
+  } catch (e: any) {
+    console.error('Ошибка платежа:', e?.response?.data?.error || e.message);
+  } finally {
+    savingPayment.value = false;
+  }
+}
+async function openLedgerHistory(contract: any) {
+  ledgerHistoryContract.value = contract;
+  ledgerHistoryDialog.value = true;
+  loadingLedgerHistory.value = true;
+  try {
+    ledgerEntries.value = await contractsService.getLedgerEntries(contract.id);
+  } catch {
+    ledgerEntries.value = [];
+  } finally {
+    loadingLedgerHistory.value = false;
+  }
+}
+function ledgerEntryTypeLabel(t: string): string {
+  return ({ charge: 'Начисление', payment: 'Платёж', adjustment: 'Корректировка', reversal: 'Сторно', migration_balance: 'Перенос остатка (WCRM)' } as Record<string, string>)[t] || t;
+}
 const searchQuery = ref(''); // Пользовательский ввод
 const debouncedSearchQuery = ref(''); // Дебаунсированное значение для фильтрации
 const statusFilter = ref<string | null>(null);
@@ -1203,6 +1358,7 @@ const headers = [
   { title: 'Тариф', key: 'tariff_plan', sortable: false, width: '130px', minWidth: '115px', align: 'center' as const },
   { title: 'Период', key: 'period', sortable: false, width: '140px', minWidth: '125px', align: 'center' as const },
   { title: 'Сумма', key: 'total_amount', sortable: true, width: '85px', minWidth: '75px', align: 'center' as const },
+  { title: 'Баланс', key: 'ledger_balance', sortable: false, width: '110px', minWidth: '100px', align: 'center' as const },
   { title: 'Действия', key: 'actions', sortable: false, width: '180px', minWidth: '160px', align: 'center' as const },
 ];
 
@@ -2406,6 +2562,12 @@ const loadContractsStats = async (contractsList: Contract[]) => {
               };
 
               statsLoadedMap.value.set(contract.id, true);
+
+              // Баланс лицевого счёта (ledger) — для колонки «Баланс».
+              try {
+                const bal = await contractsService.getLedgerBalance(contract.id);
+                ledgerBalanceMap.value = { ...ledgerBalanceMap.value, [contract.id]: bal.balance };
+              } catch { /* нет ledger — оставляем undefined */ }
             }
           } catch (err) {
             console.warn(`⚠️ Не удалось загрузить статистику для договора ${contract.id}:`, err);

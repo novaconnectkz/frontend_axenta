@@ -169,6 +169,31 @@ class ContractsService {
   }
 
   /**
+   * Баланс лицевого счёта договора (>0 переплата, <0 долг).
+   */
+  async getLedgerBalance(contractId: number): Promise<{ balance: string; total_charged: string; total_paid: string; is_debt: boolean; debt_amount: string }> {
+    const response = await this.apiClient.get(`/auth/ledger/balance/${contractId}`);
+    return response.data.data ?? response.data;
+  }
+
+  /**
+   * История проводок лицевого счёта (начисления + платежи).
+   */
+  async getLedgerEntries(contractId: number): Promise<any[]> {
+    const response = await this.apiClient.get(`/auth/ledger/entries/${contractId}`);
+    const data = response.data.data ?? response.data ?? [];
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
+   * Внести платёж на лицевой счёт договора БЕЗ выставления счёта.
+   */
+  async addLedgerPayment(payload: { contract_id: number; amount: number; source?: string; comment?: string; payment_date?: string; external_id?: string }): Promise<{ entry_id: number; new_balance: string }> {
+    const response = await this.apiClient.post(`/auth/ledger/payment`, payload);
+    return response.data.data ?? response.data;
+  }
+
+  /**
    * Создать новый договор
    */
   async createContract(data: ContractForm): Promise<ContractWithRelations> {
