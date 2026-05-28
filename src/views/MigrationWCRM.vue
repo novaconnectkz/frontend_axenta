@@ -149,7 +149,7 @@
                   <div class="expand-title">→ ACRM (tenant_186)</div>
                   <div class="kv"><span>client_type</span><b>{{ typeOverride[item.wcrm_company_id] || item.client_type }}</b></div>
                   <div class="kv"><span>Остаток →</span><b>{{ item.balance_target }}</b></div>
-                  <div class="kv"><span>Импорт-статус</span><b>suspended (биллинг не настроен)</b></div>
+                  <div class="kv"><span>Импорт</span><b>договор + подписка (тариф по цене) + объекты по uid</b></div>
                 </div>
               </div>
 
