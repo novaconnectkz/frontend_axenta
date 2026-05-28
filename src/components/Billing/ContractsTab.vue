@@ -1246,6 +1246,7 @@ async function submitPayment() {
   if (!paymentContract.value || paymentForm.value.amount <= 0) return;
   savingPayment.value = true;
   try {
+    const contractsService = (await import('@/services/contractsService')).default;
     const res = await contractsService.addLedgerPayment({
       contract_id: paymentContract.value.id,
       amount: paymentForm.value.amount,
@@ -1266,6 +1267,7 @@ async function openLedgerHistory(contract: any) {
   ledgerHistoryDialog.value = true;
   loadingLedgerHistory.value = true;
   try {
+    const contractsService = (await import('@/services/contractsService')).default;
     ledgerEntries.value = await contractsService.getLedgerEntries(contract.id);
   } catch {
     ledgerEntries.value = [];
