@@ -154,29 +154,32 @@
               </div>
 
               <!-- Договоры → приложения → объекты -->
-              <div v-for="ct in item.contracts" :key="ct.wcrm_contract_id" class="contract-block mt-3">
+              <div v-for="ct in item.contracts" :key="ct.wcrm_contract_id" class="contract-block mt-3" :class="{ 'will-skip': ct.will_skip }">
                 <div class="contract-head">
                   <span class="font-weight-bold">{{ ct.source_number }}</span>
                   <span v-if="ct.target_number !== ct.source_number" class="text-caption">→ {{ ct.target_number }}</span>
                   <v-chip v-if="ct.number_conflict" color="error" size="x-small" variant="tonal" class="ml-1">конфликт №</v-chip>
-                  <v-chip size="x-small" :color="ct.status === 'active' ? 'success' : 'grey'" variant="tonal" class="ml-2">{{ ct.status }}</v-chip>
+                  <v-chip v-if="ct.will_skip" color="grey" size="x-small" variant="flat" class="ml-2">будет пропущен (нет активных приложений)</v-chip>
+                  <v-chip v-else size="x-small" color="success" variant="tonal" class="ml-2">мигрируется → договор + подписка</v-chip>
                   <span class="text-caption ml-2">{{ shortDate(ct.start_date) }} — {{ shortDate(ct.end_date) || '∞' }}</span>
-                  <span class="text-caption ml-2 text-medium-emphasis">{{ ct.object_count }} об.</span>
+                  <span class="text-caption ml-2 text-medium-emphasis">
+                    объектов: {{ ct.object_count }}, в ACRM найдено по uid: <b>{{ ct.objects_matched }}</b>
+                  </span>
                 </div>
                 <v-table density="compact" class="appendix-table mt-1">
                   <thead>
                     <tr>
-                      <th>Приложение → ContractAppendix</th><th>Цена</th><th>Период</th><th>Активно</th><th>Объекты (из b.objects_map)</th>
+                      <th>Приложение → Подписка</th><th>Цена (тариф)</th><th>Период</th><th>Активно</th><th>Объекты (по uid)</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="ap in ct.appendices" :key="ap.wcrm_attachment_id">
+                    <tr v-for="ap in ct.appendices" :key="ap.wcrm_attachment_id" :class="{ 'text-disabled': !ap.enabled }">
                       <td>{{ ap.title }}</td>
-                      <td>{{ ap.price }} ₽</td>
+                      <td>{{ ap.price }} ₽/объект</td>
                       <td>{{ ap.period }}</td>
                       <td>
                         <v-chip size="x-small" :color="ap.enabled ? 'success' : 'grey'" variant="tonal">
-                          {{ ap.enabled ? 'да' : 'нет' }}
+                          {{ ap.enabled ? 'да → подписка' : 'нет → пропуск' }}
                         </v-chip>
                       </td>
                       <td>
@@ -191,8 +194,8 @@
                 </v-table>
               </div>
               <div class="text-caption text-medium-emphasis mt-2">
-                Объекты сохраняются в описании приложения как справка. Жёсткая привязка (ContractObject) не создаётся —
-                WCRM-объекты в Wialon-пространстве (wid), ACRM-объекты в Axenta (external_object_id), общего ключа нет.
+                Включённое приложение → подписка (тариф по цене). Объекты привязываются по uid-матчу с ACRM (Wialon).
+                Неактивные договоры (все приложения выключены) пропускаются.
               </div>
             </td>
           </tr>
@@ -226,6 +229,8 @@ interface PreviewContract {
   appendix_count: number;
   bad_dates: number;
   object_count: number;
+  objects_matched: number;
+  will_skip: boolean;
   appendices: PreviewAppendix[];
 }
 interface Candidate {
@@ -398,6 +403,7 @@ loadPreview();
 .kv span { color: rgba(0,0,0,0.6); }
 .contracts-table { background: transparent; }
 .contract-block { border-top: 1px solid rgba(0,0,0,0.08); padding-top: 8px; }
+.contract-block.will-skip { opacity: 0.55; }
 .contract-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .appendix-table { background: transparent; }
 @media (max-width: 900px) {
