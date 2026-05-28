@@ -1076,7 +1076,7 @@
     </v-dialog>
 
     <!-- Диалог: лицевой счёт (история проводок) -->
-    <v-dialog v-model="ledgerHistoryDialog" max-width="760">
+    <v-dialog v-model="ledgerHistoryDialog" max-width="900">
       <v-card>
         <v-card-title>Лицевой счёт</v-card-title>
         <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || ledgerHistoryContract.client_name }}</v-card-subtitle>
@@ -1084,18 +1084,20 @@
           <div v-if="loadingLedgerHistory" class="text-center pa-4">Загрузка…</div>
           <v-table v-else density="compact">
             <thead>
-              <tr><th>Дата</th><th>Операция</th><th>Сумма</th><th>Источник</th><th>Описание</th></tr>
+              <tr><th>Дата</th><th>Время</th><th>Операция</th><th>Сумма</th><th>Источник</th><th>Кто внёс</th><th>Описание</th></tr>
             </thead>
             <tbody>
               <tr v-for="e in ledgerEntries" :key="e.id">
                 <td class="text-caption">{{ String(e.entry_date).slice(0, 10) }}</td>
+                <td class="text-caption">{{ formatLedgerTime(e.created_at) }}</td>
                 <td>{{ ledgerEntryTypeLabel(e.entry_type) }}</td>
                 <td :class="Number(e.amount) < 0 ? 'text-error' : 'text-success'">{{ formatLedgerBalance(e.amount) }}</td>
                 <td class="text-caption">{{ e.source }}</td>
+                <td class="text-caption">{{ e.created_by || (e.source === 'auto_charge' ? 'система' : '—') }}</td>
                 <td class="text-caption">{{ e.description }}</td>
               </tr>
               <tr v-if="ledgerEntries.length === 0">
-                <td colspan="5" class="text-center text-medium-emphasis">Нет проводок</td>
+                <td colspan="7" class="text-center text-medium-emphasis">Нет проводок</td>
               </tr>
             </tbody>
           </v-table>
@@ -1277,6 +1279,11 @@ async function openLedgerHistory(contract: any) {
 }
 function ledgerEntryTypeLabel(t: string): string {
   return ({ charge: 'Начисление', payment: 'Платёж', adjustment: 'Корректировка', reversal: 'Сторно', migration_balance: 'Перенос остатка (WCRM)' } as Record<string, string>)[t] || t;
+}
+function formatLedgerTime(v: string): string {
+  if (!v) return '—';
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 const searchQuery = ref(''); // Пользовательский ввод
 const debouncedSearchQuery = ref(''); // Дебаунсированное значение для фильтрации
