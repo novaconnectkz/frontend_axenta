@@ -1275,24 +1275,32 @@ const filteredContracts = computed(() => {
 const calculateContractAmount = (contract: Contract): number => {
   // Если у договора уже есть заполненная стоимость (не 0), используем её
   const existingAmount = parseFloat(contract.total_amount || '0');
-  const objectsCount = contract.objects?.length || 0;
-  
   if (existingAmount > 0) {
     return existingAmount;
   }
 
-  // Если объектов нет, возвращаем 0 (независимо от наличия тарифного плана)
-  if (objectsCount === 0) {
-    return 0;
+  // Основной источник — активные подписки договора: тариф подписки × объекты подписки.
+  // (У мигрированных договоров тариф лежит в подписке, а не в contract.tariff_plan.)
+  const subs = contractSubscriptions.value.filter(
+    sub => sub.contract_id === contract.id &&
+           sub.status && ['active', 'scheduled'].includes(sub.status)
+  );
+  if (subs.length > 0) {
+    let sum = 0;
+    for (const sub of subs) {
+      const price = Number(sub.billing_plan?.price || 0);
+      const objCount = (sub as any).objects_count ?? (sub as any).object_ids?.length ?? 0;
+      sum += price * objCount;
+    }
+    if (sum > 0) return sum;
   }
 
-  // Рассчитываем стоимость на основе тарифного плана и количества объектов
-  if (!contract.tariff_plan || !contract.tariff_plan.price) {
+  // Fallback: старая логика через contract.tariff_plan × объекты договора.
+  const objectsCount = contract.objects?.length || 0;
+  if (objectsCount === 0 || !contract.tariff_plan || !contract.tariff_plan.price) {
     return 0;
   }
-
-  const tariffPrice = contract.tariff_plan.price;
-  return tariffPrice * objectsCount;
+  return contract.tariff_plan.price * objectsCount;
 };
 
 // Карта тарифов для каждого договора (из подписок)
