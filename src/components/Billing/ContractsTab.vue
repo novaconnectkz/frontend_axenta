@@ -2376,24 +2376,34 @@ const loadContractsStats = async (contractsList: Contract[]) => {
           
           try {
             const stats = await contractsService.getContractStats(contract.id);
-            
+
             // Обновляем договор в списке
             const idx = contracts.value.findIndex(c => c.id === contract.id);
             if (idx !== -1) {
-              // Создаем массив объектов нужной длины
-              const fakeObjects = Array.from({ length: stats.objects_count }, (_, j) => ({
-                id: j + 1,
-                name: `Object ${j + 1}`,
-                company_id: contract.partner_company_id || 0,
-              }));
-              
+              // Реальные объекты с именами (резолв из axenta snapshot). Fallback на
+              // placeholder по count если список не пришёл (партнёрские договоры без
+              // contract_objects — там объекты в Axenta Cloud, не привязаны через junction).
+              let objects: any[] = [];
+              try {
+                const real = await contractsService.getContractObjects(contract.id);
+                objects = real.map(o => ({ id: o.object_id, name: o.name, account_name: o.account_name }));
+              } catch {
+                // игнор — ниже fallback
+              }
+              if (objects.length === 0 && stats.objects_count > 0) {
+                objects = Array.from({ length: stats.objects_count }, (_, j) => ({
+                  id: j + 1,
+                  name: `Объект ${j + 1}`,
+                  company_id: contract.partner_company_id || 0,
+                }));
+              }
+
               contracts.value[idx] = {
                 ...contracts.value[idx],
-                objects: fakeObjects as any,
+                objects: objects as any,
               };
-              
+
               statsLoadedMap.value.set(contract.id, true);
-              console.log(`📊 Статистика загружена: договор ${contract.id} → ${stats.objects_count} объектов (partner_company_id: ${contract.partner_company_id})`);
             }
           } catch (err) {
             console.warn(`⚠️ Не удалось загрузить статистику для договора ${contract.id}:`, err);

@@ -160,6 +160,15 @@ class ContractsService {
   }
 
   /**
+   * Реальные привязанные объекты договора с именами (резолв из axenta snapshot).
+   */
+  async getContractObjects(id: number): Promise<Array<{ object_id: number; name: string; account_name: string }>> {
+    const response = await this.apiClient.get(`/auth/contracts/${id}/objects`);
+    const data = response.data.data ?? response.data ?? [];
+    return Array.isArray(data) ? data : [];
+  }
+
+  /**
    * Создать новый договор
    */
   async createContract(data: ContractForm): Promise<ContractWithRelations> {
