@@ -169,12 +169,13 @@
                 <v-table density="compact" class="appendix-table mt-1">
                   <thead>
                     <tr>
-                      <th>Приложение → Подписка</th><th>Цена (тариф)</th><th>Период</th><th>Активно</th><th>Объекты (по uid)</th>
+                      <th>Приложение → Подписка</th><th>Срок приложения</th><th>Цена (тариф)</th><th>Период</th><th>Активно</th><th>Объекты (по uid)</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="ap in ct.appendices" :key="ap.wcrm_attachment_id" :class="{ 'text-disabled': !ap.enabled }">
                       <td>{{ ap.title }}</td>
+                      <td class="text-caption">{{ shortDate(ap.start_date) || '—' }} — {{ shortDate(ap.end_date) || '∞' }}</td>
                       <td>{{ ap.price }} ₽/объект</td>
                       <td>{{ ap.period }}</td>
                       <td>
@@ -214,6 +215,8 @@ interface PreviewAppendix {
   title: string;
   price: string;
   period: number;
+  start_date: string;
+  end_date: string;
   enabled: boolean;
   object_count: number;
   object_names: string[];
