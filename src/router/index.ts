@@ -184,6 +184,17 @@ const routes = [
         },
       },
 
+      // WCRM→ACRM миграция договоров (временная, super-admin; защита на BE)
+      {
+        path: "migration/wcrm",
+        name: "MigrationWCRM",
+        component: () => import("@/views/MigrationWCRM.vue"),
+        meta: {
+          title: "Миграция WCRM",
+          requiresAuth: true,
+        },
+      },
+
       // Биллинг
       {
         path: "billing",
