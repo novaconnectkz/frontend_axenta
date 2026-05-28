@@ -351,13 +351,7 @@
                       :key="obj.id"
                       class="objects-tooltip-item"
                     >
-                      <span v-if="obj.name">
-                        <strong>{{ obj.name }}</strong>
-                        <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id }})</span>
-                      </span>
-                      <span v-else>
-                        Объект #{{ obj.id }}
-                      </span>
+                      <strong>{{ obj.name || `Объект #${obj.id}` }}</strong>
                     </div>
                     </div>
                   </div>

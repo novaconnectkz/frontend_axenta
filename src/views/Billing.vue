@@ -444,14 +444,7 @@
                       <div class="objects-tooltip-title">Привязанные объекты:</div>
                       <div class="objects-tooltip-list">
                         <div v-for="obj in (item as any).objects" :key="obj.id" class="objects-tooltip-item">
-                          <span v-if="obj.name">
-                            <strong>{{ obj.name }}</strong>
-                            <span v-if="obj.name !== `Объект #${obj.id}`" class="objects-tooltip-id">(ID: {{ obj.id
-                              }})</span>
-                          </span>
-                          <span v-else>
-                            Объект #{{ obj.id }}
-                          </span>
+                          <strong>{{ obj.name || `Объект #${obj.id}` }}</strong>
                         </div>
                         <div v-if="!(item as any).objects || (item as any).objects.length === 0"
                           class="objects-tooltip-empty">
