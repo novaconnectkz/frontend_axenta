@@ -2964,7 +2964,7 @@ defineExpose({
 }
 
 .objects-tooltip-list {
-  max-height: 200px;
+  max-height: 320px; /* ~10 объектов, дальше скролл */
   overflow-y: auto;
   padding: 0 12px;
 }
