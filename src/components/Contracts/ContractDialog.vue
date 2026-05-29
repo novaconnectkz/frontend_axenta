@@ -92,6 +92,29 @@
                     clearable
                   />
                 </v-col>
+
+                <!-- Режим биллинга — admin/superadmin; постоплата только если разрешена политикой -->
+                <v-col v-if="canAssignManager" cols="12" md="6">
+                  <v-select
+                    v-model="form.billing_mode"
+                    :items="billingModeOptions"
+                    label="Режим биллинга"
+                    variant="outlined"
+                    density="comfortable"
+                    prepend-icon="mdi-credit-card-clock"
+                  />
+                </v-col>
+                <v-col v-if="canAssignManager && form.billing_mode === 'postpaid'" cols="12" md="6">
+                  <v-text-field
+                    v-model="form.credit_limit"
+                    label="Кредит-лимит (допустимый долг)"
+                    type="number" min="0"
+                    variant="outlined" density="comfortable"
+                    prepend-icon="mdi-cash-minus"
+                    :hint="billingSettings && Number(billingSettings.max_credit_limit) > 0 ? `Макс по политике: ${billingSettings.max_credit_limit}` : ''"
+                    persistent-hint
+                  />
+                </v-col>
               </v-row>
 
               <v-row>
@@ -508,6 +531,8 @@ const defaultForm: ContractForm = {
   status: 'draft',
   account_id: undefined,
   manager_id: null,
+  billing_mode: 'prepaid',
+  credit_limit: 0,
   // Скидки (для партнерских договоров)
   discount_type: 'none',
   manual_discount_percent: 0,
@@ -519,6 +544,15 @@ const form = ref<ContractForm>({ ...defaultForm });
 
 // Менеджера договора назначает только admin/superadmin (роль из axenta_user).
 const canAssignManager = computed(() => canManageBilling());
+
+// Режим биллинга: постоплата доступна только если разрешена политикой компании.
+const billingModeOptions = computed(() => {
+  const opts: Array<{ title: string; value: string }> = [{ title: 'Предоплата', value: 'prepaid' }];
+  if (billingSettings.value?.allow_postpaid || form.value.billing_mode === 'postpaid') {
+    opts.push({ title: 'Постоплата', value: 'postpaid' });
+  }
+  return opts;
+});
 const managers = ref<Array<{ id: number; name: string; role: string }>>([]);
 const loadManagers = async () => {
   if (!canAssignManager.value) return;
@@ -720,6 +754,8 @@ const fillForm = (contract: ContractWithRelations) => {
     status: contract.status,
     account_id: undefined, // Не загружаем account_id при редактировании
     manager_id: contract.manager_id ?? null,
+    billing_mode: (contract.billing_mode as any) ?? 'prepaid',
+    credit_limit: contract.credit_limit ?? 0,
     // Скидки (для партнерских договоров)
     discount_type: (contract as any).discount_type || 'none',
     manual_discount_percent: (contract as any).manual_discount_percent || 0,
