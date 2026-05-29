@@ -1103,6 +1103,28 @@
         <v-card-title>Лицевой счёт</v-card-title>
         <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || ledgerHistoryContract.client_name }}</v-card-subtitle>
         <v-card-text>
+          <!-- Активные зонты отсрочки/обещанного платежа (П3+П4) -->
+          <div v-if="ledgerHolds.length" class="mb-3">
+            <v-alert
+              v-for="h in ledgerHolds"
+              :key="h.id"
+              :type="h.hold_type === 'promise' ? 'info' : 'warning'"
+              density="compact"
+              variant="tonal"
+              class="mb-2"
+            >
+              <div class="d-flex align-center">
+                <div>
+                  <strong>{{ h.hold_type === 'promise' ? 'Обещанный платёж' : 'Отсрочка' }}</strong>
+                  до {{ holdUntilDisplay(h.hold_until) }}
+                  <span v-if="h.hold_type === 'promise' && Number(h.amount) > 0">· {{ formatMoneyPlain(h.amount) }}</span>
+                  <span v-if="h.reason" class="text-caption"> · {{ h.reason }}</span>
+                </div>
+                <v-spacer />
+                <v-btn size="small" variant="text" color="error" :loading="cancelingHold === h.id" @click="cancelHold(h)">Снять</v-btn>
+              </div>
+            </v-alert>
+          </div>
           <div v-if="loadingLedgerHistory" class="text-center pa-4">Загрузка…</div>
           <v-table v-else density="compact" class="ledger-history-table">
             <thead>
@@ -1126,8 +1148,39 @@
         </v-card-text>
         <v-card-actions>
           <v-btn color="primary" variant="tonal" prepend-icon="mdi-bank-transfer" @click="openTransfer">Перевести</v-btn>
+          <v-btn color="warning" variant="tonal" prepend-icon="mdi-clock-outline" @click="openHold">Отсрочка / обещание</v-btn>
           <v-spacer />
           <v-btn variant="text" @click="ledgerHistoryDialog = false">Закрыть</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Зонт: отсрочка / обещанный платёж (П3+П4) -->
+    <v-dialog v-model="holdDialog" max-width="520">
+      <v-card>
+        <v-card-title>Отсрочка / обещанный платёж</v-card-title>
+        <v-card-subtitle v-if="ledgerHistoryContract">
+          {{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.client_name || ledgerHistoryContract.title }}
+        </v-card-subtitle>
+        <v-card-text>
+          <v-btn-toggle v-model="holdType" mandatory class="mb-4" density="comfortable">
+            <v-btn value="deferral">Отсрочка</v-btn>
+            <v-btn value="promise">Обещанный платёж</v-btn>
+          </v-btn-toggle>
+          <v-text-field v-model="holdUntil" label="Держать до (дата)" type="date"
+            variant="outlined" density="comfortable" class="mb-3" />
+          <v-text-field v-if="holdType === 'promise'" v-model.number="holdAmount" label="Обещанная сумма, ₽"
+            type="number" min="0" variant="outlined" density="comfortable" class="mb-3" />
+          <v-text-field v-model="holdReason" label="Причина / комментарий (необязательно)"
+            variant="outlined" density="comfortable" />
+          <v-alert v-if="holdError" type="error" density="compact" class="mt-2">{{ holdError }}</v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="holdDialog = false">Отмена</v-btn>
+          <v-btn color="warning" :loading="savingHold"
+            :disabled="!holdUntil || (holdType === 'promise' && (!holdAmount || holdAmount <= 0))"
+            @click="submitHold">Создать</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -1322,9 +1375,11 @@ async function openLedgerHistory(contract: any) {
   ledgerHistoryContract.value = contract;
   ledgerHistoryDialog.value = true;
   loadingLedgerHistory.value = true;
+  ledgerHolds.value = [];
   try {
     const contractsService = (await import('@/services/contractsService')).default;
     ledgerEntries.value = await contractsService.getLedgerEntries(contract.id);
+    loadLedgerHolds(contract.id); // активные зонты — параллельно, не блокируя историю
   } catch {
     ledgerEntries.value = [];
   } finally {
@@ -1333,6 +1388,88 @@ async function openLedgerHistory(contract: any) {
 }
 function ledgerEntryTypeLabel(t: string): string {
   return ({ charge: 'Начисление', payment: 'Платёж', adjustment: 'Корректировка', reversal: 'Сторно', migration_balance: 'Перенос остатка (WCRM)', transfer_out: 'Перевод (списание)', transfer_in: 'Перевод (зачисление)' } as Record<string, string>)[t] || t;
+}
+
+// === Зонты: отсрочка / обещанный платёж (П3+П4) ===
+const ledgerHolds = ref<any[]>([]);      // активные зонты текущего ЛС
+const holdDialog = ref(false);
+const holdType = ref<'deferral' | 'promise'>('deferral');
+const holdUntil = ref('');
+const holdAmount = ref<number | null>(null);
+const holdReason = ref('');
+const savingHold = ref(false);
+const holdError = ref('');
+const cancelingHold = ref<number | null>(null);
+
+// hold_until хранится как EXCLUSIVE-граница (начало след. дня UTC). Для показа
+// «держим до <день>» вычитаем 1 день — оператор видит последний покрытый день.
+function holdUntilDisplay(v: string): string {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v).slice(0, 10);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Загрузка активных зонтов договора (показываем только active).
+async function loadLedgerHolds(contractId: number) {
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    const all = await svc.getLedgerHolds(contractId);
+    ledgerHolds.value = (all || []).filter((h: any) => h.active);
+  } catch {
+    ledgerHolds.value = [];
+  }
+}
+
+function openHold() {
+  holdType.value = 'deferral';
+  holdUntil.value = '';
+  holdAmount.value = null;
+  holdReason.value = '';
+  holdError.value = '';
+  holdDialog.value = true;
+}
+
+async function submitHold() {
+  if (!ledgerHistoryContract.value || !holdUntil.value) return;
+  if (holdType.value === 'promise' && (!holdAmount.value || holdAmount.value <= 0)) return;
+  savingHold.value = true;
+  holdError.value = '';
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    await svc.createLedgerHold({
+      contract_id: ledgerHistoryContract.value.id,
+      hold_type: holdType.value,
+      hold_until: holdUntil.value,
+      amount: holdType.value === 'promise' ? Number(holdAmount.value) : undefined,
+      reason: holdReason.value || undefined,
+    });
+    holdDialog.value = false;
+    // Зонт мог снять активную приостановку → обновляем зонты + историю + баланс.
+    await loadLedgerHolds(ledgerHistoryContract.value.id);
+    try {
+      const bal = await svc.getLedgerBalance(ledgerHistoryContract.value.id);
+      ledgerBalanceMap.value = { ...ledgerBalanceMap.value, [ledgerHistoryContract.value.id]: bal.balance };
+    } catch { /* ignore */ }
+  } catch (e: any) {
+    holdError.value = e?.response?.data?.error || e?.message || 'Ошибка создания зонта';
+  } finally {
+    savingHold.value = false;
+  }
+}
+
+async function cancelHold(h: any) {
+  cancelingHold.value = h.id;
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    await svc.cancelLedgerHold(h.id);
+    await loadLedgerHolds(h.contract_id);
+  } catch (e: any) {
+    console.error('Ошибка снятия зонта:', e?.response?.data?.error || e?.message);
+  } finally {
+    cancelingHold.value = null;
+  }
 }
 
 // === Перевод между лицевыми счетами ===
