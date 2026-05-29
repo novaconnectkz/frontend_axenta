@@ -638,6 +638,18 @@
                     </div>
                   </v-col>
                 </v-row>
+                <!-- Мультивалюта (П5): применённый курс конверсии плана → валюту договора -->
+                <v-row v-if="billingBreakdownData.currency_info?.multicurrency" class="mt-1">
+                  <v-col cols="12">
+                    <v-chip size="small" color="indigo" variant="tonal" prepend-icon="mdi-currency-eur">
+                      План в {{ billingBreakdownData.currency_info.plan_currency }} →
+                      договор в {{ billingBreakdownData.currency_info.contract_currency }}
+                      · курс {{ billingBreakdownData.currency_info.last_rate }}
+                      ({{ billingBreakdownData.currency_info.rate_source }},
+                      {{ billingBreakdownData.currency_info.last_rate_date }})
+                    </v-chip>
+                  </v-col>
+                </v-row>
               </v-card-text>
             </v-card>
             </div>
