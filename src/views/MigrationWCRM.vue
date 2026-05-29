@@ -193,7 +193,7 @@
                             class="mt-1 start-date-input"
                           />
                           <div v-else class="text-caption text-medium-emphasis mt-1">
-                            {{ shortDate(ap.start_date) || '—' }} (из WCRM)
+                            {{ firstOfCurrentMonth() }} (1-е тек. месяца)
                           </div>
                         </template>
                         <span v-else class="text-medium-emphasis">—</span>
