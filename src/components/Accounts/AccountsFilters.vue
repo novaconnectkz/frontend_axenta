@@ -130,7 +130,8 @@ const props = defineProps<{
   filters: FiltersValue;
   selectedParent: string;
   showAllChips: boolean;
-  parentOptions: Array<{ title: string; value: string }>;
+  // Поддерживает группировку: { title, value } + { type: 'subheader', title } / { type: 'divider' }.
+  parentOptions: Array<{ title?: string; value?: string; type?: string }>;
   accountTypes: Option[];
   statusOptions: Option[];
   sourceOptions: Option[];

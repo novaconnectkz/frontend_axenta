@@ -171,12 +171,40 @@ const filters = ref<AccountsFiltersType & { source?: string | null }>({
   source: null, // Фильтр по системе: axenta, wialon, или null (все)
 });
 
-// Фильтр по родительскому аккаунту - по умолчанию "Все родители"
-const selectedParent = ref<string>('');
-// Список родительских аккаунтов (динамически загружается из API)
-const parentAccountOptions = ref<Array<{ title: string; value: string }>>([
-  { title: 'Все родители', value: '' }
+// Фильтр по родительскому аккаунту — по умолчанию "Наши родители" (прямые дети
+// наших интеграционных учёток). Значение '__mine__' маппится в scope=mine.
+const selectedParent = ref<string>('__mine__');
+// Список родительских аккаунтов (динамически из /unified/accounts/parents).
+// Поддерживает subheader/divider-элементы для группировки в дропдауне.
+const parentAccountOptions = ref<Array<any>>([
+  { title: 'Все родители', value: '' },
+  { title: 'Наши родители', value: '__mine__' },
 ]);
+
+// Загрузка сгруппированного списка родителей: «Все» / «Наши родители» + наши
+// подключения / «Остальные». Пустые подключения сюда не попадают (backend дерайвит
+// из реальных родителей). Заменяет wialon-only loadParentAccounts.
+const loadParentOptions = async () => {
+  try {
+    const { mine, others } = await accountsService.getUnifiedParents();
+    const opts: Array<any> = [
+      { title: 'Все родители', value: '' },
+      { title: 'Наши родители', value: '__mine__' },
+    ];
+    if (mine.length) {
+      opts.push({ type: 'subheader', title: 'Подключения' });
+      mine.forEach(n => opts.push({ title: n, value: n }));
+    }
+    if (others.length) {
+      opts.push({ type: 'divider' });
+      opts.push({ type: 'subheader', title: 'Остальные' });
+      others.forEach(n => opts.push({ title: n, value: n }));
+    }
+    parentAccountOptions.value = opts;
+  } catch (e) {
+    console.error('❌ Ошибка загрузки родителей:', e);
+  }
+};
 
 const {
   accounts,
@@ -209,15 +237,21 @@ const {
 // useWialonAccounts оставлен ради loadParentAccounts + loadVisibleObjectsStats
 // (точечный refresh objectsTotal по wialon-строкам). wialonStats/wialonAccounts
 // заменены данными из unified API.
+// Sink-ref: useWialonAccounts исторически перезаписывает parentAccountOptions
+// wialon-плоским списком (parts[0]+parts[1]) без группировки/«Наши родители».
+// Отводим его записи в выброс — реальным дропдауном владеет loadParentOptions
+// (через /unified/accounts/parents с группами mine/others).
+const _wialonParentSink = ref<Array<{ title: string; value: string }>>([
+  { title: 'Все родители', value: '' },
+]);
 const {
   wialonAccounts,
   isWialonLoading,
   isWialonRefreshing,
   loadWialonAccounts,
   loadVisibleObjectsStats,
-  loadParentAccounts,
 } = useWialonAccounts({
-  parentAccountOptions,
+  parentAccountOptions: _wialonParentSink,
   getVisibleAccounts: () => accountsWithNumbers.value as any,
   mirrorAccounts: accounts as any,
 });
@@ -1136,7 +1170,7 @@ onMounted(() => {
   loadAccounts();
   loadWialonAccounts(); // Загружаем аккаунты Wialon
   loadStats();
-  loadParentAccounts(); // Загружаем список родительских аккаунтов
+  loadParentOptions(); // Сгруппированный список родителей (Наши родители + подключения + остальные)
 
   // Запускаем автоматическое обновление каждую минуту (начинается после первой загрузки)
   startAutoRefresh();

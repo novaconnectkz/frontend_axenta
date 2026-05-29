@@ -103,7 +103,14 @@ export interface UnifiedAccountsFilters {
   type?: "client" | "partner" | null;
   is_active?: boolean | null;
   parent?: string | null;
+  scope?: "mine" | null; // "mine" — только прямые дети наших интеграционных учёток
   for?: "picker" | null; // Ф0: режим выбора партнёра — обход TTL-гейта Axenta для полноты
+}
+
+// Ответ /unified/accounts/parents — родители для дропдауна, сгруппированы.
+export interface UnifiedParentsResponse {
+  mine: string[]; // корни наших подключений (есть прямые дети)
+  others: string[]; // прочие родители (поддилеры и т.п.)
 }
 
 class AccountsService {
@@ -1034,11 +1041,25 @@ class AccountsService {
       params.is_active = filters.is_active;
     }
     if (filters.parent) params.parent = filters.parent;
+    if (filters.scope) params.scope = filters.scope;
     if (filters.for) params.for = filters.for;
 
     const response = await this.apiClient.get<any>("/api/auth/unified/accounts", { params });
     const data = response.data?.data ?? response.data;
     return data as UnifiedAccountsResponse;
+  }
+
+  /**
+   * Сгруппированный список родителей для дропдауна «Родительский аккаунт»:
+   * mine — корни наших подключений, others — поддилеры и прочее.
+   */
+  async getUnifiedParents(): Promise<UnifiedParentsResponse> {
+    const response = await this.apiClient.get<any>("/api/auth/unified/accounts/parents");
+    const data = response.data?.data ?? response.data;
+    return {
+      mine: Array.isArray(data?.mine) ? data.mine : [],
+      others: Array.isArray(data?.others) ? data.others : [],
+    };
   }
 
   /**

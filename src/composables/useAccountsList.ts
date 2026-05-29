@@ -125,7 +125,13 @@ export function useAccountsList(ctx: UseAccountsListContext) {
         source: (ctx.filters.value.source as any) || 'all',
         type: (ctx.filters.value.type as any) || undefined,
         is_active: ctx.filters.value.is_active,
-        parent: ctx.selectedParent.value?.trim() || undefined,
+        // selectedParent='__mine__' → scope=mine (прямые дети наших учёток),
+        // иначе конкретное имя родителя в parent=. '' → без фильтра (все родители).
+        scope: ctx.selectedParent.value === '__mine__' ? 'mine' : undefined,
+        parent:
+          ctx.selectedParent.value === '__mine__'
+            ? undefined
+            : ctx.selectedParent.value?.trim() || undefined,
       });
 
       accounts.value = response.items;
