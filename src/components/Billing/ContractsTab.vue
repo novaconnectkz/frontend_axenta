@@ -1348,11 +1348,14 @@ const transferTargets = computed(() =>
     .filter(c => c.id !== ledgerHistoryContract.value?.id)
     .map(c => ({ id: c.id, label: `${c.number} · ${c.client_name || c.title || ''}` }))
 );
+const transferKey = ref('');
 function openTransfer() {
   transferTarget.value = null;
   transferAmount.value = null;
   transferDesc.value = '';
   transferError.value = '';
+  // Ключ идемпотентности на одну попытку перевода (защита от дублей при retry).
+  transferKey.value = (globalThis.crypto?.randomUUID?.() ?? String(Date.now()) + Math.random());
   transferDialog.value = true;
 }
 async function doTransfer() {
@@ -1366,6 +1369,7 @@ async function doTransfer() {
       to_contract_id: transferTarget.value,
       amount: Number(transferAmount.value),
       description: transferDesc.value || undefined,
+      idempotency_key: transferKey.value || undefined,
     });
     const fromId = ledgerHistoryContract.value.id;
     const toId = transferTarget.value;
