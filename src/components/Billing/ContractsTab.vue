@@ -380,6 +380,12 @@
           </div>
         </template>
 
+        <!-- Менеджер -->
+        <template #item.manager_name="{ item }">
+          <span v-if="item.manager_name" class="text-body-2">{{ item.manager_name }}</span>
+          <span v-else class="text-medium-emphasis">—</span>
+        </template>
+
         <template #item.actions="{ item }">
           <div class="actions-cell">
             <v-tooltip text="Внести платёж">
@@ -1376,6 +1382,7 @@ const headers = [
   { title: 'Период', key: 'period', sortable: false, width: '118px', minWidth: '108px', align: 'center' as const },
   { title: 'Сумма', key: 'total_amount', sortable: true, width: '80px', minWidth: '72px', align: 'center' as const },
   { title: 'Баланс', key: 'ledger_balance', sortable: false, width: '100px', minWidth: '92px', align: 'center' as const },
+  { title: 'Менеджер', key: 'manager_name', sortable: true, width: '120px', minWidth: '104px', align: 'center' as const },
   { title: 'Действия', key: 'actions', sortable: false, width: '150px', minWidth: '136px', align: 'center' as const },
 ];
 

@@ -194,6 +194,14 @@ class ContractsService {
   }
 
   /**
+   * Список менеджеров (для селектора/фильтра «Менеджер» на договоре).
+   */
+  async getManagers(): Promise<Array<{ id: number; name: string; role: string }>> {
+    const response = await this.apiClient.get(`/auth/billing/managers`);
+    return response.data.data ?? response.data ?? [];
+  }
+
+  /**
    * Создать новый договор
    */
   async createContract(data: ContractForm): Promise<ContractWithRelations> {

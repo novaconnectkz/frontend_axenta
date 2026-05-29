@@ -77,6 +77,21 @@
                     prepend-icon="mdi-flag"
                   />
                 </v-col>
+
+                <!-- Обслуживающий менеджер — назначает только admin/superadmin -->
+                <v-col v-if="canAssignManager" cols="12" md="6">
+                  <v-select
+                    v-model="form.manager_id"
+                    :items="managers"
+                    item-title="name"
+                    item-value="id"
+                    label="Менеджер"
+                    variant="outlined"
+                    density="comfortable"
+                    prepend-icon="mdi-account-tie"
+                    clearable
+                  />
+                </v-col>
               </v-row>
 
               <v-row>
@@ -390,6 +405,7 @@
 import { computed, nextTick, ref, watch, onMounted } from 'vue';
 import type { DaDataOrganization } from '@/services/dadataService';
 import { useRouter } from 'vue-router';
+import { useLocalAuth } from '@/composables/useLocalAuth';
 import type { 
   ContractWithRelations, 
   ContractForm,
@@ -491,6 +507,7 @@ const defaultForm: ContractForm = {
   client_address: '',
   status: 'draft',
   account_id: undefined,
+  manager_id: null,
   // Скидки (для партнерских договоров)
   discount_type: 'none',
   manual_discount_percent: 0,
@@ -499,6 +516,19 @@ const defaultForm: ContractForm = {
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
+
+// Менеджера договора назначает только admin/superadmin.
+const { isAdmin: _isAdminMgr, userRole: _userRoleMgr } = useLocalAuth();
+const canAssignManager = computed(() => _isAdminMgr.value || _userRoleMgr.value === 'superadmin');
+const managers = ref<Array<{ id: number; name: string; role: string }>>([]);
+const loadManagers = async () => {
+  if (!canAssignManager.value) return;
+  try {
+    managers.value = await contractsService.getManagers();
+  } catch (e) {
+    managers.value = [];
+  }
+};
 
 // Обработчик обновления ИНН из событий компонента
 const handleInnUpdate = (val: string | Event) => {
@@ -690,6 +720,7 @@ const fillForm = (contract: ContractWithRelations) => {
     client_address: contract.client_address || '',
     status: contract.status,
     account_id: undefined, // Не загружаем account_id при редактировании
+    manager_id: contract.manager_id ?? null,
     // Скидки (для партнерских договоров)
     discount_type: (contract as any).discount_type || 'none',
     manual_discount_percent: (contract as any).manual_discount_percent || 0,
@@ -1155,6 +1186,7 @@ watch(() => props.modelValue, (newValue) => {
 // Lifecycle
 onMounted(() => {
   console.log('🔍 ContractDialog mounted, initializing...');
+  loadManagers();
   console.log('🔍 Initial form.client_inn:', form.value.client_inn);
   console.log('🔍 Testing API connection...');
   
