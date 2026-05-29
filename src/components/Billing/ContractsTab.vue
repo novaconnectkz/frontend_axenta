@@ -606,7 +606,7 @@
                     </div>
                   </v-col>
                   <v-col cols="12" md="3">
-                    <div class="text-caption text-medium-emphasis mb-1">Оплачено</div>
+                    <div class="text-caption text-medium-emphasis mb-1">Баланс</div>
                     <div class="text-h6 font-weight-bold text-success">
                       {{ formatCurrency(billingBreakdownData.summary.total_paid) }}
                     </div>
