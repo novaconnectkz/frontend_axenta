@@ -587,8 +587,9 @@
 
           <!-- Данные -->
           <div v-else-if="billingBreakdownData">
-            <!-- Общая информация о договоре -->
-            <v-card variant="flat" class="ma-4 mb-2" color="blue-lighten-5">
+            <!-- Общая информация о договоре (закреплена при скролле) -->
+            <div class="breakdown-summary-sticky">
+            <v-card variant="flat" class="mb-2" color="blue-lighten-5">
               <v-card-text class="pa-4">
                 <v-row>
                   <v-col cols="12" md="3">
@@ -619,6 +620,7 @@
                 </v-row>
               </v-card-text>
             </v-card>
+            </div>
 
             <!-- Разбивка по месяцам -->
             <div class="px-4 pb-4">
@@ -3338,6 +3340,15 @@ defineExpose({
 }
 
 /* Стили для диалога детализации расчета */
+/* Шапка детализации (период/итоги) закреплена при скролле списка месяцев */
+.breakdown-summary-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 16px 16px 0;
+  background: rgb(var(--v-theme-surface));
+}
+
 .completed-month {
   background-color: rgba(76, 175, 80, 0.05);
 }
