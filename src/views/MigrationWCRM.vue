@@ -169,13 +169,35 @@
                 <v-table density="compact" class="appendix-table mt-1">
                   <thead>
                     <tr>
-                      <th>Приложение → Подписка</th><th>Срок приложения</th><th>Цена (тариф)</th><th>Период</th><th>Активно</th><th>Объекты (по uid)</th>
+                      <th>Приложение → Подписка</th><th>Срок приложения</th><th>Старт подписки (ACRM)</th><th>Цена (тариф)</th><th>Период</th><th>Активно</th><th>Объекты (по uid)</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="ap in ct.appendices" :key="ap.wcrm_attachment_id" :class="{ 'text-disabled': !ap.enabled }">
                       <td>{{ ap.title }}</td>
                       <td class="text-caption">{{ shortDate(ap.start_date) || '—' }} — {{ shortDate(ap.end_date) || '∞' }}</td>
+                      <td class="start-cell">
+                        <template v-if="ap.enabled">
+                          <v-btn-toggle
+                            :model-value="startMode[ap.wcrm_attachment_id] || 'auto'"
+                            density="compact" mandatory variant="outlined" divided
+                            @update:model-value="(v: any) => setStartMode(ap, v)"
+                          >
+                            <v-btn value="auto" size="x-small">Авто</v-btn>
+                            <v-btn value="manual" size="x-small">Вручную</v-btn>
+                          </v-btn-toggle>
+                          <v-text-field
+                            v-if="startMode[ap.wcrm_attachment_id] === 'manual'"
+                            v-model="startDate[ap.wcrm_attachment_id]"
+                            type="date" density="compact" hide-details variant="outlined"
+                            class="mt-1 start-date-input"
+                          />
+                          <div v-else class="text-caption text-medium-emphasis mt-1">
+                            {{ shortDate(ap.start_date) || '—' }} (из WCRM)
+                          </div>
+                        </template>
+                        <span v-else class="text-medium-emphasis">—</span>
+                      </td>
                       <td>{{ ap.price }} ₽/объект</td>
                       <td>{{ ap.period }}</td>
                       <td>
@@ -272,6 +294,11 @@ const typeOverride = ref<Record<number, string>>({});
 const rowRunning = ref<number | null>(null);
 const bulkRunning = ref(false);
 
+// Ручной старт подписки на приложение (ключ = wcrm_attachment_id).
+// mode 'auto' → берём дату из WCRM; 'manual' → дата из startDate (дефолт 1-е тек. месяца).
+const startMode = ref<Record<number, 'auto' | 'manual'>>({});
+const startDate = ref<Record<number, string>>({});
+
 const headers = [
   { title: '', key: 'select', sortable: false, width: 48 },
   { title: 'Клиент', key: 'client_name' },
@@ -312,6 +339,36 @@ function shortDate(s: string): string {
   return s.slice(0, 10);
 }
 
+// 1-е число текущего месяца в формате YYYY-MM-DD (дефолт ручного старта).
+function firstOfCurrentMonth(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+// Переключение режима старта приложения. При входе в 'manual' проставляем дефолт.
+function setStartMode(ap: PreviewAppendix, mode: 'auto' | 'manual') {
+  startMode.value[ap.wcrm_attachment_id] = mode;
+  if (mode === 'manual' && !startDate.value[ap.wcrm_attachment_id]) {
+    startDate.value[ap.wcrm_attachment_id] = firstOfCurrentMonth();
+  }
+}
+
+// Собираем ручные override старта для компании: { attachment_id: 'YYYY-MM-DD' }.
+// Только включённые приложения в режиме 'manual'. Пусто → весь импорт авто.
+function buildStartOverrides(item: Candidate): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const ct of item.contracts || []) {
+    for (const ap of ct.appendices || []) {
+      if (!ap.enabled) continue;
+      if (startMode.value[ap.wcrm_attachment_id] === 'manual') {
+        const d = startDate.value[ap.wcrm_attachment_id];
+        if (d) out[String(ap.wcrm_attachment_id)] = d;
+      }
+    }
+  }
+  return out;
+}
+
 function toggleSelect(id: number) {
   const i = selectedIds.value.indexOf(id);
   if (i >= 0) selectedIds.value.splice(i, 1);
@@ -343,6 +400,7 @@ async function approveOne(item: Candidate) {
     await apiClient.post(`/auth/migration/wcrm/approve/${item.wcrm_company_id}`, {
       snapshot_sha256: preview.value?.snapshot_sha256,
       client_type_override: typeOverride.value[item.wcrm_company_id] || '',
+      appendix_start_overrides: buildStartOverrides(item),
     });
     item.status = 'approved';
   } catch (e: any) {
@@ -371,6 +429,8 @@ async function approveBulk() {
     try {
       await apiClient.post(`/auth/migration/wcrm/approve/${id}`, {
         snapshot_sha256: preview.value?.snapshot_sha256,
+        client_type_override: typeOverride.value[id] || '',
+        appendix_start_overrides: buildStartOverrides(item),
       });
       item.status = 'approved';
     } catch (e: any) {
@@ -409,6 +469,8 @@ loadPreview();
 .contract-block.will-skip { opacity: 0.55; }
 .contract-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
 .appendix-table { background: transparent; }
+.start-cell { min-width: 180px; }
+.start-date-input { max-width: 160px; }
 @media (max-width: 900px) {
   .stats-grid { grid-template-columns: repeat(3, 1fr); }
   .expand-grid { grid-template-columns: 1fr; }
