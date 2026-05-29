@@ -375,7 +375,7 @@
               {{ formatLedgerBalance(ledgerBalanceMap[item.id]) }}
             </span>
             <div v-if="ledgerBalanceMap[item.id] !== undefined" class="text-caption text-medium-emphasis">
-              {{ Number(ledgerBalanceMap[item.id]) < 0 ? 'долг' : (Number(ledgerBalanceMap[item.id]) > 0 ? 'переплата' : 'ноль') }}
+              {{ Number(ledgerBalanceMap[item.id]) < 0 ? 'долг' : (Number(ledgerBalanceMap[item.id]) > 0 ? 'предоплата' : 'ноль') }}
             </div>
           </div>
         </template>
