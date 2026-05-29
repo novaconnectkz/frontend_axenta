@@ -405,7 +405,7 @@
 import { computed, nextTick, ref, watch, onMounted } from 'vue';
 import type { DaDataOrganization } from '@/services/dadataService';
 import { useRouter } from 'vue-router';
-import { useLocalAuth } from '@/composables/useLocalAuth';
+import { canManageBilling } from '@/utils/billingRole';
 import type { 
   ContractWithRelations, 
   ContractForm,
@@ -517,9 +517,8 @@ const defaultForm: ContractForm = {
 
 const form = ref<ContractForm>({ ...defaultForm });
 
-// Менеджера договора назначает только admin/superadmin.
-const { isAdmin: _isAdminMgr, userRole: _userRoleMgr } = useLocalAuth();
-const canAssignManager = computed(() => _isAdminMgr.value || _userRoleMgr.value === 'superadmin');
+// Менеджера договора назначает только admin/superadmin (роль из axenta_user).
+const canAssignManager = computed(() => canManageBilling());
 const managers = ref<Array<{ id: number; name: string; role: string }>>([]);
 const loadManagers = async () => {
   if (!canAssignManager.value) return;

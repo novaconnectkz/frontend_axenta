@@ -1550,7 +1550,7 @@ import ManualPaymentDialog from '@/components/Billing/ManualPaymentDialog.vue'
 import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import { useAutopilot } from '@/composables/useAutopilot'
-import { useLocalAuth } from '@/composables/useLocalAuth'
+import { canManageBilling } from '@/utils/billingRole'
 import { billingService } from '@/services/billingService'
 import contractsService from '@/services/contractsService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
@@ -1583,8 +1583,8 @@ const router = useRouter()
 const autopilot = useAutopilot()
 
 // Политику биллинга (вкладка «Настройки») правят только admin/superadmin.
-const { isAdmin, userRole } = useLocalAuth()
-const canEditBilling = computed(() => isAdmin.value || userRole.value === 'superadmin')
+// Настройки правят admin/superadmin (роль из axenta_user; BE-guard защищает реально).
+const canEditBilling = computed(() => canManageBilling())
 
 const {
   showSendInvoiceOffer,

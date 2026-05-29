@@ -1137,7 +1137,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useLocalAuth } from '@/composables/useLocalAuth';
+import { canManageBilling } from '@/utils/billingRole';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
 import type { ContractType, PartnerSnapshotsSummary } from '@/types/contracts';
@@ -1316,8 +1316,7 @@ const contractTypeFilter = ref<string | null>(null);
 
 // Фильтр по менеджеру (только admin/superadmin — у менеджера и так только свои).
 const managerFilter = ref<number | null>(null);
-const { isAdmin: _iaTab, userRole: _urTab } = useLocalAuth();
-const canFilterManager = computed(() => _iaTab.value || _urTab.value === 'superadmin');
+const canFilterManager = computed(() => canManageBilling());
 const managerOptions = ref<Array<{ title: string; value: number }>>([]);
 const loadManagerOptions = async () => {
   if (!canFilterManager.value) return;
