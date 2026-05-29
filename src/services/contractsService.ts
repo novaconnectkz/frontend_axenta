@@ -194,6 +194,14 @@ class ContractsService {
   }
 
   /**
+   * Перевод средств между лицевыми счетами договоров.
+   */
+  async transferLedger(payload: { from_contract_id: number; to_contract_id: number; amount: number; description?: string }): Promise<{ transfer_id: string; from_balance: string; to_balance: string }> {
+    const response = await this.apiClient.post(`/auth/ledger/transfer`, payload);
+    return response.data.data ?? response.data;
+  }
+
+  /**
    * Список менеджеров (для селектора/фильтра «Менеджер» на договоре).
    */
   async getManagers(): Promise<Array<{ id: number; name: string; role: string }>> {

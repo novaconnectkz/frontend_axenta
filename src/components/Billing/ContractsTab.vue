@@ -1125,8 +1125,39 @@
           </v-table>
         </v-card-text>
         <v-card-actions>
+          <v-btn color="primary" variant="tonal" prepend-icon="mdi-bank-transfer" @click="openTransfer">Перевести</v-btn>
           <v-spacer />
           <v-btn variant="text" @click="ledgerHistoryDialog = false">Закрыть</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Перевод между лицевыми счетами -->
+    <v-dialog v-model="transferDialog" max-width="520">
+      <v-card>
+        <v-card-title>Перевод между лицевыми счетами</v-card-title>
+        <v-card-subtitle v-if="ledgerHistoryContract">
+          Со счёта: {{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.client_name }}
+        </v-card-subtitle>
+        <v-card-text>
+          <v-select
+            v-model="transferTarget"
+            :items="transferTargets"
+            item-title="label"
+            item-value="id"
+            label="Договор-получатель"
+            variant="outlined" density="comfortable" class="mb-3"
+          />
+          <v-text-field v-model.number="transferAmount" label="Сумма" type="number" min="0"
+            variant="outlined" density="comfortable" class="mb-3" />
+          <v-text-field v-model="transferDesc" label="Описание (необязательно)"
+            variant="outlined" density="comfortable" />
+          <v-alert v-if="transferError" type="error" density="compact" class="mt-2">{{ transferError }}</v-alert>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="transferDialog = false">Отмена</v-btn>
+          <v-btn color="primary" :loading="transferring" :disabled="!transferTarget || !transferAmount" @click="doTransfer">Перевести</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -1301,7 +1332,55 @@ async function openLedgerHistory(contract: any) {
   }
 }
 function ledgerEntryTypeLabel(t: string): string {
-  return ({ charge: 'Начисление', payment: 'Платёж', adjustment: 'Корректировка', reversal: 'Сторно', migration_balance: 'Перенос остатка (WCRM)' } as Record<string, string>)[t] || t;
+  return ({ charge: 'Начисление', payment: 'Платёж', adjustment: 'Корректировка', reversal: 'Сторно', migration_balance: 'Перенос остатка (WCRM)', transfer_out: 'Перевод (списание)', transfer_in: 'Перевод (зачисление)' } as Record<string, string>)[t] || t;
+}
+
+// === Перевод между лицевыми счетами ===
+const transferDialog = ref(false);
+const transferTarget = ref<number | null>(null);
+const transferAmount = ref<number | null>(null);
+const transferDesc = ref('');
+const transferring = ref(false);
+const transferError = ref('');
+// Получатели — все договоры кроме текущего (валюта проверяется на бэке).
+const transferTargets = computed(() =>
+  (contracts.value || [])
+    .filter(c => c.id !== ledgerHistoryContract.value?.id)
+    .map(c => ({ id: c.id, label: `${c.number} · ${c.client_name || c.title || ''}` }))
+);
+function openTransfer() {
+  transferTarget.value = null;
+  transferAmount.value = null;
+  transferDesc.value = '';
+  transferError.value = '';
+  transferDialog.value = true;
+}
+async function doTransfer() {
+  if (!ledgerHistoryContract.value || !transferTarget.value || !transferAmount.value) return;
+  transferring.value = true;
+  transferError.value = '';
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    await svc.transferLedger({
+      from_contract_id: ledgerHistoryContract.value.id,
+      to_contract_id: transferTarget.value,
+      amount: Number(transferAmount.value),
+      description: transferDesc.value || undefined,
+    });
+    const fromId = ledgerHistoryContract.value.id;
+    const toId = transferTarget.value;
+    transferDialog.value = false;
+    // Обновляем историю текущего ЛС + балансы обоих договоров в списке.
+    await openLedgerHistory(ledgerHistoryContract.value);
+    try {
+      const [bf, bt] = await Promise.all([svc.getLedgerBalance(fromId), svc.getLedgerBalance(toId)]);
+      ledgerBalanceMap.value = { ...ledgerBalanceMap.value, [fromId]: bf.balance, [toId]: bt.balance };
+    } catch { /* ignore */ }
+  } catch (e: any) {
+    transferError.value = e?.response?.data?.error || e?.message || 'Ошибка перевода';
+  } finally {
+    transferring.value = false;
+  }
 }
 function formatLedgerTime(v: string): string {
   if (!v) return '—';
