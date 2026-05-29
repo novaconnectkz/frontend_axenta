@@ -213,6 +213,10 @@ export class UsersService {
       if (filters.active !== undefined) params.append("active", filters.active.toString());
       if (filters.source) params.append("source", filters.source);
       if (filters.ordering) params.append("ordering", filters.ordering);
+      // Родительский аккаунт: '__mine__' → scope=mine, иначе имя → parent=
+      const fparent = (filters as any).parent as string | undefined;
+      if (fparent === "__mine__") params.append("scope", "mine");
+      else if (fparent) params.append("parent", fparent);
 
       const url = `/auth/unified/users?${params.toString()}`;
       console.log('📡 Unified Users API URL:', url);

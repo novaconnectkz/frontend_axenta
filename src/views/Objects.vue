@@ -30,6 +30,7 @@
     <ObjectsFiltersBar
       :filters="filters"
       :source-options="sourceOptions"
+      :parent-options="parentAccountOptions"
       :has-active-filters="hasActiveFilters"
       :active-filters-count="activeFiltersCount"
       v-model:show-deleted-objects="showDeletedObjects"
@@ -159,6 +160,7 @@ import { useObjectsFilters } from '@/composables/useObjectsFilters';
 import { useObjectsList } from '@/composables/useObjectsList';
 import { useObjectsLookups } from '@/composables/useObjectsLookups';
 import { useObjectsSelection } from '@/composables/useObjectsSelection';
+import accountsService from '@/services/accountsService';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
@@ -412,10 +414,40 @@ const typeOptions = [
 const sourceOptions = [
   { title: 'Все системы', value: null },
   { title: 'Axenta', value: 'axenta' },
-  { title: 'Wialon', value: 'wialon' },
+  { title: 'Wialon (все)', value: 'wialon' },
+  { title: 'WH (Hosting)', value: 'wh' },
+  { title: 'WL (Local)', value: 'wl' },
+  { title: 'SKIF.PRO', value: 'skif' },
   { title: 'GELIOS', value: 'gelios' },
-  { title: 'SKIF', value: 'skif' },
 ];
+
+// Дропдаун «Родительский аккаунт» (группы Наши родители/Подключения/Остальные),
+// из общего /unified/accounts/parents — тот же, что на /accounts.
+const parentAccountOptions = ref<Array<any>>([
+  { title: 'Все родители', value: '' },
+  { title: 'Наши родители', value: '__mine__' },
+]);
+const loadParentOptions = async () => {
+  try {
+    const { mine, others } = await accountsService.getUnifiedParents();
+    const opts: Array<any> = [
+      { title: 'Все родители', value: '' },
+      { title: 'Наши родители', value: '__mine__' },
+    ];
+    if (mine.length) {
+      opts.push({ type: 'subheader', title: 'Подключения' });
+      mine.forEach(n => opts.push({ title: n, value: n }));
+    }
+    if (others.length) {
+      opts.push({ type: 'divider' });
+      opts.push({ type: 'subheader', title: 'Остальные' });
+      others.forEach(n => opts.push({ title: n, value: n }));
+    }
+    parentAccountOptions.value = opts;
+  } catch (e) {
+    console.error('❌ Ошибка загрузки родителей (objects):', e);
+  }
+};
 
 const tableHeaders = computed(() => [
   { title: '', value: 'is_active', sortable: false, width: 60, headerProps: { class: 'header-status-icon' } },
@@ -472,6 +504,7 @@ onMounted(async () => {
   if (typeof route.query.type === 'string') filters.value.type = route.query.type as any;
 
   loadSearchHistory();
+  loadParentOptions();
 
   try {
     await loadObjects();

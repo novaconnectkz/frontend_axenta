@@ -4,6 +4,7 @@ import type { UserFilters, UserWithRelations } from '@/types/users';
 
 export interface UsersListFilters extends UserFilters {
   source?: string | null;
+  parent?: string; // '__mine__' (Наши родители) | имя родителя | '' (все)
 }
 
 interface UseUsersListContext {

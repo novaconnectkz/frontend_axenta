@@ -61,6 +61,17 @@
           />
         </div>
 
+        <div class="filter-item">
+          <v-autocomplete
+            v-model="parentModel"
+            :items="parentOptions"
+            label="Родительский аккаунт"
+            variant="outlined"
+            density="comfortable"
+            no-data-text="Нет данных"
+          />
+        </div>
+
         <div class="filter-item filter-clear">
           <v-btn
             v-show="hasActive"
@@ -106,6 +117,7 @@ interface FiltersValue {
   role?: string;
   active?: boolean;
   source?: string | null;
+  parent?: string;
   ordering?: string;
   user_type?: string;
 }
@@ -114,6 +126,8 @@ const props = defineProps<{
   filters: FiltersValue;
   roleOptions: Array<{ title: string; value: string }>;
   loadingRoles: boolean;
+  // Поддерживает группировку: { title, value } + { type:'subheader', title } / { type:'divider' }.
+  parentOptions: Array<{ title?: string; value?: string; type?: string }>;
 }>();
 
 const emit = defineEmits<{
@@ -148,6 +162,10 @@ const sourceModel = computed({
   get: () => props.filters.source,
   set: (v) => emit('update:filters', { ...props.filters, source: v }),
 });
+const parentModel = computed({
+  get: () => props.filters.parent ?? '__mine__',
+  set: (v) => emit('update:filters', { ...props.filters, parent: v }),
+});
 
 const searchTermsArray = computed(() => {
   if (!props.filters.search) return [];
@@ -156,16 +174,22 @@ const searchTermsArray = computed(() => {
 
 const isMultipleSearch = computed(() => searchTermsArray.value.length > 1);
 
+// parent='__mine__' (Наши родители) — дефолт, не активный фильтр.
+const isParentActive = () => !!props.filters.parent && props.filters.parent !== '__mine__';
+
 const hasActive = computed(() => {
   const real = { ...props.filters };
   delete real.ordering;
-  return Object.values(real).some((v) => v !== undefined && v !== null && v !== '');
+  delete real.parent;
+  return Object.values(real).some((v) => v !== undefined && v !== null && v !== '') || isParentActive();
 });
 
 const activeCount = computed(() => {
   const real = { ...props.filters };
   delete real.ordering;
-  return Object.values(real).filter((v) => v !== undefined && v !== null && v !== '').length;
+  delete real.parent;
+  const base = Object.values(real).filter((v) => v !== undefined && v !== null && v !== '').length;
+  return base + (isParentActive() ? 1 : 0);
 });
 
 const onSearchInput = () => emit('search');

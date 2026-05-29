@@ -38,7 +38,7 @@ export function useObjectsFilters(ctx: UseObjectsFiltersContext) {
 
   const showDeletedObjects = ref<boolean>(!!persisted?.showDeleted);
 
-  const filters = ref<ObjectFilters & { source?: string | null }>({
+  const filters = ref<ObjectFilters & { source?: string | null; parent?: string }>({
     search: persisted?.search ?? '',
     status: (persisted?.status as any) ?? undefined,
     type: (persisted?.type as any) ?? undefined,
@@ -46,6 +46,8 @@ export function useObjectsFilters(ctx: UseObjectsFiltersContext) {
     location_id: persisted?.location_id ?? undefined,
     template_id: persisted?.template_id ?? undefined,
     source: persisted?.source ?? null,
+    // Родительский аккаунт: дефолт «Наши родители» (__mine__ → scope=mine).
+    parent: persisted?.parent ?? '__mine__',
     ordering: persisted?.ordering ?? '-createdAt',
   });
 
@@ -65,14 +67,18 @@ export function useObjectsFilters(ctx: UseObjectsFiltersContext) {
   const searchSuggestions = ref<Array<{ title: string; subtitle: string; icon: string; value: string }>>([]);
   const searchHistory = ref<string[]>([]);
 
+  // parent='__mine__' — дефолт, не считается активным фильтром.
+  const isParentActive = () => !!filters.value.parent && filters.value.parent !== '__mine__';
+
   const hasActiveFilters = computed(() => {
-    return !!(filters.value.search || filters.value.source) || showDeletedObjects.value;
+    return !!(filters.value.search || filters.value.source) || isParentActive() || showDeletedObjects.value;
   });
 
   const activeFiltersCount = computed(() => {
     let count = 0;
     if (filters.value.search) count++;
     if (filters.value.source) count++;
+    if (isParentActive()) count++;
     if (showDeletedObjects.value) count++;
     return count;
   });
@@ -87,6 +93,7 @@ export function useObjectsFilters(ctx: UseObjectsFiltersContext) {
         contract_id: filters.value.contract_id ?? null,
         location_id: filters.value.location_id ?? null,
         template_id: filters.value.template_id ?? null,
+        parent: filters.value.parent ?? '__mine__',
         ordering: filters.value.ordering,
         showDeleted: showDeletedObjects.value,
         page: ctx.pagination.value.page,
@@ -122,6 +129,7 @@ export function useObjectsFilters(ctx: UseObjectsFiltersContext) {
       location_id: undefined,
       template_id: undefined,
       source: null,
+      parent: '__mine__', // сброс на дефолт «Наши родители»
     };
     advancedFilters.value = {
       accountName: '',

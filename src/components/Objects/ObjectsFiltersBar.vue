@@ -15,7 +15,7 @@
           />
         </v-col>
 
-        <v-col cols="12" md="3" class="pr-3">
+        <v-col cols="12" md="2" class="pr-3">
           <v-select
             v-model="filters.source"
             :items="sourceOptions"
@@ -24,6 +24,19 @@
             variant="outlined"
             density="compact"
             hide-details
+            @update:model-value="$emit('change')"
+          />
+        </v-col>
+
+        <v-col cols="12" md="2" class="pr-3">
+          <v-autocomplete
+            v-model="filters.parent"
+            :items="parentOptions"
+            label="Родительский аккаунт"
+            variant="outlined"
+            density="compact"
+            hide-details
+            no-data-text="Нет данных"
             @update:model-value="$emit('change')"
           />
         </v-col>
@@ -81,6 +94,8 @@ interface FiltersModel {
 defineProps<{
   filters: FiltersModel;
   sourceOptions: SourceOption[];
+  // Поддерживает группировку: { title, value } + { type:'subheader', title } / { type:'divider' }.
+  parentOptions: Array<{ title?: string; value?: string; type?: string }>;
   hasActiveFilters: boolean;
   activeFiltersCount: number;
 }>();

@@ -6,6 +6,7 @@
       :filters="filters"
       :role-options="roleOptions"
       :loading-roles="loadingRoles"
+      :parent-options="parentAccountOptions"
       @update:filters="onFiltersUpdate"
       @search="debouncedSearch"
       @clear="clearFilters"
@@ -126,6 +127,7 @@ import UsersTable from '@/components/Users/UsersTable.vue';
 import { useUserActions } from '@/composables/useUserActions';
 import { useUsersList, type UsersListFilters } from '@/composables/useUsersList';
 import usersService from '@/services/usersService';
+import accountsService from '@/services/accountsService';
 import { emitCrossSection } from '@/utils/crossSectionBus';
 import type { UserWithRelations } from '@/types/users';
 
@@ -137,6 +139,7 @@ const defaultFilters = (): UsersListFilters => ({
   user_type: undefined,
   active: undefined,
   source: null,
+  parent: '__mine__', // дефолт «Наши родители» (scope=mine)
   ordering: '-creation_datetime',
 });
 
@@ -168,6 +171,7 @@ const loadFiltersFromStorage = (): boolean => {
       user_type: data.user_type ?? undefined,
       active: data.active ?? undefined,
       source: data.source ?? null,
+      parent: data.parent ?? '__mine__',
       ordering: data.ordering ?? '-creation_datetime',
     };
     if (typeof data.page === 'number' && data.page > 0) pagination.value.page = data.page;
@@ -189,6 +193,7 @@ const saveFiltersToStorage = () => {
         user_type: filters.value.user_type,
         active: filters.value.active,
         source: filters.value.source,
+        parent: filters.value.parent ?? '__mine__',
         ordering: filters.value.ordering,
         page: pagination.value.page,
         limit: pagination.value.limit,
@@ -204,6 +209,33 @@ watch([filters, pagination], saveFiltersToStorage, { deep: true });
 const roleOptions = ref<Array<{ title: string; value: string }>>([]);
 const roleOptionsForForm = ref<Array<{ title: string; value: number }>>([]);
 const loadingRoles = ref(false);
+
+// Дропдаун «Родительский аккаунт» (группы), из общего /unified/accounts/parents.
+const parentAccountOptions = ref<Array<any>>([
+  { title: 'Все родители', value: '' },
+  { title: 'Наши родители', value: '__mine__' },
+]);
+const loadParentOptions = async () => {
+  try {
+    const { mine, others } = await accountsService.getUnifiedParents();
+    const opts: Array<any> = [
+      { title: 'Все родители', value: '' },
+      { title: 'Наши родители', value: '__mine__' },
+    ];
+    if (mine.length) {
+      opts.push({ type: 'subheader', title: 'Подключения' });
+      mine.forEach(n => opts.push({ title: n, value: n }));
+    }
+    if (others.length) {
+      opts.push({ type: 'divider' });
+      opts.push({ type: 'subheader', title: 'Остальные' });
+      others.forEach(n => opts.push({ title: n, value: n }));
+    }
+    parentAccountOptions.value = opts;
+  } catch (e) {
+    console.error('❌ Ошибка загрузки родителей (users):', e);
+  }
+};
 
 interface StatBreakdown { axenta: number; wl: number; wh: number; skif: number; gelios: number }
 interface StatItem {
@@ -334,6 +366,7 @@ const onFiltersUpdate = (next: UsersListFilters) => {
     prev.role === next.role &&
     prev.active === next.active &&
     prev.source === next.source &&
+    prev.parent === next.parent &&
     prev.user_type === next.user_type &&
     prev.ordering === next.ordering;
   if (same) return;
@@ -542,6 +575,8 @@ onMounted(async () => {
   if (typeof route.query.source === 'string' && route.query.source) {
     filters.value.source = route.query.source as UsersListFilters['source'];
   }
+
+  loadParentOptions();
 
   try {
     await Promise.all([loadUsers(), loadStats(), loadGlobalStats(), loadRoles()]);
