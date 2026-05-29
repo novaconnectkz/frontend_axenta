@@ -249,6 +249,8 @@ export interface Contract extends ContractBase {
   total_revenue?: string;
   last_payment_date?: string;
   next_payment_date?: string;
+  manager_id?: number | null;
+  manager_name?: string;
 }
 
 // Форма договора
@@ -256,6 +258,7 @@ export interface ContractForm {
   number: string;
   title: string;
   description?: string;
+  manager_id?: number | null; // обслуживающий менеджер (назначает admin)
   contract_type?: ContractType; // Тип договора: клиентский или партнерский
   partner_source?: ContractSource; // GPS-система: axenta/wialon/skif/gelios
   partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера

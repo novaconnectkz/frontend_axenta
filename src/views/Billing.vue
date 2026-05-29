@@ -327,7 +327,7 @@
         <v-icon left>mdi-file-document</v-icon>
         Счета
       </v-tab>
-      <v-tab value="settings">
+      <v-tab v-if="canEditBilling" value="settings">
         <v-icon left>mdi-cog</v-icon>
         Настройки
       </v-tab>
@@ -624,7 +624,7 @@
       </v-window-item>
 
       <!-- Настройки биллинга -->
-      <v-window-item value="settings">
+      <v-window-item v-if="canEditBilling" value="settings">
         <!-- Настройки биллинга -->
         <v-card>
           <v-card-title>Настройки биллинга</v-card-title>
@@ -710,6 +710,38 @@
                       </v-tooltip>
                     </template>
                   </v-text-field>
+                </v-col>
+              </v-row>
+
+              <!-- Модель биллинга (политика компании, П0) -->
+              <v-divider class="my-4"></v-divider>
+              <v-row>
+                <v-col cols="12">
+                  <h4 class="mb-1">Модель биллинга</h4>
+                  <div class="text-caption text-grey mb-3">Политика компании — задаёт рамки для операторов</div>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-select v-model="billingSettings.default_billing_mode"
+                    :items="[{ title: 'Предоплата', value: 'prepaid' }, { title: 'Постоплата', value: 'postpaid' }]"
+                    label="Режим по умолчанию" density="compact" variant="outlined" hide-details class="mb-3"></v-select>
+                  <v-switch v-model="billingSettings.allow_postpaid" label="Разрешить постоплату"
+                    color="primary" density="compact" hide-details class="mb-1"></v-switch>
+                  <v-switch v-model="billingSettings.allow_promised_payments" label="Разрешить обещанные платежи"
+                    color="primary" density="compact" hide-details></v-switch>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-text-field v-model="billingSettings.max_credit_limit" label="Макс. кредитный лимит (долг)"
+                    type="number" min="0" density="compact" variant="outlined" hide-details class="mb-3"></v-text-field>
+                  <v-text-field v-model.number="billingSettings.max_deferral_days" label="Макс. отсрочка (дней)"
+                    type="number" min="0" density="compact" variant="outlined" hide-details></v-text-field>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-select v-model="billingSettings.rate_source"
+                    :items="[{ title: 'ЦБ РФ', value: 'cbr_rf' }, { title: 'Нацбанк РК', value: 'nbk_kz' }, { title: 'Нет', value: 'none' }]"
+                    label="Источник курса валют" density="compact" variant="outlined" hide-details class="mb-3"></v-select>
+                  <v-select v-model="billingSettings.operation_role_threshold"
+                    :items="[{ title: 'Администратор', value: 'admin' }, { title: 'Менеджер', value: 'manager' }]"
+                    label="Кто может перевод/отсрочку/обещание" density="compact" variant="outlined" hide-details></v-select>
                 </v-col>
               </v-row>
 
@@ -1518,6 +1550,7 @@ import ManualPaymentDialog from '@/components/Billing/ManualPaymentDialog.vue'
 import SendInvoiceDialog from '@/components/Billing/SendInvoiceDialog.vue'
 import SubscriptionWizard from '@/components/Billing/SubscriptionWizard.vue'
 import { useAutopilot } from '@/composables/useAutopilot'
+import { useLocalAuth } from '@/composables/useLocalAuth'
 import { billingService } from '@/services/billingService'
 import contractsService from '@/services/contractsService'
 import { invoiceNumeratorsService } from '@/services/invoiceNumeratorsService'
@@ -1548,6 +1581,11 @@ const router = useRouter()
 
 // Автопилот
 const autopilot = useAutopilot()
+
+// Политику биллинга (вкладка «Настройки») правят только admin/superadmin.
+const { isAdmin, userRole } = useLocalAuth()
+const canEditBilling = computed(() => isAdmin.value || userRole.value === 'superadmin')
+
 const {
   showSendInvoiceOffer,
   currentInvoice: autopilotInvoice

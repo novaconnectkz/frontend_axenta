@@ -210,6 +210,14 @@ export interface BillingSettings {
   bitrix24_deal_number_field?: string;
   autopilot_enabled: boolean;
   min_days_for_full_month: number;
+  // Политика биллинга (П0, admin/superadmin)
+  default_billing_mode?: 'prepaid' | 'postpaid';
+  allow_postpaid?: boolean;
+  allow_promised_payments?: boolean;
+  max_credit_limit?: string | number;
+  max_deferral_days?: number;
+  rate_source?: 'cbr_rf' | 'nbk_kz' | 'none';
+  operation_role_threshold?: 'admin' | 'manager';
 }
 
 // Расчет биллинга
