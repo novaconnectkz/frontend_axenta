@@ -216,7 +216,7 @@
               {{ item.tariff_plan.name }}
             </v-chip>
             <div class="text-caption">
-              {{ formatCurrency(item.tariff_plan.price || 0) }}/мес
+              {{ formatMoneyPlain(item.tariff_plan.price || 0) }}/мес
             </div>
           </template>
           <!-- Для клиентских договоров показываем тарифы из подписок -->
@@ -242,7 +242,7 @@
                   class="mb-1"
                 >
                   <strong>{{ index + 1 }}.</strong> {{ plan.name }} 
-                  <span class="text-caption">({{ formatCurrency(plan.price || 0) }}/мес)</span>
+                  <span class="text-caption">({{ formatMoneyPlain(plan.price || 0) }}/мес)</span>
                 </div>
               </div>
             </v-tooltip>
@@ -253,7 +253,7 @@
               {{ contractTariffsMap.get(item.id)?.uniquePlans[0]?.name }}
             </v-chip>
             <div class="text-caption">
-              {{ formatCurrency(contractTariffsMap.get(item.id)?.uniquePlans[0]?.price || 0) }}/мес
+              {{ formatMoneyPlain(contractTariffsMap.get(item.id)?.uniquePlans[0]?.price || 0) }}/мес
             </div>
           </template>
           <template v-else>
@@ -338,7 +338,7 @@
             <!-- Для клиентских договоров - стоимость и количество объектов -->
             <template v-else>
               <div class="amount-value">
-                {{ formatCurrency(calculateContractAmount(item), item.currency) }}
+                {{ formatMoneyPlain(calculateContractAmount(item)) }}
               </div>
               <!-- С всплывающим списком объектов -->
               <v-tooltip location="top">
@@ -372,7 +372,7 @@
           <div class="ledger-balance-cell" style="cursor:pointer" @click="openLedgerHistory(item)">
             <span v-if="ledgerBalanceMap[item.id] === undefined" class="text-medium-emphasis">—</span>
             <span v-else :class="ledgerBalanceClass(ledgerBalanceMap[item.id])" class="font-weight-bold">
-              {{ formatLedgerBalance(ledgerBalanceMap[item.id]) }}
+              {{ formatMoneyPlain(ledgerBalanceMap[item.id]) }}
             </span>
             <div v-if="ledgerBalanceMap[item.id] !== undefined" class="text-caption text-medium-emphasis">
               {{ Number(ledgerBalanceMap[item.id]) < 0 ? 'долг' : (Number(ledgerBalanceMap[item.id]) > 0 ? 'предоплата' : 'ноль') }}
@@ -2187,6 +2187,15 @@ const formatCurrency = (amount: string | number, currency = 'RUB'): string => {
   return new Intl.NumberFormat('ru-RU', {
     style: 'currency',
     currency: currency,
+  }).format(value || 0);
+};
+
+// Сумма без символа валюты — для колонок списка договоров (валюта ясна из договора).
+const formatMoneyPlain = (amount: string | number): string => {
+  const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value || 0);
 };
 
