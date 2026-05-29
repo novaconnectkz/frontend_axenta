@@ -473,7 +473,9 @@ const isStatusFilterActive = computed(() => {
 });
 
 const isParentFilterActive = computed(() => {
-  return selectedParent.value && selectedParent.value.trim() !== '';
+  // '__mine__' (Наши родители) — дефолт, не считается активным фильтром.
+  const v = selectedParent.value?.trim();
+  return !!v && v !== '__mine__';
 });
 
 const isSourceFilterActive = computed(() => {
@@ -554,7 +556,7 @@ const resetFilters = () => {
     is_active: null,
     source: null, // Сброс фильтра "Система"
   };
-  selectedParent.value = ''; // Сброс на "Все родители"
+  selectedParent.value = '__mine__'; // Сброс на дефолт "Наши родители"
   currentPage.value = 1;
 
   // Очищаем кэш при сбросе фильтров
