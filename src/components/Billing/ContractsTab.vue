@@ -4,7 +4,7 @@
     <v-card variant="outlined" class="filters-card mb-4">
       <v-card-text class="pa-3">
         <v-row align="center">
-          <v-col cols="12" md="4">
+          <v-col cols="12" :md="canFilterManager ? 2 : 3">
             <v-text-field
               v-model="searchQuery"
               placeholder="Поиск по номеру, клиенту..."
@@ -71,7 +71,7 @@
           </v-col>
 
           <!-- Действия -->
-          <v-col cols="12" md="2" class="filter-actions">
+          <v-col cols="12" md="auto" class="filter-actions">
             <div class="actions-container">
             <!-- Кнопка автопилота -->
             <div class="filter-autopilot">
