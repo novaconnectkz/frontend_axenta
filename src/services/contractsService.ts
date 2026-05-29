@@ -202,6 +202,31 @@ class ContractsService {
   }
 
   /**
+   * Зонты отсрочки/обещанного платежа (П3+П4) по договору.
+   * Блокируют авто-приостановку за долг до hold_until, не трогая баланс.
+   */
+  async getLedgerHolds(contractId: number): Promise<any[]> {
+    const response = await this.apiClient.get(`/auth/ledger/holds/${contractId}`);
+    return response.data.data ?? response.data ?? [];
+  }
+
+  /**
+   * Создать зонт: отсрочку (deferral) или обещанный платёж (promise).
+   */
+  async createLedgerHold(payload: { contract_id: number; hold_type: 'deferral' | 'promise'; hold_until: string; amount?: number; reason?: string }): Promise<any> {
+    const response = await this.apiClient.post(`/auth/ledger/hold`, payload);
+    return response.data.data ?? response.data;
+  }
+
+  /**
+   * Отменить активный зонт.
+   */
+  async cancelLedgerHold(holdId: number): Promise<{ id: number; status: string }> {
+    const response = await this.apiClient.post(`/auth/ledger/hold/${holdId}/cancel`, {});
+    return response.data.data ?? response.data;
+  }
+
+  /**
    * Список менеджеров (для селектора/фильтра «Менеджер» на договоре).
    */
   async getManagers(): Promise<Array<{ id: number; name: string; role: string }>> {
