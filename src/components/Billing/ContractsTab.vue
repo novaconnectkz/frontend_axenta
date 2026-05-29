@@ -55,7 +55,21 @@
               rounded="lg"
             />
           </v-col>
-          
+
+          <!-- Фильтр по менеджеру — только admin/superadmin -->
+          <v-col v-if="canFilterManager" cols="6" md="2">
+            <v-select
+              v-model="managerFilter"
+              :items="managerOptions"
+              label="Менеджер"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+              rounded="lg"
+            />
+          </v-col>
+
           <!-- Действия -->
           <v-col cols="12" md="2" class="filter-actions">
             <div class="actions-container">
@@ -1123,6 +1137,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useLocalAuth } from '@/composables/useLocalAuth';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
 import type { ContractType, PartnerSnapshotsSummary } from '@/types/contracts';
@@ -1299,6 +1314,20 @@ const statusFilter = ref<string | null>(null);
 const activeFilter = ref<boolean | null>(null);
 const contractTypeFilter = ref<string | null>(null);
 
+// Фильтр по менеджеру (только admin/superadmin — у менеджера и так только свои).
+const managerFilter = ref<number | null>(null);
+const { isAdmin: _iaTab, userRole: _urTab } = useLocalAuth();
+const canFilterManager = computed(() => _iaTab.value || _urTab.value === 'superadmin');
+const managerOptions = ref<Array<{ title: string; value: number }>>([]);
+const loadManagerOptions = async () => {
+  if (!canFilterManager.value) return;
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    const list = await svc.getManagers();
+    managerOptions.value = list.map((m: any) => ({ title: m.name, value: m.id }));
+  } catch { managerOptions.value = []; }
+};
+
 // Дебаунс для поискового запроса (500мс) для оптимизации при плохом интернете
 let searchDebounceTimer: number | null = null;
 watch(searchQuery, (newValue) => {
@@ -1430,6 +1459,11 @@ const filteredContracts = computed(() => {
 
   if (contractTypeFilter.value) {
     items = items.filter(contract => (contract.contract_type || 'client') === contractTypeFilter.value);
+  }
+
+  // Фильтр по менеджеру (admin): по manager_id
+  if (managerFilter.value != null) {
+    items = items.filter(contract => (contract as any).manager_id === managerFilter.value);
   }
 
   // 3. ПОИСК (Клиентский, регистронезависимый)
@@ -2670,6 +2704,7 @@ const loadBillingSettings = async () => {
 
 // Lifecycle
 onMounted(async () => {
+  loadManagerOptions();
   await loadBillingSettings();
   if (demoMode.value) {
     await loadDemoContracts();
