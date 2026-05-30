@@ -1773,6 +1773,14 @@ onMounted(async () => {
     }, 300);
   }
 
+  // Deep-link из глобального поиска: ?search=<номер счёта> → вкладка «Счета» + фильтр.
+  // activeTab уже инициализируется из ?tab (см. ref выше), но search может прийти и без tab.
+  const searchQuery = route.query.search as string | undefined;
+  if (searchQuery) {
+    activeTab.value = 'invoices';
+    invoiceSearchQuery.value = searchQuery;
+  }
+
   // Слушаем изменения в localStorage (на случай переключения компании)
   handleStorageChange = (e: StorageEvent) => {
     if (e.key === 'axenta_company') {
