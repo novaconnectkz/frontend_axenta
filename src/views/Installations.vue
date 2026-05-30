@@ -174,6 +174,7 @@ import type {
 } from "@/types/installations";
 import { useErrorHandler } from "@/utils/errorHandler";
 import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 
 // Импорт компонентов
 import CancelInstallationDialog from "@/components/Installations/CancelInstallationDialog.vue";
@@ -502,10 +503,21 @@ const goToToday = () => {
 };
 
 // Загрузка данных при монтировании
-onMounted(() => {
+const route = useRoute();
+
+onMounted(async () => {
   console.log('🔄 Installations component mounted');
   console.log('🔄 isDemoMode:', isDemoMode.value);
-  loadData();
+  await loadData();
+
+  // Deep-link из глобального поиска: ?installation=<id> → открыть карточку монтажа.
+  const installationId = Number(route.query.installation);
+  if (installationId) {
+    const found = installations.value.find(i => i.id === installationId);
+    if (found) {
+      openInstallationDialog(found);
+    }
+  }
 });
 </script>
 
