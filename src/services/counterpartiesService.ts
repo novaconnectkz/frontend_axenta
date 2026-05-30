@@ -1,0 +1,129 @@
+/**
+ * Сервис для работы с API контрагентов (единый лицевой счёт per контрагент, Ф4).
+ */
+
+import { config } from "@/config/env";
+import axios, { type AxiosResponse } from "axios";
+
+export interface Counterparty {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  admin_account_id: number;
+  company_id: number;
+  country: string;
+  id_type: "inn" | "bin" | "iin" | "passport" | "other";
+  tax_id: string;
+  name: string;
+  client_type: string;
+  kpp?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  legal_address?: string;
+  director?: string;
+  bank_name?: string;
+  bank_account?: string;
+  billing_mode: string;
+  credit_limit: string;
+  manual_review: boolean;
+  created_by: string;
+}
+
+export interface CounterpartyBalance {
+  counterparty_id: number;
+  name: string;
+  balance: string;
+  total_charged: string;
+  total_paid: string;
+  is_debt: boolean;
+  debt_amount: string;
+  credit_limit: string;
+  billing_mode: string;
+  contracts_count: number;
+}
+
+export interface CounterpartySearchItem {
+  id: number;
+  name: string;
+  tax_id: string;
+  id_type: string;
+  manual_review: boolean;
+}
+
+class CounterpartiesService {
+  private apiClient = axios.create({
+    baseURL: config.apiBaseUrl,
+    timeout: 60000,
+  });
+
+  constructor() {
+    // Интерцептор: токен + X-Tenant-ID из localStorage (как в contractsService).
+    this.apiClient.interceptors.request.use((cfg) => {
+      const token = localStorage.getItem("axenta_token");
+      const company = localStorage.getItem("axenta_company");
+      if (token) {
+        cfg.headers["authorization"] = `Bearer ${token}`;
+      }
+      if (company) {
+        try {
+          const companyId = JSON.parse(company)?.id;
+          if (companyId !== undefined && companyId !== null) {
+            cfg.headers["X-Tenant-ID"] = String(companyId);
+          }
+        } catch (e) {
+          console.warn("Invalid company data in localStorage:", e);
+        }
+      }
+      return cfg;
+    });
+  }
+
+  /** Список контрагентов компании. q — поиск по имени/ИНН; manualReview — фильтр на проверку. */
+  async list(params: { q?: string; manualReview?: boolean; limit?: number; offset?: number } = {}): Promise<{
+    data: Counterparty[];
+    count: number;
+    total: number;
+  }> {
+    const res: AxiosResponse = await this.apiClient.get("/auth/counterparties", {
+      params: {
+        q: params.q || undefined,
+        manual_review: params.manualReview ? "1" : undefined,
+        limit: params.limit ?? 100,
+        offset: params.offset ?? 0,
+      },
+    });
+    return {
+      data: res.data?.data ?? [],
+      count: res.data?.count ?? 0,
+      total: res.data?.total ?? 0,
+    };
+  }
+
+  /** Autocomplete для формы договора (Ф4b-followon). */
+  async search(q: string): Promise<CounterpartySearchItem[]> {
+    const res: AxiosResponse = await this.apiClient.get("/auth/counterparties/search", {
+      params: { q },
+    });
+    return res.data?.data ?? [];
+  }
+
+  async get(id: number): Promise<Counterparty> {
+    const res: AxiosResponse = await this.apiClient.get(`/auth/counterparties/${id}`);
+    return res.data?.data;
+  }
+
+  /** Единый лицевой счёт контрагента: баланс (по всем договорам) + разбивка. */
+  async balance(id: number): Promise<CounterpartyBalance> {
+    const res: AxiosResponse = await this.apiClient.get(`/auth/counterparties/${id}/balance`);
+    return res.data?.data;
+  }
+
+  async update(id: number, payload: Partial<Counterparty>): Promise<Counterparty> {
+    const res: AxiosResponse = await this.apiClient.put(`/auth/counterparties/${id}`, payload);
+    return res.data?.data;
+  }
+}
+
+export const counterpartiesService = new CounterpartiesService();
+export default counterpartiesService;

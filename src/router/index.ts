@@ -207,6 +207,17 @@ const routes = [
         },
       },
 
+      // Контрагенты (единый лицевой счёт, Ф4b)
+      {
+        path: "counterparties",
+        name: "Counterparties",
+        component: () => import("@/views/Counterparties.vue"),
+        meta: {
+          title: "Контрагенты",
+          requiresAuth: true,
+        },
+      },
+
       // Отчеты и аналитика
       {
         path: "reports",

@@ -520,6 +520,12 @@ const navigationItems = computed(() => [
     subtitle: 'Договоры и финансы'
   },
   {
+    path: '/counterparties',
+    icon: 'mdi-account-cash',
+    title: 'Контрагенты',
+    subtitle: 'Единый лицевой счёт'
+  },
+  {
     path: '/reports',
     icon: 'mdi-chart-line',
     title: 'Отчеты',
