@@ -2732,16 +2732,21 @@ const getPeriodTooltipText = (contract: Contract): string => {
 
 // Функция loadSubscriptions больше не нужна - подписки передаются через props из родительского компонента
 
-const loadContracts = async (resetPagination = true, skipStats = true) => {
-  console.log('🔄 ContractsTab: Начинаем загрузку договоров...');
-  
-  if (resetPagination) {
-  loading.value = true;
+// silent=true — фоновое обновление БЕЗ спиннера и без очистки списка (нет «перезагрузки»
+// для пользователя): тихо перетягиваем страницу 1 и ЗАМЕНЯЕМ данные на месте.
+const loadContracts = async (resetPagination = true, skipStats = true, silent = false) => {
+  console.log('🔄 ContractsTab: Начинаем загрузку договоров...', { resetPagination, silent });
+
+  if (silent) {
+    // Фон: не трогаем loading/контент до прихода свежих данных (без мерцания).
+    currentPage.value = 1;
+  } else if (resetPagination) {
+    loading.value = true;
     currentPage.value = 1;
     contracts.value = [];
     statsLoadedMap.value.clear();
   }
-  
+
   try {
     const contractsService = (await import('@/services/contractsService')).default;
     
@@ -2762,9 +2767,9 @@ const loadContracts = async (resetPagination = true, skipStats = true) => {
       sort_order: sortBy.value[0]?.order || 'desc',
     } as any);
     
-    // При первой загрузке заменяем, при догрузке - добавляем
-    if (resetPagination) {
-    contracts.value = response.contracts || [];
+    // Замена при reset/silent, добавление только при догрузке (infinite scroll).
+    if (resetPagination || silent) {
+      contracts.value = response.contracts || [];
     } else {
       contracts.value = [...contracts.value, ...(response.contracts || [])];
     }
@@ -3009,7 +3014,7 @@ const applyBulkManager = async () => {
     reportBulkResult(res, 'Менеджер назначен');
     bulkManagerDialog.value = false;
     clearSelection();
-    await loadContracts(false, true);
+    await loadContracts(false, true, true); // silent replace — без мерцания/дублей
   } catch (e: any) {
     showSnackbarMessage(e?.response?.data?.error || 'Ошибка назначения менеджера', 'error');
   } finally { bulkLoading.value = false; }
@@ -3024,7 +3029,7 @@ const applyBulkStatus = async () => {
     reportBulkResult(res, 'Статус изменён');
     bulkStatusDialog.value = false;
     clearSelection();
-    await loadContracts(false, true);
+    await loadContracts(false, true, true); // silent replace
   } catch (e: any) {
     showSnackbarMessage(e?.response?.data?.error || 'Ошибка смены статуса', 'error');
   } finally { bulkLoading.value = false; }
@@ -3039,7 +3044,7 @@ const applyBulkDelete = async () => {
     reportBulkResult(res, 'Удалено');
     bulkDeleteDialog.value = false;
     clearSelection();
-    await loadContracts(true, true);
+    await loadContracts(false, true, true); // silent replace
   } catch (e: any) {
     showSnackbarMessage(e?.response?.data?.error || 'Ошибка удаления', 'error');
   } finally { bulkLoading.value = false; }
