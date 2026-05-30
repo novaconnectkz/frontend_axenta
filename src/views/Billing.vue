@@ -695,8 +695,8 @@
                         </template>
                         <div class="text-caption pa-2">
                           <strong>Пример:</strong> при значении 5 дней:<br>
-                          • Объект в системе 7 дней → полная стоимость месяца<br>
-                          • Объект в системе 3 дня → пропорционально (3/30)
+                          • Объект в системе ≥ 5 дней → полная стоимость месяца<br>
+                          • Объект в системе &lt; 5 дней → не списывается
                         </div>
                       </v-tooltip>
                     </template>
@@ -733,6 +733,35 @@
                   <v-select v-model="billingSettings.operation_role_threshold"
                     :items="[{ title: 'Администратор', value: 'admin' }, { title: 'Менеджер', value: 'manager' }]"
                     label="Кто может перевод/отсрочку/обещание" density="compact" variant="outlined" hide-details></v-select>
+                </v-col>
+              </v-row>
+
+              <!-- Каденция списания adon-платы (П6) -->
+              <v-divider class="my-4"></v-divider>
+              <v-row>
+                <v-col cols="12">
+                  <h4 class="mb-1">Каденция списания</h4>
+                  <div class="text-caption text-grey mb-3">
+                    Как списывать adon-плату и отображать в балансе. Тайминг: предоплата — 1-е число текущего месяца, постоплата — 1-е следующего.
+                  </div>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select v-model="billingSettings.charge_cadence"
+                    :items="[
+                      { title: 'Ежедневно (по дням)', value: 'daily' },
+                      { title: 'Ежемесячно (1-го числа)', value: 'monthly' },
+                      { title: 'За период тарифа (год и др.)', value: 'period' },
+                    ]"
+                    label="Частота списания" density="compact" variant="outlined" hide-details class="mb-3"></v-select>
+                </v-col>
+                <v-col cols="12" md="6">
+                  <v-select v-model="billingSettings.long_subscription_charge"
+                    :items="[
+                      { title: 'Помесячно (дробить на месяцы)', value: 'monthly' },
+                      { title: 'Разово (вся сумма периода)', value: 'lump_sum' },
+                    ]"
+                    label="Длинные подписки (год+/>1 мес)" density="compact" variant="outlined" hide-details
+                    hint="Применяется при частоте «за период»" persistent-hint></v-select>
                 </v-col>
               </v-row>
 
@@ -980,6 +1009,17 @@
               <v-col cols="12">
                 <v-select v-model="editingPlan.billing_period" :items="billingPeriods" label="Период биллинга"
                   density="compact"></v-select>
+              </v-col>
+              <v-col cols="12">
+                <v-select v-model="editingPlan.charge_cadence"
+                  :items="[
+                    { title: 'По умолчанию (настройки биллинга)', value: '' },
+                    { title: 'Ежедневно', value: 'daily' },
+                    { title: 'Ежемесячно', value: 'monthly' },
+                    { title: 'За период', value: 'period' },
+                  ]"
+                  label="Каденция списания (override)" density="compact" hide-details
+                  hint="Пусто = глобальная настройка компании" persistent-hint></v-select>
               </v-col>
               <v-col cols="12">
                 <v-textarea v-model="editingPlan.description" label="Описание" rows="2" density="compact"></v-textarea>
@@ -2351,6 +2391,7 @@ const openPlanDialog = (plan?: BillingPlan) => {
       price: 0,
       currency: companyCurrency.value, // Используем валюту из настроек компании
       billing_period: 'monthly',
+      charge_cadence: '', // '' = глобальная каденция компании
       is_active: true
     }
   }

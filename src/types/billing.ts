@@ -42,6 +42,7 @@ export interface BillingPlan {
   price: number;
   currency: string;
   billing_period: BillingPeriod;
+  charge_cadence?: '' | 'daily' | 'monthly' | 'period'; // override каденции (П6), пусто = глобал
   max_devices: number;
   max_users: number;
   max_storage: number;
@@ -218,6 +219,9 @@ export interface BillingSettings {
   max_deferral_days?: number;
   rate_source?: 'cbr_rf' | 'nbk_kz' | 'none';
   operation_role_threshold?: 'admin' | 'manager';
+  // Каденция списания adon-платы (П6)
+  charge_cadence?: 'daily' | 'monthly' | 'period';
+  long_subscription_charge?: 'monthly' | 'lump_sum';
 }
 
 // Расчет биллинга
