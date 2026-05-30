@@ -160,6 +160,9 @@ const route = useRoute();
 
 // Реактивные данные
 const searchQuery = ref('');
+// followup #4: deep-link из глобального поиска (?exact=1) → точное имя аккаунта без
+// parent-match. Сбрасывается при ручном вводе поиска (debouncedSearch) и сбросе фильтров.
+const exactSearch = ref(false);
 const showAllSearchChips = ref(false); // Показать все чипы поиска
 
 // Автообновление
@@ -230,6 +233,7 @@ const {
   filters,
   searchQuery,
   selectedParent,
+  exactSearch,
   getTotalPages: () => totalPages.value,
   onPageChange: () => saveFiltersToStorage(),
 });
@@ -543,6 +547,7 @@ const getDisplayRange = (): string => {
 
 const debouncedSearch = debounce(() => {
   currentPage.value = 1;
+  exactSearch.value = false; // ручной ввод → обычный LIKE-поиск, exact только для deep-link
   // Очищаем кэш при изменении поиска
   invalidateCache();
   saveFiltersToStorage(); // Сохраняем фильтры
@@ -551,6 +556,7 @@ const debouncedSearch = debounce(() => {
 
 const resetFilters = () => {
   searchQuery.value = '';
+  exactSearch.value = false; // followup #4: сброс exact-режима deep-link
   filters.value = {
     type: null,
     is_active: null,
@@ -1157,6 +1163,8 @@ onMounted(() => {
   // ?search=&type=&source=&is_active= — целевые ссылки сохраняют контекст.
   if (typeof route.query.search === 'string') {
     searchQuery.value = route.query.search;
+    // followup #4: deep-link из глобального поиска → точное имя без parent-match.
+    exactSearch.value = route.query.exact === '1';
   }
   if (typeof route.query.type === 'string' && (route.query.type === 'client' || route.query.type === 'partner')) {
     filters.value.type = route.query.type;

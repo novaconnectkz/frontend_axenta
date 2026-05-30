@@ -105,6 +105,7 @@ export interface UnifiedAccountsFilters {
   parent?: string | null;
   scope?: "mine" | null; // "mine" — только прямые дети наших интеграционных учёток
   for?: "picker" | null; // Ф0: режим выбора партнёра — обход TTL-гейта Axenta для полноты
+  exact?: boolean; // deep-link из глобального поиска: точное имя аккаунта без parent-match (followup #4)
 }
 
 // Ответ /unified/accounts/parents — родители для дропдауна, сгруппированы.
@@ -1043,6 +1044,7 @@ class AccountsService {
     if (filters.parent) params.parent = filters.parent;
     if (filters.scope) params.scope = filters.scope;
     if (filters.for) params.for = filters.for;
+    if (filters.exact) params.exact = 1;
 
     const response = await this.apiClient.get<any>("/api/auth/unified/accounts", { params });
     const data = response.data?.data ?? response.data;

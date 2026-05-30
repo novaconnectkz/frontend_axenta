@@ -25,6 +25,7 @@ interface UseAccountsListContext {
   selectedParent: Ref<string>;
   getTotalPages?: () => number;
   onPageChange?: () => void;
+  exactSearch?: Ref<boolean>; // deep-link из глобального поиска: точное имя без parent-match (followup #4)
 }
 
 const animateNumber = (
@@ -122,6 +123,7 @@ export function useAccountsList(ctx: UseAccountsListContext) {
         per_page: itemsPerPage.value,
         ordering: buildOrdering(),
         search: ctx.searchQuery.value?.trim() || undefined,
+        exact: ctx.exactSearch?.value || undefined,
         source: (ctx.filters.value.source as any) || 'all',
         type: (ctx.filters.value.type as any) || undefined,
         is_active: ctx.filters.value.is_active,
