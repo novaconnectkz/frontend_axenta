@@ -338,7 +338,8 @@
       <!-- Вкладка договоров -->
       <v-window-item value="contracts">
         <ContractsTab ref="contractsTabRef" :subscriptions="subscriptions"
-          @stats-updated="handleContractsStatsUpdate" />
+          @stats-updated="handleContractsStatsUpdate"
+          @selection-changed="contractsSelectionCount = $event" />
       </v-window-item>
 
       <!-- Подписки -->
@@ -1536,10 +1537,16 @@
     <AutopilotSendInvoiceOfferDialog v-model="showSendInvoiceOffer" :invoice-id="autopilotInvoice?.id"
       :invoice-number="autopilotInvoice?.number" @send-invoice="handleSendInvoiceFromAutopilot"
       @later="handleSendInvoiceLater" />
+
+    <!-- Двухрежимный FAB (единый стиль AppleFAB): создать (контекстно вкладке) ↔
+         массовые действия (оранжевый+badge когда выделены договоры) -->
+    <AppleFAB v-if="fabItems.length" :icon="fabBulkMode ? 'mdi-cog' : 'mdi-plus'" :items="fabItems"
+      :attention="fabBulkMode" :badge="fabBulkMode ? contractsSelectionCount : null" />
   </v-container>
 </template>
 
 <script lang="ts" setup>
+import AppleFAB from '@/components/Apple/AppleFAB.vue'
 import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
 import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
 import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
@@ -1596,6 +1603,54 @@ const activeTab = ref((route.query.tab as string) || 'contracts') // Начин�
 
 // Рефы на дочерние компоненты
 const contractsTabRef = ref<InstanceType<typeof ContractsTab> | null>(null)
+
+// ===== Двухрежимный FAB =====
+// Счётчик выделенных договоров (эмитит ContractsTab).
+const contractsSelectionCount = ref(0)
+// Bulk-режим: на вкладке Договоры есть выделение → FAB оранжевый + массовые действия.
+const fabBulkMode = computed(() => activeTab.value === 'contracts' && contractsSelectionCount.value > 0)
+
+// Сброс выделения при смене вкладки (массовые действия — только в контексте Договоров).
+watch(activeTab, () => {
+  if (contractsSelectionCount.value > 0) {
+    contractsTabRef.value?.clearSelection?.()
+    contractsSelectionCount.value = 0
+  }
+})
+
+// Действия FAB в формате AppleFAB ({label, icon, color, action}) — bulk (если выделены
+// договоры) либо контекстное создание по активной вкладке (+ автопилот на Договорах).
+interface FabItem { id: string; label: string; icon: string; color?: 'primary' | 'success' | 'warning' | 'error'; action: () => void }
+const fabItems = computed<FabItem[]>(() => {
+  if (fabBulkMode.value) {
+    return [
+      { id: 'mgr', label: 'Назначить менеджера', icon: 'mdi-account-tie', color: 'primary', action: () => contractsTabRef.value?.openBulkManager?.() },
+      { id: 'status', label: 'Сменить статус', icon: 'mdi-flag', color: 'primary', action: () => contractsTabRef.value?.openBulkStatus?.() },
+      { id: 'export', label: 'Экспорт', icon: 'mdi-file-excel-outline', color: 'success', action: () => contractsTabRef.value?.exportSelected?.() },
+      { id: 'del', label: 'Удалить', icon: 'mdi-delete', color: 'error', action: () => contractsTabRef.value?.openBulkDelete?.() },
+    ]
+  }
+  switch (activeTab.value) {
+    case 'contracts': {
+      const items: FabItem[] = [
+        { id: 'new-contract', label: 'Создать договор', icon: 'mdi-plus', color: 'success', action: () => router.push('/contracts/create') },
+      ]
+      // Автопилот — перенесён из тулбара ContractsTab (показываем когда включён).
+      if (contractsTabRef.value?.autopilotEnabled) {
+        items.push({ id: 'autopilot', label: 'Автопилот', icon: 'mdi-robot', color: 'warning', action: () => contractsTabRef.value?.startAutopilot?.() })
+      }
+      return items
+    }
+    case 'subscriptions':
+      return [{ id: 'new-sub', label: 'Создать подписку', icon: 'mdi-card-account-details', color: 'success', action: () => openSubscriptionWizard() }]
+    case 'invoices':
+      return canEditBilling.value
+        ? [{ id: 'new-inv', label: 'Создать счёт', icon: 'mdi-receipt', color: 'success', action: () => openGenerateInvoiceDialog() }]
+        : []
+    default:
+      return [] // settings — без FAB
+  }
+})
 
 // Получаем company_id из localStorage
 const getCurrentCompanyId = (): number => {

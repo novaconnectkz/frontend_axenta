@@ -19,8 +19,9 @@
     </Transition>
 
     <!-- Основная кнопка FAB -->
-    <button class="apple-fab-button" :class="{ 'fab-open': isOpen }" @click="toggleMenu">
+    <button class="apple-fab-button" :class="{ 'fab-open': isOpen, 'fab-attention': attention && !isOpen }" @click="toggleMenu">
       <v-icon :icon="isOpen ? 'mdi-close' : icon" :size="24" class="fab-icon" />
+      <span v-if="badge != null && !isOpen" class="fab-badge">{{ badge }}</span>
     </button>
   </div>
 </template>
@@ -41,12 +42,18 @@ interface Props {
   icon?: string
   items?: FABMenuItem[]
   position?: 'bottom-right' | 'bottom-left'
+  // attention — «зовущий» режим (оранжевый градиент + пульс), напр. для массовых действий.
+  attention?: boolean
+  // badge — счётчик на основной кнопке (напр. кол-во выделенных).
+  badge?: number | string | null
 }
 
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   icon: 'mdi-plus',
   items: () => [],
-  position: 'bottom-right'
+  position: 'bottom-right',
+  attention: false,
+  badge: null,
 })
 
 const emit = defineEmits<{
@@ -120,6 +127,39 @@ const handleItemClick = (item: FABMenuItem) => {
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.3),
     0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Режим «зовёт к действию» (массовые действия) — оранжевый + пульс */
+.apple-fab-button.fab-attention {
+  background: linear-gradient(135deg, #FF9500 0%, #CC7700 100%);
+  box-shadow:
+    0 4px 12px rgba(255, 149, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.15);
+  animation: fab-attention-pulse 1.6s infinite;
+}
+
+@keyframes fab-attention-pulse {
+  0%   { box-shadow: 0 4px 12px rgba(255, 149, 0, 0.45), 0 0 0 0 rgba(255, 149, 0, 0.5); }
+  70%  { box-shadow: 0 4px 12px rgba(255, 149, 0, 0.45), 0 0 0 14px rgba(255, 149, 0, 0); }
+  100% { box-shadow: 0 4px 12px rgba(255, 149, 0, 0.45), 0 0 0 0 rgba(255, 149, 0, 0); }
+}
+
+/* Счётчик на основной кнопке */
+.fab-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: #FF3B30;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 22px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
 .fab-icon {

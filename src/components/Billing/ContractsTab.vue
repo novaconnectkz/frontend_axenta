@@ -3,8 +3,10 @@
     <!-- Фильтры -->
     <v-card variant="outlined" class="filters-card mb-4">
       <v-card-text class="pa-3">
-        <v-row align="center">
-          <v-col cols="12" :md="canFilterManager ? 2 : 3">
+        <!-- Flexbox-ряд как на «Учётных записях»: поля на всю ширину с минимальным
+             отступом, кнопка сброса — inline в конце (не перекрывает поля). -->
+        <div class="filters-row">
+          <div class="filter-item filter-search">
             <v-text-field
               v-model="searchQuery"
               placeholder="Поиск по номеру, клиенту..."
@@ -15,9 +17,9 @@
               hide-details
               rounded="lg"
             />
-          </v-col>
-          
-          <v-col cols="6" md="2">
+          </div>
+
+          <div class="filter-item">
             <v-select
               v-model="statusFilter"
               :items="statusOptions"
@@ -28,9 +30,9 @@
               hide-details
               rounded="lg"
             />
-          </v-col>
-          
-          <v-col cols="6" md="2">
+          </div>
+
+          <div class="filter-item">
             <v-select
               v-model="activeFilter"
               :items="activeOptions"
@@ -41,9 +43,9 @@
               hide-details
               rounded="lg"
             />
-          </v-col>
-          
-          <v-col cols="6" md="2">
+          </div>
+
+          <div class="filter-item">
             <v-select
               v-model="contractTypeFilter"
               :items="CONTRACT_TYPE_OPTIONS"
@@ -54,10 +56,10 @@
               hide-details
               rounded="lg"
             />
-          </v-col>
+          </div>
 
           <!-- Фильтр по менеджеру — только admin/superadmin -->
-          <v-col v-if="canFilterManager" cols="6" md="2">
+          <div v-if="canFilterManager" class="filter-item">
             <v-select
               v-model="managerFilter"
               :items="managerOptions"
@@ -68,80 +70,25 @@
               hide-details
               rounded="lg"
             />
-          </v-col>
+          </div>
 
-          <!-- Действия -->
-          <v-col cols="12" md="auto" class="filter-actions">
-            <div class="actions-container">
-            <!-- Кнопка автопилота -->
-            <div class="filter-autopilot">
-              <v-tooltip location="top" :disabled="false">
-                <template #activator="{ props }">
-                  <!-- Оборачиваем в span, чтобы tooltip работал на disabled кнопке -->
-                  <span v-bind="props">
-                    <v-btn
-                      icon="mdi-robot"
-                      color="secondary"
-                      variant="flat"
-                      @click="startAutopilot"
-                      class="autopilot-button"
-                      :disabled="!autopilotEnabled"
-                    />
-                  </span>
-                </template>
-                <div style="max-width: 280px; padding: 4px;">
-                  <div class="text-body-2 font-weight-medium mb-2">
-                    Запустить Автопилот
-                  </div>
-                  <div class="text-caption">
-                    Автоматизация полного цикла: создание договора → подписка → счет → отправка клиенту
-                  </div>
-                  <div v-if="!autopilotEnabled" class="text-caption mt-2 text-warning">
-                    Автопилот отключен в настройках
-                  </div>
-                </div>
-              </v-tooltip>
-            </div>
-              
-              <div class="filter-create">
-                <v-tooltip location="top">
-                  <template #activator="{ props }">
-                    <v-btn
-                      v-bind="props"
-                      icon="mdi-plus"
-                      color="primary"
-                      variant="flat"
-                      @click="createContract"
-                      class="create-button"
-                    />
-                  </template>
-                  <span>Создать договор</span>
-                </v-tooltip>
-              </div>
-              
-              <div class="filter-clear">
-                <v-btn
-                  v-show="hasActiveFilters"
-                  icon="mdi-filter-remove"
-                  variant="flat"
-                  color="warning"
-                  density="comfortable"
-                  @click="clearFilters"
-                  :title="hasActiveFilters ? 'Сбросить активные фильтры' : 'Сбросить фильтры'"
-                  :class="{ 'filter-clear-active': hasActiveFilters }"
-                >
-                  <v-badge
-                    v-if="hasActiveFilters"
-                    :content="getActiveFiltersCount()"
-                    color="white"
-                    text-color="warning"
-                    inline
-                  />
-                </v-btn>
-              </div>
-            </div>
-          </v-col>
-        </v-row>
+          <!-- Сброс фильтров — inline в конце ряда (стиль как на Учётных записях:
+               оранжевая кнопка с белым счётчиком активных фильтров) -->
+          <div class="filter-clear">
+            <v-btn
+              v-show="hasActiveFilters"
+              icon="mdi-filter-off-outline"
+              variant="flat"
+              color="warning"
+              density="comfortable"
+              :class="{ 'filter-clear-active': hasActiveFilters }"
+              title="Сбросить активные фильтры"
+              @click="clearFilters"
+            >
+              <v-badge :content="activeFiltersCount" color="white" text-color="warning" inline />
+            </v-btn>
+          </div>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -153,6 +100,9 @@
         :loading="loading || loadingMore"
         v-model:sort-by="sortBy"
         v-model:page="currentPage"
+        v-model="selectedIds"
+        show-select
+        item-value="id"
         class="contracts-table"
         no-data-text="Договоры не найдены"
         loading-text="Загрузка договоров..."
@@ -566,6 +516,71 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Массовое: назначить менеджера -->
+    <v-dialog v-model="bulkManagerDialog" max-width="440">
+      <v-card>
+        <v-card-title>Назначить менеджера ({{ selectedIds.length }})</v-card-title>
+        <v-card-text>
+          <v-select
+            v-model="bulkManagerId"
+            :items="managerOptions"
+            label="Менеджер"
+            variant="outlined"
+            density="comfortable"
+            clearable
+            prepend-inner-icon="mdi-account-tie"
+            hint="Пусто = снять менеджера"
+            persistent-hint
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="bulkManagerDialog = false">Отмена</v-btn>
+          <v-btn color="primary" variant="flat" :loading="bulkLoading" @click="applyBulkManager">Применить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Массовое: сменить статус -->
+    <v-dialog v-model="bulkStatusDialog" max-width="440">
+      <v-card>
+        <v-card-title>Сменить статус ({{ selectedIds.length }})</v-card-title>
+        <v-card-text>
+          <v-select
+            v-model="bulkStatusValue"
+            :items="bulkStatusOptions"
+            label="Статус"
+            variant="outlined"
+            density="comfortable"
+            prepend-inner-icon="mdi-flag"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="bulkStatusDialog = false">Отмена</v-btn>
+          <v-btn color="primary" variant="flat" :loading="bulkLoading" :disabled="!bulkStatusValue" @click="applyBulkStatus">Применить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Массовое: удаление -->
+    <v-dialog v-model="bulkDeleteDialog" max-width="460">
+      <v-card>
+        <v-card-title class="text-error">Удалить договоры ({{ selectedIds.length }})</v-card-title>
+        <v-card-text>
+          Удалить выбранные договоры? Действие переносит их в корзину.
+          <div class="text-caption text-medium-emphasis mt-2">
+            Активные договоры с привязанными объектами удалены не будут — сначала отвяжите объекты или смените статус.
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="bulkDeleteDialog = false">Отмена</v-btn>
+          <v-btn color="error" variant="flat" :loading="bulkLoading" @click="applyBulkDelete">Удалить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
     <!-- Диалог детализации расчета стоимости -->
     <v-dialog v-model="billingBreakdownDialog" max-width="1200px" scrollable>
@@ -1260,6 +1275,8 @@ const emit = defineEmits<{
     expiring_soon: number
     total_amount: string
   }): void
+  // Кол-во выделенных договоров — для FAB в Billing.vue (двухрежимный: создать ↔ массовые).
+  (e: 'selection-changed', count: number): void
 }>();
 
 // Интерфейс для договора (упрощенный)
@@ -1823,18 +1840,21 @@ const hasActiveFilters = computed(() => {
     searchQuery.value ||
     statusFilter.value ||
     activeFilter.value !== null ||
-    contractTypeFilter.value
+    contractTypeFilter.value ||
+    managerFilter.value
   );
 });
 
-const getActiveFiltersCount = (): number => {
-  let count = 0;
-  if (searchQuery.value) count++;
-  if (statusFilter.value) count++;
-  if (activeFilter.value !== null) count++;
-  if (contractTypeFilter.value) count++;
-  return count;
-};
+// Счётчик активных фильтров — для badge на кнопке сброса (как на Учётных записях).
+const activeFiltersCount = computed(() => {
+  let n = 0;
+  if (searchQuery.value) n++;
+  if (statusFilter.value) n++;
+  if (activeFilter.value !== null) n++;
+  if (contractTypeFilter.value) n++;
+  if (managerFilter.value) n++;
+  return n;
+});
 
 // Методы
 const enableDemoMode = async () => {
@@ -2011,11 +2031,6 @@ const clearFilters = async () => {
   if (!demoMode.value) {
     await loadContracts();
   }
-};
-
-const createContract = () => {
-  // Перенаправляем на страницу создания договора
-  router.push('/contracts/create');
 };
 
 const startAutopilot = () => {
@@ -2512,7 +2527,8 @@ const formatDate = (date: string | null | undefined): string => {
   if (isNaN(dateObj.getTime()) || dateObj.getFullYear() === 1970) {
     return 'Не указан';
   }
-  return dateObj.toLocaleDateString('ru-RU');
+  // Формат дд.мм.гг (2-значный год) — компактнее.
+  return dateObj.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 };
 
 const getBillingPeriodLabel = (period: string): string => {
@@ -2945,9 +2961,143 @@ onMounted(async () => {
 });
 
 // Экспортируем метод для обновления данных извне
+// ========== МАССОВЫЕ ДЕЙСТВИЯ ==========
+// Выделение строк таблицы. selectedIds — массив id договоров.
+const selectedIds = ref<number[]>([]);
+watch(selectedIds, (v) => emit('selection-changed', v.length));
+const clearSelection = () => { selectedIds.value = []; };
+
+const bulkLoading = ref(false);
+
+// Диалог «Назначить менеджера».
+const bulkManagerDialog = ref(false);
+const bulkManagerId = ref<number | null>(null);
+const openBulkManager = () => { bulkManagerId.value = null; bulkManagerDialog.value = true; };
+
+// Диалог «Сменить статус» (только валидные статусы БД, без псевдо-«Истекающие»).
+const bulkStatusOptions = [
+  { value: 'draft', title: 'Черновик' },
+  { value: 'active', title: 'Активный' },
+  { value: 'suspended', title: 'Приостановленный' },
+  { value: 'expired', title: 'Истекший' },
+  { value: 'cancelled', title: 'Отмененный' },
+];
+const bulkStatusDialog = ref(false);
+const bulkStatusValue = ref<string | null>(null);
+const openBulkStatus = () => { bulkStatusValue.value = null; bulkStatusDialog.value = true; };
+
+// Диалог подтверждения удаления.
+const bulkDeleteDialog = ref(false);
+const openBulkDelete = () => { bulkDeleteDialog.value = true; };
+
+// Единый постпроцесс: показать итог {updated, failed}, обновить список, снять выделение.
+const reportBulkResult = (res: { updated: number; failed: number[] }, verb: string) => {
+  const failed = res.failed?.length ?? 0;
+  if (failed > 0) {
+    showSnackbarMessage(`${verb}: ${res.updated}, не удалось: ${failed} (активные с объектами / вне доступа)`, 'warning');
+  } else {
+    showSnackbarMessage(`${verb}: ${res.updated}`, 'success');
+  }
+};
+
+const applyBulkManager = async () => {
+  if (selectedIds.value.length === 0) { bulkManagerDialog.value = false; return; }
+  bulkLoading.value = true;
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    const res = await svc.bulkAssignManager(selectedIds.value, bulkManagerId.value);
+    reportBulkResult(res, 'Менеджер назначен');
+    bulkManagerDialog.value = false;
+    clearSelection();
+    await loadContracts(false, true);
+  } catch (e: any) {
+    showSnackbarMessage(e?.response?.data?.error || 'Ошибка назначения менеджера', 'error');
+  } finally { bulkLoading.value = false; }
+};
+
+const applyBulkStatus = async () => {
+  if (!bulkStatusValue.value || selectedIds.value.length === 0) { bulkStatusDialog.value = false; return; }
+  bulkLoading.value = true;
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    const res = await svc.bulkSetStatus(selectedIds.value, bulkStatusValue.value);
+    reportBulkResult(res, 'Статус изменён');
+    bulkStatusDialog.value = false;
+    clearSelection();
+    await loadContracts(false, true);
+  } catch (e: any) {
+    showSnackbarMessage(e?.response?.data?.error || 'Ошибка смены статуса', 'error');
+  } finally { bulkLoading.value = false; }
+};
+
+const applyBulkDelete = async () => {
+  if (selectedIds.value.length === 0) { bulkDeleteDialog.value = false; return; }
+  bulkLoading.value = true;
+  try {
+    const svc = (await import('@/services/contractsService')).default;
+    const res = await svc.bulkDelete(selectedIds.value);
+    reportBulkResult(res, 'Удалено');
+    bulkDeleteDialog.value = false;
+    clearSelection();
+    await loadContracts(true, true);
+  } catch (e: any) {
+    showSnackbarMessage(e?.response?.data?.error || 'Ошибка удаления', 'error');
+  } finally { bulkLoading.value = false; }
+};
+
+// Экспорт выделенных в Excel (lazy exceljs).
+const exportSelected = async () => {
+  if (selectedIds.value.length === 0) return;
+  bulkLoading.value = true;
+  try {
+    const ExcelJS = (await import('exceljs')).default;
+    const rows = filteredContracts.value.filter((ct: any) => selectedIds.value.includes(ct.id));
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Договоры');
+    ws.columns = [
+      { header: '№', key: 'number', width: 22 },
+      { header: 'Клиент', key: 'client', width: 32 },
+      { header: 'Тип', key: 'type', width: 14 },
+      { header: 'Статус', key: 'status', width: 16 },
+      { header: 'Менеджер', key: 'manager', width: 24 },
+      { header: 'Сумма', key: 'amount', width: 16 },
+    ];
+    rows.forEach((ct: any) => ws.addRow({
+      number: ct.number,
+      client: ct.client_short_name || ct.client_name || '',
+      type: ct.contract_type,
+      status: ct.status,
+      manager: ct.manager_name || '',
+      amount: ct.total_amount || '',
+    }));
+    ws.getRow(1).font = { bold: true };
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contracts_${rows.length}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showSnackbarMessage(`Экспортировано: ${rows.length}`, 'success');
+  } catch (e: any) {
+    showSnackbarMessage('Ошибка экспорта', 'error');
+  } finally { bulkLoading.value = false; }
+};
+
 defineExpose({
   loadContracts,
-  refresh: loadContracts // Алиас для удобства
+  refresh: loadContracts, // Алиас для удобства
+  // Массовые действия — вызывает FAB из Billing.vue.
+  selectedCount: computed(() => selectedIds.value.length),
+  clearSelection,
+  openBulkManager,
+  openBulkStatus,
+  openBulkDelete,
+  exportSelected,
+  // Перенесённые в FAB действия тулбара.
+  startAutopilot,
+  autopilotEnabled,
 });
 </script>
 
@@ -2997,6 +3147,55 @@ defineExpose({
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Flexbox-ряд фильтров (как на «Учётных записях»): поля на всю ширину, мин. отступ,
+   кнопка сброса inline в конце. */
+.filters-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.filter-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.filter-search {
+  flex: 3;
+}
+
+.filters-row :deep(.v-select),
+.filter-search :deep(.v-text-field) {
+  width: 100%;
+  flex: 1;
+}
+
+.filter-clear {
+  flex-shrink: 0;
+  flex-grow: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+}
+
+.filter-clear :deep(.v-btn) {
+  height: 40px !important;
+  width: 40px !important;
+  min-width: 40px !important;
+  border-radius: 10px !important;
+  transition: all 0.2s ease;
+}
+
+.filter-clear :deep(.v-btn:hover) {
+  transform: scale(1.05);
 }
 
 .filter-actions {
@@ -3203,25 +3402,33 @@ defineExpose({
   white-space: nowrap;
   font-weight: 600;
   font-size: 0.8125rem;
-  padding: 12px 16px !important;
+  padding: 12px 8px !important;
   text-align: center !important;
 }
 
 .contracts-table :deep(td) {
-  padding: 8px 16px !important;
+  padding: 8px 8px !important;
   vertical-align: middle;
   text-align: center !important;
 }
 
-/* Оптимизация колонок для лучшего отображения */
+/* Колонка чекбокса (выделение) — узкая, минимум места */
 .contracts-table :deep(th:first-child),
 .contracts-table :deep(td:first-child) {
-  padding-left: 16px !important;
+  width: 40px !important;
+  max-width: 40px !important;
+  padding-left: 4px !important;
+  padding-right: 0 !important;
+}
+
+.contracts-table :deep(th:first-child .v-selection-control),
+.contracts-table :deep(td:first-child .v-selection-control) {
+  min-height: auto;
 }
 
 .contracts-table :deep(th:last-child),
 .contracts-table :deep(td:last-child) {
-  padding-right: 16px !important;
+  padding-right: 8px !important;
 }
 
 /* Responsive: скрытие некоторых колонок на малых экранах */

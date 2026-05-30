@@ -272,6 +272,49 @@ class ContractsService {
     await this.apiClient.delete(`/auth/contracts/${id}`);
   }
 
+  // ========== МАССОВЫЕ ДЕЙСТВИЯ (только admin/superadmin) ==========
+
+  /**
+   * Массово назначить менеджера. managerId=null — снять менеджера.
+   * Возвращает {updated, failed[]}.
+   */
+  async bulkAssignManager(
+    contractIds: number[],
+    managerId: number | null
+  ): Promise<{ updated: number; failed: number[] }> {
+    const response = await this.apiClient.post(`/auth/contracts/bulk-assign-manager`, {
+      contract_ids: contractIds,
+      manager_id: managerId,
+    });
+    return response.data.data ?? { updated: 0, failed: [] };
+  }
+
+  /**
+   * Массово сменить статус договоров.
+   */
+  async bulkSetStatus(
+    contractIds: number[],
+    status: string
+  ): Promise<{ updated: number; failed: number[] }> {
+    const response = await this.apiClient.post(`/auth/contracts/bulk-set-status`, {
+      contract_ids: contractIds,
+      status,
+    });
+    return response.data.data ?? { updated: 0, failed: [] };
+  }
+
+  /**
+   * Массово удалить договоры (мягкое удаление + корзина).
+   */
+  async bulkDelete(
+    contractIds: number[]
+  ): Promise<{ updated: number; failed: number[] }> {
+    const response = await this.apiClient.post(`/auth/contracts/bulk-delete`, {
+      contract_ids: contractIds,
+    });
+    return response.data.data ?? { updated: 0, failed: [] };
+  }
+
   // ========== ПРИЛОЖЕНИЯ К ДОГОВОРАМ ==========
 
   /**
