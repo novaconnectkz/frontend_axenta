@@ -1,16 +1,6 @@
 <template>
-  <v-container>
-    <!-- Заголовок страницы -->
-    <v-row class="mb-6">
-      <v-col>
-        <div>
-          <h1 class="text-h3 font-weight-bold text-primary">Биллинг и договоры</h1>
-          <p class="text-h6 text-medium-emphasis mt-2">
-            Управление договорами, тарифными планами, подписками и счетами
-          </p>
-        </div>
-      </v-col>
-    </v-row>
+  <v-container fluid>
+    <!-- Заголовок страницы убран — раздел понятен из breadcrumb -->
 
     <!-- Статистические карточки -->
     <v-row class="mb-4" no-gutters>
