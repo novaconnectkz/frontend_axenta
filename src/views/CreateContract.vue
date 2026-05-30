@@ -152,6 +152,23 @@
                   hide-details
                 />
               </v-col>
+
+              <!-- Обслуживающий менеджер — назначает только admin/superadmin -->
+              <v-col v-if="canAssignManager" cols="12" md="4">
+                <label class="apple-input-label">Менеджер</label>
+                <v-select
+                  v-model="form.manager_id"
+                  :items="managers"
+                  item-title="name"
+                  item-value="id"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  prepend-inner-icon="mdi-account-tie"
+                  placeholder="Не назначен"
+                />
+              </v-col>
             </v-row>
 
             <!-- Тип договора -->
@@ -1138,6 +1155,7 @@ import dadataService from '@/services/dadataService';
 // Партнёры теперь грузятся через accountsService (snapshot read-path).
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
+import { canManageBilling } from '@/utils/billingRole';
 import { useAutopilot } from '@/composables/useAutopilot';
 import AutopilotSubscriptionOfferDialog from '@/components/Billing/AutopilotSubscriptionOfferDialog.vue';
 
@@ -1251,6 +1269,7 @@ const defaultForm: ContractForm = {
   currency: 'RUB',
   status: 'draft', // По умолчанию черновик, после привязки подписки станет "active"
   is_active: true,
+  manager_id: null,
   notify_before: 30,
   notes: '',
   external_id: '',
@@ -1516,6 +1535,8 @@ const saveContract = async () => {
       title: form.value.title || `Договор с ${form.value.client_name}`,
       description: form.value.description || '',
       contract_type: form.value.contract_type || 'client',
+      // Менеджера шлём только если можем назначать (BE при create форсит self для не-admin).
+      ...(canAssignManager.value ? { manager_id: form.value.manager_id ?? null } : {}),
       // partner_* поля заполняются ниже в блоке партнёрского договора (Ф0 мульти-система)
       client_type: form.value.client_type,
       client_name: form.value.client_name,
@@ -2433,6 +2454,18 @@ watch(() => form.value.contract_type, (newType) => {
 });
 
 
+// Менеджера договора назначает только admin/superadmin.
+const canAssignManager = computed(() => canManageBilling());
+const managers = ref<Array<{ id: number; name: string; role: string }>>([]);
+const loadManagers = async () => {
+  if (!canAssignManager.value) return;
+  try {
+    managers.value = await contractsService.getManagers();
+  } catch {
+    managers.value = [];
+  }
+};
+
 // Lifecycle
 onMounted(async () => {
   // Сначала загружаем настройки биллинга, ПОТОМ нумераторы
@@ -2441,6 +2474,7 @@ onMounted(async () => {
     loadBillingSettings(),
     loadCompanies(), // Загружаем список компаний для партнерских договоров
     loadTariffPlans(), // Загружаем тарифные планы для партнерских договоров
+    loadManagers(), // Список менеджеров для селектора (admin)
   ]);
   await loadNumerators(); // Загружаем после настроек биллинга
 });

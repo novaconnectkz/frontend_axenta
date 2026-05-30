@@ -57,6 +57,25 @@
               </v-col>
             </v-row>
 
+            <!-- Обслуживающий менеджер — назначает только admin/superadmin -->
+            <v-row v-if="canAssignManager" class="mt-2">
+              <v-col cols="12" md="6">
+                <label class="apple-input-label">Менеджер</label>
+                <v-select
+                  v-model="form.manager_id"
+                  :items="managers"
+                  item-title="name"
+                  item-value="id"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  clearable
+                  prepend-inner-icon="mdi-account-tie"
+                  placeholder="Не назначен"
+                />
+              </v-col>
+            </v-row>
+
             <!-- Тип договора -->
             <v-row class="mt-2">
               <v-col cols="12" md="4">
@@ -743,6 +762,7 @@ import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
+import { canManageBilling } from '@/utils/billingRole';
 
 const router = useRouter();
 const route = useRoute();
@@ -806,6 +826,7 @@ const defaultForm: ContractForm = {
   status: 'draft',
   is_active: true,
   account_id: undefined,
+  manager_id: null,
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
@@ -1138,8 +1159,9 @@ const loadContract = async () => {
       status: contract.status,
       is_active: contract.is_active !== undefined ? contract.is_active : true,
       account_id: undefined,
+      manager_id: contract.manager_id ?? null,
     };
-    
+
     contractLoaded.value = true;
   } catch (error: any) {
     console.error('Error loading contract:', error);
@@ -1197,6 +1219,12 @@ const saveContract = async () => {
       manual_discount_fixed: form.value.manual_discount_fixed || 0,
       status: form.value.status || 'draft',
     };
+
+    // Менеджера шлём только если можем назначать (BE игнорирует для не-admin) —
+    // иначе не-admin не должен слать null и обнулять чужое назначение.
+    if (canAssignManager.value) {
+      contractData.manager_id = form.value.manager_id ?? null;
+    }
     
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
     
@@ -1236,11 +1264,24 @@ const showSnackbarMessage = (text: string, color: string) => {
 };
 
 // Lifecycle
+// Менеджера договора назначает только admin/superadmin.
+const canAssignManager = computed(() => canManageBilling());
+const managers = ref<Array<{ id: number; name: string; role: string }>>([]);
+const loadManagers = async () => {
+  if (!canAssignManager.value) return;
+  try {
+    managers.value = await contractsService.getManagers();
+  } catch {
+    managers.value = [];
+  }
+};
+
 onMounted(async () => {
   await Promise.all([
     loadContract(),
     loadPartnerCompanies(),
     loadTariffPlans(),
+    loadManagers(),
   ]);
 });
 </script>
