@@ -123,6 +123,73 @@ class CounterpartiesService {
     const res: AxiosResponse = await this.apiClient.put(`/auth/counterparties/${id}`, payload);
     return res.data?.data;
   }
+
+  // ── Ф5: Excel-импорт платежей ──────────────────────────────────────────────
+
+  /** Превью-матчинг строк Excel на контрагентов (✅ matched / ⚠️ review / ❌ nomatch). */
+  async matchRows(
+    rows: { row_index: number; identifier: string; name?: string; amount: number }[]
+  ): Promise<MatchResult[]> {
+    const res: AxiosResponse = await this.apiClient.post("/auth/counterparties/match", { rows });
+    return res.data?.data ?? [];
+  }
+
+  /** Импорт платежей пачкой. */
+  async importBatch(payload: {
+    source?: string;
+    file_name?: string;
+    rows: { counterparty_id: number; amount: number; date?: string; reference?: string; comment?: string }[];
+  }): Promise<ImportBatchResult> {
+    const res: AxiosResponse = await this.apiClient.post("/auth/ledger/import-batch", payload);
+    return res.data?.data;
+  }
+
+  /** История батчей импорта. */
+  async listBatches(): Promise<ImportBatch[]> {
+    const res: AxiosResponse = await this.apiClient.get("/auth/ledger/import-batches");
+    return res.data?.data ?? [];
+  }
+
+  /** Откат батча (полный или выборочный по entry_ids). */
+  async reverseBatch(id: number, entryIds?: number[]): Promise<{ batch_id: number; reversed: number }> {
+    const res: AxiosResponse = await this.apiClient.post(`/auth/ledger/import-batch/${id}/reverse`, {
+      entry_ids: entryIds,
+    });
+    return res.data?.data;
+  }
+}
+
+export interface MatchResult {
+  row_index: number;
+  status: "matched" | "review" | "nomatch";
+  counterparty_id: number;
+  counterparty_name: string;
+  amount: number;
+  note?: string;
+}
+
+export interface ImportBatchResult {
+  batch_id: number;
+  rows_total: number;
+  imported: number;
+  skipped: number;
+  total_amount: string;
+  errors: string[];
+}
+
+export interface ImportBatch {
+  id: number;
+  created_at: string;
+  source: string;
+  status: "imported" | "reversed";
+  rows_total: number;
+  rows_imported: number;
+  rows_skipped: number;
+  total_amount: string;
+  currency: string;
+  file_name: string;
+  created_by: string;
+  reversed_at?: string | null;
 }
 
 export const counterpartiesService = new CounterpartiesService();

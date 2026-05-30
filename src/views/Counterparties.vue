@@ -7,6 +7,8 @@
         <div class="text-caption text-medium-emphasis">Единый лицевой счёт: один контрагент = N договоров = один баланс</div>
       </div>
       <v-spacer />
+      <v-btn variant="text" prepend-icon="mdi-history" class="mr-2" @click="openBatches">История импортов</v-btn>
+      <v-btn variant="tonal" prepend-icon="mdi-file-import" color="primary" class="mr-2" @click="importOpen = true">Импорт платежей</v-btn>
       <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="loading" @click="reload">Обновить</v-btn>
     </div>
 
@@ -125,7 +127,48 @@
       </v-card>
     </v-dialog>
 
+    <!-- Визард Excel-импорта платежей -->
+    <PaymentImportWizard v-model="importOpen" @imported="onImported" />
+
+    <!-- История батчей импорта + откат -->
+    <v-dialog v-model="batchesOpen" max-width="820" scrollable>
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2">mdi-history</v-icon>История импортов платежей
+          <v-spacer />
+          <v-btn icon variant="text" @click="batchesOpen = false"><v-icon>mdi-close</v-icon></v-btn>
+        </v-card-title>
+        <v-card-text>
+          <v-progress-linear v-if="batchesLoading" indeterminate class="mb-2" />
+          <v-table density="compact">
+            <thead>
+              <tr><th>#</th><th>Дата</th><th>Файл</th><th>Строк</th><th>Сумма</th><th>Статус</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="b in batches" :key="b.id">
+                <td>{{ b.id }}</td>
+                <td>{{ formatDate(b.created_at) }}</td>
+                <td class="text-truncate" style="max-width: 160px">{{ b.file_name || '—' }}</td>
+                <td>{{ b.rows_imported }}<span v-if="b.rows_skipped" class="text-medium-emphasis">/{{ b.rows_skipped }} проп.</span></td>
+                <td>{{ formatMoney(b.total_amount) }} ₽</td>
+                <td>
+                  <v-chip size="x-small" :color="b.status === 'reversed' ? 'error' : 'success'" variant="tonal">
+                    {{ b.status === 'reversed' ? 'откачен' : 'импортирован' }}
+                  </v-chip>
+                </td>
+                <td>
+                  <v-btn v-if="b.status !== 'reversed'" size="x-small" color="error" variant="text" :loading="reversingId === b.id" @click="reverseBatch(b)">Откатить</v-btn>
+                </td>
+              </tr>
+              <tr v-if="!batches.length && !batchesLoading"><td colspan="7" class="text-center text-medium-emphasis py-4">Импортов пока нет</td></tr>
+            </tbody>
+          </v-table>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="errorOpen" color="error" timeout="5000">{{ errorMsg }}</v-snackbar>
+    <v-snackbar v-model="okOpen" color="success" timeout="4000">{{ okMsg }}</v-snackbar>
   </v-container>
 </template>
 
@@ -134,7 +177,9 @@ import { onMounted, ref } from "vue";
 import counterpartiesService, {
   type Counterparty,
   type CounterpartyBalance,
+  type ImportBatch,
 } from "@/services/counterpartiesService";
+import PaymentImportWizard from "@/components/Billing/PaymentImportWizard.vue";
 
 const headers = [
   { title: "Контрагент", key: "name", sortable: true },
@@ -157,6 +202,54 @@ const errorMsg = ref("");
 const detailOpen = ref(false);
 const detail = ref<Counterparty | null>(null);
 const detailBalance = ref<CounterpartyBalance | null>(null);
+
+// Ф5b: импорт платежей + история батчей.
+const importOpen = ref(false);
+const batchesOpen = ref(false);
+const batchesLoading = ref(false);
+const batches = ref<ImportBatch[]>([]);
+const reversingId = ref<number>(0);
+const okOpen = ref(false);
+const okMsg = ref("");
+
+async function openBatches() {
+  batchesOpen.value = true;
+  batchesLoading.value = true;
+  try {
+    batches.value = await counterpartiesService.listBatches();
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error || "Не удалось загрузить историю импортов";
+    errorOpen.value = true;
+  } finally {
+    batchesLoading.value = false;
+  }
+}
+
+async function reverseBatch(b: ImportBatch) {
+  reversingId.value = b.id;
+  try {
+    const res = await counterpartiesService.reverseBatch(b.id);
+    okMsg.value = `Батч #${b.id} откачен (сторнировано ${res.reversed})`;
+    okOpen.value = true;
+    await openBatches();
+    await reload(); // балансы изменились
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error || "Ошибка отката батча";
+    errorOpen.value = true;
+  } finally {
+    reversingId.value = 0;
+  }
+}
+
+function onImported() {
+  reload(); // обновить балансы после импорта
+}
+
+function formatDate(s: string): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s : d.toLocaleString("ru-RU");
+}
 
 let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 function debouncedReload() {
