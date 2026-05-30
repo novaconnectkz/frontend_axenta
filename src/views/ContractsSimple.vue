@@ -292,7 +292,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { CONTRACT_SOURCE_OPTIONS, type ContractSource } from '@/types/contracts';
+import { CONTRACT_SOURCE_OPTIONS, type ContractSource, type ContractWithRelations } from '@/types/contracts';
+import contractsService from '@/services/contractsService';
 
 // Простые типы для демо
 interface Contract {
@@ -629,11 +630,48 @@ const loadDemoContracts = async () => {
   }
 };
 
+// Маппинг договора из API (ContractWithRelations) в локальную табличную форму.
+const mapContract = (c: ContractWithRelations): Contract => ({
+  id: c.id,
+  number: c.number,
+  title: c.title ?? '',
+  client_name: c.client_name ?? '',
+  start_date: c.start_date ?? '',
+  end_date: c.end_date ?? '',
+  total_amount: c.total_amount ?? '0',
+  currency: c.currency ?? 'RUB',
+  status: c.status,
+  is_active: c.is_active,
+  notify_before: c.notify_before ?? 0,
+  partner_source: c.partner_source,
+  tariff_plan: (c as any).tariff_plan,
+  objects: (c as any).objects,
+});
+
 const loadContracts = async () => {
   if (demoMode.value) {
     await loadDemoContracts();
-  } else {
+    return;
+  }
+  // Реальная загрузка через /auth/contracts. ?search (в т.ч. deep-link глобального
+  // поиска) шлём на бэкенд (q → number/title/client_name ILIKE), чтобы нужный договор
+  // точно попал в выдачу; filteredContracts ниже дофильтрует клиентски. limit высокий —
+  // страница фильтрует на клиенте (skip_stats=true для скорости, объекты не нужны таблице).
+  loading.value = true;
+  try {
+    const resp = await contractsService.getContracts({
+      search: searchQuery.value?.trim() || undefined,
+      limit: 1000,
+      skip_stats: true,
+    } as any);
+    contracts.value = resp.contracts.map(mapContract);
+    console.log(`✅ Loaded ${contracts.value.length} contracts`);
+  } catch (e) {
+    console.error('Ошибка загрузки договоров:', e);
+    showSnackbarMessage('Ошибка загрузки договоров', 'error');
     contracts.value = [];
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -762,11 +800,8 @@ onMounted(async () => {
   if (typeof route.query.search === 'string' && route.query.search) {
     searchQuery.value = route.query.search;
   }
-  // Автоматически загружаем демо данные при загрузке страницы
-  if (demoMode.value) {
-    await loadDemoContracts();
-    console.log('🎭 Demo mode enabled by default');
-  }
+  // Загружаем договоры: demo (если включён) или реальные через /auth/contracts.
+  await loadContracts();
 });
 </script>
 
