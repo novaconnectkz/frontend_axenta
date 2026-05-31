@@ -435,7 +435,14 @@
                 />
               </v-col>
             </v-row>
-            
+
+            <!-- Ф4b-followon: привязка к контрагенту (единый лицевой счёт) -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.CLIENT">
+              <v-col cols="12" md="6">
+                <CounterpartySelector v-model="form.counterparty_id" />
+              </v-col>
+            </v-row>
+
             <!-- Реквизиты для организаций -->
             <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
               <v-row>
@@ -1155,6 +1162,7 @@ import dadataService from '@/services/dadataService';
 // Партнёры теперь грузятся через accountsService (snapshot read-path).
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
+import CounterpartySelector from '@/components/Contracts/CounterpartySelector.vue';
 import { canManageBilling } from '@/utils/billingRole';
 import { useAutopilot } from '@/composables/useAutopilot';
 import AutopilotSubscriptionOfferDialog from '@/components/Billing/AutopilotSubscriptionOfferDialog.vue';
@@ -1233,6 +1241,7 @@ const defaultForm: ContractForm = {
   contract_type: CONTRACT_TYPES.CLIENT, // По умолчанию клиентский договор
   partner_company_id: undefined,
   client_type: CLIENT_TYPES.ORGANIZATION,
+  counterparty_id: null,
   client_name: '',
   client_short_name: '',
   client_inn: '',
@@ -1571,6 +1580,12 @@ const saveContract = async () => {
       notes: form.value.notes || '',
     };
     
+    // Ф4b-followon: явная привязка к контрагенту (клиентский договор).
+    // Пусто → BE авто-резолвит/создаёт контрагента (Ф4a).
+    if (form.value.contract_type === 'client' && form.value.counterparty_id) {
+      contractData.counterparty_id = form.value.counterparty_id;
+    }
+
     // Для партнерских договоров: партнёр (мульти-система Ф0) + тариф + скидки
     if (form.value.contract_type === 'partner') {
       // Разрешаем выбранного партнёра по составному ключу source|connectionId|externalId

@@ -334,6 +334,13 @@
                 />
               </v-col>
             </v-row>
+
+            <!-- Ф4b-followon: привязка к контрагенту (единый лицевой счёт) -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.CLIENT">
+              <v-col cols="12" md="6">
+                <CounterpartySelector v-model="form.counterparty_id" />
+              </v-col>
+            </v-row>
             
             <!-- Реквизиты для организаций -->
             <template v-if="form.client_type === CLIENT_TYPES.ORGANIZATION">
@@ -762,6 +769,7 @@ import contractsService from '@/services/contractsService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
+import CounterpartySelector from '@/components/Contracts/CounterpartySelector.vue';
 import { canManageBilling } from '@/utils/billingRole';
 
 const router = useRouter();
@@ -789,6 +797,7 @@ const defaultForm: ContractForm = {
   contract_type: CONTRACT_TYPES.CLIENT,
   partner_company_id: undefined,
   client_type: CLIENT_TYPES.ORGANIZATION,
+  counterparty_id: null,
   client_name: '',
   client_short_name: '',
   client_inn: '',
@@ -1122,6 +1131,7 @@ const loadContract = async () => {
       contract_type: contract.contract_type || CONTRACT_TYPES.CLIENT,
       partner_company_id: contract.partner_company_id || undefined,
       client_type: (contract.client_type as ClientType) || CLIENT_TYPES.ORGANIZATION,
+      counterparty_id: contract.counterparty_id || null,
       client_name: contract.client_name,
       client_short_name: contract.client_short_name || '',
       client_inn: contract.client_inn || '',
@@ -1224,6 +1234,13 @@ const saveContract = async () => {
     // иначе не-admin не должен слать null и обнулять чужое назначение.
     if (canAssignManager.value) {
       contractData.manager_id = form.value.manager_id ?? null;
+    }
+
+    // Ф4b-followon: явная привязка/смена контрагента (клиентский договор).
+    // Шлём только при выбранном значении: BE Updates(struct) сохраняет ненулевой
+    // counterparty_id. Очистка поля контрагент не отвязывает (cp=0 пропускается GORM).
+    if (form.value.contract_type === 'client' && form.value.counterparty_id) {
+      contractData.counterparty_id = form.value.counterparty_id;
     }
     
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));

@@ -253,6 +253,7 @@ export interface Contract extends ContractBase {
   manager_name?: string;
   billing_mode?: 'prepaid' | 'postpaid';
   credit_limit?: string | number;
+  counterparty_id?: number | null; // Ф4b-followon: привязка к контрагенту (единый ЛС)
 }
 
 // Форма договора
@@ -266,6 +267,7 @@ export interface ContractForm {
   contract_type?: ContractType; // Тип договора: клиентский или партнерский
   partner_source?: ContractSource; // GPS-система: axenta/wialon/skif/gelios
   partner_company_id?: number; // Для партнерских договоров - ID учетной записи партнера
+  counterparty_id?: number | null; // Ф4b-followon: явная привязка к контрагенту (единый ЛС); пусто → авто-резолв Ф4a
   client_type?: ClientType; // Тип клиента: организация, ИП, физическое лицо
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
