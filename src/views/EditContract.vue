@@ -840,6 +840,10 @@ const defaultForm: ContractForm = {
 
 const form = ref<ContractForm>({ ...defaultForm });
 
+// Ф4b-followon: исходный контрагент договора — чтобы отличить «очистил селектор»
+// (явный сброс на авто-резолв) от «просто не выбирал».
+const originalCounterpartyId = ref<number | null>(null);
+
 // Options
 const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]) => ({
   value,
@@ -1132,6 +1136,7 @@ const loadContract = async () => {
       partner_company_id: contract.partner_company_id || undefined,
       client_type: (contract.client_type as ClientType) || CLIENT_TYPES.ORGANIZATION,
       counterparty_id: contract.counterparty_id || null,
+      // (ниже сохраняем исходный cp для детекта явной отвязки)
       client_name: contract.client_name,
       client_short_name: contract.client_short_name || '',
       client_inn: contract.client_inn || '',
@@ -1172,6 +1177,7 @@ const loadContract = async () => {
       manager_id: contract.manager_id ?? null,
     };
 
+    originalCounterpartyId.value = contract.counterparty_id || null;
     contractLoaded.value = true;
   } catch (error: any) {
     console.error('Error loading contract:', error);
@@ -1236,11 +1242,16 @@ const saveContract = async () => {
       contractData.manager_id = form.value.manager_id ?? null;
     }
 
-    // Ф4b-followon: явная привязка/смена контрагента (клиентский договор).
-    // Шлём только при выбранном значении: BE Updates(struct) сохраняет ненулевой
-    // counterparty_id. Очистка поля контрагент не отвязывает (cp=0 пропускается GORM).
-    if (form.value.contract_type === 'client' && form.value.counterparty_id) {
-      contractData.counterparty_id = form.value.counterparty_id;
+    // Ф4b-followon: контрагент (клиентский договор).
+    if (form.value.contract_type === 'client') {
+      if (form.value.counterparty_id) {
+        // Явная привязка/смена: BE Updates(struct) сохраняет ненулевой counterparty_id.
+        contractData.counterparty_id = form.value.counterparty_id;
+      } else if (originalCounterpartyId.value) {
+        // Был привязан, поле очищено → явный сброс на авто-резолв по идентичности клиента
+        // (cp=0 пропускается GORM, потому отдельный флаг reset_counterparty).
+        contractData.reset_counterparty = true;
+      }
     }
     
     console.log('📤 Отправка данных договора:', JSON.stringify(contractData, null, 2));
