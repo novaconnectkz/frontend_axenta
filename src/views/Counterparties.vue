@@ -64,8 +64,9 @@
 
           <template #item.balance="{ item }">
             <template v-if="balances[item.id]">
-              <span :class="balanceClass(balances[item.id])">{{ formatMoney(balances[item.id].balance) }} ₽</span>
+              <span :class="balanceClass(balances[item.id])">{{ formatMoney(balances[item.id].balance) }} {{ balanceCcy(balances[item.id]) }}</span>
               <v-chip v-if="balances[item.id].is_debt" size="x-small" color="error" variant="tonal" class="ml-1">долг</v-chip>
+              <v-chip v-if="balances[item.id].multicurrency" size="x-small" color="info" variant="tonal" class="ml-1" title="Несколько валют — баланс приведён по курсу">мультивалюта</v-chip>
             </template>
             <v-progress-circular v-else indeterminate size="16" width="2" />
           </template>
@@ -100,23 +101,34 @@
           <div v-if="detailBalance" class="mb-2">
             <div class="d-flex justify-space-between py-1">
               <span class="text-medium-emphasis">Баланс лицевого счёта</span>
-              <span class="text-h6" :class="balanceClass(detailBalance)">{{ formatMoney(detailBalance.balance) }} ₽</span>
+              <span class="text-h6" :class="balanceClass(detailBalance)">{{ formatMoney(detailBalance.balance) }} {{ balanceCcy(detailBalance) }}</span>
+            </div>
+            <div v-if="detailBalance.multicurrency" class="text-caption text-medium-emphasis mb-1">
+              Баланс приведён по курсу ({{ detailBalance.presentation_currency }}). Разбивка по валютам ниже.
             </div>
             <div class="d-flex justify-space-between py-1 text-body-2">
-              <span class="text-medium-emphasis">Начислено</span><span>{{ formatMoney(detailBalance.total_charged) }} ₽</span>
+              <span class="text-medium-emphasis">Начислено</span><span>{{ formatMoney(detailBalance.total_charged) }} {{ balanceCcy(detailBalance) }}</span>
             </div>
             <div class="d-flex justify-space-between py-1 text-body-2">
-              <span class="text-medium-emphasis">Оплачено</span><span>{{ formatMoney(detailBalance.total_paid) }} ₽</span>
+              <span class="text-medium-emphasis">Оплачено</span><span>{{ formatMoney(detailBalance.total_paid) }} {{ balanceCcy(detailBalance) }}</span>
             </div>
             <div v-if="detailBalance.is_debt" class="d-flex justify-space-between py-1 text-body-2">
-              <span class="text-error">Долг</span><span class="text-error">{{ formatMoney(detailBalance.debt_amount) }} ₽</span>
+              <span class="text-error">Долг</span><span class="text-error">{{ formatMoney(detailBalance.debt_amount) }} {{ balanceCcy(detailBalance) }}</span>
             </div>
             <div class="d-flex justify-space-between py-1 text-body-2">
-              <span class="text-medium-emphasis">Кредит-лимит</span><span>{{ formatMoney(detailBalance.credit_limit) }} ₽ ({{ detailBalance.billing_mode === 'postpaid' ? 'постоплата' : 'предоплата' }})</span>
+              <span class="text-medium-emphasis">Кредит-лимит</span><span>{{ formatMoney(detailBalance.credit_limit) }} {{ balanceCcy(detailBalance) }} ({{ detailBalance.billing_mode === 'postpaid' ? 'постоплата' : 'предоплата' }})</span>
             </div>
             <div class="d-flex justify-space-between py-1 text-body-2">
               <span class="text-medium-emphasis">Договоров</span><span>{{ detailBalance.contracts_count }}</span>
             </div>
+            <template v-if="detailBalance.sub_balances && detailBalance.sub_balances.length">
+              <v-divider class="my-2" />
+              <div class="text-caption text-medium-emphasis mb-1">По валютам</div>
+              <div v-for="sb in detailBalance.sub_balances" :key="sb.currency" class="d-flex justify-space-between py-1 text-body-2">
+                <span class="text-medium-emphasis">{{ ccySymbol(sb.currency) }} {{ sb.currency }}</span>
+                <span :class="parseFloat(sb.balance) < 0 ? 'text-error' : (parseFloat(sb.balance) > 0 ? 'text-success' : '')">{{ formatMoney(sb.balance) }} {{ ccySymbol(sb.currency) }}</span>
+              </div>
+            </template>
           </div>
           <v-progress-linear v-else indeterminate />
         </v-card-text>
@@ -302,6 +314,17 @@ function formatMoney(v: string | number): string {
   const n = typeof v === "string" ? parseFloat(v) : v;
   if (Number.isNaN(n)) return "0.00";
   return n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function ccySymbol(code?: string): string {
+  if (!code) return "₽";
+  return ({ RUB: "₽", USD: "$", EUR: "€", KZT: "₸" } as Record<string, string>)[code] || code;
+}
+
+// Символ валюты для баланса: мультивалютный контрагент → валюта презентации (свёртка по курсу),
+// иначе ₽. Прод сегодня одновалютный → всегда ₽.
+function balanceCcy(b?: { multicurrency?: boolean; presentation_currency?: string } | null): string {
+  return b && b.multicurrency ? ccySymbol(b.presentation_currency) : "₽";
 }
 
 function balanceClass(b: CounterpartyBalance): string {

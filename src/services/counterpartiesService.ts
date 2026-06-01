@@ -30,10 +30,18 @@ export interface Counterparty {
   created_by: string;
 }
 
+// Суб-баланс единицы в одной валюте (мультивалютный контрагент).
+export interface CurrencyBreakdown {
+  currency: string;
+  charged: string;
+  paid: string;
+  balance: string;
+}
+
 export interface CounterpartyBalance {
   counterparty_id: number;
   name: string;
-  balance: string;
+  balance: string; // BE гарантирует непустую строку (при stale-курсе — суб-баланс валюты презентации)
   total_charged: string;
   total_paid: string;
   is_debt: boolean;
@@ -41,6 +49,11 @@ export interface CounterpartyBalance {
   credit_limit: string;
   billing_mode: string;
   contracts_count: number;
+  // Мультивалюта (аддитивно): присутствуют только когда у контрагента договоры в разных валютах.
+  multicurrency?: boolean;
+  sub_balances?: CurrencyBreakdown[];
+  presentation_currency?: string;
+  presentation_only?: boolean; // true → balance свёрнут по курсу (оценочно), не точный
 }
 
 export interface CounterpartySearchItem {

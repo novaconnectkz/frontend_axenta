@@ -171,7 +171,7 @@ class ContractsService {
   /**
    * Баланс лицевого счёта договора (>0 переплата, <0 долг).
    */
-  async getLedgerBalance(contractId: number): Promise<{ balance: string; total_charged: string; total_paid: string; is_debt: boolean; debt_amount: string }> {
+  async getLedgerBalance(contractId: number): Promise<{ balance: string; total_charged: string; total_paid: string; is_debt: boolean; debt_amount: string; multicurrency?: boolean; sub_balances?: { currency: string; charged: string; paid: string; balance: string }[]; presentation_currency?: string; presentation_only?: boolean }> {
     const response = await this.apiClient.get(`/auth/ledger/balance/${contractId}`);
     return response.data.data ?? response.data;
   }
