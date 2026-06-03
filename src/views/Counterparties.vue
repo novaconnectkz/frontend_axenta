@@ -1,5 +1,8 @@
 <template>
   <v-container fluid class="pa-4">
+    <!-- Метрики биллинга (как на вкладке Договоры) -->
+    <BillingMetricsPanel />
+
     <!-- Общая полоса табов раздела «Биллинг» (Фаза A): контрагенты — точка входа -->
     <BillingSectionTabs />
 
@@ -259,6 +262,7 @@ import counterpartiesService, {
 import { canManageBilling } from "@/utils/billingRole";
 import PaymentImportWizard from "@/components/Billing/PaymentImportWizard.vue";
 import BillingSectionTabs from "@/components/Billing/BillingSectionTabs.vue";
+import BillingMetricsPanel from "@/components/Billing/BillingMetricsPanel.vue";
 import QuickPaymentDialog from "@/components/Billing/QuickPaymentDialog.vue";
 import AppleFAB from "@/components/Apple/AppleFAB.vue";
 
