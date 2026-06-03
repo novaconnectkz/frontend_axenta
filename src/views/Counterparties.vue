@@ -214,22 +214,58 @@
       </v-card>
     </v-dialog>
 
-    <!-- Создание контрагента (Фаза A) -->
-    <v-dialog v-model="createOpen" max-width="480">
+    <!-- Создание контрагента (Фаза A/B): полные реквизиты -->
+    <v-dialog v-model="createOpen" max-width="820" scrollable>
       <v-card>
         <v-card-title class="d-flex align-center">
           <v-icon class="mr-2" color="primary">mdi-account-plus</v-icon>Новый контрагент
         </v-card-title>
-        <v-card-text>
-          <v-text-field v-model="createForm.name" label="Наименование *" variant="outlined" density="comfortable" class="mb-3" hide-details />
-          <div class="d-flex ga-3 mb-3">
-            <v-select v-model="createForm.id_type" :items="idTypeItems" label="Тип идентификатора" variant="outlined" density="comfortable" hide-details style="max-width: 160px" />
-            <v-text-field v-model="createForm.tax_id" label="ИНН / БИН / ИИН" variant="outlined" density="comfortable" hide-details />
-          </div>
-          <div class="d-flex ga-3">
-            <v-select v-model="createForm.billing_mode" :items="billingModeItems" label="Режим оплаты" variant="outlined" density="comfortable" hide-details />
-            <v-text-field v-model="createForm.credit_limit" label="Кредит-лимит" type="number" variant="outlined" density="comfortable" hide-details />
-          </div>
+        <v-card-text style="max-height: 70vh">
+          <!-- Клиент -->
+          <div class="text-subtitle-2 text-primary mb-2"><v-icon size="18" class="mr-1">mdi-account</v-icon>Информация о клиенте</div>
+          <v-row dense>
+            <v-col cols="12" sm="4"><v-select v-model="createForm.client_type" :items="clientTypeItems" label="Тип клиента *" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="4"><v-text-field v-model="createForm.name" label="Полное наименование *" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="4"><v-text-field v-model="createForm.short_name" label="Сокращённое название с ОПФ" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+          <v-row dense>
+            <v-col cols="12" sm="3"><v-select v-model="createForm.id_type" :items="idTypeItems" label="Тип ИД" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.tax_id" label="ИНН / БИН / ИИН" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.kpp" label="КПП" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.ogrn" label="ОГРН" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+          <v-row dense>
+            <v-col cols="12" sm="4"><v-text-field v-model="createForm.email" label="Email" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="4"><v-text-field v-model="createForm.phone" label="Телефон" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="4"><v-text-field v-model="createForm.website" label="Сайт" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+          <v-row dense>
+            <v-col cols="12" sm="6"><v-textarea v-model="createForm.legal_address" label="Юридический адрес" rows="2" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="6"><v-textarea v-model="createForm.postal_address" label="Почтовый адрес" rows="2" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+
+          <!-- Руководство -->
+          <div class="text-subtitle-2 mt-4 mb-2"><v-icon size="18" class="mr-1">mdi-account-tie</v-icon>Руководство</div>
+          <v-row dense>
+            <v-col cols="12" sm="6"><v-text-field v-model="createForm.director" label="Генеральный директор / Руководитель" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="6"><v-text-field v-model="createForm.based_on" label="Действует на основании" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+
+          <!-- Банк -->
+          <div class="text-subtitle-2 mt-4 mb-2"><v-icon size="18" class="mr-1">mdi-bank</v-icon>Банковские реквизиты</div>
+          <v-row dense>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_bik" label="БИК" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_account" label="Расчётный счёт" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_correspondent_account" label="Корр. счёт" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_name" label="Банк" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
+
+          <!-- Биллинг -->
+          <div class="text-subtitle-2 mt-4 mb-2"><v-icon size="18" class="mr-1">mdi-cash</v-icon>Биллинг</div>
+          <v-row dense>
+            <v-col cols="12" sm="6"><v-select v-model="createForm.billing_mode" :items="billingModeItems" label="Режим оплаты" variant="outlined" density="comfortable" hide-details /></v-col>
+            <v-col cols="12" sm="6"><v-text-field v-model="createForm.credit_limit" label="Кредит-лимит" type="number" variant="outlined" density="comfortable" hide-details /></v-col>
+          </v-row>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
@@ -306,16 +342,39 @@ const detailBalance = ref<CounterpartyBalance | null>(null);
 const detailContracts = ref<CounterpartyContract[]>([]);
 const detailContractsLoading = ref(false);
 
-// A4: создание контрагента.
+// A4/B1: создание контрагента (полные реквизиты — перенесены из формы договора).
 const createOpen = ref(false);
 const creating = ref(false);
-const createForm = ref({
-  name: "",
-  id_type: "inn" as "inn" | "bin" | "iin" | "passport" | "other",
-  tax_id: "",
-  billing_mode: "prepaid",
-  credit_limit: "0",
-});
+function emptyCreateForm() {
+  return {
+    client_type: "organization",
+    name: "",
+    short_name: "",
+    id_type: "inn" as "inn" | "bin" | "iin" | "passport" | "other",
+    tax_id: "",
+    kpp: "",
+    ogrn: "",
+    email: "",
+    phone: "",
+    website: "",
+    legal_address: "",
+    postal_address: "",
+    director: "",
+    based_on: "",
+    bank_bik: "",
+    bank_account: "",
+    bank_correspondent_account: "",
+    bank_name: "",
+    billing_mode: "prepaid",
+    credit_limit: "0",
+  };
+}
+const createForm = ref(emptyCreateForm());
+const clientTypeItems = [
+  { title: "Организация", value: "organization" },
+  { title: "ИП", value: "individual_entrepreneur" },
+  { title: "Физлицо", value: "physical_person" },
+];
 const idTypeItems = [
   { title: "ИНН", value: "inn" },
   { title: "БИН", value: "bin" },
@@ -445,19 +504,35 @@ function goToContracts(cp: Counterparty | null) {
 
 // A4: создание контрагента.
 function openCreate() {
-  createForm.value = { name: "", id_type: "inn", tax_id: "", billing_mode: "prepaid", credit_limit: "0" };
+  createForm.value = emptyCreateForm();
   createOpen.value = true;
 }
 async function submitCreate() {
   if (!createForm.value.name.trim()) return;
   creating.value = true;
   try {
+    const f = createForm.value;
     await counterpartiesService.create({
-      name: createForm.value.name.trim(),
-      id_type: createForm.value.id_type,
-      tax_id: createForm.value.tax_id.trim() || undefined,
-      billing_mode: createForm.value.billing_mode,
-      credit_limit: createForm.value.credit_limit || "0",
+      client_type: f.client_type,
+      name: f.name.trim(),
+      short_name: f.short_name.trim() || undefined,
+      id_type: f.id_type,
+      tax_id: f.tax_id.trim() || undefined,
+      kpp: f.kpp.trim() || undefined,
+      ogrn: f.ogrn.trim() || undefined,
+      email: f.email.trim() || undefined,
+      phone: f.phone.trim() || undefined,
+      website: f.website.trim() || undefined,
+      legal_address: f.legal_address.trim() || undefined,
+      postal_address: f.postal_address.trim() || undefined,
+      director: f.director.trim() || undefined,
+      based_on: f.based_on.trim() || undefined,
+      bank_bik: f.bank_bik.trim() || undefined,
+      bank_account: f.bank_account.trim() || undefined,
+      bank_correspondent_account: f.bank_correspondent_account.trim() || undefined,
+      bank_name: f.bank_name.trim() || undefined,
+      billing_mode: f.billing_mode,
+      credit_limit: f.credit_limit || "0",
     });
     okMsg.value = "Контрагент создан";
     okOpen.value = true;

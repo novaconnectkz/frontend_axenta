@@ -16,14 +16,23 @@ export interface Counterparty {
   tax_id: string;
   name: string;
   client_type: string;
+  short_name?: string;
   kpp?: string;
+  ogrn?: string;
+  okpo?: string;
   email?: string;
   phone?: string;
+  website?: string;
   address?: string;
   legal_address?: string;
+  postal_address?: string;
   director?: string;
+  based_on?: string;
   bank_name?: string;
+  bank_bik?: string;
   bank_account?: string;
+  bank_correspondent_account?: string;
+  bank_recipient?: string;
   billing_mode: string;
   credit_limit: string;
   manual_review: boolean;
@@ -155,16 +164,9 @@ class CounterpartiesService {
     return res.data?.data;
   }
 
-  /** Создать контрагента вручную (Фаза A). Только admin/superadmin (BE-guard). */
-  async create(payload: {
-    name: string;
-    id_type?: "inn" | "bin" | "iin" | "passport" | "other";
-    tax_id?: string;
-    client_type?: string;
-    billing_mode?: string;
-    credit_limit?: string;
-    country?: string;
-  }): Promise<Counterparty> {
+  /** Создать контрагента вручную (Фаза A/B). Только admin/superadmin (BE-guard).
+   * BE биндит всю модель Counterparty — принимаются полные реквизиты. */
+  async create(payload: Partial<Counterparty> & { name: string }): Promise<Counterparty> {
     const res: AxiosResponse = await this.apiClient.post("/auth/counterparties", payload);
     return res.data?.data;
   }
