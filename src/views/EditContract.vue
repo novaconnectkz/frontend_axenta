@@ -295,13 +295,35 @@
           </div>
 
 
-          <!-- Информация о клиенте -->
-          <div class="form-section">
+          <!-- B2 (subject-first): клиентский договор — только выбор контрагента.
+               Реквизиты клиента хранятся на контрагенте. -->
+          <div v-if="isClientContract" class="form-section">
+            <h3 class="section-title">
+              <v-icon icon="mdi-account-cash" class="mr-2" />
+              Контрагент (единый лицевой счёт)
+            </h3>
+            <v-row>
+              <v-col cols="12" md="8">
+                <CounterpartySelector v-model="form.counterparty_id" />
+              </v-col>
+              <v-col cols="12" md="4" class="d-flex align-center">
+                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCounterpartiesTab">
+                  Создать контрагента
+                </v-btn>
+              </v-col>
+            </v-row>
+            <div class="text-caption text-medium-emphasis mt-1">
+              Реквизиты клиента (ИНН, наименование, адреса, банк) теперь на контрагенте. Очистка поля — сброс на авто-резолв по идентичности.
+            </div>
+          </div>
+
+          <!-- Информация о клиенте (партнёрский/прочий договор: полная идентичность) -->
+          <div v-if="!isClientContract" class="form-section">
             <h3 class="section-title">
               <v-icon icon="mdi-account" class="mr-2" />
               Информация о клиенте
             </h3>
-            
+
             <v-row>
               <v-col cols="12" md="2">
                 <label class="apple-input-label">Тип клиента <span class="apple-input-required">*</span></label>
@@ -316,7 +338,7 @@
                   @update:model-value="onClientTypeChange"
                 />
               </v-col>
-              
+
               <v-col cols="12" :md="form.client_type === CLIENT_TYPES.ORGANIZATION ? 5 : 10">
                 <AppleInput
                   v-model="form.client_name"
@@ -325,20 +347,13 @@
                   required
                 />
               </v-col>
-              
+
               <!-- Сокращенное название для организаций -->
               <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION" cols="12" md="5">
                 <AppleInput
                   v-model="form.client_short_name"
                   label="Сокращенное название с ОПФ"
                 />
-              </v-col>
-            </v-row>
-
-            <!-- Ф4b-followon: привязка к контрагенту (единый лицевой счёт) -->
-            <v-row v-if="form.contract_type === CONTRACT_TYPES.CLIENT">
-              <v-col cols="12" md="6">
-                <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
             </v-row>
             
@@ -774,6 +789,12 @@ import { canManageBilling } from '@/utils/billingRole';
 
 const router = useRouter();
 const route = useRoute();
+
+// B2 (subject-first): клиентский договор → только селектор контрагента; партнёрский → полная идентичность.
+const isClientContract = computed(() => form.value.contract_type === CONTRACT_TYPES.CLIENT);
+function openCounterpartiesTab() {
+  window.open('/counterparties', '_blank');
+}
 
 // Reactive data
 const formRef = ref();

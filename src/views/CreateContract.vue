@@ -395,13 +395,35 @@
           </div>
 
 
-          <!-- Информация о клиенте -->
-          <div class="form-section">
+          <!-- B2 (subject-first): клиентский договор — только выбор контрагента.
+               Реквизиты клиента (ИНН/наименование/адреса/банк) хранятся на контрагенте. -->
+          <div v-if="isClientContract" class="form-section">
+            <h3 class="section-title">
+              <v-icon icon="mdi-account-cash" class="mr-2" />
+              Контрагент (единый лицевой счёт)
+            </h3>
+            <v-row>
+              <v-col cols="12" md="8">
+                <CounterpartySelector v-model="form.counterparty_id" />
+              </v-col>
+              <v-col cols="12" md="4" class="d-flex align-center">
+                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCounterpartiesTab">
+                  Создать контрагента
+                </v-btn>
+              </v-col>
+            </v-row>
+            <div class="text-caption text-medium-emphasis mt-1">
+              Реквизиты клиента (ИНН, наименование, адреса, банк) теперь на контрагенте. Выберите существующего или создайте нового.
+            </div>
+          </div>
+
+          <!-- Информация о клиенте (партнёрский/прочий договор: полная идентичность) -->
+          <div v-if="!isClientContract" class="form-section">
             <h3 class="section-title">
               <v-icon icon="mdi-account" class="mr-2" />
               Информация о клиенте
             </h3>
-            
+
             <v-row>
               <v-col cols="12" md="2">
                 <label class="apple-input-label">Тип клиента <span class="apple-input-required">*</span></label>
@@ -416,7 +438,7 @@
                   @update:model-value="onClientTypeChange"
                 />
               </v-col>
-              
+
               <v-col cols="12" :md="(form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR) ? 5 : 10">
                 <AppleInput
                   v-model="form.client_name"
@@ -425,7 +447,7 @@
                   required
                 />
               </v-col>
-              
+
               <!-- Сокращенное название для организаций и ИП -->
               <v-col v-if="form.client_type === CLIENT_TYPES.ORGANIZATION || form.client_type === CLIENT_TYPES.INDIVIDUAL_ENTREPRENEUR" cols="12" md="5">
                 <AppleInput
@@ -433,13 +455,6 @@
                   label="Сокращенное название с ОПФ"
                   hint="Автоматически заполняется при выборе организации/ИП по ИНН"
                 />
-              </v-col>
-            </v-row>
-
-            <!-- Ф4b-followon: привязка к контрагенту (единый лицевой счёт) -->
-            <v-row v-if="form.contract_type === CONTRACT_TYPES.CLIENT">
-              <v-col cols="12" md="6">
-                <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
             </v-row>
 
@@ -1155,6 +1170,7 @@ import type { BillingPlan, BillingSettings } from '@/types/billing';
 import type { ContractNumerator } from '@/types/contracts';
 import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
+import counterpartiesService from '@/services/counterpartiesService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import dadataService from '@/services/dadataService';
@@ -1179,6 +1195,16 @@ const {
 
 // Проверяем, запущен ли автопилот через кнопку
 const isAutopilotMode = computed(() => route.query.autopilot === 'true');
+
+// B2 (subject-first): клиентский договор → идентичность на контрагенте (только селектор);
+// партнёрский → полная форма идентичности клиента (партнёры вне модели контрагентов).
+const isClientContract = computed(() => form.value.contract_type === CONTRACT_TYPES.CLIENT);
+
+// Открыть раздел контрагентов в новой вкладке (создать нового, затем вернуться и выбрать).
+function openCounterpartiesTab() {
+  window.open('/counterparties', '_blank');
+}
+// (watch автозаполнения реквизитов из контрагента — ниже, после объявления form)
 
 // Reactive data
 const formRef = ref();
@@ -1290,6 +1316,30 @@ const defaultForm: ContractForm = {
 };
 
 const form = ref<ContractForm>({ ...defaultForm });
+
+// B2: при выборе контрагента — подтянуть реквизиты в форму (заголовок/payload/валидация;
+// BE-snapshot B3 копирует авторитетно). Объявлен после form (getter watch исполняется при setup).
+watch(
+  () => form.value.counterparty_id,
+  async (id) => {
+    if (!id || form.value.contract_type !== CONTRACT_TYPES.CLIENT) return;
+    try {
+      const cp = await counterpartiesService.get(id);
+      if (!cp) return;
+      form.value.client_name = cp.name || form.value.client_name;
+      if (cp.short_name) form.value.client_short_name = cp.short_name;
+      if (cp.client_type) form.value.client_type = cp.client_type;
+      if (cp.id_type === 'inn' || cp.id_type === 'bin' || cp.id_type === 'iin') {
+        form.value.client_inn = cp.tax_id || form.value.client_inn;
+      }
+      if (cp.kpp) form.value.client_kpp = cp.kpp;
+      if (cp.email) form.value.client_email = cp.email;
+      if (cp.phone) form.value.client_phone = cp.phone;
+    } catch (e) {
+      console.warn('Не удалось подтянуть реквизиты контрагента', e);
+    }
+  }
+);
 
 // Options
 const statusOptions = Object.entries(CONTRACT_STATUS_LABELS).map(([value, title]) => ({
