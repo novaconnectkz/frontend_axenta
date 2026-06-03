@@ -84,14 +84,10 @@ jobs:
             rm -rf "$REL"
             mv .deploy_tmp/dist "$REL"
             rm -rf .deploy_tmp
-            # 3. Атомная активация: dist → симлинк на релиз. Первый прогон конвертит
-            #    реальную папку dist в симлинк (разовое окно); далее mv -Tf атомарен.
+            # 3. Атомная активация: dist — всегда симлинк (сконвертирован при первой
+            #    выкатке), `mv -Tf` = rename симлинка, прод без dist ни на миг.
             ln -sfn "$REL" dist.new
-            if [ -L dist ] || [ ! -e dist ]; then
-              mv -Tf dist.new dist
-            else
-              rm -rf dist && mv -Tf dist.new dist
-            fi
+            mv -Tf dist.new dist
             # 4. Прунинг: оставить 5 последних релизов.
             ls -1dt releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
             sudo systemctl reload nginx
