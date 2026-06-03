@@ -37,6 +37,9 @@ export interface Counterparty {
   credit_limit: string;
   manual_review: boolean;
   created_by: string;
+  // Phase D: роль контрагента. 'partner' → справочник (биллинг snapshot, не ЛС);
+  // 'client' (по умолчанию) → субъект лицевого счёта.
+  kind?: "client" | "partner";
 }
 
 // Суб-баланс единицы в одной валюте (мультивалютный контрагент).
@@ -50,13 +53,17 @@ export interface CurrencyBreakdown {
 export interface CounterpartyBalance {
   counterparty_id: number;
   name: string;
-  balance: string; // BE гарантирует непустую строку (при stale-курсе — суб-баланс валюты презентации)
-  total_charged: string;
-  total_paid: string;
-  is_debt: boolean;
-  debt_amount: string;
-  credit_limit: string;
-  billing_mode: string;
+  // Phase D: партнёр НЕ субъект ЛС → BE отдаёт kind='partner', is_ledger=false и
+  // НЕ присылает balance/charged/paid. Поэтому денежные поля опциональны.
+  kind?: "client" | "partner";
+  is_ledger?: boolean;
+  balance?: string; // client: непустая строка (при stale-курсе — суб-баланс валюты презентации)
+  total_charged?: string;
+  total_paid?: string;
+  is_debt?: boolean;
+  debt_amount?: string;
+  credit_limit?: string;
+  billing_mode?: string;
   contracts_count: number;
   // Мультивалюта (аддитивно): присутствуют только когда у контрагента договоры в разных валютах.
   multicurrency?: boolean;
@@ -119,8 +126,8 @@ class CounterpartiesService {
     });
   }
 
-  /** Список контрагентов компании. q — поиск по имени/ИНН; manualReview — фильтр на проверку. */
-  async list(params: { q?: string; manualReview?: boolean; limit?: number; offset?: number } = {}): Promise<{
+  /** Список контрагентов компании. q — поиск по имени/ИНН; manualReview — фильтр на проверку; kind — роль (client|partner). */
+  async list(params: { q?: string; manualReview?: boolean; kind?: "client" | "partner"; limit?: number; offset?: number } = {}): Promise<{
     data: Counterparty[];
     count: number;
     total: number;
@@ -129,6 +136,7 @@ class CounterpartiesService {
       params: {
         q: params.q || undefined,
         manual_review: params.manualReview ? "1" : undefined,
+        kind: params.kind || undefined, // Phase D: фильтр по роли (без параметра — все)
         limit: params.limit ?? 100,
         offset: params.offset ?? 0,
       },
