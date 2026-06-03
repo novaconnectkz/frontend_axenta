@@ -1,4 +1,13 @@
-name: Deploy (git pull over SSH)
+name: Deploy (build in runner, ship dist)
+
+# Сборка в GitHub-раннере (RAM вдоволь), на прод-сервер уезжает только готовый dist.
+# Раньше `vite build` бежал НА прод-сервере (3.9GB RAM) и падал по OOM (status 137).
+#
+# Доставка надёжная (Codex-ревью):
+#  - sha256-манифест: частичный/битый scp ловится ДО активации (один index.html недостаточно);
+#  - релизы в releases/<sha>, dist = симлинк; активация атомарна (`mv -Tf` = rename симлинка),
+#    прод не остаётся без dist ни на миг; rollback = переставить симлинк на прошлый релиз;
+#  - прунинг: храним 5 последних релизов.
 
 on:
   push:
@@ -9,16 +18,30 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Prepare ~/.ssh
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      # --ignore-scripts: блок lifecycle-hooks (postinstall/preinstall) —
+      # supply-chain защита (security incident 2026-05-26)
+      - name: Install deps
+        run: npm ci --ignore-scripts
+
+      - name: Build
+        run: npm run build
+
+      # Манифест пишем в parent и вносим в dist готовым (чтобы find его не включил
+      # с пустым хэшом → ложный провал sha256sum -c).
+      - name: Manifest полноты dist
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          touch ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-      - name: Add server to known_hosts
-        run: |
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -T 5 "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
-      - name: SSH and git pull
+          cd dist
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > ../.deploy-manifest.sha256
+          mv ../.deploy-manifest.sha256 .deploy-manifest.sha256
+
+      - name: Чистая папка приёма
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -28,15 +51,47 @@ jobs:
           script_stop: true
           script: |
             set -e
-            # Настройка Git для CI/CD
-            git config --global user.email "ci@axenta.com"
-            git config --global user.name "CI/CD Bot"
-            
             cd "${{ secrets.REPO_PATH }}"
-            git fetch --all --prune
-            git reset --hard origin/${{ secrets.BRANCH || 'main' }}
-            # --ignore-scripts: блок lifecycle-hooks (postinstall/preinstall)
-            # supply-chain защита (security incident 2026-05-26)
-            /usr/bin/npm install --ignore-scripts
-            /usr/bin/npm run build
+            rm -rf .deploy_tmp
+            mkdir -p .deploy_tmp releases
+
+      - name: Доставка dist
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "dist"
+          target: "${{ secrets.REPO_PATH }}/.deploy_tmp"
+
+      - name: Проверка + атомная активация + nginx
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            set -e
+            cd "${{ secrets.REPO_PATH }}"
+            # 1. Целостность доставки: index + все файлы по манифесту.
+            test -f .deploy_tmp/dist/index.html
+            ( cd .deploy_tmp/dist && sha256sum -c .deploy-manifest.sha256 >/dev/null )
+            # 2. Зафиксировать как релиз по SHA коммита.
+            REL="releases/${{ github.sha }}"
+            rm -rf "$REL"
+            mv .deploy_tmp/dist "$REL"
+            rm -rf .deploy_tmp
+            # 3. Атомная активация: dist → симлинк на релиз. Первый прогон конвертит
+            #    реальную папку dist в симлинк (разовое окно); далее mv -Tf атомарен.
+            ln -sfn "$REL" dist.new
+            if [ -L dist ] || [ ! -e dist ]; then
+              mv -Tf dist.new dist
+            else
+              rm -rf dist && mv -Tf dist.new dist
+            fi
+            # 4. Прунинг: оставить 5 последних релизов.
+            ls -1dt releases/*/ 2>/dev/null | tail -n +6 | xargs -r rm -rf
             sudo systemctl reload nginx
