@@ -194,6 +194,7 @@
           <div v-else class="text-caption text-medium-emphasis py-2">Договоров нет</div>
         </v-card-text>
         <v-card-actions>
+          <v-btn v-if="canEdit" variant="tonal" prepend-icon="mdi-account-edit" @click="openEdit(detail)">Редактировать</v-btn>
           <v-btn v-if="canEdit && !isPartnerDetail" color="success" variant="tonal" prepend-icon="mdi-cash-plus" @click="openPay(detail)">Внести платёж</v-btn>
           <v-spacer />
           <v-btn variant="text" @click="detailOpen = false">Закрыть</v-btn>
@@ -241,8 +242,14 @@
       </v-card>
     </v-dialog>
 
-    <!-- Создание контрагента (Фаза A/B): полные реквизиты — общий компонент -->
-    <CounterpartyCreateDialog v-model="createOpen" @created="onCpCreated" @error="onCpError" />
+    <!-- Создание/редактирование контрагента (Фаза A/B + edit): полные реквизиты — общий компонент -->
+    <CounterpartyCreateDialog
+      v-model="createOpen"
+      :edit-counterparty="editTarget"
+      @created="onCpCreated"
+      @updated="onCpUpdated"
+      @error="onCpError"
+    />
 
     <!-- Быстрый платёж (Фаза A) -->
     <QuickPaymentDialog v-model="payOpen" :counterparty="payTarget" @paid="onPaid" @error="onPayError" />
@@ -317,7 +324,9 @@ const detailContractsLoading = ref(false);
 const isPartnerDetail = computed(() => detail.value?.kind === "partner");
 
 // A4/B1: создание контрагента (полные реквизиты) — в общем компоненте CounterpartyCreateDialog.
+// editTarget != null → тот же диалог в режиме редактирования.
 const createOpen = ref(false);
+const editTarget = ref<Counterparty | null>(null);
 
 // A5: быстрый платёж.
 const payOpen = ref(false);
@@ -441,11 +450,25 @@ function goToContracts(cp: Counterparty | null) {
 
 // A4: создание контрагента (форма — в общем компоненте CounterpartyCreateDialog).
 function openCreate() {
+  editTarget.value = null; // режим создания
+  createOpen.value = true;
+}
+// Редактирование реквизитов контрагента (тот же диалог, edit-режим). Клиент и партнёр.
+function openEdit(cp: Counterparty | null) {
+  if (!cp) return;
+  editTarget.value = cp;
+  detailOpen.value = false; // не стекать диалоги
   createOpen.value = true;
 }
 function onCpCreated() {
   okMsg.value = "Контрагент создан";
   okOpen.value = true;
+  reload();
+}
+function onCpUpdated() {
+  okMsg.value = "Реквизиты сохранены";
+  okOpen.value = true;
+  editTarget.value = null;
   reload();
 }
 function onCpError(message: string) {
