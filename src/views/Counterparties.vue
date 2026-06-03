@@ -3,16 +3,6 @@
     <!-- Общая полоса табов раздела «Биллинг» (Фаза A): контрагенты — точка входа -->
     <BillingSectionTabs />
 
-    <div class="d-flex align-center mb-4">
-      <v-icon size="28" class="mr-2">mdi-account-cash</v-icon>
-      <div>
-        <h2 class="text-h5 mb-0">Контрагенты</h2>
-        <div class="text-caption text-medium-emphasis">Единый лицевой счёт: один контрагент = N договоров = один баланс</div>
-      </div>
-      <v-spacer />
-      <v-progress-circular v-if="loading" indeterminate size="22" width="2" color="primary" />
-    </div>
-
     <v-card variant="flat" border>
       <v-card-text>
         <div class="d-flex align-center flex-wrap ga-3 mb-3">
