@@ -8,7 +8,8 @@
   <v-dialog :model-value="modelValue" max-width="820" scrollable @update:model-value="$emit('update:modelValue', $event)">
     <v-card>
       <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2" color="primary">mdi-account-plus</v-icon>Новый контрагент
+        <v-icon class="mr-2" color="primary">{{ isEdit ? 'mdi-account-edit' : 'mdi-account-plus' }}</v-icon>{{ isEdit ? 'Редактировать контрагента' : 'Новый контрагент' }}
+        <v-chip v-if="isEdit && props.editCounterparty?.kind === 'partner'" size="x-small" color="purple" variant="tonal" class="ml-2">партнёр</v-chip>
       </v-card-title>
       <v-card-text style="max-height: 70vh">
         <!-- Клиент -->
@@ -85,7 +86,7 @@
       <v-card-actions>
         <v-spacer />
         <v-btn variant="text" @click="$emit('update:modelValue', false)">Отмена</v-btn>
-        <v-btn color="primary" variant="flat" :loading="creating" :disabled="!createForm.name.trim()" @click="submitCreate">Создать</v-btn>
+        <v-btn color="primary" variant="flat" :loading="creating" :disabled="!createForm.name.trim()" @click="submitCreate">{{ isEdit ? 'Сохранить' : 'Создать' }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
@@ -98,13 +99,44 @@ import dadataService from "@/services/dadataService";
 
 const props = defineProps<{
   modelValue: boolean;
+  // Передан → диалог в режиме редактирования (префилл + PUT). Иначе — создание.
+  editCounterparty?: Counterparty | null;
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
   (e: "created", cp: Counterparty): void;
+  (e: "updated", cp: Counterparty): void;
   (e: "error", message: string): void;
 }>();
+
+const isEdit = computed(() => !!props.editCounterparty);
+
+// Префилл формы из существующего контрагента (режим редактирования).
+function formFromCounterparty(cp: Counterparty) {
+  return {
+    client_type: cp.client_type || "organization",
+    name: cp.name || "",
+    short_name: cp.short_name || "",
+    id_type: (cp.id_type || "inn") as "inn" | "bin" | "iin" | "passport" | "other",
+    tax_id: cp.tax_id || "",
+    kpp: cp.kpp || "",
+    ogrn: cp.ogrn || "",
+    email: cp.email || "",
+    phone: cp.phone || "",
+    website: cp.website || "",
+    legal_address: cp.legal_address || "",
+    postal_address: cp.postal_address || "",
+    director: cp.director || "",
+    based_on: cp.based_on || "",
+    bank_bik: cp.bank_bik || "",
+    bank_account: cp.bank_account || "",
+    bank_correspondent_account: cp.bank_correspondent_account || "",
+    bank_name: cp.bank_name || "",
+    billing_mode: cp.billing_mode || "prepaid",
+    credit_limit: cp.credit_limit || "0",
+  };
+}
 
 function emptyCreateForm() {
   return {
@@ -198,12 +230,14 @@ async function lookupByInn() {
   }
 }
 
-// Сброс формы при каждом открытии (чистый старт).
+// При открытии: edit → префилл из контрагента; create → чистая форма.
 watch(
   () => props.modelValue,
   (open) => {
     if (open) {
-      createForm.value = emptyCreateForm();
+      createForm.value = props.editCounterparty
+        ? formFromCounterparty(props.editCounterparty)
+        : emptyCreateForm();
       dadataHint.value = "";
     }
   }
@@ -214,7 +248,8 @@ async function submitCreate() {
   creating.value = true;
   try {
     const f = createForm.value;
-    const cp = await counterpartiesService.create({
+    // Поля из формы (общие для create и edit).
+    const formFields = {
       client_type: f.client_type,
       name: f.name.trim(),
       short_name: f.short_name.trim() || undefined,
@@ -235,11 +270,22 @@ async function submitCreate() {
       bank_name: f.bank_name.trim() || undefined,
       billing_mode: f.billing_mode,
       credit_limit: f.credit_limit || "0",
-    });
-    emit("created", cp);
+    };
+
+    if (props.editCounterparty) {
+      // Edit: BE пишет все колонки (Select("*")). Шлём ПОЛНЫЙ объект — существующий
+      // контрагент + правки формы — чтобы поля вне формы (address/okpo/паспорт/
+      // bank_recipient) не затёрлись. kind BE защищает сам.
+      const payload = { ...props.editCounterparty, ...formFields };
+      const cp = await counterpartiesService.update(props.editCounterparty.id, payload);
+      emit("updated", cp);
+    } else {
+      const cp = await counterpartiesService.create(formFields);
+      emit("created", cp);
+    }
     emit("update:modelValue", false);
   } catch (e: any) {
-    emit("error", e?.response?.data?.error || "Не удалось создать контрагента");
+    emit("error", e?.response?.data?.error || (props.editCounterparty ? "Не удалось сохранить контрагента" : "Не удалось создать контрагента"));
   } finally {
     creating.value = false;
   }
