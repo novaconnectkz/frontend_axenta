@@ -27,7 +27,7 @@
         <template v-for="item in navigationItems" :key="item.path">
           <v-tooltip v-if="rail" location="end" :text="item.title">
             <template #activator="{ props }">
-              <div v-bind="props" class="rail-nav-button" :class="{ 'active': $route.path === item.path }"
+              <div v-bind="props" class="rail-nav-button" :class="{ 'active': isNavItemActive(item.path) }"
                 @click="handleRailNavClick(item.path)">
                 <v-icon :icon="item.icon" size="22" class="rail-button-icon" />
               </div>
@@ -36,7 +36,7 @@
 
           <v-list-item v-else :to="item.path === '/installations' ? undefined : item.path" :prepend-icon="item.icon"
             :title="item.title" :subtitle="item.subtitle" class="apple-nav-item nav-item"
-            :class="{ 'active': $route.path === item.path }" exact @click="handleNavClick(item.path, item.title)">
+            :class="{ 'active': isNavItemActive(item.path) }" exact @click="handleNavClick(item.path, item.title)">
             <template v-if="item.badge && item.badge > 0" #append>
               <v-badge :content="item.badge" color="error" inline />
             </template>
@@ -514,16 +514,13 @@ const navigationItems = computed(() => [
   },
 
   {
-    path: '/billing',
-    icon: 'mdi-currency-usd',
-    title: 'Биллинг',
-    subtitle: 'Договоры и финансы'
-  },
-  {
+    // Фаза A IA-реструктуризации: единый раздел биллинга, точка входа — контрагенты.
+    // (Бывшие два пункта «Биллинг» + «Контрагенты» объединены; договоры/подписки/счета —
+    // через общую полосу табов BillingSectionTabs.)
     path: '/counterparties',
     icon: 'mdi-account-cash',
-    title: 'Контрагенты',
-    subtitle: 'Единый лицевой счёт'
+    title: 'Биллинг',
+    subtitle: 'Контрагенты, договоры, финансы'
   },
   {
     path: '/reports',
@@ -546,14 +543,23 @@ const navigationItems = computed(() => [
 ]);
 
 // Computed properties
+// Фаза A IA-реструктуризации: маршрут /billing обслуживается тем же пунктом меню «Биллинг»
+// (path /counterparties). Подсветка/заголовок/крошки должны считать /billing частью раздела.
+const navAliasPath = (path: string): string =>
+  path === '/billing' ? '/counterparties' : path;
+
+const isNavItemActive = (itemPath: string): boolean =>
+  navAliasPath(route.path) === itemPath;
+
+const navItemForRoute = (path: string) =>
+  navigationItems.value.find(item => item.path === navAliasPath(path));
+
 const currentPageTitle = computed(() => {
-  const currentItem = navigationItems.value.find(item => item.path === route.path);
-  return currentItem?.title || route.meta?.title || 'CRM';
+  return navItemForRoute(route.path)?.title || route.meta?.title || 'CRM';
 });
 
 const currentPageIcon = computed(() => {
-  const currentItem = navigationItems.value.find(item => item.path === route.path);
-  return currentItem?.icon;
+  return navItemForRoute(route.path)?.icon;
 });
 
 const breadcrumbs = computed((): Breadcrumb[] => {
@@ -563,7 +569,7 @@ const breadcrumbs = computed((): Breadcrumb[] => {
   let currentPath = '';
   for (const path of paths) {
     currentPath += `/${path}`;
-    const item = navigationItems.value.find(item => item.path === currentPath);
+    const item = navigationItems.value.find(item => item.path === navAliasPath(currentPath));
     if (item && currentPath !== '/dashboard') {
       crumbs.push({
         title: item.title,

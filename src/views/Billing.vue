@@ -303,25 +303,8 @@
       </v-row>
     </v-expand-transition>
 
-    <!-- Вкладки -->
-    <v-tabs v-model="activeTab" color="primary" class="mb-6">
-      <v-tab value="contracts">
-        <v-icon left>mdi-file-document-multiple</v-icon>
-        Договоры
-      </v-tab>
-      <v-tab value="subscriptions">
-        <v-icon left>mdi-credit-card</v-icon>
-        Подписки
-      </v-tab>
-      <v-tab value="invoices">
-        <v-icon left>mdi-file-document</v-icon>
-        Счета
-      </v-tab>
-      <v-tab v-if="canEditBilling" value="settings">
-        <v-icon left>mdi-cog</v-icon>
-        Настройки
-      </v-tab>
-    </v-tabs>
+    <!-- Вкладки (общая полоса раздела: Контрагенты + биллинг-вкладки) -->
+    <BillingSectionTabs />
 
     <!-- Содержимое вкладок -->
     <v-window v-model="activeTab">
@@ -1579,6 +1562,7 @@
 import AppleFAB from '@/components/Apple/AppleFAB.vue'
 import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
 import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
+import BillingSectionTabs from '@/components/Billing/BillingSectionTabs.vue'
 import BillingStatCard from '@/components/Billing/BillingStatCard.vue'
 import ContractNumeratorsTab from '@/components/Billing/ContractNumeratorsTab.vue'
 import ContractsTab from '@/components/Billing/ContractsTab.vue'

@@ -1247,7 +1247,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { canManageBilling } from '@/utils/billingRole';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
@@ -1261,6 +1261,7 @@ import {
 } from '@/types/contracts';
 
 const router = useRouter();
+const route = useRoute();
 
 // Props
 const props = defineProps<{
@@ -1690,6 +1691,13 @@ const hasSearch = computed(() => {
 const filteredContracts = computed(() => {
   // 1. Берем загруженные договоры
   let items = contracts.value || []
+
+  // A6 (IA-реструктуризация): пред-фильтр по контрагенту из query (?counterparty=id),
+  // переход из карточки контрагента «Открыть в договорах». Клиентский фильтр.
+  const cpFilter = route.query.counterparty ? Number(route.query.counterparty) : null
+  if (cpFilter) {
+    items = items.filter(contract => (contract as any).counterparty_id === cpFilter)
+  }
 
   // 2. Фильтр по статусу (если есть такая переменная)
   if (statusFilter.value) {

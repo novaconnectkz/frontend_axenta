@@ -56,6 +56,24 @@ export interface CounterpartyBalance {
   presentation_only?: boolean; // true → balance свёрнут по курсу (оценочно), не точный
 }
 
+// Договор контрагента в карточке (Фаза A, read-only из /counterparties/:id/contracts).
+export interface CounterpartyContract {
+  id: number;
+  number: string;
+  contract_type: string;
+  status: string;
+  is_active: boolean;
+  currency: string;
+  total_amount: string;
+  balance: string;
+  is_debt: boolean;
+  start_date?: string | null;
+  end_date?: string | null;
+  manager_name?: string;
+  tariff_name?: string;
+  tariff_price?: string;
+}
+
 export interface CounterpartySearchItem {
   id: number;
   name: string;
@@ -135,6 +153,38 @@ class CounterpartiesService {
   async update(id: number, payload: Partial<Counterparty>): Promise<Counterparty> {
     const res: AxiosResponse = await this.apiClient.put(`/auth/counterparties/${id}`, payload);
     return res.data?.data;
+  }
+
+  /** Создать контрагента вручную (Фаза A). Только admin/superadmin (BE-guard). */
+  async create(payload: {
+    name: string;
+    id_type?: "inn" | "bin" | "iin" | "passport" | "other";
+    tax_id?: string;
+    client_type?: string;
+    billing_mode?: string;
+    credit_limit?: string;
+    country?: string;
+  }): Promise<Counterparty> {
+    const res: AxiosResponse = await this.apiClient.post("/auth/counterparties", payload);
+    return res.data?.data;
+  }
+
+  /** Договоры контрагента — для карточки (Фаза A). Read-only, полный ЛС. */
+  async contracts(id: number): Promise<CounterpartyContract[]> {
+    const res: AxiosResponse = await this.apiClient.get(`/auth/counterparties/${id}/contracts`);
+    return res.data?.data ?? [];
+  }
+
+  /** Быстрый платёж на ЛС (через договор). Постит в существующий /ledger/payment. */
+  async pay(payload: {
+    contract_id: number;
+    amount: number;
+    source?: string;
+    comment?: string;
+    payment_date?: string;
+  }): Promise<{ new_balance: string }> {
+    const res: AxiosResponse = await this.apiClient.post("/auth/ledger/payment", payload);
+    return res.data?.data ?? res.data;
   }
 
   // ── Ф5: Excel-импорт платежей ──────────────────────────────────────────────

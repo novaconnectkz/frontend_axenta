@@ -1,5 +1,8 @@
 <template>
   <v-container fluid class="pa-4">
+    <!-- Общая полоса табов раздела «Биллинг» (Фаза A): контрагенты — точка входа -->
+    <BillingSectionTabs />
+
     <div class="d-flex align-center mb-4">
       <v-icon size="28" class="mr-2">mdi-account-cash</v-icon>
       <div>
@@ -7,6 +10,7 @@
         <div class="text-caption text-medium-emphasis">Единый лицевой счёт: один контрагент = N договоров = один баланс</div>
       </div>
       <v-spacer />
+      <v-btn v-if="canEdit" variant="flat" prepend-icon="mdi-account-plus" color="primary" class="mr-2" @click="openCreate">Создать контрагента</v-btn>
       <v-btn variant="text" prepend-icon="mdi-history" class="mr-2" @click="openBatches">История импортов</v-btn>
       <v-btn variant="tonal" prepend-icon="mdi-file-import" color="primary" class="mr-2" @click="importOpen = true">Импорт платежей</v-btn>
       <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="loading" @click="reload">Обновить</v-btn>
@@ -79,6 +83,17 @@
             <v-icon v-if="item.manual_review" color="warning" size="small" title="Требует ручной проверки">mdi-alert-circle</v-icon>
           </template>
 
+          <template #item.actions="{ item }">
+            <v-btn
+              v-if="canEdit"
+              size="x-small"
+              variant="tonal"
+              color="success"
+              prepend-icon="mdi-cash-plus"
+              @click.stop="openPay(item)"
+            >Платёж</v-btn>
+          </template>
+
           <template #no-data>
             <div class="text-medium-emphasis py-6">Контрагенты не найдены</div>
           </template>
@@ -131,8 +146,38 @@
             </template>
           </div>
           <v-progress-linear v-else indeterminate />
+
+          <!-- Guardrail: единый ЛС → блокировка действует на весь контрагент -->
+          <v-alert type="warning" variant="tonal" density="compact" class="mt-3 mb-1 text-caption">
+            Баланс — единый лицевой счёт. Приостановка/блокировка за неоплату действует на <b>весь контрагент</b> (все его договоры).
+          </v-alert>
+
+          <!-- Договоры контрагента (Фаза A) -->
+          <v-divider class="my-3" />
+          <div class="d-flex align-center mb-1">
+            <span class="text-subtitle-2">Договоры контрагента</span>
+            <v-spacer />
+            <v-btn size="x-small" variant="text" append-icon="mdi-arrow-right" @click="goToContracts(detail)">Открыть в договорах</v-btn>
+          </div>
+          <v-progress-linear v-if="detailContractsLoading" indeterminate class="my-2" />
+          <v-table v-else-if="detailContracts.length" density="compact">
+            <thead>
+              <tr><th>Номер</th><th>Тариф</th><th>Сумма</th><th>Баланс</th><th>Статус</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="ct in detailContracts" :key="ct.id">
+                <td class="font-weight-medium">{{ ct.number }}</td>
+                <td>{{ ct.tariff_name || ct.contract_type }}</td>
+                <td>{{ formatMoney(ct.total_amount) }} {{ ccySymbol(ct.currency) }}</td>
+                <td :class="ct.is_debt ? 'text-error' : (parseFloat(ct.balance) > 0 ? 'text-success' : '')">{{ formatMoney(ct.balance) }} {{ ccySymbol(ct.currency) }}</td>
+                <td><v-chip size="x-small" :color="ct.is_active ? 'success' : 'default'" variant="tonal">{{ ct.status }}</v-chip></td>
+              </tr>
+            </tbody>
+          </v-table>
+          <div v-else class="text-caption text-medium-emphasis py-2">Договоров нет</div>
         </v-card-text>
         <v-card-actions>
+          <v-btn v-if="canEdit" color="success" variant="tonal" prepend-icon="mdi-cash-plus" @click="openPay(detail)">Внести платёж</v-btn>
           <v-spacer />
           <v-btn variant="text" @click="detailOpen = false">Закрыть</v-btn>
         </v-card-actions>
@@ -179,19 +224,56 @@
       </v-card>
     </v-dialog>
 
+    <!-- Создание контрагента (Фаза A) -->
+    <v-dialog v-model="createOpen" max-width="480">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2" color="primary">mdi-account-plus</v-icon>Новый контрагент
+        </v-card-title>
+        <v-card-text>
+          <v-text-field v-model="createForm.name" label="Наименование *" variant="outlined" density="comfortable" class="mb-3" hide-details />
+          <div class="d-flex ga-3 mb-3">
+            <v-select v-model="createForm.id_type" :items="idTypeItems" label="Тип идентификатора" variant="outlined" density="comfortable" hide-details style="max-width: 160px" />
+            <v-text-field v-model="createForm.tax_id" label="ИНН / БИН / ИИН" variant="outlined" density="comfortable" hide-details />
+          </div>
+          <div class="d-flex ga-3">
+            <v-select v-model="createForm.billing_mode" :items="billingModeItems" label="Режим оплаты" variant="outlined" density="comfortable" hide-details />
+            <v-text-field v-model="createForm.credit_limit" label="Кредит-лимит" type="number" variant="outlined" density="comfortable" hide-details />
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="createOpen = false">Отмена</v-btn>
+          <v-btn color="primary" variant="flat" :loading="creating" :disabled="!createForm.name.trim()" @click="submitCreate">Создать</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Быстрый платёж (Фаза A) -->
+    <QuickPaymentDialog v-model="payOpen" :counterparty="payTarget" @paid="onPaid" @error="onPayError" />
+
     <v-snackbar v-model="errorOpen" color="error" timeout="5000">{{ errorMsg }}</v-snackbar>
     <v-snackbar v-model="okOpen" color="success" timeout="4000">{{ okMsg }}</v-snackbar>
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import counterpartiesService, {
   type Counterparty,
   type CounterpartyBalance,
+  type CounterpartyContract,
   type ImportBatch,
 } from "@/services/counterpartiesService";
+import { canManageBilling } from "@/utils/billingRole";
 import PaymentImportWizard from "@/components/Billing/PaymentImportWizard.vue";
+import BillingSectionTabs from "@/components/Billing/BillingSectionTabs.vue";
+import QuickPaymentDialog from "@/components/Billing/QuickPaymentDialog.vue";
+
+const router = useRouter();
+// Деньги/создание — admin/бухгалтер (решение владельца). Кнопки гейтятся; BE-guard защищает реально.
+const canEdit = computed(() => canManageBilling());
 
 const headers = [
   { title: "Контрагент", key: "name", sortable: true },
@@ -200,6 +282,7 @@ const headers = [
   { title: "Баланс ЛС", key: "balance", sortable: false },
   { title: "Договоров", key: "contracts", sortable: false },
   { title: "", key: "manual_review", sortable: false, width: 40 },
+  { title: "Действия", key: "actions", sortable: false, width: 120 },
 ];
 
 const rows = ref<Counterparty[]>([]);
@@ -214,6 +297,34 @@ const errorMsg = ref("");
 const detailOpen = ref(false);
 const detail = ref<Counterparty | null>(null);
 const detailBalance = ref<CounterpartyBalance | null>(null);
+const detailContracts = ref<CounterpartyContract[]>([]);
+const detailContractsLoading = ref(false);
+
+// A4: создание контрагента.
+const createOpen = ref(false);
+const creating = ref(false);
+const createForm = ref({
+  name: "",
+  id_type: "inn" as "inn" | "bin" | "iin" | "passport" | "other",
+  tax_id: "",
+  billing_mode: "prepaid",
+  credit_limit: "0",
+});
+const idTypeItems = [
+  { title: "ИНН", value: "inn" },
+  { title: "БИН", value: "bin" },
+  { title: "ИИН", value: "iin" },
+  { title: "Паспорт", value: "passport" },
+  { title: "Другое", value: "other" },
+];
+const billingModeItems = [
+  { title: "Предоплата", value: "prepaid" },
+  { title: "Постоплата", value: "postpaid" },
+];
+
+// A5: быстрый платёж.
+const payOpen = ref(false);
+const payTarget = ref<Counterparty | null>(null);
 
 // Ф5b: импорт платежей + история батчей.
 const importOpen = ref(false);
@@ -300,6 +411,7 @@ async function reload() {
 async function openDetail(cp: Counterparty) {
   detail.value = cp;
   detailBalance.value = balances.value[cp.id] ?? null;
+  detailContracts.value = [];
   detailOpen.value = true;
   if (!detailBalance.value) {
     try {
@@ -308,6 +420,68 @@ async function openDetail(cp: Counterparty) {
       /* ignore */
     }
   }
+  // A3: договоры контрагента для карточки.
+  detailContractsLoading.value = true;
+  try {
+    detailContracts.value = await counterpartiesService.contracts(cp.id);
+  } catch {
+    /* частичный сбой не валит карточку */
+  } finally {
+    detailContractsLoading.value = false;
+  }
+}
+
+// A6: переход к договорам контрагента (пред-фильтр по ?counterparty).
+function goToContracts(cp: Counterparty | null) {
+  if (!cp) return;
+  router.push({ path: "/billing", query: { tab: "contracts", counterparty: String(cp.id) } });
+}
+
+// A4: создание контрагента.
+function openCreate() {
+  createForm.value = { name: "", id_type: "inn", tax_id: "", billing_mode: "prepaid", credit_limit: "0" };
+  createOpen.value = true;
+}
+async function submitCreate() {
+  if (!createForm.value.name.trim()) return;
+  creating.value = true;
+  try {
+    await counterpartiesService.create({
+      name: createForm.value.name.trim(),
+      id_type: createForm.value.id_type,
+      tax_id: createForm.value.tax_id.trim() || undefined,
+      billing_mode: createForm.value.billing_mode,
+      credit_limit: createForm.value.credit_limit || "0",
+    });
+    okMsg.value = "Контрагент создан";
+    okOpen.value = true;
+    createOpen.value = false;
+    await reload();
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error || "Не удалось создать контрагента";
+    errorOpen.value = true;
+  } finally {
+    creating.value = false;
+  }
+}
+
+// A5: быстрый платёж.
+function openPay(cp: Counterparty | null) {
+  payTarget.value = cp;
+  payOpen.value = true;
+}
+function onPaid() {
+  okMsg.value = "Платёж внесён";
+  okOpen.value = true;
+  reload(); // балансы изменились
+  if (detail.value) {
+    // обновить договоры в открытой карточке
+    counterpartiesService.contracts(detail.value.id).then((c) => (detailContracts.value = c)).catch(() => {});
+  }
+}
+function onPayError(msg: string) {
+  errorMsg.value = msg;
+  errorOpen.value = true;
 }
 
 function formatMoney(v: string | number): string {
