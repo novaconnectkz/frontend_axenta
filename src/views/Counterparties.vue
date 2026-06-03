@@ -28,6 +28,19 @@
             hide-details
             @update:model-value="reload"
           />
+          <!-- Phase D: фильтр по роли (клиенты — субъекты ЛС; партнёры — справочник) -->
+          <v-btn-toggle
+            v-model="kindFilter"
+            density="compact"
+            variant="outlined"
+            divided
+            mandatory
+            @update:model-value="reload"
+          >
+            <v-btn value="" size="small">Все</v-btn>
+            <v-btn value="client" size="small">Клиенты</v-btn>
+            <v-btn value="partner" size="small">Партнёры</v-btn>
+          </v-btn-toggle>
           <v-spacer />
           <span class="text-caption text-medium-emphasis">Всего: {{ total }}</span>
         </div>
@@ -41,7 +54,10 @@
           @click:row="(_e: unknown, ctx: any) => openDetail(ctx.item)"
         >
           <template #item.name="{ item }">
-            <div class="font-weight-medium">{{ item.name }}</div>
+            <div class="font-weight-medium">
+              {{ item.name }}
+              <v-chip v-if="item.kind === 'partner'" size="x-small" color="purple" variant="tonal" class="ml-1" title="Партнёр — справочник, биллинг по снимкам (не лицевой счёт)">партнёр</v-chip>
+            </div>
             <div class="text-caption text-medium-emphasis">{{ clientTypeLabel(item.client_type) }}</div>
           </template>
 
@@ -51,13 +67,16 @@
           </template>
 
           <template #item.billing_mode="{ item }">
-            <v-chip size="x-small" :color="item.billing_mode === 'postpaid' ? 'info' : 'default'" variant="tonal">
+            <v-chip v-if="item.kind === 'partner'" size="x-small" color="purple" variant="tonal" title="Биллинг по снимкам (объекты × тариф × скидка)">снимки</v-chip>
+            <v-chip v-else size="x-small" :color="item.billing_mode === 'postpaid' ? 'info' : 'default'" variant="tonal">
               {{ item.billing_mode === 'postpaid' ? 'постоплата' : 'предоплата' }}
             </v-chip>
           </template>
 
           <template #item.balance="{ item }">
-            <template v-if="balances[item.id]">
+            <!-- Phase D: партнёр не субъект ЛС → баланса нет -->
+            <span v-if="item.kind === 'partner'" class="text-medium-emphasis">—</span>
+            <template v-else-if="balances[item.id]">
               <span :class="balanceClass(balances[item.id])">{{ formatMoney(balances[item.id].balance) }} {{ balanceCcy(balances[item.id]) }}</span>
               <v-chip v-if="balances[item.id].is_debt" size="x-small" color="error" variant="tonal" class="ml-1">долг</v-chip>
               <v-chip v-if="balances[item.id].multicurrency" size="x-small" color="info" variant="tonal" class="ml-1" title="Несколько валют — баланс приведён по курсу">мультивалюта</v-chip>
@@ -74,8 +93,9 @@
           </template>
 
           <template #item.actions="{ item }">
+            <!-- Phase D: партнёру платёж недоступен (не субъект ЛС) -->
             <v-btn
-              v-if="canEdit"
+              v-if="canEdit && item.kind !== 'partner'"
               size="x-small"
               variant="tonal"
               color="success"
@@ -103,7 +123,14 @@
           <v-chip v-if="detail.manual_review" size="small" color="warning" variant="tonal" class="mb-3">Требует ручной проверки (нет ИНН)</v-chip>
 
           <v-divider class="mb-3" />
-          <div v-if="detailBalance" class="mb-2">
+
+          <!-- Phase D: партнёр — справочник, НЕ лицевой счёт. Вместо баланса — пояснение. -->
+          <v-alert v-if="isPartnerDetail" type="info" variant="tonal" density="compact" class="mb-2 text-caption">
+            <b>Партнёр</b> — биллинг по снимкам (объекты × тариф × скидка), не лицевой счёт.
+            Баланс, начисления и отсрочки к партнёру не применяются.
+          </v-alert>
+
+          <div v-else-if="detailBalance" class="mb-2">
             <div class="d-flex justify-space-between py-1">
               <span class="text-medium-emphasis">Баланс лицевого счёта</span>
               <span class="text-h6" :class="balanceClass(detailBalance)">{{ formatMoney(detailBalance.balance) }} {{ balanceCcy(detailBalance) }}</span>
@@ -135,10 +162,10 @@
               </div>
             </template>
           </div>
-          <v-progress-linear v-else indeterminate />
+          <v-progress-linear v-else-if="!isPartnerDetail" indeterminate />
 
-          <!-- Guardrail: единый ЛС → блокировка действует на весь контрагент -->
-          <v-alert type="warning" variant="tonal" density="compact" class="mt-3 mb-1 text-caption">
+          <!-- Guardrail: единый ЛС → блокировка действует на весь контрагент (не для партнёра) -->
+          <v-alert v-if="!isPartnerDetail" type="warning" variant="tonal" density="compact" class="mt-3 mb-1 text-caption">
             Баланс — единый лицевой счёт. Приостановка/блокировка за неоплату действует на <b>весь контрагент</b> (все его договоры).
           </v-alert>
 
@@ -167,7 +194,7 @@
           <div v-else class="text-caption text-medium-emphasis py-2">Договоров нет</div>
         </v-card-text>
         <v-card-actions>
-          <v-btn v-if="canEdit" color="success" variant="tonal" prepend-icon="mdi-cash-plus" @click="openPay(detail)">Внести платёж</v-btn>
+          <v-btn v-if="canEdit && !isPartnerDetail" color="success" variant="tonal" prepend-icon="mdi-cash-plus" @click="openPay(detail)">Внести платёж</v-btn>
           <v-spacer />
           <v-btn variant="text" @click="detailOpen = false">Закрыть</v-btn>
         </v-card-actions>
@@ -276,6 +303,8 @@ const total = ref(0);
 const loading = ref(false);
 const search = ref("");
 const manualOnly = ref(false);
+// Phase D: фильтр по роли ("" — все, "client", "partner").
+const kindFilter = ref<"" | "client" | "partner">("");
 const errorOpen = ref(false);
 const errorMsg = ref("");
 
@@ -284,6 +313,8 @@ const detail = ref<Counterparty | null>(null);
 const detailBalance = ref<CounterpartyBalance | null>(null);
 const detailContracts = ref<CounterpartyContract[]>([]);
 const detailContractsLoading = ref(false);
+// Phase D: открытый в карточке контрагент — партнёр? (баланс/платёж/holds скрыты)
+const isPartnerDetail = computed(() => detail.value?.kind === "partner");
 
 // A4/B1: создание контрагента (полные реквизиты) — в общем компоненте CounterpartyCreateDialog.
 const createOpen = ref(false);
@@ -352,19 +383,23 @@ async function reload() {
     const res = await counterpartiesService.list({
       q: search.value,
       manualReview: manualOnly.value,
+      kind: kindFilter.value || undefined,
     });
     rows.value = res.data;
     total.value = res.total;
     balances.value = {};
     // Балансы тянем параллельно для загруженной страницы (единый ЛС per контрагент).
+    // Phase D: для партнёров баланс не запрашиваем — они не субъекты ЛС.
     await Promise.all(
-      res.data.map(async (cp) => {
-        try {
-          balances.value[cp.id] = await counterpartiesService.balance(cp.id);
-        } catch {
-          /* частичный сбой баланса не валит список */
-        }
-      })
+      res.data
+        .filter((cp) => cp.kind !== "partner")
+        .map(async (cp) => {
+          try {
+            balances.value[cp.id] = await counterpartiesService.balance(cp.id);
+          } catch {
+            /* частичный сбой баланса не валит список */
+          }
+        })
     );
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.error || "Не удалось загрузить контрагентов";
@@ -379,7 +414,8 @@ async function openDetail(cp: Counterparty) {
   detailBalance.value = balances.value[cp.id] ?? null;
   detailContracts.value = [];
   detailOpen.value = true;
-  if (!detailBalance.value) {
+  // Phase D: партнёр не субъект ЛС → баланс не запрашиваем (карточка показывает только реквизиты+договоры).
+  if (!detailBalance.value && cp.kind !== "partner") {
     try {
       detailBalance.value = await counterpartiesService.balance(cp.id);
     } catch {
@@ -436,7 +472,8 @@ function onPayError(msg: string) {
   errorOpen.value = true;
 }
 
-function formatMoney(v: string | number): string {
+function formatMoney(v: string | number | undefined): string {
+  if (v === undefined || v === null) return "0.00";
   const n = typeof v === "string" ? parseFloat(v) : v;
   if (Number.isNaN(n)) return "0.00";
   return n.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -454,7 +491,7 @@ function balanceCcy(b?: { multicurrency?: boolean; presentation_currency?: strin
 }
 
 function balanceClass(b: CounterpartyBalance): string {
-  const n = parseFloat(b.balance);
+  const n = parseFloat(b.balance ?? "0");
   if (n < 0) return "text-error font-weight-medium";
   if (n > 0) return "text-success font-weight-medium";
   return "";
