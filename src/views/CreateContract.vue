@@ -407,7 +407,7 @@
                 <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
               <v-col cols="12" md="4" class="d-flex align-center">
-                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCounterpartiesTab">
+                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty">
                   Создать контрагента
                 </v-btn>
               </v-col>
@@ -1136,6 +1136,13 @@
       </template>
     </v-snackbar>
 
+    <!-- Phase C-хвост: inline-создание контрагента из формы договора -->
+    <CounterpartyCreateDialog
+      v-model="cpCreateOpen"
+      @created="onCounterpartyCreated"
+      @error="onCounterpartyCreateError"
+    />
+
     <!-- Диалог автопилота: предложение создать подписку (только в режиме автопилота) -->
     <AutopilotSubscriptionOfferDialog
       v-if="isAutopilotMode"
@@ -1170,7 +1177,7 @@ import type { BillingPlan, BillingSettings } from '@/types/billing';
 import type { ContractNumerator } from '@/types/contracts';
 import type { Account } from '@/services/accountsService';
 import contractsService from '@/services/contractsService';
-import counterpartiesService from '@/services/counterpartiesService';
+import counterpartiesService, { type Counterparty } from '@/services/counterpartiesService';
 import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import dadataService from '@/services/dadataService';
@@ -1179,6 +1186,7 @@ import dadataService from '@/services/dadataService';
 import { getObjectsService } from '@/services/objectsService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 import CounterpartySelector from '@/components/Contracts/CounterpartySelector.vue';
+import CounterpartyCreateDialog from '@/components/Contracts/CounterpartyCreateDialog.vue';
 import { canManageBilling } from '@/utils/billingRole';
 import { useAutopilot } from '@/composables/useAutopilot';
 import AutopilotSubscriptionOfferDialog from '@/components/Billing/AutopilotSubscriptionOfferDialog.vue';
@@ -1200,9 +1208,17 @@ const isAutopilotMode = computed(() => route.query.autopilot === 'true');
 // партнёрский → полная форма идентичности клиента (партнёры вне модели контрагентов).
 const isClientContract = computed(() => form.value.contract_type === CONTRACT_TYPES.CLIENT);
 
-// Открыть раздел контрагентов в новой вкладке (создать нового, затем вернуться и выбрать).
-function openCounterpartiesTab() {
-  window.open('/counterparties', '_blank');
+// Phase C-хвост: inline-создание контрагента прямо из формы договора (без ухода со страницы).
+const cpCreateOpen = ref(false);
+function openCreateCounterparty() {
+  cpCreateOpen.value = true;
+}
+function onCounterpartyCreated(cp: Counterparty) {
+  // Подставляем созданного cp в селектор; CounterpartySelector сам подхватит его по watch(modelValue).
+  form.value.counterparty_id = cp.id;
+}
+function onCounterpartyCreateError(message: string) {
+  showSnackbarMessage(message, 'error');
 }
 // (watch автозаполнения реквизитов из контрагента — ниже, после объявления form)
 

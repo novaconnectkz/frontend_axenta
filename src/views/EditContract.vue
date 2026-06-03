@@ -307,7 +307,7 @@
                 <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
               <v-col cols="12" md="4" class="d-flex align-center">
-                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCounterpartiesTab">
+                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty">
                   Создать контрагента
                 </v-btn>
               </v-col>
@@ -763,6 +763,13 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Phase C-хвост: inline-создание контрагента из формы договора -->
+    <CounterpartyCreateDialog
+      v-model="cpCreateOpen"
+      @created="onCounterpartyCreated"
+      @error="onCounterpartyCreateError"
+    />
   </div>
 </template>
 
@@ -785,6 +792,8 @@ import accountsService from '@/services/accountsService';
 import billingService from '@/services/billingService';
 import { AppleButton, AppleInput, AppleCard } from '@/components/Apple';
 import CounterpartySelector from '@/components/Contracts/CounterpartySelector.vue';
+import CounterpartyCreateDialog from '@/components/Contracts/CounterpartyCreateDialog.vue';
+import { type Counterparty } from '@/services/counterpartiesService';
 import { canManageBilling } from '@/utils/billingRole';
 
 const router = useRouter();
@@ -792,8 +801,16 @@ const route = useRoute();
 
 // B2 (subject-first): клиентский договор → только селектор контрагента; партнёрский → полная идентичность.
 const isClientContract = computed(() => form.value.contract_type === CONTRACT_TYPES.CLIENT);
-function openCounterpartiesTab() {
-  window.open('/counterparties', '_blank');
+// Phase C-хвост: inline-создание контрагента прямо из формы договора.
+const cpCreateOpen = ref(false);
+function openCreateCounterparty() {
+  cpCreateOpen.value = true;
+}
+function onCounterpartyCreated(cp: Counterparty) {
+  form.value.counterparty_id = cp.id;
+}
+function onCounterpartyCreateError(message: string) {
+  showSnackbarMessage(message, 'error');
 }
 
 // Reactive data
