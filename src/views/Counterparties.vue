@@ -10,10 +10,7 @@
         <div class="text-caption text-medium-emphasis">Единый лицевой счёт: один контрагент = N договоров = один баланс</div>
       </div>
       <v-spacer />
-      <v-btn v-if="canEdit" variant="flat" prepend-icon="mdi-account-plus" color="primary" class="mr-2" @click="openCreate">Создать контрагента</v-btn>
-      <v-btn variant="text" prepend-icon="mdi-history" class="mr-2" @click="openBatches">История импортов</v-btn>
-      <v-btn variant="tonal" prepend-icon="mdi-file-import" color="primary" class="mr-2" @click="importOpen = true">Импорт платежей</v-btn>
-      <v-btn variant="tonal" prepend-icon="mdi-refresh" :loading="loading" @click="reload">Обновить</v-btn>
+      <v-progress-circular v-if="loading" indeterminate size="22" width="2" color="primary" />
     </div>
 
     <v-card variant="flat" border>
@@ -252,6 +249,9 @@
     <!-- Быстрый платёж (Фаза A) -->
     <QuickPaymentDialog v-model="payOpen" :counterparty="payTarget" @paid="onPaid" @error="onPayError" />
 
+    <!-- Действия раздела в едином FAB (Apple-стиль) -->
+    <AppleFAB :items="fabItems" />
+
     <v-snackbar v-model="errorOpen" color="error" timeout="5000">{{ errorMsg }}</v-snackbar>
     <v-snackbar v-model="okOpen" color="success" timeout="4000">{{ okMsg }}</v-snackbar>
   </v-container>
@@ -270,10 +270,22 @@ import { canManageBilling } from "@/utils/billingRole";
 import PaymentImportWizard from "@/components/Billing/PaymentImportWizard.vue";
 import BillingSectionTabs from "@/components/Billing/BillingSectionTabs.vue";
 import QuickPaymentDialog from "@/components/Billing/QuickPaymentDialog.vue";
+import AppleFAB from "@/components/Apple/AppleFAB.vue";
 
 const router = useRouter();
 // Деньги/создание — admin/бухгалтер (решение владельца). Кнопки гейтятся; BE-guard защищает реально.
 const canEdit = computed(() => canManageBilling());
+
+// Действия раздела в FAB (единый Apple-стиль). «Создать контрагента» — только admin/бухгалтер.
+const fabItems = computed(() => {
+  const items: { id: string; label: string; icon: string; color?: "primary" | "success" | "warning"; action: () => void }[] = [];
+  if (canEdit.value) {
+    items.push({ id: "create", label: "Создать контрагента", icon: "mdi-account-plus", color: "primary", action: openCreate });
+  }
+  items.push({ id: "import", label: "Импорт платежей", icon: "mdi-file-import", color: "success", action: () => { importOpen.value = true; } });
+  items.push({ id: "batches", label: "История импортов", icon: "mdi-history", color: "warning", action: openBatches });
+  return items;
+});
 
 const headers = [
   { title: "Контрагент", key: "name", sortable: true },
