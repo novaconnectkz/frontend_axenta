@@ -302,6 +302,12 @@ interface Contract {
   number: string;
   title: string;
   client_name: string;
+  // C4a: поля для единого contractDisplayName (cp/partner авторитет, fallback client_*)
+  client_short_name?: string;
+  contract_type?: string;
+  partner_name?: string;
+  partner_requisites?: string;
+  counterparty?: { name?: string | null; short_name?: string | null } | null;
   start_date: string;
   end_date: string;
   total_amount: string;
@@ -637,6 +643,12 @@ const mapContract = (c: ContractWithRelations): Contract => ({
   number: c.number,
   title: c.title ?? '',
   client_name: c.client_name ?? '',
+  // C4a: переносим авторитет идентичности (cp/partner) в табличную форму
+  client_short_name: c.client_short_name ?? '',
+  contract_type: c.contract_type,
+  partner_name: (c as any).partner_name,
+  partner_requisites: (c as any).partner_requisites,
+  counterparty: (c as any).counterparty,
   start_date: c.start_date ?? '',
   end_date: c.end_date ?? '',
   total_amount: c.total_amount ?? '0',
