@@ -1292,6 +1292,10 @@ interface Contract {
   partner_company_id?: number; // Для партнерских договоров
   client_name: string;
   client_short_name?: string; // Сокращенное название с ОПФ (для организаций)
+  // C4a: авторитет идентичности для contractDisplayName (cp/partner, fallback client_*)
+  partner_name?: string;
+  partner_requisites?: string;
+  counterparty?: { name?: string | null; short_name?: string | null } | null;
   start_date: string;
   end_date: string;
   total_amount: string;
