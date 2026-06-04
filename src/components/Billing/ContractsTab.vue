@@ -169,7 +169,7 @@
 
         <!-- Клиент -->
         <template #item.title="{ item }">
-          <div class="contract-client" lang="ru">{{ item.client_short_name || item.client_name }}</div>
+          <div class="contract-client" lang="ru">{{ contractDisplayName(item, '') }}</div>
         </template>
 
         <!-- Тарифный план -->
@@ -1249,6 +1249,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { canManageBilling } from '@/utils/billingRole';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import { debounce } from 'lodash-es';
 import { config } from '@/config/env';
 import type { ContractType, PartnerSnapshotsSummary } from '@/types/contracts';
@@ -3077,7 +3078,7 @@ const exportSelected = async () => {
     ];
     rows.forEach((ct: any) => ws.addRow({
       number: ct.number,
-      client: ct.client_short_name || ct.client_name || '',
+      client: contractDisplayName(ct, ''),
       type: ct.contract_type,
       status: ct.status,
       manager: ct.manager_name || '',

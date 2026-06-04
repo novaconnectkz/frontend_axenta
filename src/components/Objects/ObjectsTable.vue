@@ -176,7 +176,7 @@
 
         <template #item.contract="{ item }">
           <div v-if="item.contract">
-            <div class="font-weight-medium">{{ item.contract.client_name }}</div>
+            <div class="font-weight-medium">{{ contractDisplayName(item.contract, '') }}</div>
             <div class="text-caption text-medium-emphasis">№{{ item.contract.id }}</div>
           </div>
         </template>
@@ -324,6 +324,7 @@
 <script setup lang="ts">
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import {
   formatDate,
   getConnectionColor,

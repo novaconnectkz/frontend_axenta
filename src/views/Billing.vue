@@ -372,8 +372,7 @@
                 <v-tooltip location="top" v-if="item.contract">
                   <template #activator="{ props }">
                     <div class="subscription-client-info" v-bind="props">
-                      <div class="client-name">{{ (item.contract as any)?.client_short_name || item.contract.client_name
-                        }}</div>
+                      <div class="client-name">{{ contractDisplayName(item.contract, '') }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}</div>
@@ -538,8 +537,7 @@
                   <template #activator="{ props }">
                     <div class="subscription-client-info clickable" v-bind="props"
                       @click="navigateToSubscription(item)">
-                      <div class="client-name-link">{{ (item.contract as any)?.client_short_name ||
-                        item.contract.client_name || 'Клиент не указан' }}</div>
+                      <div class="client-name-link">{{ contractDisplayName(item.contract, 'Клиент не указан') }}</div>
                     </div>
                   </template>
                   <div>Договор: {{ item.contract.number }}<br>Кликните для просмотра подписки</div>
@@ -1560,6 +1558,7 @@
 
 <script lang="ts" setup>
 import AppleFAB from '@/components/Apple/AppleFAB.vue'
+import { contractDisplayName } from '@/utils/contractDisplay'
 import AutopilotSendInvoiceOfferDialog from '@/components/Billing/AutopilotSendInvoiceOfferDialog.vue'
 import BillingMetricDetailDialog from '@/components/Billing/BillingMetricDetailDialog.vue'
 import BillingSectionTabs from '@/components/Billing/BillingSectionTabs.vue'

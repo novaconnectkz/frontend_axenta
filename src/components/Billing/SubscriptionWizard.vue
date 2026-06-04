@@ -761,6 +761,7 @@
 import { computed, ref, watch } from 'vue'
 import { billingService } from '@/services/billingService'
 import contractsService from '@/services/contractsService'
+import { contractDisplayName } from '@/utils/contractDisplay'
 import { accountsService, type Account } from '@/services/accountsService'
 import { getObjectsService } from '@/services/objectsService'
 import type { BillingPlan, CreateSubscriptionData, Subscription } from '@/types/billing'
@@ -954,7 +955,7 @@ const contractOptions = computed(() => {
   
   return uniqueContracts.map(contract => {
     // Показываем только номер договора и клиента (без дублирования title)
-    const clientDisplay = contract.client_short_name || contract.client_name
+    const clientDisplay = contractDisplayName(contract, '')
     const title = clientDisplay 
       ? `${contract.number} - ${clientDisplay}`
       : contract.number

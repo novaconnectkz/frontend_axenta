@@ -204,7 +204,7 @@
         <template #item.title="{ item }">
           <div>
             <div class="contract-title">{{ item.title }}</div>
-            <div class="contract-client">{{ item.client_name }}</div>
+            <div class="contract-client">{{ contractDisplayName(item, '') }}</div>
           </div>
         </template>
 
@@ -293,6 +293,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { CONTRACT_SOURCE_OPTIONS, type ContractSource, type ContractWithRelations } from '@/types/contracts';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import contractsService from '@/services/contractsService';
 
 // Простые типы для демо
