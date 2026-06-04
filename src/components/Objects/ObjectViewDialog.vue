@@ -51,7 +51,7 @@
                 <div class="detail-item">
                   <span class="detail-label">Договор:</span>
                   <span class="detail-value">
-                    {{ object.contract?.client_name || 'Не указан' }}
+                    {{ contractDisplayName(object.contract, 'Не указан') }}
                     <span v-if="object.contract" class="text-caption">
                       (№{{ object.contract.id }})
                     </span>
@@ -119,6 +119,7 @@
 <script setup lang="ts">
 import AppleButton from '@/components/Apple/AppleButton.vue';
 import AppleCard from '@/components/Apple/AppleCard.vue';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import {
   getStatusColor,
   getStatusText,

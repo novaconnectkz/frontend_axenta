@@ -12,7 +12,7 @@
         <div v-if="invoice" class="mb-4">
           <div class="invoice-info">
             <p><strong>Счет:</strong> {{ invoice.number }}</p>
-            <p><strong>Клиент:</strong> {{ invoice.contract?.client_short_name || invoice.contract?.client_name || 'Не указан' }}</p>
+            <p><strong>Клиент:</strong> {{ contractDisplayName(invoice.contract, 'Не указан') }}</p>
             <p><strong>Сумма:</strong> {{ invoice.total_amount }} {{ invoice.currency }}</p>
             <p><strong>Срок оплаты:</strong> {{ formatDate(invoice.due_date) }}</p>
           </div>
@@ -155,6 +155,7 @@
 import { ref, computed, watch } from 'vue'
 import type { Invoice, InvoiceSendChannel, SendInvoiceData } from '@/types/billing'
 import { billingService } from '@/services/billingService'
+import { contractDisplayName } from '@/utils/contractDisplay'
 
 // Props
 const props = defineProps<{

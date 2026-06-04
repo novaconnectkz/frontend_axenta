@@ -35,7 +35,7 @@
                 </template>
                 <v-list-item-title>{{ item.raw.number }}</v-list-item-title>
                 <v-list-item-subtitle>
-                  {{ item.raw.contract?.client_short_name || item.raw.contract?.client_name || 'Клиент не указан' }}
+                  {{ contractDisplayName(item.raw.contract, 'Клиент не указан') }}
                   • {{ formatCurrency(item.raw.total_amount) }}
                   <span v-if="parseFloat(item.raw.paid_amount || '0') > 0">
                     (Остаток: {{ formatCurrency((parseFloat(item.raw.total_amount) - parseFloat(item.raw.paid_amount || '0')).toString()) }})
@@ -47,7 +47,7 @@
 
           <!-- Клиент (автоматически) -->
           <v-text-field
-            :model-value="selectedInvoice?.contract?.client_short_name || selectedInvoice?.contract?.client_name || '—'"
+            :model-value="contractDisplayName(selectedInvoice?.contract, '—')"
             label="Клиент"
             variant="outlined"
             density="comfortable"
@@ -143,6 +143,7 @@
 import { ref, computed, watch } from 'vue'
 import type { Invoice } from '@/types/billing'
 import { billingService } from '@/services/billingService'
+import { contractDisplayName } from '@/utils/contractDisplay'
 
 // Props
 const props = defineProps<{
@@ -292,7 +293,7 @@ const invoiceFilter = (_value: string, query: string, item: any) => {
   }
   
   // Поиск по названию клиента
-  const clientName = invoice.contract?.client_short_name || invoice.contract?.client_name || ''
+  const clientName = contractDisplayName(invoice.contract, '')
   if (clientName && clientName.toLowerCase().includes(searchTerm)) {
     return true
   }

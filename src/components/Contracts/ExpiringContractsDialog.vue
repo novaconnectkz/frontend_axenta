@@ -69,7 +69,7 @@
                       </div>
                       
                       <div class="contract-title">{{ contract.title }}</div>
-                      <div class="contract-client">{{ contract.client_name }}</div>
+                      <div class="contract-client">{{ contractDisplayName(contract, '') }}</div>
                     </div>
 
                     <div class="contract-status">
@@ -212,6 +212,7 @@ import type {
   CONTRACT_STATUS_COLORS,
 } from '@/types/contracts';
 import contractsService from '@/services/contractsService';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import { AppleButton } from '@/components/Apple';
 
 // Props

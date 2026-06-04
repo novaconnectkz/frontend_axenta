@@ -161,7 +161,7 @@
         <template #item.title="{ item }">
           <div class="contract-info">
             <div class="contract-title">{{ item.title }}</div>
-            <div class="contract-client">{{ item.client_short_name || item.client_name }}</div>
+            <div class="contract-client">{{ contractDisplayName(item, '') }}</div>
           </div>
         </template>
 
@@ -297,6 +297,7 @@
 import { AppleButton, AppleCard, AppleInput } from '@/components/Apple';
 import billingService from '@/services/billingService';
 import contractsService from '@/services/contractsService';
+import { contractDisplayName } from '@/utils/contractDisplay';
 import type { BillingPlan } from '@/types/billing';
 import type {
     CONTRACT_STATUS_COLORS,
@@ -730,7 +731,7 @@ const exportContracts = async () => {
     const csvData = contracts.value.map(contract => ({
       'Номер': contract.number,
       'Название': contract.title,
-      'Клиент': contract.client_short_name || contract.client_name,
+      'Клиент': contractDisplayName(contract, ''),
       'ИНН': contract.client_inn || '',
       'Телефон': contract.client_phone || '',
       'Email': contract.client_email || '',
