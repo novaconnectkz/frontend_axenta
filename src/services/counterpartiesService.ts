@@ -33,6 +33,16 @@ export interface Counterparty {
   bank_account?: string;
   bank_correspondent_account?: string;
   bank_recipient?: string;
+  // Поля физлиц (не в форме реквизитов, но сохраняются при edit через spread — Codex).
+  passport_series?: string;
+  passport_number?: string;
+  passport_issued_by?: string;
+  passport_issue_date?: string;
+  passport_department_code?: string;
+  registration_address?: string;
+  actual_address?: string;
+  snils?: string;
+  ogrnip?: string;
   billing_mode: string;
   credit_limit: string;
   manual_review: boolean;
