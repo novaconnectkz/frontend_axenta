@@ -50,6 +50,8 @@ export function contractDisplayName(
     return (
       partnerRequisite(contract, "short_name") ||
       contract.partner_name ||
+      contract.counterparty?.short_name || // единый контрагент: привязанный к партнёр-договору
+      contract.counterparty?.name ||
       contract.client_short_name || // fallback до C4b
       contract.client_name ||
       fallback
