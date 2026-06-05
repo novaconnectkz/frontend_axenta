@@ -1,9 +1,7 @@
 <template>
   <div class="counterparty-selector">
-    <label class="apple-input-label">
-      <v-icon icon="mdi-account-cash" size="18" class="mr-1" />
-      Контрагент (единый лицевой счёт)
-    </label>
+    <!-- Заголовок даёт секция формы (контекстный: «Контрагент …» / «Контрагент-партнёр»),
+         внутренний label убран чтобы не дублировать. -->
     <v-autocomplete
       :model-value="modelValue ?? null"
       :items="items"

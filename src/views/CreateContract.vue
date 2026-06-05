@@ -152,7 +152,10 @@
                   hide-details
                 />
               </v-col>
+            </v-row>
 
+            <!-- Тип договора + Менеджер (одна строка для компактности) -->
+            <v-row class="mt-2">
               <!-- Обслуживающий менеджер — назначает только admin/superadmin -->
               <v-col v-if="canAssignManager" cols="12" md="4">
                 <label class="apple-input-label">Менеджер</label>
@@ -169,10 +172,6 @@
                   placeholder="Не назначен"
                 />
               </v-col>
-            </v-row>
-
-            <!-- Тип договора -->
-            <v-row class="mt-2">
               <v-col cols="12" md="4">
                 <label class="apple-input-label">Тип договора</label>
                 <v-select
@@ -412,9 +411,6 @@
                 </v-btn>
               </v-col>
             </v-row>
-            <div class="text-caption text-medium-emphasis mt-1">
-              Реквизиты клиента (ИНН, наименование, адреса, банк) теперь на контрагенте. Выберите существующего или создайте нового.
-            </div>
           </div>
 
           <!-- Информация о клиенте (партнёрский/прочий договор: полная идентичность) -->
@@ -434,8 +430,9 @@
             </div>
           </div>
 
-          <!-- Реквизиты для авто-создания контрагента — только если контрагент НЕ выбран -->
-          <div v-if="!isClientContract && !form.counterparty_id" class="form-section">
+          <!-- Форма реквизитов УБРАНА: партнёрский договор работает только через контрагента
+               (выбрать существующего; пусто → BE авто-создаёт из учётной записи партнёра). -->
+          <div v-if="false" class="form-section">
             <h3 class="section-title">
               <v-icon icon="mdi-account" class="mr-2" />
               Информация о клиенте
