@@ -418,6 +418,22 @@
           </div>
 
           <!-- Информация о клиенте (партнёрский/прочий договор: полная идентичность) -->
+          <!-- Партнёрский договор: выбор существующего контрагента-партнёра (иначе авто-создание из реквизитов ниже) -->
+          <div v-if="!isClientContract" class="form-section">
+            <h3 class="section-title">
+              <v-icon icon="mdi-account-cash" class="mr-2" />
+              Контрагент-партнёр
+            </h3>
+            <v-row>
+              <v-col cols="12" md="8">
+                <CounterpartySelector v-model="form.counterparty_id" kind="partner" />
+              </v-col>
+            </v-row>
+            <div class="text-caption text-medium-emphasis mt-1">
+              Выберите существующего партнёра-контрагента. Не выбран — будет создан автоматически из реквизитов ниже.
+            </div>
+          </div>
+
           <div v-if="!isClientContract" class="form-section">
             <h3 class="section-title">
               <v-icon icon="mdi-account" class="mr-2" />
@@ -1654,6 +1670,11 @@ const saveContract = async () => {
 
     // Для партнерских договоров: партнёр (мульти-система Ф0) + тариф + скидки
     if (form.value.contract_type === 'partner') {
+      // Явно выбранный контрагент-партнёр → BE использует его (не авто-создаёт дубль).
+      // Не выбран → BE авто-создаёт из реквизитов (resolveOrCreatePartnerCounterparty).
+      if (form.value.counterparty_id) {
+        contractData.counterparty_id = form.value.counterparty_id;
+      }
       // Разрешаем выбранного партнёра по составному ключу source|connectionId|externalId
       const partner = partnerCompanies.value.find(p => p.key === selectedPartnerKey.value);
       if (partner) {

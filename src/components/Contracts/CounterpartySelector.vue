@@ -52,6 +52,7 @@ import counterpartiesService, {
 
 const props = defineProps<{
   modelValue?: number | null;
+  kind?: "client" | "partner"; // роль контрагента для поиска (по умолч. client на BE)
 }>();
 
 const emit = defineEmits<{
@@ -78,7 +79,7 @@ const onSearch = (q: string) => {
   searchTimer = setTimeout(async () => {
     loading.value = true;
     try {
-      const res = await counterpartiesService.search(query);
+      const res = await counterpartiesService.search(query, props.kind);
       if (seq === searchSeq) items.value = res; // только самый свежий ответ
     } catch (e) {
       console.warn("Ошибка поиска контрагентов:", e);
