@@ -1,7 +1,7 @@
 <template>
   <div class="settings-page">
-    <!-- Заголовок страницы -->
-    <div class="page-header mb-6">
+    <!-- Заголовок страницы (скрыт на справочнике снимков — экран read-only, кнопки не нужны) -->
+    <div v-if="activeTab !== 'snapshot-jobs'" class="page-header mb-6">
       <div class="d-flex align-center justify-space-between">
         <div>
           <h1 class="text-h4 font-weight-bold mb-2">Настройки системы</h1>
@@ -115,16 +115,18 @@
       <!-- Основной контент -->
       <v-col cols="12" md="9">
         <v-card elevation="2" class="settings-content">
-          <!-- Заголовок вкладки -->
-          <v-card-title class="d-flex align-center gap-3 pb-4">
-            <v-icon :icon="currentTab?.icon" size="24" />
-            <div>
-              <div class="text-h6">{{ currentTab?.title }}</div>
-              <div class="text-caption text-medium-emphasis">{{ currentTab?.subtitle }}</div>
-            </div>
-          </v-card-title>
+          <!-- Заголовок вкладки (скрыт для справочника снимков — у него свой тайтл) -->
+          <template v-if="activeTab !== 'snapshot-jobs'">
+            <v-card-title class="d-flex align-center gap-3 pb-4">
+              <v-icon :icon="currentTab?.icon" size="24" />
+              <div>
+                <div class="text-h6">{{ currentTab?.title }}</div>
+                <div class="text-caption text-medium-emphasis">{{ currentTab?.subtitle }}</div>
+              </div>
+            </v-card-title>
 
-          <v-divider />
+            <v-divider />
+          </template>
 
           <!-- Контент вкладок -->
           <v-card-text class="pa-6">
@@ -145,9 +147,9 @@
               <MonitoringSettings />
             </div>
 
-            <!-- История снимков -->
+            <!-- История снимков — чистый справочник -->
             <div v-if="activeTab === 'snapshot-jobs'">
-              <SnapshotJobsHistory />
+              <PartnerSnapshotsReference />
             </div>
 
             <!-- История данных (Wialon + SKIF backfill) -->
@@ -339,7 +341,7 @@ import NotificationsSettings from '@/components/Settings/NotificationsSettings.v
 import NotificationTemplates from '@/components/Settings/NotificationTemplates.vue';
 import PerformanceSettings from '@/components/Settings/PerformanceSettings.vue';
 import SecuritySettings from '@/components/Settings/SecuritySettings.vue';
-import SnapshotJobsHistory from '@/components/Admin/SnapshotJobsHistory.vue';
+import PartnerSnapshotsReference from '@/components/Admin/PartnerSnapshotsReference.vue';
 import WialonHistorySettings from '@/components/Settings/WialonHistorySettings.vue';
 import SkifHistoryBackfill from '@/components/Settings/SkifHistoryBackfill.vue';
 import SystemSettingsForm from '@/components/Settings/SystemSettingsForm.vue';
@@ -466,7 +468,7 @@ const defaultTabs = [
   {
     value: 'snapshot-jobs',
     title: 'История снимков',
-    subtitle: 'Автоматическое создание',
+    subtitle: 'Справочник по системам',
     icon: 'mdi-camera-timer',
     badge: undefined as number | undefined,
     badgeColor: undefined as string | undefined
