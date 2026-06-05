@@ -159,7 +159,7 @@ class CounterpartiesService {
   }
 
   /** Autocomplete для формы договора (Ф4b-followon). kind — роль (client по умолч.; partner для партнёрских). */
-  async search(q: string, kind?: "client" | "partner"): Promise<CounterpartySearchItem[]> {
+  async search(q: string, kind?: "client" | "partner" | "all"): Promise<CounterpartySearchItem[]> {
     const res: AxiosResponse = await this.apiClient.get("/auth/counterparties/search", {
       params: { q, kind: kind || undefined },
     });
