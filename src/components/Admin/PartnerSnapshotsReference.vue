@@ -8,6 +8,7 @@
         density="comfortable"
         item-value="id"
         :items-per-page="limit"
+        :row-props="rowProps"
         hide-default-footer
         class="elevation-0"
       >
@@ -67,7 +68,7 @@
         </template>
         <template #item.contract_id="{ item }">
           <template v-if="item.contract_id">
-            <div class="font-weight-medium">#{{ item.contract_id }}</div>
+            <div class="font-weight-medium">{{ item.contract_number || ('#' + item.contract_id) }}</div>
             <div v-if="item.partner_name" class="text-caption text-medium-emphasis">{{ item.partner_name }}</div>
           </template>
           <template v-else>
@@ -176,6 +177,7 @@ interface PartnerSnapshot {
   snapshot_date: string;
   partner_source: string;
   contract_id: number;
+  contract_number?: string;
   partner_external_id?: string;
   partner_name?: string;
   total_objects_count: number;
@@ -326,6 +328,10 @@ function showSnack(text: string, color: string) {
 function labelOf(opts: { value: string; label: string }[], val: string) {
   return opts.find((o) => o.value === val)?.label || val;
 }
+// Подсветка строк «без договора» — привлекает внимание админа (аккаунт без оформленного договора).
+function rowProps({ item }: { item: PartnerSnapshot }) {
+  return item.contract_id ? {} : { class: 'row-no-contract' };
+}
 function ownerLabel(item: PartnerSnapshot) {
   if (item.partner_name) return item.partner_name;
   if (item.partner_external_id) return `акк. ${item.partner_external_id}`;
@@ -368,5 +374,15 @@ onMounted(reload);
 }
 .header-filter:hover {
   color: rgb(var(--v-theme-primary));
+}
+/* «без договора» — подсветка для внимания админа */
+.row-no-contract {
+  background-color: rgba(255, 152, 0, 0.08);
+}
+.row-no-contract:hover {
+  background-color: rgba(255, 152, 0, 0.14) !important;
+}
+.row-no-contract > td:first-child {
+  border-left: 3px solid rgb(var(--v-theme-warning));
 }
 </style>
