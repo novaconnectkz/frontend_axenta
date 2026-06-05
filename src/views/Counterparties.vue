@@ -398,17 +398,16 @@ async function reload() {
     total.value = res.total;
     balances.value = {};
     // Балансы тянем параллельно для загруженной страницы (единый ЛС per контрагент).
-    // Phase D: для партнёров баланс не запрашиваем — они не субъекты ЛС.
+    // Партнёрам баланс не показываем (не субъекты ЛС), но ответ нужен ради contracts_count
+    // — колонка «Договоров» показывает кол-во и для партнёров.
     await Promise.all(
-      res.data
-        .filter((cp) => cp.kind !== "partner")
-        .map(async (cp) => {
-          try {
-            balances.value[cp.id] = await counterpartiesService.balance(cp.id);
-          } catch {
-            /* частичный сбой баланса не валит список */
-          }
-        })
+      res.data.map(async (cp) => {
+        try {
+          balances.value[cp.id] = await counterpartiesService.balance(cp.id);
+        } catch {
+          /* частичный сбой баланса не валит список */
+        }
+      })
     );
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.error || "Не удалось загрузить контрагентов";
