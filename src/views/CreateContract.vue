@@ -401,12 +401,12 @@
               <v-icon icon="mdi-account-cash" class="mr-2" />
               Контрагент (единый лицевой счёт)
             </h3>
-            <v-row>
+            <v-row align="start">
               <v-col cols="12" md="8">
                 <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
-              <v-col cols="12" md="4" class="d-flex align-center">
-                <v-btn variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty">
+              <v-col cols="12" md="4">
+                <v-btn block variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty">
                   Создать контрагента
                 </v-btn>
               </v-col>
