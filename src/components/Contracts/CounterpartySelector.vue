@@ -52,7 +52,7 @@ import counterpartiesService, {
 
 const props = defineProps<{
   modelValue?: number | null;
-  kind?: "client" | "partner"; // роль контрагента для поиска (по умолч. client на BE)
+  kind?: "client" | "partner" | "all"; // роль для поиска: client (по умолч.), partner, all (любой)
 }>();
 
 const emit = defineEmits<{

@@ -426,15 +426,16 @@
             </h3>
             <v-row>
               <v-col cols="12" md="8">
-                <CounterpartySelector v-model="form.counterparty_id" kind="partner" />
+                <CounterpartySelector v-model="form.counterparty_id" kind="all" />
               </v-col>
             </v-row>
             <div class="text-caption text-medium-emphasis mt-1">
-              Выберите существующего партнёра-контрагента. Не выбран — будет создан автоматически из реквизитов ниже.
+              Выберите существующего контрагента (клиента или партнёра). Не выбран — заполните реквизиты ниже (создастся автоматически).
             </div>
           </div>
 
-          <div v-if="!isClientContract" class="form-section">
+          <!-- Реквизиты для авто-создания контрагента — только если контрагент НЕ выбран -->
+          <div v-if="!isClientContract && !form.counterparty_id" class="form-section">
             <h3 class="section-title">
               <v-icon icon="mdi-account" class="mr-2" />
               Информация о клиенте

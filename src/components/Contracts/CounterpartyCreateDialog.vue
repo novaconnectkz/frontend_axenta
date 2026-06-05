@@ -12,7 +12,19 @@
         <v-chip v-if="isEdit && props.editCounterparty?.kind === 'partner'" size="x-small" color="purple" variant="tonal" class="ml-2">партнёр</v-chip>
       </v-card-title>
       <v-card-text style="max-height: 70vh">
-        <!-- Клиент -->
+        <!-- Роль контрагента (клиент / партнёр) -->
+        <v-row dense class="mb-1">
+          <v-col cols="12" sm="4">
+            <v-select
+              v-model="createForm.kind"
+              :items="[{ title: 'Клиент', value: 'client' }, { title: 'Партнёр', value: 'partner' }]"
+              label="Роль *"
+              variant="outlined"
+              density="comfortable"
+              hide-details
+            />
+          </v-col>
+        </v-row>
         <div class="text-subtitle-2 text-primary mb-2"><v-icon size="18" class="mr-1">mdi-account</v-icon>Информация о клиенте</div>
         <v-row dense>
           <v-col cols="12" sm="4"><v-select v-model="createForm.client_type" :items="clientTypeItems" label="Тип клиента *" variant="outlined" density="comfortable" hide-details /></v-col>
@@ -115,6 +127,7 @@ const isEdit = computed(() => !!props.editCounterparty);
 // Префилл формы из существующего контрагента (режим редактирования).
 function formFromCounterparty(cp: Counterparty) {
   return {
+    kind: (cp.kind || "client") as "client" | "partner",
     client_type: cp.client_type || "organization",
     name: cp.name || "",
     short_name: cp.short_name || "",
@@ -140,6 +153,7 @@ function formFromCounterparty(cp: Counterparty) {
 
 function emptyCreateForm() {
   return {
+    kind: "client" as "client" | "partner",
     client_type: "organization",
     name: "",
     short_name: "",
@@ -250,6 +264,7 @@ async function submitCreate() {
     const f = createForm.value;
     // Поля из формы (общие для create и edit).
     const formFields = {
+      kind: f.kind,
       client_type: f.client_type,
       name: f.name.trim(),
       short_name: f.short_name.trim() || undefined,
