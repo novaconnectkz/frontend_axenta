@@ -591,7 +591,7 @@
             <div>
               <div class="text-h6">Детализация расчета стоимости</div>
               <div v-if="currentContractForBreakdown" class="text-caption text-medium-emphasis">
-                Договор {{ currentContractForBreakdown.number }} • {{ currentContractForBreakdown.client_name }}
+                Договор {{ currentContractForBreakdown.number }} • {{ contractDisplayName(currentContractForBreakdown, '') }}
               </div>
             </div>
           </div>
@@ -776,7 +776,7 @@
             <div>
               <div class="text-h6">Статистика партнерского договора</div>
               <div v-if="currentPartnerContract" class="text-caption text-medium-emphasis">
-                Договор {{ currentPartnerContract.number }} • {{ currentPartnerContract.client_name }}
+                Договор {{ currentPartnerContract.number }} • {{ contractDisplayName(currentPartnerContract, '') }}
               </div>
             </div>
           </div>
@@ -1103,7 +1103,7 @@
     <v-dialog v-model="paymentDialog" max-width="480">
       <v-card>
         <v-card-title>Внести платёж</v-card-title>
-        <v-card-subtitle v-if="paymentContract">{{ paymentContract.number }} · {{ paymentContract.title || paymentContract.client_name }}</v-card-subtitle>
+        <v-card-subtitle v-if="paymentContract">{{ paymentContract.number }} · {{ paymentContract.title || contractDisplayName(paymentContract, '') }}</v-card-subtitle>
         <v-card-text>
           <v-text-field v-model.number="paymentForm.amount" label="Сумма платежа, ₽" type="number" min="0" autofocus />
           <v-select v-model="paymentForm.source" :items="[
@@ -1128,7 +1128,7 @@
     <v-dialog v-model="ledgerHistoryDialog" max-width="1100">
       <v-card>
         <v-card-title>Лицевой счёт</v-card-title>
-        <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || ledgerHistoryContract.client_name }}</v-card-subtitle>
+        <v-card-subtitle v-if="ledgerHistoryContract">{{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.title || contractDisplayName(ledgerHistoryContract, '') }}</v-card-subtitle>
         <v-card-text>
           <!-- Активные зонты отсрочки/обещанного платежа (П3+П4) -->
           <div v-if="ledgerHolds.length" class="mb-3">
@@ -1187,7 +1187,7 @@
       <v-card>
         <v-card-title>Отсрочка / обещанный платёж</v-card-title>
         <v-card-subtitle v-if="ledgerHistoryContract">
-          {{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.client_name || ledgerHistoryContract.title }}
+          {{ ledgerHistoryContract.number }} · {{ contractDisplayName(ledgerHistoryContract, '') || ledgerHistoryContract.title }}
         </v-card-subtitle>
         <v-card-text>
           <v-btn-toggle v-model="holdType" mandatory class="mb-4" density="comfortable">
@@ -1217,7 +1217,7 @@
       <v-card>
         <v-card-title>Перевод между лицевыми счетами</v-card-title>
         <v-card-subtitle v-if="ledgerHistoryContract">
-          Со счёта: {{ ledgerHistoryContract.number }} · {{ ledgerHistoryContract.client_name }}
+          Со счёта: {{ ledgerHistoryContract.number }} · {{ contractDisplayName(ledgerHistoryContract, '') }}
         </v-card-subtitle>
         <v-card-text>
           <v-select
@@ -1518,7 +1518,7 @@ const transferError = ref('');
 const transferTargets = computed(() =>
   (contracts.value || [])
     .filter(c => c.id !== ledgerHistoryContract.value?.id)
-    .map(c => ({ id: c.id, label: `${c.number} · ${c.client_name || c.title || ''}` }))
+    .map(c => ({ id: c.id, label: `${c.number} · ${contractDisplayName(c, '') || c.title || ''}` }))
 );
 const transferKey = ref('');
 function openTransfer() {
@@ -1735,8 +1735,7 @@ const filteredContracts = computed(() => {
       // Проверяем все важные поля
       return (
         toLower(contract.number).includes(query) ||               // Номер договора
-        toLower(contract.client_name).includes(query) ||          // Имя клиента
-        toLower((contract as any).client_short_name).includes(query) ||    // Краткое имя
+        toLower(contractDisplayName(contract as any, '')).includes(query) || // C4b: имя субъекта (cp/partner)
         toLower(contract.partner_company_id).includes(query) ||   // ID партнера
         toLower(contract.contract_type === 'partner' ? 'Партнерский' : 'Клиентский').includes(query) // Тип
       )

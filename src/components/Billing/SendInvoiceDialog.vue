@@ -205,9 +205,12 @@ const canSend = computed(() => {
 // Watch для автозаполнения email из договора
 watch(() => props.invoice, (newInvoice) => {
   if (newInvoice) {
-    // Автоматически выбираем email, если он есть в договоре
-    if (newInvoice.contract?.client_email) {
-      contactInfo.value.email = newInvoice.contract.client_email
+    // Автоматически выбираем email, если он есть в договоре.
+    // C4b: client_* дропнуты — email субъекта на контрагенте (client-договор). BE на
+    // отправке тоже фолбэчит DisplayEmail; здесь только предвыбор канала в UI.
+    const subjEmail = (newInvoice.contract as any)?.counterparty?.email || (newInvoice.contract as any)?.client_email
+    if (subjEmail) {
+      contactInfo.value.email = subjEmail
       if (!selectedChannels.value.includes('email')) {
         selectedChannels.value.push('email')
       }

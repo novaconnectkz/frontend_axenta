@@ -2040,8 +2040,9 @@ const filteredSubscriptions = computed(() => {
 
     items = items.filter(sub => {
       // Собираем значения и приводим их к нижнему регистру
-      const clientName = toLower(sub.contract?.client_name)
-      const shortName = toLower((sub.contract as any)?.client_short_name)
+      // C4b: имя субъекта — через contractDisplayName (cp/partner, client_* дропнуты)
+      const clientName = toLower(contractDisplayName(sub.contract as any, ''))
+      const shortName = ''
       const number = toLower(sub.contract?.number)
 
       // Проверка совпадения
@@ -2082,8 +2083,7 @@ const filteredInvoices = computed(() => {
     items = items.filter(inv => {
       return (
         toLower(inv.number).includes(query) ||                  // Номер счета
-        toLower(inv.contract?.client_name).includes(query) ||   // Клиент
-        toLower((inv.contract as any)?.client_short_name ?? '').includes(query) || // Краткое имя
+        toLower(contractDisplayName(inv.contract as any, '')).includes(query) ||   // C4b: имя субъекта (cp/partner)
         toLower(inv.contract?.number).includes(query)           // Номер договора
       )
     })
@@ -2102,7 +2102,7 @@ const planSelectItems = computed(() =>
 
 const contractSelectItems = computed(() =>
   availableContracts.value.map(contract => ({
-    title: `${contract.number} - ${contract.title || contract.client_name}`,
+    title: `${contract.number} - ${contract.title || contractDisplayName(contract as any, '')}`,
     value: contract.id
   }))
 )
@@ -3129,7 +3129,7 @@ const getMetricDetail = (metricKey: string, widget: any) => {
             number: inv.number,
             paid_at: inv.paid_at || inv.invoice_date,
             amount: parseFloat(inv.total_amount),
-            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+            client: contractDisplayName(inv.contract as any, '') || `Компания ID: ${inv.company_id}`
           }))
           .sort((a, b) => new Date(b.paid_at || '').getTime() - new Date(a.paid_at || '').getTime())
           .slice(0, 50),
@@ -3261,7 +3261,7 @@ const getMetricDetail = (metricKey: string, widget: any) => {
           .map((sub, index) => ({
             sequential_number: index + 1,
             plan: sub.billing_plan?.name || 'Не указан',
-            client: sub.contract?.client_name || `Компания ID: ${sub.company_id}`,
+            client: contractDisplayName(sub.contract as any, '') || `Компания ID: ${sub.company_id}`,
             start_date: sub.start_date,
             end_date: sub.end_date || 'Бессрочно',
             price: formatCurrency(sub.billing_plan?.price || 0)
@@ -3290,7 +3290,7 @@ const getMetricDetail = (metricKey: string, widget: any) => {
             number: inv.number,
             created_at: inv.created_at,
             amount: parseFloat(inv.total_amount),
-            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+            client: contractDisplayName(inv.contract as any, '') || `Компания ID: ${inv.company_id}`
           }))
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
         actionButton: {
@@ -3357,7 +3357,7 @@ const getMetricDetail = (metricKey: string, widget: any) => {
             number: inv.number,
             paid_at: inv.paid_at,
             amount: parseFloat(inv.total_amount),
-            client: inv.contract?.client_name || `Компания ID: ${inv.company_id}`
+            client: contractDisplayName(inv.contract as any, '') || `Компания ID: ${inv.company_id}`
           }))
           .sort((a, b) => new Date(b.paid_at || '').getTime() - new Date(a.paid_at || '').getTime())
       }

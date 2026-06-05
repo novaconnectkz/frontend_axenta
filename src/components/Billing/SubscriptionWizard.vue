@@ -967,8 +967,9 @@ const contractOptions = computed(() => {
       client_short_name: contract.client_short_name,
       status: contract.status,
       number: contract.number,
-      // Добавляем все поля для поиска (номер, название, клиент, статус)
-      searchText: `${contract.number} ${contract.title || ''} ${contract.client_short_name || contract.client_name || ''} ${contract.status || ''}`.toLowerCase()
+      // Добавляем все поля для поиска (номер, название, клиент, статус).
+      // C4b: имя клиента — через clientDisplay (counterparty/partner_*, client_* дропнуты).
+      searchText: `${contract.number} ${contract.title || ''} ${clientDisplay} ${contract.status || ''}`.toLowerCase()
     }
   })
 })

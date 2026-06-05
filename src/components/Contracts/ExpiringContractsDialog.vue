@@ -113,22 +113,22 @@
                       <span class="detail-value">{{ contract.tariff_plan?.name || 'Не указан' }}</span>
                     </div>
                     
-                    <div v-if="contract.client_email" class="detail-item">
+                    <div v-if="((contract as any).counterparty?.email || contract.client_email)" class="detail-item">
                       <v-icon icon="mdi-email" size="small" class="mr-1" />
                       <span class="detail-label">Email:</span>
                       <span class="detail-value">
-                        <a :href="`mailto:${contract.client_email}`" class="email-link">
-                          {{ contract.client_email }}
+                        <a :href="`mailto:${((contract as any).counterparty?.email || contract.client_email)}`" class="email-link">
+                          {{ ((contract as any).counterparty?.email || contract.client_email) }}
                         </a>
                       </span>
                     </div>
                     
-                    <div v-if="contract.client_phone" class="detail-item">
+                    <div v-if="((contract as any).counterparty?.phone || contract.client_phone)" class="detail-item">
                       <v-icon icon="mdi-phone" size="small" class="mr-1" />
                       <span class="detail-label">Телефон:</span>
                       <span class="detail-value">
-                        <a :href="`tel:${contract.client_phone}`" class="phone-link">
-                          {{ contract.client_phone }}
+                        <a :href="`tel:${((contract as any).counterparty?.phone || contract.client_phone)}`" class="phone-link">
+                          {{ ((contract as any).counterparty?.phone || contract.client_phone) }}
                         </a>
                       </span>
                     </div>
