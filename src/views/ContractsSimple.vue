@@ -373,7 +373,8 @@ const filteredContracts = computed(() => {
     result = result.filter(contract =>
       contract.number.toLowerCase().includes(query) ||
       contract.title.toLowerCase().includes(query) ||
-      contract.client_name.toLowerCase().includes(query)
+      // C4b: имя субъекта — через contractDisplayName (counterparty/partner_*)
+      contractDisplayName(contract, '').toLowerCase().includes(query)
     );
   }
 

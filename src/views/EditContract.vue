@@ -1143,6 +1143,18 @@ const loadTariffPlans = async () => {
   }
 };
 
+// C4b: partner_requisites — jsonb-строка с хвостом реквизитов партнёра
+// (short_name/kpp/email/bank_* и т.п.). Парсим в объект для префилла формы.
+const parsePartnerRequisites = (raw: any): Record<string, string> => {
+  if (!raw || typeof raw !== 'string' || raw === '{}') return {};
+  try {
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+};
+
 const loadContract = async () => {
   const id = route.params.id;
   if (!id) {
@@ -1214,6 +1226,34 @@ const loadContract = async () => {
       account_id: undefined,
       manager_id: contract.manager_id ?? null,
     };
+
+    // C4b: денорм client_* дропнуты. Для ПАРТНЁРСКОГО договора идентичность живёт
+    // в partner_name/partner_inn/partner_requisites — префиллим форму из них
+    // (форма партнёра по-прежнему редактирует client_*-поля; на сохранении BE
+    // роутит client_*→partner_*). Для client-договора идентичность на контрагенте
+    // (counterparty_id уже выставлен), client_*-поля формы не используются.
+    if (contract.contract_type === CONTRACT_TYPES.PARTNER) {
+      const req = parsePartnerRequisites((contract as any).partner_requisites);
+      form.value.client_name = (contract as any).partner_name || '';
+      form.value.client_inn = (contract as any).partner_inn || '';
+      form.value.client_type = (req.client_type as ClientType) || form.value.client_type;
+      form.value.client_short_name = req.short_name || '';
+      form.value.client_kpp = req.kpp || '';
+      form.value.client_ogrn = req.ogrn || '';
+      form.value.client_okpo = req.okpo || '';
+      form.value.client_email = req.email || '';
+      form.value.client_phone = req.phone || '';
+      form.value.client_website = req.website || '';
+      form.value.client_address = req.address || '';
+      form.value.client_legal_address = req.legal_address || '';
+      form.value.client_director = req.director || '';
+      form.value.client_based_on = req.based_on || '';
+      form.value.client_bank_name = req.bank_name || '';
+      form.value.client_bank_bik = req.bank_bik || '';
+      form.value.client_bank_correspondent_account = req.bank_corr || '';
+      form.value.client_bank_account = req.bank_account || '';
+      form.value.client_bank_recipient = req.bank_recipient || '';
+    }
 
     originalCounterpartyId.value = contract.counterparty_id || null;
     contractLoaded.value = true;
