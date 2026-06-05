@@ -55,7 +55,7 @@
         >
           <template #item.name="{ item }">
             <div class="font-weight-medium">
-              {{ item.name }}
+              {{ item.short_name || item.name }}
               <v-chip v-if="item.kind === 'partner'" size="x-small" color="purple" variant="tonal" class="ml-1" title="Партнёр — справочник, биллинг по снимкам (не лицевой счёт)">партнёр</v-chip>
             </div>
             <div class="text-caption text-medium-emphasis">{{ clientTypeLabel(item.client_type) }}</div>
