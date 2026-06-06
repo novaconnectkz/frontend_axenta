@@ -113,6 +113,8 @@ const props = defineProps<{
   modelValue: boolean;
   // Передан → диалог в режиме редактирования (префилл + PUT). Иначе — создание.
   editCounterparty?: Counterparty | null;
+  // Префилл create-формы (роль/имя/ИНН) — напр. при создании из формы договора.
+  prefill?: { kind?: "client" | "partner"; name?: string; tax_id?: string } | null;
 }>();
 
 const emit = defineEmits<{
@@ -249,9 +251,15 @@ watch(
   () => props.modelValue,
   (open) => {
     if (open) {
-      createForm.value = props.editCounterparty
-        ? formFromCounterparty(props.editCounterparty)
-        : emptyCreateForm();
+      if (props.editCounterparty) {
+        createForm.value = formFromCounterparty(props.editCounterparty);
+      } else {
+        const base = emptyCreateForm();
+        if (props.prefill?.kind) base.kind = props.prefill.kind;
+        if (props.prefill?.name) base.name = props.prefill.name;
+        if (props.prefill?.tax_id) base.tax_id = props.prefill.tax_id;
+        createForm.value = base;
+      }
       dadataHint.value = "";
     }
   }

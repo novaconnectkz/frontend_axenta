@@ -406,7 +406,7 @@
                 <CounterpartySelector v-model="form.counterparty_id" />
               </v-col>
               <v-col cols="12" md="4">
-                <v-btn block variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty">
+                <v-btn block variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreateCounterparty()">
                   Создать контрагента
                 </v-btn>
               </v-col>
@@ -420,13 +420,18 @@
               <v-icon icon="mdi-account-cash" class="mr-2" />
               Контрагент-партнёр
             </h3>
-            <v-row>
+            <v-row align="start">
               <v-col cols="12" md="8">
                 <CounterpartySelector v-model="form.counterparty_id" kind="all" />
               </v-col>
+              <v-col cols="12" md="4">
+                <v-btn block variant="tonal" color="primary" prepend-icon="mdi-account-plus" @click="openCreatePartnerCounterparty">
+                  Создать контрагента
+                </v-btn>
+              </v-col>
             </v-row>
             <div class="text-caption text-medium-emphasis mt-1">
-              Выберите существующего контрагента (клиента или партнёра). Не выбран — заполните реквизиты ниже (создастся автоматически).
+              Выберите существующего контрагента или создайте нового. Не выбран — создастся автоматически из учётной записи партнёра.
             </div>
           </div>
 
@@ -1153,6 +1158,7 @@
     <!-- Phase C-хвост: inline-создание контрагента из формы договора -->
     <CounterpartyCreateDialog
       v-model="cpCreateOpen"
+      :prefill="cpCreatePrefill"
       @created="onCounterpartyCreated"
       @error="onCounterpartyCreateError"
     />
@@ -1224,8 +1230,15 @@ const isClientContract = computed(() => form.value.contract_type === CONTRACT_TY
 
 // Phase C-хвост: inline-создание контрагента прямо из формы договора (без ухода со страницы).
 const cpCreateOpen = ref(false);
-function openCreateCounterparty() {
+const cpCreatePrefill = ref<{ kind?: 'client' | 'partner'; name?: string; tax_id?: string } | undefined>(undefined);
+function openCreateCounterparty(prefill?: { kind?: 'client' | 'partner'; name?: string; tax_id?: string }) {
+  cpCreatePrefill.value = prefill;
   cpCreateOpen.value = true;
+}
+// Партнёрский договор: создать контрагента с ролью «партнёр», предзаполнив имя выбранной учётки.
+function openCreatePartnerCounterparty() {
+  const name = partnerCompanies.value.find((p) => p.key === selectedPartnerKey.value)?.name;
+  openCreateCounterparty({ kind: 'partner', name });
 }
 function onCounterpartyCreated(cp: Counterparty) {
   // Подставляем созданного cp в селектор; CounterpartySelector сам подхватит его по watch(modelValue).
