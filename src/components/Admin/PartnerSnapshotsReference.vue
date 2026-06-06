@@ -106,19 +106,35 @@
           {{ formatDate(item.snapshot_date) }}
         </template>
         <template #item.partner_source="{ item }">
-          <v-tooltip :text="item.partner_source" location="top">
+          <v-tooltip :text="getSourceLabel(item.partner_source)" location="top">
             <template #activator="{ props }">
-              <v-icon v-bind="props" :color="sourceColor(item.partner_source)" size="22">{{ sourceIcon(item.partner_source) }}</v-icon>
+              <v-icon v-bind="props" :color="getSourceColor(item.partner_source)" size="22">{{ getSourceIcon(item.partner_source) }}</v-icon>
             </template>
           </v-tooltip>
         </template>
-        <!-- Заголовок «Договор» → иконка (tooltip) -->
+        <!-- «Договор» → воронка-фильтр (поиск по номеру договора или имени партнёра) -->
         <template #header.contract_id>
-          <v-tooltip text="Договор" location="top">
+          <v-menu :close-on-content-click="false">
             <template #activator="{ props }">
-              <v-icon v-bind="props" color="grey-darken-1" size="18" style="cursor: help">mdi-file-document-outline</v-icon>
+              <span v-bind="props" class="header-filter">
+                <v-icon size="14" :color="contractQuery ? 'primary' : 'grey'">mdi-filter-variant</v-icon>
+                <v-icon size="18" color="grey-darken-1" title="Договор">mdi-file-document-outline</v-icon>
+                <span v-if="contractQuery" class="text-caption text-primary ml-1">«{{ contractQuery }}»</span>
+              </span>
             </template>
-          </v-tooltip>
+            <v-card min-width="280" class="pa-3">
+              <v-text-field
+                v-model="contractQuery"
+                label="Номер договора или партнёр"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                autofocus
+                prepend-inner-icon="mdi-magnify"
+              />
+            </v-card>
+          </v-menu>
         </template>
         <template #item.contract_id="{ item }">
           <template v-if="item.contract_id">
@@ -251,8 +267,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { config } from '@/config/env';
+import { useUserAvatar } from '@/composables/useUserAvatar';
 
 const router = useRouter();
+// Общие иконки/цвета источников — те же, что в «Учётные записи»/«Пользователи».
+const { getSourceIcon, getSourceColor, getSourceLabel } = useUserAvatar();
 
 interface PartnerSnapshot {
   id: number;
@@ -305,6 +324,7 @@ const sourceFilter = ref('');
 const verifyFilter = ref('');
 const dateFrom = ref(''); // YYYY-MM-DD; пусто = без нижней границы
 const dateTo = ref('');   // YYYY-MM-DD; пусто = без верхней границы
+const contractQuery = ref(''); // поиск по «Договор»: номер или имя партнёра (BE-параметр q)
 
 // Короткая подпись активного периода для воронки в шапке «Дата».
 const dateRangeLabel = computed(() => {
@@ -341,6 +361,7 @@ async function loadRows() {
     const params: Record<string, any> = { limit: limit.value, offset: offset.value };
     if (sourceFilter.value) params.source = sourceFilter.value;
     if (verifyFilter.value) params.verify_status = verifyFilter.value;
+    if (contractQuery.value.trim()) params.q = contractQuery.value.trim();
     if (dateFrom.value) params.start_date = dateFrom.value;
     if (dateTo.value) params.end_date = dateTo.value;
     const r = await axios.get(`${config.apiBaseUrl}/auth/partner-snapshots/list`, {
@@ -386,6 +407,15 @@ function prevPage() {
   }
 }
 
+// Текстовый поиск «Договор» — с дебаунсом (не дёргать запрос на каждый символ).
+let cqTimer: ReturnType<typeof setTimeout> | null = null;
+watch(contractQuery, () => {
+  if (cqTimer) clearTimeout(cqTimer);
+  cqTimer = setTimeout(() => {
+    offset.value = 0;
+    loadRows();
+  }, 350);
+});
 watch([sourceFilter, verifyFilter, dateFrom, dateTo], () => {
   offset.value = 0;
   loadRows();
@@ -454,18 +484,6 @@ function formatDate(s: string) {
 function formatMoney(v: string | number) {
   const n = typeof v === 'string' ? parseFloat(v) : v;
   return (n || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function sourceColor(s: string) {
-  return { axenta: 'indigo', skif: 'teal', wialon: 'blue', gelios: 'deep-orange' }[s] || 'grey';
-}
-// Буква-иконка системы (цвет из sourceColor, полное имя в tooltip).
-function sourceIcon(s: string) {
-  return ({
-    axenta: 'mdi-alpha-a-circle',
-    skif: 'mdi-alpha-s-circle',
-    wialon: 'mdi-alpha-w-circle',
-    gelios: 'mdi-alpha-g-circle',
-  } as Record<string, string>)[s] || 'mdi-help-circle';
 }
 function verifyColor(s: string) {
   return { verified: 'success', needs_review: 'warning', estimated: 'info', manual_approved: 'purple' }[s] || 'grey';
