@@ -72,9 +72,16 @@
             <div v-if="item.partner_name" class="text-caption text-medium-emphasis">{{ item.partner_name }}</div>
           </template>
           <template v-else>
-            <div class="text-medium-emphasis text-caption" title="Снимок партнёрского аккаунта без оформленного договора (в биллинг не идёт)">
-              без договора
-            </div>
+            <a
+              class="no-contract-link"
+              role="button"
+              tabindex="0"
+              title="Нет договора — нажмите, чтобы создать партнёрский договор для этого аккаунта"
+              @click="goCreateContract(item)"
+              @keydown.enter="goCreateContract(item)"
+            >
+              <v-icon size="13" class="mr-1">mdi-file-plus-outline</v-icon>без договора
+            </a>
             <div class="text-body-2">{{ ownerLabel(item) }}</div>
           </template>
         </template>
@@ -169,8 +176,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { config } from '@/config/env';
+
+const router = useRouter();
 
 interface PartnerSnapshot {
   id: number;
@@ -337,6 +347,18 @@ function ownerLabel(item: PartnerSnapshot) {
   if (item.partner_external_id) return `акк. ${item.partner_external_id}`;
   return '—';
 }
+// Клик по «без договора» → создание партнёрского договора с пред-выбранным аккаунтом.
+function goCreateContract(item: PartnerSnapshot) {
+  router.push({
+    name: 'CreateContract',
+    query: {
+      type: 'partner',
+      source: item.partner_source,
+      partner_external_id: item.partner_external_id || '',
+      partner_name: ownerLabel(item),
+    },
+  });
+}
 function formatDate(s: string) {
   if (!s) return '—';
   const d = new Date(s);
@@ -375,14 +397,30 @@ onMounted(reload);
 .header-filter:hover {
   color: rgb(var(--v-theme-primary));
 }
-/* «без договора» — подсветка для внимания админа */
-.row-no-contract {
-  background-color: rgba(255, 152, 0, 0.08);
+/* «без договора» — подсветка для внимания админа. Фон на td с !important:
+   tr-фон перекрывается фоном ячеек в v-data-table. */
+.row-no-contract > td {
+  background-color: rgba(255, 152, 0, 0.13) !important;
 }
-.row-no-contract:hover {
-  background-color: rgba(255, 152, 0, 0.14) !important;
+.row-no-contract:hover > td {
+  background-color: rgba(255, 152, 0, 0.22) !important;
 }
 .row-no-contract > td:first-child {
   border-left: 3px solid rgb(var(--v-theme-warning));
+}
+/* «без договора» как кликабельная ссылка → создание договора */
+.no-contract-link {
+  display: inline-flex;
+  align-items: center;
+  color: rgb(var(--v-theme-warning));
+  font-weight: 600;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+.no-contract-link:hover {
+  text-decoration: underline solid;
+  filter: brightness(0.9);
 }
 </style>

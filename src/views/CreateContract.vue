@@ -2577,6 +2577,26 @@ onMounted(async () => {
     loadManagers(), // Список менеджеров для селектора (admin)
   ]);
   await loadNumerators(); // Загружаем после настроек биллинга
+
+  // Пред-заполнение из query: клик «без договора» в Истории снимков открывает
+  // создание партнёрского договора с уже выбранным партнёром (по source+external_id).
+  if (route.query.type === 'partner') {
+    form.value.contract_type = CONTRACT_TYPES.PARTNER;
+    await nextTick();
+    const ext = route.query.partner_external_id ? String(route.query.partner_external_id) : '';
+    const src = String(route.query.source || 'axenta');
+    if (ext) {
+      const match = partnerCompanies.value.find((p) => p.source === src && p.externalId === ext);
+      if (match) {
+        selectedPartnerKey.value = match.key;
+      } else {
+        showSnackbarMessage(
+          `Партнёр «${route.query.partner_name || ext}» не найден в списке — выберите вручную`,
+          'warning'
+        );
+      }
+    }
+  }
 });
 
 // Перезагружаем настройки при возвращении на страницу
