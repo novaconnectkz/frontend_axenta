@@ -58,7 +58,7 @@
             <template #activator="{ props }">
               <span v-bind="props" class="header-filter">
                 <v-icon size="14" :color="sourceFilter ? 'primary' : 'grey'">mdi-filter-variant</v-icon>
-                {{ column.title }}
+                <v-icon size="17" color="grey-darken-1" title="Система">mdi-satellite-variant</v-icon>
                 <span v-if="sourceFilter" class="text-caption text-primary ml-1">{{ labelOf(sources, sourceFilter) }}</span>
               </span>
             </template>
@@ -106,9 +106,11 @@
           {{ formatDate(item.snapshot_date) }}
         </template>
         <template #item.partner_source="{ item }">
-          <v-chip :color="sourceColor(item.partner_source)" size="x-small" variant="tonal">
-            {{ item.partner_source }}
-          </v-chip>
+          <v-tooltip :text="item.partner_source" location="top">
+            <template #activator="{ props }">
+              <v-icon v-bind="props" :color="sourceColor(item.partner_source)" size="22">{{ sourceIcon(item.partner_source) }}</v-icon>
+            </template>
+          </v-tooltip>
         </template>
         <template #item.contract_id="{ item }">
           <template v-if="item.contract_id">
@@ -129,13 +131,11 @@
             <div class="text-body-2">{{ ownerLabel(item) }}</div>
           </template>
         </template>
-        <!-- Заголовок «Активные / всего» — компактная цветовая легенда (зелёный = активные) -->
+        <!-- Заголовок «Активные / всего» — иконка (tooltip раскрывает смысл) -->
         <template #header.active_objects_count>
           <v-tooltip text="Активных / всего объектов" location="top">
             <template #activator="{ props }">
-              <span v-bind="props" class="active-head">
-                <v-icon size="10" color="success">mdi-circle</v-icon>Активн.<span class="text-disabled"> / всего</span>
-              </span>
+              <v-icon v-bind="props" color="success" size="18" style="cursor: help">mdi-checkbox-marked-circle-outline</v-icon>
             </template>
           </v-tooltip>
         </template>
@@ -152,6 +152,14 @@
           <span v-if="item.amount_at_risk && Number(item.amount_at_risk) > 0" class="text-caption text-warning ml-1">
             ⚠ {{ formatMoney(item.amount_at_risk) }}
           </span>
+        </template>
+        <!-- Заголовок «Стоимость/день» → иконка (выравнивание справа из column align:end) -->
+        <template #header.daily_cost>
+          <v-tooltip text="Стоимость в день" location="top">
+            <template #activator="{ props }">
+              <v-icon v-bind="props" color="grey-darken-1" size="18" style="cursor: help">mdi-cash-clock</v-icon>
+            </template>
+          </v-tooltip>
         </template>
         <template #item.daily_cost="{ item }">
           <template v-if="item.contract_id">
@@ -442,6 +450,15 @@ function formatMoney(v: string | number) {
 function sourceColor(s: string) {
   return { axenta: 'indigo', skif: 'teal', wialon: 'blue', gelios: 'deep-orange' }[s] || 'grey';
 }
+// Буква-иконка системы (цвет из sourceColor, полное имя в tooltip).
+function sourceIcon(s: string) {
+  return ({
+    axenta: 'mdi-alpha-a-circle',
+    skif: 'mdi-alpha-s-circle',
+    wialon: 'mdi-alpha-w-circle',
+    gelios: 'mdi-alpha-g-circle',
+  } as Record<string, string>)[s] || 'mdi-help-circle';
+}
 function verifyColor(s: string) {
   return { verified: 'success', needs_review: 'warning', estimated: 'info', manual_approved: 'purple' }[s] || 'grey';
 }
@@ -502,13 +519,5 @@ onMounted(reload);
 .no-contract-link:hover {
   text-decoration: underline solid;
   filter: brightness(0.9);
-}
-/* Компактный заголовок «Активные / всего» с цветовой легендой */
-.active-head {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-  cursor: help;
 }
 </style>
