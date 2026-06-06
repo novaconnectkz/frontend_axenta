@@ -18,7 +18,7 @@
             <template #activator="{ props }">
               <span v-bind="props" class="header-filter">
                 <v-icon size="14" :color="(dateFrom || dateTo) ? 'primary' : 'grey'">mdi-filter-variant</v-icon>
-                {{ column.title }}
+                <v-icon size="17" color="grey-darken-1" title="Дата снимка">mdi-calendar-range</v-icon>
                 <span v-if="dateFrom || dateTo" class="text-caption text-primary ml-1">{{ dateRangeLabel }}</span>
               </span>
             </template>
@@ -109,6 +109,14 @@
           <v-tooltip :text="item.partner_source" location="top">
             <template #activator="{ props }">
               <v-icon v-bind="props" :color="sourceColor(item.partner_source)" size="22">{{ sourceIcon(item.partner_source) }}</v-icon>
+            </template>
+          </v-tooltip>
+        </template>
+        <!-- Заголовок «Договор» → иконка (tooltip) -->
+        <template #header.contract_id>
+          <v-tooltip text="Договор" location="top">
+            <template #activator="{ props }">
+              <v-icon v-bind="props" color="grey-darken-1" size="18" style="cursor: help">mdi-file-document-outline</v-icon>
             </template>
           </v-tooltip>
         </template>
@@ -441,7 +449,7 @@ function goCreateContract(item: PartnerSnapshot) {
 function formatDate(s: string) {
   if (!s) return '—';
   const d = new Date(s);
-  return d.toLocaleDateString('ru-RU');
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 function formatMoney(v: string | number) {
   const n = typeof v === 'string' ? parseFloat(v) : v;
