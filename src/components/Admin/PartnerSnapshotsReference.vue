@@ -81,7 +81,7 @@
             <template #activator="{ props }">
               <span v-bind="props" class="header-filter">
                 <v-icon size="14" :color="verifyFilter ? 'primary' : 'grey'">mdi-filter-variant</v-icon>
-                {{ column.title }}
+                <v-icon size="17" color="grey-darken-1" title="Сверка">mdi-shield-check-outline</v-icon>
                 <span v-if="verifyFilter" class="text-caption text-primary ml-1">{{ labelOf(verifyStatuses, verifyFilter) }}</span>
               </span>
             </template>
@@ -129,14 +129,26 @@
             <div class="text-body-2">{{ ownerLabel(item) }}</div>
           </template>
         </template>
+        <!-- Заголовок «Активные / всего» — компактная цветовая легенда (зелёный = активные) -->
+        <template #header.active_objects_count>
+          <v-tooltip text="Активных / всего объектов" location="top">
+            <template #activator="{ props }">
+              <span v-bind="props" class="active-head">
+                <v-icon size="10" color="success">mdi-circle</v-icon>Активн.<span class="text-disabled"> / всего</span>
+              </span>
+            </template>
+          </v-tooltip>
+        </template>
         <template #item.active_objects_count="{ item }">
-          <span class="font-weight-medium">{{ item.active_objects_count }}</span>
-          <span class="text-medium-emphasis text-caption"> / {{ item.total_objects_count }}</span>
+          <span class="font-weight-bold text-success">{{ item.active_objects_count }}</span>
+          <span class="text-disabled text-caption"> / {{ item.total_objects_count }}</span>
         </template>
         <template #item.verify_status="{ item }">
-          <v-chip :color="verifyColor(item.verify_status)" size="x-small" variant="tonal">
-            {{ verifyLabel(item.verify_status) }}
-          </v-chip>
+          <v-tooltip :text="verifyLabel(item.verify_status)" location="top">
+            <template #activator="{ props }">
+              <v-icon v-bind="props" :color="verifyColor(item.verify_status)" size="20">{{ verifyIcon(item.verify_status) }}</v-icon>
+            </template>
+          </v-tooltip>
           <span v-if="item.amount_at_risk && Number(item.amount_at_risk) > 0" class="text-caption text-warning ml-1">
             ⚠ {{ formatMoney(item.amount_at_risk) }}
           </span>
@@ -262,7 +274,7 @@ const headers = [
   { title: 'Дата', key: 'snapshot_date', sortable: false },
   { title: 'Система', key: 'partner_source', sortable: false },
   { title: 'Договор', key: 'contract_id', sortable: false },
-  { title: 'Активных / всего', key: 'active_objects_count', sortable: false },
+  { title: 'Активные', key: 'active_objects_count', sortable: false },
   { title: 'Сверка', key: 'verify_status', sortable: false },
   { title: 'Стоимость/день', key: 'daily_cost', align: 'end' as const, sortable: false },
   { title: '', key: 'actions', sortable: false, align: 'end' as const },
@@ -441,6 +453,15 @@ function verifyLabel(s: string) {
     manual_approved: 'Вручную',
   } as Record<string, string>)[s] || s;
 }
+// Тематическая иконка статуса сверки (цвет берётся из verifyColor).
+function verifyIcon(s: string) {
+  return ({
+    verified: 'mdi-check-circle',        // подтверждён
+    needs_review: 'mdi-alert-circle',    // на проверке — внимание
+    estimated: 'mdi-progress-clock',     // оценка/прикидка
+    manual_approved: 'mdi-shield-check', // подтверждён вручную (заморожен)
+  } as Record<string, string>)[s] || 'mdi-help-circle';
+}
 
 onMounted(reload);
 </script>
@@ -481,5 +502,13 @@ onMounted(reload);
 .no-contract-link:hover {
   text-decoration: underline solid;
   filter: brightness(0.9);
+}
+/* Компактный заголовок «Активные / всего» с цветовой легендой */
+.active-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  cursor: help;
 }
 </style>
