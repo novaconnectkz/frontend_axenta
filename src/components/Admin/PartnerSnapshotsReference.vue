@@ -98,6 +98,10 @@
           </v-menu>
         </template>
 
+        <!-- Сквозная нумерация строк (с учётом пагинации) -->
+        <template #item.rownum="{ index }">
+          <span class="text-medium-emphasis text-caption">{{ offset + index + 1 }}</span>
+        </template>
         <template #item.snapshot_date="{ item }">
           {{ formatDate(item.snapshot_date) }}
         </template>
@@ -254,6 +258,7 @@ const verifyStatuses = [
 ];
 
 const headers = [
+  { title: '№', key: 'rownum', sortable: false, width: 48 },
   { title: 'Дата', key: 'snapshot_date', sortable: false },
   { title: 'Система', key: 'partner_source', sortable: false },
   { title: 'Договор', key: 'contract_id', sortable: false },
