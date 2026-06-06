@@ -82,7 +82,32 @@
         <!-- Банк -->
         <div class="text-subtitle-2 mt-4 mb-2"><v-icon size="18" class="mr-1">mdi-bank</v-icon>Банковские реквизиты</div>
         <v-row dense>
-          <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_bik" label="БИК" variant="outlined" density="comfortable" hide-details /></v-col>
+          <v-col cols="12" sm="3">
+            <v-text-field
+              v-model="createForm.bank_bik"
+              label="БИК"
+              variant="outlined"
+              density="comfortable"
+              :hint="bankHint"
+              persistent-hint
+              :loading="bankLoading"
+              @keyup.enter="lookupByBik"
+            >
+              <template #append-inner>
+                <v-tooltip text="Заполнить банк по БИК (DaData)" location="top">
+                  <template #activator="{ props: tp }">
+                    <v-icon
+                      v-bind="tp"
+                      :icon="bankLoading ? 'mdi-loading mdi-spin' : 'mdi-bank-outline'"
+                      :color="canLookupBank ? 'primary' : undefined"
+                      :class="{ 'cursor-pointer': canLookupBank }"
+                      @click="lookupByBik"
+                    />
+                  </template>
+                </v-tooltip>
+              </template>
+            </v-text-field>
+          </v-col>
           <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_account" label="Расчётный счёт" variant="outlined" density="comfortable" hide-details /></v-col>
           <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_correspondent_account" label="Корр. счёт" variant="outlined" density="comfortable" hide-details /></v-col>
           <v-col cols="12" sm="3"><v-text-field v-model="createForm.bank_name" label="Банк" variant="outlined" density="comfortable" hide-details /></v-col>
@@ -245,6 +270,55 @@ async function lookupByInn() {
     dadataLoading.value = false;
   }
 }
+
+// DaData-автозаполнение реквизитов банка по БИК (9 цифр) → банк + корр.счёт.
+const bankLoading = ref(false);
+const bankHint = ref("");
+const canLookupBank = computed(() => /^\d{9}$/.test((createForm.value.bank_bik || "").trim()));
+
+async function lookupByBik() {
+  const bik = (createForm.value.bank_bik || "").trim();
+  if (!/^\d{9}$/.test(bik) || bankLoading.value) return;
+  bankLoading.value = true;
+  bankHint.value = "";
+  try {
+    const bankData = await dadataService.findBankByBik(bik);
+    if (!bankData) {
+      bankHint.value = "Банк по БИК не найден";
+      return;
+    }
+    // Структура DaData: {value: "Наименование", data: {name:{payment,full}, correspondent_account, bic}}
+    const bank = bankData.data || bankData;
+    let bankName = "";
+    if (bank.name) {
+      bankName =
+        typeof bank.name === "object" ? bank.name.payment || bank.name.full || "" : String(bank.name);
+    }
+    if (!bankName && bankData.value) bankName = bankData.value;
+    const f = createForm.value;
+    // Заполняем только пустые поля (не затираем ручной ввод).
+    if (bankName && !f.bank_name.trim()) f.bank_name = bankName;
+    if (bank.correspondent_account && !f.bank_correspondent_account.trim()) {
+      f.bank_correspondent_account = bank.correspondent_account;
+    }
+    f.bank_bik = String(bank.bic || bank.bik || bik);
+    bankHint.value = "Банк заполнен из DaData";
+  } catch (e: any) {
+    bankHint.value = "Ошибка запроса DaData (банк)";
+  } finally {
+    bankLoading.value = false;
+  }
+}
+
+// Авто-подтягивание банка, как только БИК стал валидным (9 цифр) и банк ещё не заполнен.
+watch(
+  () => createForm.value.bank_bik,
+  (v) => {
+    if (/^\d{9}$/.test((v || "").trim()) && !createForm.value.bank_name.trim()) {
+      lookupByBik();
+    }
+  }
+);
 
 // При открытии: edit → префилл из контрагента; create → чистая форма.
 watch(
