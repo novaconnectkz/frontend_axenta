@@ -197,15 +197,30 @@
           </template>
         </template>
         <template #item.actions="{ item }">
-          <v-btn
-            v-if="item.verify_status === 'needs_review' || item.verify_status === 'estimated'"
-            color="success"
-            size="x-small"
-            variant="tonal"
-            @click="openApprove(item)"
-          >
-            Подтвердить
-          </v-btn>
+          <div class="d-flex align-center justify-end" style="gap: 4px">
+            <v-btn
+              v-if="item.verify_status === 'needs_review' || item.verify_status === 'estimated'"
+              color="success"
+              size="x-small"
+              variant="tonal"
+              @click="openApprove(item)"
+            >
+              Подтвердить
+            </v-btn>
+            <!-- Рассчитать стоимость за период (как в договорах) — только для строк с договором -->
+            <v-tooltip v-if="item.contract_id" text="Рассчитать стоимость" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-calculator"
+                  size="x-small"
+                  variant="text"
+                  color="primary"
+                  @click="openCost(item)"
+                />
+              </template>
+            </v-tooltip>
+          </div>
         </template>
         <template #no-data>
           <div class="py-6 text-center text-medium-emphasis">Снимков по фильтру нет</div>
@@ -258,6 +273,15 @@
       </v-card>
     </v-dialog>
 
+    <!-- Расчёт стоимости договора за период -->
+    <PartnerCostDialog
+      v-model="costDialog"
+      :contract-id="costTarget?.contract_id"
+      :contract-number="costTarget?.contract_number"
+      :partner-name="costTarget?.partner_name"
+      @error="showSnack($event, 'error')"
+    />
+
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3500">{{ snackbarText }}</v-snackbar>
   </v-card>
 </template>
@@ -268,6 +292,7 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { config } from '@/config/env';
 import { useUserAvatar } from '@/composables/useUserAvatar';
+import PartnerCostDialog from './PartnerCostDialog.vue';
 
 const router = useRouter();
 // Общие иконки/цвета источников — те же, что в «Учётные записи»/«Пользователи».
@@ -343,6 +368,13 @@ const approveDialog = ref(false);
 const approveTarget = ref<PartnerSnapshot | null>(null);
 const approveComment = ref('');
 const approving = ref(false);
+
+const costDialog = ref(false);
+const costTarget = ref<PartnerSnapshot | null>(null);
+function openCost(item: PartnerSnapshot) {
+  costTarget.value = item;
+  costDialog.value = true;
+}
 
 const snackbar = ref(false);
 const snackbarText = ref('');
