@@ -12,6 +12,46 @@
         hide-default-footer
         class="elevation-0"
       >
+        <!-- Фильтр по периоду дат встроен в заголовок столбца «Дата» (воронка) -->
+        <template #header.snapshot_date="{ column }">
+          <v-menu :close-on-content-click="false">
+            <template #activator="{ props }">
+              <span v-bind="props" class="header-filter">
+                <v-icon size="14" :color="(dateFrom || dateTo) ? 'primary' : 'grey'">mdi-filter-variant</v-icon>
+                {{ column.title }}
+                <span v-if="dateFrom || dateTo" class="text-caption text-primary ml-1">{{ dateRangeLabel }}</span>
+              </span>
+            </template>
+            <v-card min-width="260" class="pa-3">
+              <div class="text-caption text-medium-emphasis mb-2">Период по дате снимка</div>
+              <v-text-field
+                v-model="dateFrom"
+                type="date"
+                label="С"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                class="mb-2"
+              />
+              <v-text-field
+                v-model="dateTo"
+                type="date"
+                label="По"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+              />
+              <div class="d-flex justify-end mt-2">
+                <v-btn variant="text" size="small" :disabled="!dateFrom && !dateTo" @click="dateFrom = ''; dateTo = ''">
+                  Сбросить
+                </v-btn>
+              </div>
+            </v-card>
+          </v-menu>
+        </template>
+
         <!-- Фильтр «Система» встроен в заголовок столбца (воронка) -->
         <template #header.partner_source="{ column }">
           <v-menu :close-on-content-click="true">
@@ -175,7 +215,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { config } from '@/config/env';
@@ -230,6 +270,18 @@ const offset = ref(0);
 const loading = ref(false);
 const sourceFilter = ref('');
 const verifyFilter = ref('');
+const dateFrom = ref(''); // YYYY-MM-DD; пусто = без нижней границы
+const dateTo = ref('');   // YYYY-MM-DD; пусто = без верхней границы
+
+// Короткая подпись активного периода для воронки в шапке «Дата».
+const dateRangeLabel = computed(() => {
+  const f = dateFrom.value ? formatDate(dateFrom.value) : '';
+  const t = dateTo.value ? formatDate(dateTo.value) : '';
+  if (f && t) return `${f}–${t}`;
+  if (f) return `с ${f}`;
+  if (t) return `по ${t}`;
+  return '';
+});
 
 const reviewCount = ref(0);
 const reviewAtRisk = ref('0.00');
@@ -256,6 +308,8 @@ async function loadRows() {
     const params: Record<string, any> = { limit: limit.value, offset: offset.value };
     if (sourceFilter.value) params.source = sourceFilter.value;
     if (verifyFilter.value) params.verify_status = verifyFilter.value;
+    if (dateFrom.value) params.start_date = dateFrom.value;
+    if (dateTo.value) params.end_date = dateTo.value;
     const r = await axios.get(`${config.apiBaseUrl}/auth/partner-snapshots/list`, {
       headers: authHeaders(),
       params,
@@ -299,7 +353,7 @@ function prevPage() {
   }
 }
 
-watch([sourceFilter, verifyFilter], () => {
+watch([sourceFilter, verifyFilter, dateFrom, dateTo], () => {
   offset.value = 0;
   loadRows();
 });
