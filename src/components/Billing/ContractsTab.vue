@@ -241,8 +241,10 @@
                   <div class="text-body-2">
                     {{ getPartnerContractPeriod(item) }}
                   </div>
-                  <div class="text-caption" style="color: #9c27b0;">
-                    Пролонгация
+                  <!-- Caption «Пролонгация» убран: рисовался всегда, вводил в заблуждение
+                       (auto-renew/expire логики нет). Период-текст самодостаточен (бессрочно/даты). -->
+                  <div v-if="!item.end_date" class="text-caption text-medium-emphasis">
+                    Бессрочно
                   </div>
                 </div>
                 <!-- Если нет активных подписок, не показываем период -->
@@ -2673,47 +2675,40 @@ const getPeriodText = (contract: Contract): string => {
 
 // Получение периода для партнерского договора
 const getPartnerContractPeriod = (contract: Contract): string => {
-  // Если период установлен в базе, используем его
-  if (contract.start_date && contract.end_date) {
-    return formatPeriod(contract.start_date, contract.end_date);
+  // Реальные даты договора. end_date NULL = бессрочно (новая модель: партнёр биллится
+  // до явного закрытия; фейк-дефолт «от создания до конца года» убран — он рисовал
+  // неверный период, игнорируя заданный start_date при пустом end_date).
+  if (contract.start_date) {
+    if (contract.end_date) {
+      return formatPeriod(contract.start_date, contract.end_date);
+    }
+    // end NULL → бессрочно. «(бессрочно)» не дублируем — это в caption под периодом.
+    return `с ${formatDate(contract.start_date)}`;
   }
-  
-  // Иначе рассчитываем автоматически: от даты создания до конца текущего года
-  const startDate = contract.created_at ? new Date(contract.created_at) : new Date();
-  const endOfYear = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
-  
-  const startStr = startDate.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const endStr = endOfYear.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  
-  return `${startStr} - ${endStr}`;
+  if (contract.end_date) {
+    return `до ${formatDate(contract.end_date)}`;
+  }
+  return 'Не указан';
 };
 
 const getPeriodTooltipText = (contract: Contract): string => {
-  // Для партнерских договоров - специальный текст
+  // Партнёрский договор: end_date NULL = бессрочно (биллится до явного закрытия).
   if (contract.contract_type === 'partner') {
+    const startTxt = contract.start_date ? ` Начало: ${formatDate(contract.start_date)}.` : '';
+    if (!contract.end_date) {
+      return `Бессрочный партнёрский договор — биллится до явного закрытия (снимки активности × тариф).${startTxt}`;
+    }
+    const endDate = new Date(contract.end_date);
+    if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
+      return `Бессрочный партнёрский договор — биллится до явного закрытия.${startTxt}`;
+    }
     const now = new Date();
-    let endDate: Date;
-    
-    // Если период установлен в базе, используем его
-    if (contract.end_date) {
-      endDate = new Date(contract.end_date);
-      if (isNaN(endDate.getTime()) || endDate.getFullYear() === 1970) {
-        // Если дата невалидна, рассчитываем до конца текущего года
-        const startDate = contract.created_at ? new Date(contract.created_at) : now;
-        endDate = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
-      }
-    } else {
-      // Если период не установлен, рассчитываем до конца текущего года
-      const startDate = contract.created_at ? new Date(contract.created_at) : now;
-      endDate = new Date(startDate.getFullYear(), 11, 31); // 31 декабря
-    }
-    
     const days = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const endTxt = formatDate(contract.end_date);
     if (days > 0) {
-      return `Партнерский договор действует до конца года (${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}). Автоматическая пролонгация включена.`;
-    } else {
-      return `Партнерский договор с автоматической пролонгацией на следующий год.`;
+      return `Партнёрский договор действует до ${endTxt} (${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}).${startTxt}`;
     }
+    return `Партнёрский договор истёк ${endTxt} — биллинг остановлен.${startTxt}`;
   }
   
   // Если дата окончания не указана или невалидна
