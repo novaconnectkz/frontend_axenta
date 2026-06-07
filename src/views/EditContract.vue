@@ -113,50 +113,24 @@
                 </v-select>
               </v-col>
 
-              <!-- Поле для выбора учетной записи партнера (только для партнерских договоров) -->
+              <!-- Учётная запись партнёра — READ-ONLY при редактировании. Партнёр (субъект
+                   биллинга) после создания не меняется: смена = другой контрагент/история
+                   снимков. Старый пикер был axenta-only (partner_company_id) → для wialon/skif/
+                   gelios поле пустело и required блокировал сохранение. Показываем текущего. -->
               <v-col v-if="form.contract_type === CONTRACT_TYPES.PARTNER" cols="12" md="8">
-                <label class="apple-input-label">Учетная запись партнера <span class="apple-input-required">*</span></label>
-                <v-autocomplete
-                  v-model="form.partner_company_id"
-                  :items="partnerCompanyOptions"
-                  :loading="loadingCompanies"
-                  variant="outlined"
-                  density="compact"
-                  :rules="form.contract_type === CONTRACT_TYPES.PARTNER ? [rules.required] : []"
-                  required
+                <label class="apple-input-label">Учетная запись партнера</label>
+                <AppleInput
+                  :model-value="form.client_name || '—'"
+                  readonly
                   hide-details="auto"
-                  clearable
-                  no-data-text="Партнерские компании не найдены"
-                  placeholder="Начните вводить название компании..."
-                >
-                  <template #append-inner>
-                    <v-tooltip location="top" :open-on-hover="true">
-                      <template #activator="{ props }">
-                        <v-icon
-                          v-bind="props"
-                          icon="mdi-information-outline"
-                          color="primary"
-                          size="20"
-                          class="cursor-help"
-                          style="margin-right: 8px;"
-                        />
-                      </template>
-                      <div style="max-width: 320px; padding: 4px;">
-                        <div class="text-body-2 font-weight-medium mb-2">
-                          Учетная запись партнера
-                        </div>
-                        <div class="text-caption">
-                          Выберите учетную запись партнера. Все активные объекты из этой учетной записи будут автоматически тарифицироваться по выбранному тарифному плану.
-                        </div>
-                      </div>
-                    </v-tooltip>
-                  </template>
-                </v-autocomplete>
+                />
+                <div class="text-caption text-medium-emphasis mt-1">Привязка партнёра не меняется при редактировании. Для смены — создайте новый договор.</div>
               </v-col>
             </v-row>
 
-            <!-- Тарифный план для партнерского договора -->
-            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+            <!-- Тарифный план + срок партнёрского договора. align="start" — ровняем по верху
+                 (даты с подсказкой выше тарифа). start_date бэкдейт → история снимков. -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2" align="start">
               <v-col cols="12" md="6">
                 <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
                 <v-select
@@ -194,6 +168,25 @@
                     </v-tooltip>
                   </template>
                 </v-select>
+              </v-col>
+
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Дата начала</label>
+                <AppleInput
+                  v-model="form.start_date"
+                  type="date"
+                  hide-details="auto"
+                />
+                <div class="text-caption text-medium-emphasis mt-1">Бэкдейт → история снимков с этой даты</div>
+              </v-col>
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Дата окончания</label>
+                <AppleInput
+                  v-model="form.end_date"
+                  type="date"
+                  hide-details="auto"
+                />
+                <div class="text-caption text-medium-emphasis mt-1">Пусто = бессрочно</div>
               </v-col>
             </v-row>
 
@@ -1214,6 +1207,9 @@ const loadContract = async () => {
       client_bank_account: contract.client_bank_account || '',
       client_bank_recipient: contract.client_bank_recipient || '',
       tariff_plan_id: contract.tariff_plan_id || undefined,
+      // даты для date-инпутов: ISO из BE → YYYY-MM-DD
+      start_date: contract.start_date ? String(contract.start_date).slice(0, 10) : undefined,
+      end_date: contract.end_date ? String(contract.end_date).slice(0, 10) : undefined,
       discount_type: contract.discount_type || 'none',
       manual_discount_percent: contract.manual_discount_percent || 0,
       manual_discount_fixed: contract.manual_discount_fixed || 0,
@@ -1311,6 +1307,17 @@ const saveContract = async () => {
       manual_discount_fixed: form.value.manual_discount_fixed || 0,
       status: form.value.status || 'draft',
     };
+
+    // Срок партнёрского договора. BE UpdateContract биндит models.Contract (time.Time) →
+    // шлём RFC3339 (UTC-полночь). Не передаём → GORM Updates пропускает zero, дата не меняется.
+    if (form.value.contract_type === CONTRACT_TYPES.PARTNER) {
+      if (form.value.start_date) {
+        contractData.start_date = new Date(form.value.start_date + 'T00:00:00Z').toISOString();
+      }
+      if (form.value.end_date) {
+        contractData.end_date = new Date(form.value.end_date + 'T23:59:59Z').toISOString();
+      }
+    }
 
     // Менеджера шлём только если можем назначать (BE игнорирует для не-admin) —
     // иначе не-admin не должен слать null и обнулять чужое назначение.
