@@ -227,8 +227,8 @@
         </template>
       </v-data-table>
 
-      <!-- Низ: очередь + обновить + пагинация -->
-      <div class="d-flex align-center mt-2 gap-2">
+      <!-- Низ: очередь + обновить + пагинация (стиль страницы «Учётные записи») -->
+      <div class="compact-pagination">
         <v-chip v-if="reviewCount > 0" color="warning" variant="tonal" size="small">
           На проверке: {{ reviewCount }} · ₽ под риском: {{ reviewAtRisk }}
         </v-chip>
@@ -245,10 +245,23 @@
         </v-btn>
         <v-btn icon="mdi-refresh" variant="text" size="small" :loading="loading" @click="reload" />
         <v-spacer />
-        <span class="text-caption text-medium-emphasis">Всего: {{ total }}</span>
-        <v-btn icon="mdi-chevron-left" variant="text" size="small" :disabled="offset === 0 || loading" @click="prevPage" />
-        <span class="text-caption">{{ offset + 1 }}–{{ Math.min(offset + limit, total) }}</span>
-        <v-btn icon="mdi-chevron-right" variant="text" size="small" :disabled="offset + limit >= total || loading" @click="nextPage" />
+        <v-select
+          :model-value="limit"
+          :items="itemsPerPageOptions"
+          variant="outlined"
+          density="compact"
+          class="items-select"
+          hide-details
+          @update:model-value="onItemsPerPageChange"
+        />
+        <span class="range-info">{{ displayRange }} из {{ total }}</span>
+        <div class="nav-controls">
+          <v-btn icon="mdi-page-first" variant="text" size="x-small" :disabled="currentPage === 1 || loading" title="Первая" @click="goToFirstPage" />
+          <v-btn icon="mdi-chevron-left" variant="text" size="x-small" :disabled="currentPage === 1 || loading" title="Предыдущая" @click="prevPage" />
+          <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+          <v-btn icon="mdi-chevron-right" variant="text" size="x-small" :disabled="currentPage === totalPages || loading" title="Следующая" @click="nextPage" />
+          <v-btn icon="mdi-page-last" variant="text" size="x-small" :disabled="currentPage === totalPages || loading" title="Последняя" @click="goToLastPage" />
+        </div>
       </div>
     </v-card-text>
 
@@ -486,6 +499,38 @@ function prevPage() {
   }
 }
 
+// Пагинация в стиле страницы «Учётные записи» (select + X–Y из N + first/prev/next/last).
+const itemsPerPageOptions = [
+  { value: 5, title: '5' },
+  { value: 10, title: '10' },
+  { value: 25, title: '25' },
+  { value: 50, title: '50' },
+  { value: 75, title: '75' },
+  { value: 100, title: '100' },
+  { value: 150, title: '150' },
+];
+const currentPage = computed(() => Math.floor(offset.value / limit.value) + 1);
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)));
+const displayRange = computed(() =>
+  total.value === 0 ? '0–0' : `${offset.value + 1}–${Math.min(offset.value + limit.value, total.value)}`
+);
+function goToFirstPage() {
+  if (offset.value === 0) return;
+  offset.value = 0;
+  loadRows();
+}
+function goToLastPage() {
+  const last = (totalPages.value - 1) * limit.value;
+  if (offset.value === last) return;
+  offset.value = last;
+  loadRows();
+}
+function onItemsPerPageChange(v: number) {
+  limit.value = v;
+  offset.value = 0;
+  loadRows();
+}
+
 // Текстовый поиск «Договор» — с дебаунсом (не дёргать запрос на каждый символ).
 let cqTimer: ReturnType<typeof setTimeout> | null = null;
 watch(contractQuery, () => {
@@ -660,5 +705,98 @@ onMounted(reload);
 .no-contract-link:hover {
   text-decoration: underline solid;
   filter: brightness(0.9);
+}
+
+/* Пагинация 1:1 со страницей «Учётные записи» (AccountsTable.compact-pagination) */
+.compact-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 14px 20px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  min-height: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-top: 8px;
+}
+.items-select {
+  min-width: 60px !important;
+  width: fit-content !important;
+  max-width: 120px !important;
+  flex-shrink: 0;
+  height: 40px;
+}
+.items-select :deep(.v-field) {
+  min-width: 50px !important;
+  width: auto !important;
+}
+.items-select :deep(.v-field__input) {
+  min-width: 0 !important;
+  width: auto !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+.items-select :deep(.v-field__append-inner) {
+  padding-left: 4px !important;
+}
+.items-select :deep(.v-select__selection) {
+  max-width: none !important;
+  min-width: 0 !important;
+}
+.range-info {
+  font-size: 0.9rem;
+  color: #555;
+  flex-shrink: 0;
+  min-width: 120px;
+  text-align: center;
+  font-weight: 600;
+  padding: 8px 12px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+.nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 4px;
+  background-color: #f0f0f0;
+  border-radius: 6px;
+}
+.page-info {
+  font-size: 0.9rem;
+  color: #555;
+  font-weight: 700;
+  min-width: 50px;
+  text-align: center;
+  padding: 8px 12px;
+  background-color: #e8e8e8;
+  border-radius: 6px;
+}
+.nav-controls .v-btn {
+  min-width: 32px !important;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: white;
+  border: 1px solid #ddd;
+}
+[data-theme="dark"] .compact-pagination {
+  background-color: #1e1e1e;
+}
+[data-theme="dark"] .range-info,
+[data-theme="dark"] .nav-controls {
+  background-color: #2a2a2a;
+  color: #ddd;
+}
+[data-theme="dark"] .page-info {
+  background-color: #333;
+  color: #eee;
+}
+[data-theme="dark"] .nav-controls .v-btn {
+  background-color: #2a2a2a;
+  border-color: #444;
 }
 </style>
