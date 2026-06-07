@@ -1947,9 +1947,21 @@ const loadCompanies = async () => {
         };
       });
 
-    partnerCompanies.value = [...axentaItems, ...otherItems];
+    // Дедуп по составному ключу source|connectionId|externalId: /unified/accounts может
+    // вернуть одного партнёра несколько раз (напр. Wialon — несколько user_id резолвятся
+    // в один bact-ресурс). Первое вхождение выигрывает. axenta vs не-axenta не коллизят
+    // (префикс source различается), дедуп гасит дубли внутри одного источника.
+    const seenKeys = new Set<string>();
+    const dedupedPartners: PartnerOption[] = [];
+    for (const item of [...axentaItems, ...otherItems]) {
+      if (seenKeys.has(item.key)) continue;
+      seenKeys.add(item.key);
+      dedupedPartners.push(item);
+    }
+    const dupCount = axentaItems.length + otherItems.length - dedupedPartners.length;
+    partnerCompanies.value = dedupedPartners;
     console.log('🎯 Партнёров в дропдауне:', partnerCompanies.value.length,
-      '(axenta:', axentaItems.length, 'др:', otherItems.length, ')');
+      '(axenta:', axentaItems.length, 'др:', otherItems.length, 'дублей убрано:', dupCount, ')');
   } catch (error) {
     console.error('Error loading companies:', error);
     showSnackbarMessage('Ошибка загрузки партнерских компаний', 'error');
