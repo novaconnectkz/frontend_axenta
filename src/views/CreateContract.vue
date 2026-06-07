@@ -294,6 +294,27 @@
                   </template>
                 </v-select>
               </v-col>
+
+              <!-- Срок партнёрского договора. start_date нужен для бэкдейта (история снимков
+                   с этой даты через get_statistics). end_date пусто = бессрочно; задан → энфорс. -->
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Дата начала</label>
+                <AppleInput
+                  v-model="form.start_date"
+                  type="date"
+                  hide-details="auto"
+                />
+                <div class="text-caption text-medium-emphasis mt-1">Бэкдейт → история снимков с этой даты</div>
+              </v-col>
+              <v-col cols="12" md="3">
+                <label class="apple-input-label">Дата окончания</label>
+                <AppleInput
+                  v-model="form.end_date"
+                  type="date"
+                  hide-details="auto"
+                />
+                <div class="text-caption text-medium-emphasis mt-1">Пусто = бессрочно</div>
+              </v-col>
             </v-row>
 
             <!-- Настройка скидок для партнерского договора -->
