@@ -255,7 +255,9 @@
             </v-row>
 
             <!-- Тарифный план для партнерского договора -->
-            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2">
+            <!-- align="start": колонки ровняем по ВЕРХУ. Даты с подсказкой выше тарифа →
+                 дефолтный flex-end разъезжал верх (тариф проваливался вниз). -->
+            <v-row v-if="form.contract_type === CONTRACT_TYPES.PARTNER" class="mt-2" align="start">
               <v-col cols="12" md="6">
                 <label class="apple-input-label">Тарифный план <span class="apple-input-required">*</span></label>
                 <v-select
