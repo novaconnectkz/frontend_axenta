@@ -106,11 +106,17 @@
           {{ formatDate(item.snapshot_date) }}
         </template>
         <template #item.partner_source="{ item }">
-          <v-tooltip :text="getSourceLabel(item.partner_source)" location="top">
-            <template #activator="{ props }">
-              <v-icon v-bind="props" :color="getSourceColor(item.partner_source)" size="22">{{ getSourceIcon(item.partner_source) }}</v-icon>
-            </template>
-          </v-tooltip>
+          <div class="d-flex align-center" style="gap: 6px">
+            <v-tooltip :text="getSourceLabel(item.partner_source)" location="top">
+              <template #activator="{ props }">
+                <v-icon v-bind="props" :color="getSourceColor(item.partner_source)" size="22">{{ getSourceIcon(item.partner_source) }}</v-icon>
+              </template>
+            </v-tooltip>
+            <!-- Сервис подключения (glomoskz/glomosuz/…) — чтобы не путать аккаунты под одним источником -->
+            <span v-if="item.connection_name" class="text-caption text-medium-emphasis text-truncate" style="max-width: 130px" :title="item.connection_name">
+              {{ item.connection_name }}
+            </span>
+          </div>
         </template>
         <!-- «Договор» → воронка-фильтр (поиск по номеру договора или имени партнёра) -->
         <template #header.contract_id>
@@ -220,6 +226,33 @@
                 />
               </template>
             </v-tooltip>
+            <!-- Скрыть/вернуть дилера-ориентир (только без договора) -->
+            <v-tooltip v-if="!item.contract_id && !item.is_hidden" text="Скрыть дилера из справочника (все даты)" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-eye-off-outline"
+                  size="x-small"
+                  variant="text"
+                  color="grey"
+                  :loading="hidingId === item.id"
+                  @click="hideDealer(item)"
+                />
+              </template>
+            </v-tooltip>
+            <v-tooltip v-if="!item.contract_id && item.is_hidden" text="Вернуть дилера в справочник" location="top">
+              <template #activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-eye-outline"
+                  size="x-small"
+                  variant="text"
+                  color="primary"
+                  :loading="hidingId === item.id"
+                  @click="unhideDealer(item)"
+                />
+              </template>
+            </v-tooltip>
           </div>
         </template>
         <template #no-data>
@@ -244,6 +277,17 @@
           Подтвердить всё
         </v-btn>
         <v-btn icon="mdi-refresh" variant="text" size="small" :loading="loading" @click="reload" />
+        <!-- Показать/спрятать скрытые дилеры-ориентиры -->
+        <v-btn
+          :variant="showHidden ? 'tonal' : 'text'"
+          :color="showHidden ? 'primary' : undefined"
+          size="small"
+          :prepend-icon="showHidden ? 'mdi-eye' : 'mdi-eye-off'"
+          :title="showHidden ? 'Скрытые показаны (приглушены)' : 'Показать скрытые дилеры-ориентиры'"
+          @click="toggleHidden"
+        >
+          {{ showHidden ? 'Скрытые показаны' : 'Показать скрытые' }}
+        </v-btn>
         <v-spacer />
         <v-select
           :model-value="limit"
@@ -362,6 +406,8 @@ interface PartnerSnapshot {
   id: number;
   snapshot_date: string;
   partner_source: string;
+  connection_id: number;
+  connection_name?: string; // сервис подключения (glomoskz/glomosuz/…), резолвится в API
   contract_id: number;
   contract_number?: string;
   partner_external_id?: string;
@@ -372,6 +418,7 @@ interface PartnerSnapshot {
   amount_at_risk: string | number;
   verify_notes?: string;
   daily_cost: string | number;
+  is_hidden?: boolean; // дилер-ориентир скрыт (приходит при show_hidden=true)
 }
 
 const sources = [
@@ -410,6 +457,8 @@ const verifyFilter = ref('');
 const dateFrom = ref(''); // YYYY-MM-DD; пусто = без нижней границы
 const dateTo = ref('');   // YYYY-MM-DD; пусто = без верхней границы
 const contractQuery = ref(''); // поиск по «Договор»: номер или имя партнёра (BE-параметр q)
+const showHidden = ref(false); // показывать скрытые дилеры-ориентиры (BE-параметр show_hidden)
+const hidingId = ref<number | null>(null); // id строки в процессе скрытия/возврата (спиннер)
 
 // Короткая подпись активного периода для воронки в шапке «Дата».
 const dateRangeLabel = computed(() => {
@@ -456,6 +505,7 @@ async function loadRows() {
     if (contractQuery.value.trim()) params.q = contractQuery.value.trim();
     if (dateFrom.value) params.start_date = dateFrom.value;
     if (dateTo.value) params.end_date = dateTo.value;
+    if (showHidden.value) params.show_hidden = 'true';
     const r = await axios.get(`${config.apiBaseUrl}/auth/partner-snapshots/list`, {
       headers: authHeaders(),
       params,
@@ -606,6 +656,48 @@ async function confirmBulkApprove() {
   }
 }
 
+// Скрытие/возврат дилера-ориентира (contract_id=0). Скрывает дилера ЦЕЛИКОМ (все даты) —
+// BE ключует по source+connection_id+external_id. Договорные строки кнопок не имеют.
+async function hideDealer(item: PartnerSnapshot) {
+  hidingId.value = item.id;
+  try {
+    await axios.post(
+      `${config.apiBaseUrl}/auth/partner-snapshots/hide-dealer`,
+      { source: item.partner_source, connection_id: item.connection_id, external_id: item.partner_external_id },
+      { headers: authHeaders() }
+    );
+    showSnack('Дилер скрыт из справочника', 'success');
+    reload();
+  } catch (e: any) {
+    showSnack(e?.response?.data?.error || 'Ошибка скрытия', 'error');
+  } finally {
+    hidingId.value = null;
+  }
+}
+
+async function unhideDealer(item: PartnerSnapshot) {
+  hidingId.value = item.id;
+  try {
+    await axios.post(
+      `${config.apiBaseUrl}/auth/partner-snapshots/unhide-dealer`,
+      { source: item.partner_source, connection_id: item.connection_id, external_id: item.partner_external_id },
+      { headers: authHeaders() }
+    );
+    showSnack('Дилер возвращён в справочник', 'success');
+    reload();
+  } catch (e: any) {
+    showSnack(e?.response?.data?.error || 'Ошибка возврата', 'error');
+  } finally {
+    hidingId.value = null;
+  }
+}
+
+function toggleHidden() {
+  showHidden.value = !showHidden.value;
+  offset.value = 0;
+  loadRows();
+}
+
 function showSnack(text: string, color: string) {
   snackbarText.value = text;
   snackbarColor.value = color;
@@ -615,9 +707,12 @@ function showSnack(text: string, color: string) {
 function labelOf(opts: { value: string; label: string }[], val: string) {
   return opts.find((o) => o.value === val)?.label || val;
 }
-// Подсветка строк «без договора» — привлекает внимание админа (аккаунт без оформленного договора).
+// Подсветка строк «без договора» (внимание админа) + приглушение скрытых дилеров (при show_hidden).
 function rowProps({ item }: { item: PartnerSnapshot }) {
-  return item.contract_id ? {} : { class: 'row-no-contract' };
+  const classes: string[] = [];
+  if (!item.contract_id) classes.push('row-no-contract');
+  if (item.is_hidden) classes.push('row-hidden-dealer');
+  return classes.length ? { class: classes.join(' ') } : {};
 }
 function ownerLabel(item: PartnerSnapshot) {
   if (item.partner_name) return item.partner_name;
@@ -681,14 +776,19 @@ onMounted(reload);
   color: rgb(var(--v-theme-primary));
 }
 /* «без договора» — подсветка для внимания админа. Фон на td с !important:
-   tr-фон перекрывается фоном ячеек в v-data-table. */
-.row-no-contract > td {
+   tr-фон перекрывается фоном ячеек в v-data-table. :deep() — строки v-data-table
+   рендерит Vuetify (вне scope этого компонента), без :deep scoped-селектор их не цепляет. */
+:deep(.row-no-contract > td) {
   background-color: rgba(255, 152, 0, 0.13) !important;
 }
-.row-no-contract:hover > td {
+/* Скрытый дилер-ориентир (виден только при «Показать скрытые») — приглушён. */
+:deep(.row-hidden-dealer > td) {
+  opacity: 0.5;
+}
+:deep(.row-no-contract:hover > td) {
   background-color: rgba(255, 152, 0, 0.22) !important;
 }
-.row-no-contract > td:first-child {
+:deep(.row-no-contract > td:first-child) {
   border-left: 3px solid rgb(var(--v-theme-warning));
 }
 /* «без договора» как кликабельная ссылка → создание договора */
