@@ -232,6 +232,17 @@
         <v-chip v-if="reviewCount > 0" color="warning" variant="tonal" size="small">
           На проверке: {{ reviewCount }} · ₽ под риском: {{ reviewAtRisk }}
         </v-chip>
+        <v-btn
+          v-if="reviewCount > 0"
+          color="success"
+          variant="tonal"
+          size="small"
+          prepend-icon="mdi-check-all"
+          :loading="bulkApproving"
+          @click="openBulkApprove"
+        >
+          Подтвердить всё
+        </v-btn>
         <v-btn icon="mdi-refresh" variant="text" size="small" :loading="loading" @click="reload" />
         <v-spacer />
         <span class="text-caption text-medium-emphasis">Всего: {{ total }}</span>
@@ -269,6 +280,42 @@
           <v-spacer />
           <v-btn variant="text" @click="approveDialog = false">Отмена</v-btn>
           <v-btn color="success" :loading="approving" @click="confirmApprove">Подтвердить</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Массовое подтверждение всех заблокированных по текущим фильтрам -->
+    <v-dialog v-model="bulkDialog" max-width="520">
+      <v-card>
+        <v-card-title>Подтвердить всё «на проверке»</v-card-title>
+        <v-card-text>
+          <p class="text-body-2 mb-2">
+            Подтвердит ВСЕ снимки «оценка/на проверке» по текущим фильтрам:
+            <template v-if="sourceFilter"> источник <b>{{ labelOf(sources, sourceFilter) }}</b>;</template>
+            <template v-if="contractQuery"> «<b>{{ contractQuery }}</b>»;</template>
+            <template v-if="dateFrom || dateTo"> период <b>{{ dateRangeLabel }}</b>;</template>
+            <template v-if="!sourceFilter && !contractQuery && !dateFrom && !dateTo"> <b>без фильтров — ВСЕ заблокированные снимки тенанта</b>;</template>
+          </p>
+          <p class="text-caption text-medium-emphasis mb-3">
+            Подтверждённые включатся в биллинг и заморозятся (ночной пересчёт не трогает).
+            Статус-фильтр игнорируется — всегда только needs_review/estimated.
+          </p>
+          <v-textarea
+            v-model="bulkComment"
+            label="Комментарий (зачем подтверждаем)"
+            rows="2"
+            variant="outlined"
+            density="compact"
+            auto-grow
+          />
+          <p class="text-caption text-warning">
+            На проверке сейчас: {{ reviewCount }} · ₽ под риском: {{ reviewAtRisk }}
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="bulkDialog = false">Отмена</v-btn>
+          <v-btn color="success" :loading="bulkApproving" @click="confirmBulkApprove">Подтвердить всё</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -475,6 +522,42 @@ async function confirmApprove() {
     showSnack(e?.response?.data?.error || 'Ошибка подтверждения', 'error');
   } finally {
     approving.value = false;
+  }
+}
+
+// Массовое подтверждение: те же фильтры что в списке (source/q/период), BE форсит
+// needs_review/estimated. Без фильтров — все заблокированные тенанта (диалог предупреждает).
+const bulkDialog = ref(false);
+const bulkApproving = ref(false);
+const bulkComment = ref('');
+
+function openBulkApprove() {
+  bulkComment.value = '';
+  bulkDialog.value = true;
+}
+
+async function confirmBulkApprove() {
+  bulkApproving.value = true;
+  try {
+    const body: Record<string, any> = { comment: bulkComment.value };
+    if (sourceFilter.value) body.source = sourceFilter.value;
+    if (contractQuery.value.trim()) body.q = contractQuery.value.trim();
+    if (dateFrom.value) body.start_date = dateFrom.value;
+    if (dateTo.value) body.end_date = dateTo.value;
+    // Нет фильтров → явное согласие на тенант-wide (BE требует approve_all, диалог предупредил).
+    if (!body.source && !body.q && !body.start_date && !body.end_date) body.approve_all = true;
+    const r = await axios.post(
+      `${config.apiBaseUrl}/auth/partner-snapshots/approve-bulk`,
+      body,
+      { headers: authHeaders() }
+    );
+    showSnack(r.data.message || 'Снимки подтверждены', 'success');
+    bulkDialog.value = false;
+    reload();
+  } catch (e: any) {
+    showSnack(e?.response?.data?.error || 'Ошибка массового подтверждения', 'error');
+  } finally {
+    bulkApproving.value = false;
   }
 }
 
